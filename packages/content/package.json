@@ -1,0 +1,16 @@
+{
+  "name": "@stella/content",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "コンテンツのデータ（JSON）と、その読み込み",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json"
+  },
+  "dependencies": {
+    "@stella/core": "workspace:*"
+  }
+}
