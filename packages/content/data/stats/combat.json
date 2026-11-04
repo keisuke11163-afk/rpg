@@ -109,5 +109,40 @@
     "unit": "ratio",
     "baseCap": 0.75,
     "capLimit": 0.9
+  },
+  {
+    "id": "STAT-AILMENT-CHANCE",
+    "text": "stat.ailment-chance",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-AILMENT-DAMAGE",
+    "text": "stat.ailment-damage",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-AILMENT-DURATION",
+    "text": "stat.ailment-duration",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-AILMENT-MAX-STACKS",
+    "text": "stat.ailment-max-stacks",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-STAGGER",
+    "text": "stat.stagger",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-STAGGER-RESIST",
+    "text": "stat.stagger-resist",
+    "unit": "ratio",
+    "min": 0,
+    "baseCap": 1
   }
 ]

@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { type AilmentDef, ailmentSchema } from "./ailment.ts";
 import {
   type EffectDef,
   MORE_ALLOWED_ORIGINS,
@@ -27,6 +28,8 @@ export interface RawContent {
     readonly tags: readonly RawSource[];
     readonly stats: readonly RawSource[];
     readonly effects: readonly RawSource[];
+    /** 状態異常の定義（省略すると無し）。 */
+    readonly ailments?: readonly RawSource[];
   };
 }
 
@@ -66,6 +69,9 @@ export interface ContentDb {
   readonly tags: ReadonlyMap<string, TagDef>;
   readonly stats: ReadonlyMap<string, StatDef>;
   readonly effects: ReadonlyMap<string, EffectDef>;
+  readonly ailments: ReadonlyMap<string, AilmentDef>;
+  /** 状態異常のタグのID → 定義。 */
+  readonly ailmentsByTag: ReadonlyMap<string, AilmentDef>;
 }
 
 export type LoadResult =
@@ -164,10 +170,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const tags = parseAll(raw.collections.tags, tagSchema);
   const stats = parseAll(raw.collections.stats, statSchema);
   const effects = parseAll(raw.collections.effects, effectSchema);
+  const ailments = parseAll(raw.collections.ailments ?? [], ailmentSchema);
 
   // 3. IDの重複（全てのコレクションを通して）
   const seen = new Map<string, string>();
-  const all: Located<{ id: string }>[] = [...tags, ...stats, ...effects];
+  const all: Located<{ id: string }>[] = [...tags, ...stats, ...effects, ...ailments];
   for (const { value, file } of all) {
     const prev = seen.get(value.id);
     if (prev !== undefined) {
@@ -435,9 +442,44 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
   }
 
+  // 7. 状態異常：タグの参照と、1つのタグに1つの定義
+  const ailmentsByTag = new Map<string, AilmentDef>();
+  for (const { value: ailment, file } of ailments) {
+    const tag = tagMap.get(ailment.tag);
+    if (tag === undefined) {
+      if (!invalidIds.has(ailment.tag)) {
+        err({
+          code: "unknown-ref",
+          file,
+          id: ailment.id,
+          path: "tag",
+          message: `タグ ${ailment.tag} がない`,
+        });
+      }
+    } else if (tag.category !== "ailment") {
+      err({
+        code: "schema",
+        file,
+        id: ailment.id,
+        path: "tag",
+        message: `${ailment.tag} は状態異常のタグではない`,
+      });
+    } else if (ailmentsByTag.has(ailment.tag)) {
+      err({
+        code: "duplicate-id",
+        file,
+        id: ailment.id,
+        path: "tag",
+        message: `状態異常のタグ ${ailment.tag} の定義が2つある`,
+      });
+    } else {
+      ailmentsByTag.set(ailment.tag, ailment);
+    }
+  }
+
   if (errors.length > 0 || manifest === undefined) return { ok: false, errors };
 
-  // 7. 仮値の一覧
+  // 8. 仮値の一覧
   const provisional: ProvisionalEntry[] = [];
   const collect = (
     collection: string,
@@ -461,10 +503,19 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("tags", tags);
   collect("stats", stats);
   collect("effects", effects);
+  collect("ailments", ailments);
 
   return {
     ok: true,
-    content: { manifest, texts: raw.texts, tags: tagMap, stats: statMap, effects: effectMap },
+    content: {
+      manifest,
+      texts: raw.texts,
+      tags: tagMap,
+      stats: statMap,
+      effects: effectMap,
+      ailments: new Map(ailments.map((a) => [a.value.id, a.value])),
+      ailmentsByTag,
+    },
     provisional,
   };
 }

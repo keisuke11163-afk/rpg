@@ -7,7 +7,7 @@ import {
 
 /** テスト用の、小さなデータ一式を作る。足りない文章のキーは自動で用意する。 */
 export function buildDb(
-  parts: { tags?: unknown[]; stats?: unknown[]; effects?: unknown[] },
+  parts: { tags?: unknown[]; stats?: unknown[]; effects?: unknown[]; ailments?: unknown[] },
   knownHooks?: ReadonlySet<string>,
 ): ContentDb {
   const texts: Record<string, string> = {};
@@ -22,6 +22,7 @@ export function buildDb(
       tags: [{ file: "tags.json", entries: parts.tags ?? [] }],
       stats: [{ file: "stats.json", entries: parts.stats ?? [] }],
       effects: [{ file: "effects.json", entries: parts.effects ?? [] }],
+      ailments: [{ file: "ailments.json", entries: parts.ailments ?? [] }],
     },
   };
   const r = loadContent(raw, knownHooks === undefined ? {} : { knownHooks });

@@ -94,6 +94,11 @@ export interface HitResult {
   /** 属性ごとの最終の打撃値。 */
   readonly damage: Readonly<Partial<Record<Element, number>>>;
   readonly total: number;
+  /**
+   * 会心をかけた後、敵が受けるダメージの倍率・耐性・防御をかける前の打撃値の合計。
+   * 崩し値の元にする（仕様書v0.2 2.7「打撃値（全属性の合計・防御の前）」）。
+   */
+  readonly preMitigationTotal: number;
   /** 属性ごとの基準値（状態異常の強さの元。会心・倍率・耐性・防御を含まない。仕様書v0.2 2.7）。 */
   readonly ailmentBase: Readonly<Partial<Record<Element, number>>>;
   readonly hitChance: number;
@@ -322,6 +327,7 @@ export function computeHit(
   const crit = !evaded && (average ? false : critRoll < critChance);
   const damage: Partial<Record<Element, number>> = {};
   let total = 0;
+  let preMitigationTotal = 0;
   if (!evaded) {
     const taken = defender.takenMultiplier ?? 1;
     const guard = Math.min(1, Math.max(0, defender.guard ?? 0));
@@ -329,8 +335,9 @@ export function computeHit(
       const amount = hit.amounts[element];
       if (amount === undefined || amount <= 0) continue;
       // 4. 会心 → 敵が受けるダメージの倍率 → 耐性 → 防御
-      let value =
-        amount * (crit ? critMultiplier : 1) * taken * (1 - (defender.resist?.[element] ?? 0));
+      const afterCrit = amount * (crit ? critMultiplier : 1);
+      preMitigationTotal += afterCrit;
+      let value = afterCrit * taken * (1 - (defender.resist?.[element] ?? 0));
       if (element === "physical") value *= 1 - armorReduction(defender.armor ?? 0, value);
       value *= 1 - guard;
       value = Math.max(0, value);
@@ -344,6 +351,7 @@ export function computeHit(
     crit,
     damage,
     total,
+    preMitigationTotal,
     ailmentBase: evaded ? {} : ailmentBase,
     hitChance: chanceToHit,
     critChance,

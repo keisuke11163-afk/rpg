@@ -39,7 +39,7 @@ if (problems.length > 0) {
 
 const c = result.ok ? result.content : undefined;
 console.log(
-  `データの検証：問題なし（タグ${String(c?.tags.size ?? 0)}・能力値${String(c?.stats.size ?? 0)}・効果${String(c?.effects.size ?? 0)}、データの形の版 ${String(c?.manifest.schemaVersion)}、コンテンツの版 ${c?.manifest.contentVersion ?? "?"}）`,
+  `データの検証：問題なし（タグ${String(c?.tags.size ?? 0)}・能力値${String(c?.stats.size ?? 0)}・効果${String(c?.effects.size ?? 0)}・状態異常${String(c?.ailments.size ?? 0)}、データの形の版 ${String(c?.manifest.schemaVersion)}、コンテンツの版 ${c?.manifest.contentVersion ?? "?"}）`,
 );
 if (result.ok) {
   console.log(`仮値：${String(result.provisional.length)}件`);

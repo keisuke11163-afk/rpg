@@ -103,3 +103,25 @@ export {
   type HitOptions,
   type HitResult,
 } from "./combat/damage.ts";
+
+export {
+  type AilmentDef,
+  type DebuffAilmentDef,
+  type DotAilmentDef,
+  type StaggerAilmentDef,
+  type StaggerProfile,
+} from "./content/ailment.ts";
+export {
+  AILMENT_STATS,
+  AilmentState,
+  StaggerGauge,
+  ailmentCandidates,
+  countAilmentTypes,
+  rollAilments,
+  staggerProfiles,
+  staggerValue,
+  type AilmentApplication,
+  type AilmentCandidate,
+  type AilmentRollInput,
+  type AilmentTickTarget,
+} from "./combat/ailments.ts";
