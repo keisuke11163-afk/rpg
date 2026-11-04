@@ -100,5 +100,10 @@
   "stat.ailment-duration": "状態異常の持続",
   "stat.ailment-max-stacks": "状態異常の最大スタック",
   "stat.stagger": "崩し値",
-  "stat.stagger-resist": "崩されにくさ"
+  "stat.stagger-resist": "崩されにくさ",
+  "stat.attack-speed": "攻撃速度",
+  "stat.cast-speed": "詠唱速度",
+  "stat.mp-max": "最大MP",
+  "stat.mp-regen": "MPの回復",
+  "stat.hp-max": "最大HP"
 }
