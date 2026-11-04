@@ -147,6 +147,31 @@ describe("Rng", () => {
     }
   });
 
+  it("fromState は空要素のある配列（sparse array）を RangeError にする", () => {
+    // 空要素は forEach などで飛ばされるため、全ての位置を確かめる必要がある
+    const holes = [
+      [1, , , 1], // 途中が2つ空
+      [1, , 3, 4], // 途中が1つ空
+      [, 2, 3, 4], // 先頭が空
+      [1, 2, 3, ,], // 末尾が空（長さは4）
+      [, , , ,], // 全て空
+      new Array<number>(4), // 長さだけの配列
+    ];
+    for (const state of holes) {
+      expect(state).toHaveLength(4);
+      expect(() => Rng.fromState(state as never), label(state)).toThrow(RangeError);
+    }
+  });
+
+  it("空要素の検査を加えた後も、有効な状態は正しく復元できる", () => {
+    const a = Rng.fromSeed("sparse");
+    take(a, 7);
+    const state = [...a.getState()];
+    const b = Rng.fromState(state as unknown as [number, number, number, number]);
+    expect(b.getState()).toEqual(state);
+    expect(take(b, 20)).toEqual(take(a, 20));
+  });
+
   it("float は min 以上 max 未満。min と max が同じなら min", () => {
     const rng = Rng.fromSeed(11);
     for (let i = 0; i < 1000; i++) {

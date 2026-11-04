@@ -42,11 +42,14 @@ function validateState(state: unknown): [number, number, number, number] {
     throw new RangeError("乱数の状態は4要素の配列");
   }
   const values = state as unknown[];
-  values.forEach((v, i) => {
+  // forEach などは空要素（sparse array の穴）を飛ばすので、0〜3番目を1つずつ必ず確かめる。
+  // 空要素は undefined として読まれ、数でないので拒否される
+  for (let i = 0; i < 4; i++) {
+    const v = values[i];
     if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v >= UINT32) {
       throw new RangeError(`乱数の状態の${String(i)}番目は0以上 2^32 未満の整数（${String(v)}）`);
     }
-  });
+  }
   const [a, b, c, d] = values as [number, number, number, number];
   if (a === 0 && b === 0 && c === 0 && d === 0) {
     throw new RangeError("乱数の状態が全て0（この状態からは乱数が出ない）");
