@@ -1,0 +1,14 @@
+{
+  "name": "@stella/sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DPSシミュレーター（U-05 で実装する）",
+  "scripts": {
+    "start": "node src/index.ts"
+  },
+  "dependencies": {
+    "@stella/content": "workspace:*",
+    "@stella/core": "workspace:*"
+  }
+}

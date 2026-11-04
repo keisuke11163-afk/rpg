@@ -1,0 +1,9 @@
+{
+  // 開発用の道具（Node.js で直接動かす）
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": ["scripts", "checks", "sim/src"]
+}

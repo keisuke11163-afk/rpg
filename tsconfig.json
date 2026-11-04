@@ -1,0 +1,8 @@
+{
+  // リポジトリ直下の設定ファイル（vitest.config.ts など）の型の検査用
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

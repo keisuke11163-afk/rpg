@@ -1,0 +1,13 @@
+{
+  "name": "@stella/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ルールの中核（ブラウザの機能と Phaser に依存しない）",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json"
+  }
+}

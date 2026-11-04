@@ -1,0 +1,9 @@
+{
+  // ルールの中核：ブラウザの型（DOM）も Node.js の型も読み込まない（開発環境構築計画 3.1）
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src"]
+}
