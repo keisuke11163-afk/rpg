@@ -33,8 +33,40 @@ export {
   type ContentDb,
   type ContentError,
   type ContentErrorCode,
+  type LoadOptions,
   type LoadResult,
   type ProvisionalEntry,
   type RawContent,
   type RawSource,
 } from "./content/load.ts";
+
+export {
+  EQUIP_SLOTS,
+  FACTS,
+  FLAGS,
+  REPLACE_SLOTS,
+  type EquipSlot,
+  type FactId,
+  type FlagId,
+  type ReplaceSlot,
+} from "./content/registries.ts";
+export { type Condition } from "./content/effect.ts";
+export { TagIndex } from "./effects/tag-index.ts";
+export {
+  ModifierView,
+  evaluateEffects,
+  type ActiveBehavior,
+  type Contribution,
+  type ConversionEntry,
+  type DormantEffect,
+  type EffectInstance,
+  type EffectSource,
+  type EvaluatedEffects,
+  type EvaluationFacts,
+  type FlagResolution,
+  type FlagResult,
+  type Range,
+  type ReplacementResult,
+  type RetagEntry,
+  type StatResult,
+} from "./effects/evaluate.ts";

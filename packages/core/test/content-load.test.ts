@@ -244,3 +244,93 @@ describe("loadContent", () => {
     expect(codes(f.raw).sort()).toEqual(["duplicate-id", "forbidden-more", "schema"]);
   });
 });
+
+describe("loadContent（印・置き換え・条件）", () => {
+  const withEffects = (effects: unknown[], hooks?: ReadonlySet<string>) => {
+    const f = fixture();
+    f.effects.push(...effects);
+    (f.raw.collections.tags[0]?.entries as unknown[]).push({
+      id: "TAG-AIL-BLEED",
+      category: "ailment",
+      text: "tag.form.melee",
+    });
+    const r = loadContent(f.raw, hooks === undefined ? {} : { knownHooks: hooks });
+    return r.ok ? [] : r.errors.map((e) => e.code);
+  };
+  const eff = (id: string, extra: Record<string, unknown>) => ({
+    id,
+    origin: "unique",
+    affects: { hit: false, ailmentBase: false },
+    scope: "self",
+    ...extra,
+  });
+
+  it("状態異常の付与の印には、状態異常のタグが必要", () => {
+    expect(
+      withEffects([
+        eff("EFF-F1", {
+          modifiers: [
+            { kind: "flag", flag: "ailmentApply", mode: "force", target: "TAG-AIL-BLEED" },
+          ],
+        }),
+      ]),
+    ).toEqual([]);
+    expect(
+      withEffects([
+        eff("EFF-F2", { modifiers: [{ kind: "flag", flag: "ailmentApply", mode: "force" }] }),
+      ]),
+    ).toEqual(["schema"]);
+    expect(
+      withEffects([
+        eff("EFF-F3", {
+          modifiers: [
+            { kind: "flag", flag: "ailmentApply", mode: "force", target: "TAG-FORM-MELEE" },
+          ],
+        }),
+      ]),
+    ).toEqual(["schema"]);
+    expect(
+      withEffects([
+        eff("EFF-F4", {
+          modifiers: [{ kind: "flag", flag: "ailmentApply", mode: "force", target: "TAG-NOPE" }],
+        }),
+      ]),
+    ).toEqual(["unknown-ref"]);
+    expect(
+      withEffects([
+        eff("EFF-F5", {
+          modifiers: [{ kind: "flag", flag: "crit", mode: "forbid", target: "TAG-AIL-BLEED" }],
+        }),
+      ]),
+    ).toEqual(["schema"]);
+  });
+
+  it("置き換えの挙動は、登録されたルールフックでなければならない", () => {
+    const e = eff("EFF-R", {
+      modifiers: [{ kind: "replace", slot: "dodge", hook: "guardStance" }],
+    });
+    expect(withEffects([e])).toEqual(["unknown-hook"]);
+    expect(withEffects([e], new Set(["guardStance"]))).toEqual([]);
+  });
+
+  it("条件の参照を検証する", () => {
+    const cond = (conditions: unknown[]) =>
+      eff("EFF-C", {
+        modifiers: [{ kind: "increased", stat: "STAT-DAMAGE", value: 0.1 }],
+        conditions,
+      });
+    expect(withEffects([cond([{ type: "statAtLeast", stat: "STAT-NOPE", value: 1 }])])).toEqual([
+      "unknown-ref",
+    ]);
+    expect(withEffects([cond([{ type: "equippedTag", tag: "TAG-NOPE" }])])).toEqual([
+      "unknown-ref",
+    ]);
+    expect(withEffects([cond([{ type: "mainJob", job: "TAG-FORM-MELEE" }])])).toEqual(["schema"]);
+    expect(withEffects([cond([{ type: "factAtLeast", fact: "no.such.fact", value: 1 }])])).toEqual([
+      "schema",
+    ]);
+    expect(
+      withEffects([cond([{ type: "factAtLeast", fact: "armor.heavy.count", value: 4 }])]),
+    ).toEqual([]);
+  });
+});
