@@ -1,0 +1,72 @@
+[
+  {
+    "id": "TAG-FORM-MELEE",
+    "category": "form",
+    "text": "tag.form.melee"
+  },
+  {
+    "id": "TAG-FORM-PROJECTILE",
+    "category": "form",
+    "text": "tag.form.projectile"
+  },
+  {
+    "id": "TAG-FORM-SPELL",
+    "category": "form",
+    "text": "tag.form.spell"
+  },
+  {
+    "id": "TAG-FORM-AREA",
+    "category": "form",
+    "text": "tag.form.area"
+  },
+  {
+    "id": "TAG-FORM-DURATION",
+    "category": "form",
+    "text": "tag.form.duration"
+  },
+  {
+    "id": "TAG-FORM-SUMMON",
+    "category": "form",
+    "text": "tag.form.summon"
+  },
+  {
+    "id": "TAG-FORM-TRAP",
+    "category": "form",
+    "text": "tag.form.trap"
+  },
+  {
+    "id": "TAG-FORM-AURA",
+    "category": "form",
+    "text": "tag.form.aura"
+  },
+  {
+    "id": "TAG-FORM-WARCRY",
+    "category": "form",
+    "text": "tag.form.warcry"
+  },
+  {
+    "id": "TAG-FORM-MOVEMENT",
+    "category": "form",
+    "text": "tag.form.movement"
+  },
+  {
+    "id": "TAG-FORM-DEFENSE",
+    "category": "form",
+    "text": "tag.form.defense"
+  },
+  {
+    "id": "TAG-FORM-FINISHER",
+    "category": "form",
+    "text": "tag.form.finisher"
+  },
+  {
+    "id": "TAG-FORM-RELEASE",
+    "category": "form",
+    "text": "tag.form.release"
+  },
+  {
+    "id": "TAG-FORM-HEAVY",
+    "category": "form",
+    "text": "tag.form.heavy"
+  }
+]

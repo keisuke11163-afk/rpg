@@ -1,0 +1,136 @@
+[
+  {
+    "id": "TAG-WPNGRP-SWORD",
+    "category": "weaponGroup",
+    "text": "tag.weapon-group.sword"
+  },
+  {
+    "id": "TAG-WPNGRP-AXE",
+    "category": "weaponGroup",
+    "text": "tag.weapon-group.axe"
+  },
+  {
+    "id": "TAG-WPNGRP-MACE",
+    "category": "weaponGroup",
+    "text": "tag.weapon-group.mace"
+  },
+  {
+    "id": "TAG-WPNGRP-BOW",
+    "category": "weaponGroup",
+    "text": "tag.weapon-group.bow"
+  },
+  {
+    "id": "TAG-WPN-SWORD",
+    "category": "weapon",
+    "text": "tag.weapon.sword",
+    "parents": ["TAG-WPNGRP-SWORD"]
+  },
+  {
+    "id": "TAG-WPN-GREATSWORD",
+    "category": "weapon",
+    "text": "tag.weapon.greatsword",
+    "parents": ["TAG-WPNGRP-SWORD"]
+  },
+  {
+    "id": "TAG-WPN-AXE",
+    "category": "weapon",
+    "text": "tag.weapon.axe",
+    "parents": ["TAG-WPNGRP-AXE"]
+  },
+  {
+    "id": "TAG-WPN-GREATAXE",
+    "category": "weapon",
+    "text": "tag.weapon.greataxe",
+    "parents": ["TAG-WPNGRP-AXE"]
+  },
+  {
+    "id": "TAG-WPN-MACE",
+    "category": "weapon",
+    "text": "tag.weapon.mace",
+    "parents": ["TAG-WPNGRP-MACE"]
+  },
+  {
+    "id": "TAG-WPN-GREATMACE",
+    "category": "weapon",
+    "text": "tag.weapon.greatmace",
+    "parents": ["TAG-WPNGRP-MACE"]
+  },
+  {
+    "id": "TAG-WPN-SPEAR",
+    "category": "weapon",
+    "text": "tag.weapon.spear"
+  },
+  {
+    "id": "TAG-WPN-DAGGER",
+    "category": "weapon",
+    "text": "tag.weapon.dagger"
+  },
+  {
+    "id": "TAG-WPN-CLAW",
+    "category": "weapon",
+    "text": "tag.weapon.claw"
+  },
+  {
+    "id": "TAG-WPN-BOW",
+    "category": "weapon",
+    "text": "tag.weapon.bow",
+    "parents": ["TAG-WPNGRP-BOW"]
+  },
+  {
+    "id": "TAG-WPN-LONGBOW",
+    "category": "weapon",
+    "text": "tag.weapon.longbow",
+    "parents": ["TAG-WPNGRP-BOW"]
+  },
+  {
+    "id": "TAG-WPN-CROSSBOW",
+    "category": "weapon",
+    "text": "tag.weapon.crossbow",
+    "parents": ["TAG-WPNGRP-BOW"]
+  },
+  {
+    "id": "TAG-WPN-STAFF",
+    "category": "weapon",
+    "text": "tag.weapon.staff"
+  },
+  {
+    "id": "TAG-WPN-WAND",
+    "category": "weapon",
+    "text": "tag.weapon.wand"
+  },
+  {
+    "id": "TAG-WPN-SCEPTER",
+    "category": "weapon",
+    "text": "tag.weapon.scepter"
+  },
+  {
+    "id": "TAG-WPN-SCYTHE",
+    "category": "weapon",
+    "text": "tag.weapon.scythe"
+  },
+  {
+    "id": "TAG-WPN-SHIELD",
+    "category": "weapon",
+    "text": "tag.weapon.shield"
+  },
+  {
+    "id": "TAG-WPN-TOME",
+    "category": "weapon",
+    "text": "tag.weapon.tome"
+  },
+  {
+    "id": "TAG-WPN-BELL",
+    "category": "weapon",
+    "text": "tag.weapon.bell"
+  },
+  {
+    "id": "TAG-WPN-QUIVER",
+    "category": "weapon",
+    "text": "tag.weapon.quiver"
+  },
+  {
+    "id": "TAG-WPN-UNARMED",
+    "category": "weapon",
+    "text": "tag.weapon.unarmed"
+  }
+]
