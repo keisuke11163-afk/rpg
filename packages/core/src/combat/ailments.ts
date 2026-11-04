@@ -350,6 +350,12 @@ export class StaggerGauge {
     return true;
   }
 
+  /** すぐに崩す（激化した突進「通った敵を全て崩す」。補助仕様書3.6）。崩れている間は何もしない。 */
+  breakNow(): boolean {
+    if (this.broken) return false;
+    return this.add(Math.max(this.max - this.value, 1e-9));
+  }
+
   /** 時間を進める（崩れている時間の経過・ゲージの減少）。 */
   update(dt: number): void {
     if (!(dt >= 0)) throw new RangeError("経過時間は0以上");

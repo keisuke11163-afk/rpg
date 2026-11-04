@@ -153,8 +153,55 @@ export {
 } from "./combat/projectiles.ts";
 export {
   Combatant,
+  RECEIVED_STATS,
   resolveHit,
   type CombatantInit,
+  type ReceivedMultipliers,
   type HitInput,
   type HitReport,
 } from "./combat/combatant.ts";
+
+export {
+  AFFINITIES,
+  gaugeSchema,
+  hitShapeSchema,
+  jobSchema,
+  skillSchema,
+  type Affinity,
+  type GaugeDef,
+  type JobDef,
+  type SkillAction,
+  type SkillDef,
+  type SkillMods,
+} from "./content/job.ts";
+export { SKILL_HOOKS, SKILL_HOOK_PARAMS, type SkillHook } from "./content/hooks.ts";
+export { JobGauge, OUT_OF_COMBAT_SECONDS } from "./combat/gauge.ts";
+export { TimedEffects } from "./combat/timed-effects.ts";
+export {
+  AFFINITY_ATTACK_SPEED,
+  Cooldowns,
+  affinityAtLeast,
+  dualWieldAffinity,
+  higherAffinity,
+  lowerAffinity,
+  resolveSkill,
+  skillBlock,
+  skillUseSeconds,
+  unlockedSkills,
+  weaponAffinity,
+  type ResolvedSkill,
+  type SkillBehavior,
+  type SkillBlock,
+  type SkillContext,
+  type SkillUseState,
+} from "./combat/skills.ts";
+export {
+  LingeringZone,
+  SkillExecution,
+  pullTowards,
+  type ExecutionInput,
+  type ExecutionTick,
+  type PullPulse,
+  type Strike,
+  type WarcryPulse,
+} from "./combat/skill-execution.ts";

@@ -42,6 +42,8 @@ export interface MotionInput {
   readonly aim: Vec2;
   /** 回避の入力（押した瞬間だけ true）。 */
   readonly dodge: boolean;
+  /** 移動の速さの倍率（技を使っている間など。省略すると1）。 */
+  readonly speedMultiplier?: number;
 }
 
 /** 移動できる範囲（壁との当たり判定は U-18 で作る）。 */
@@ -95,6 +97,19 @@ export class PlayerMotion {
     this.bounds = bounds;
   }
 
+  /** 外から動かす（突進など）。動ける範囲に収める。 */
+  displace(delta: Vec2): void {
+    this.pos = this.clamp(add(this.pos, delta));
+  }
+
+  private clamp(p: Vec2): Vec2 {
+    if (this.bounds === undefined) return p;
+    return {
+      x: Math.min(this.bounds.maxX, Math.max(this.bounds.minX, p.x)),
+      y: Math.min(this.bounds.maxY, Math.max(this.bounds.minY, p.y)),
+    };
+  }
+
   /** 1刻み進める。 */
   update(dt: number, input: MotionInput): void {
     if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
@@ -120,16 +135,11 @@ export class PlayerMotion {
       this.dodgeElapsed += dt;
       if (this.dodgeElapsed >= this.config.dodgeDuration - 1e-9) this.dodgeElapsed = undefined;
     } else {
-      velocity = scale(moveDir, this.config.moveSpeed);
+      velocity = scale(moveDir, this.config.moveSpeed * (input.speedMultiplier ?? 1));
       this.pos = add(this.pos, scale(velocity, dt));
       this.stamina = Math.min(this.config.maxStamina, this.stamina + this.config.staminaRegen * dt);
     }
 
-    if (this.bounds !== undefined) {
-      this.pos = {
-        x: Math.min(this.bounds.maxX, Math.max(this.bounds.minX, this.pos.x)),
-        y: Math.min(this.bounds.maxY, Math.max(this.bounds.minY, this.pos.y)),
-      };
-    }
+    this.pos = this.clamp(this.pos);
   }
 }

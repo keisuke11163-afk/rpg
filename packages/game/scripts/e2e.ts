@@ -29,6 +29,7 @@ interface Page {
     options: { timeout: number },
   ): Promise<unknown>;
   evaluate<T>(fn: () => T): Promise<T>;
+  evaluate<T, A>(fn: (arg: A) => T, arg: A): Promise<T>;
   waitForTimeout(ms: number): Promise<void>;
   screenshot(options: { path: string }): Promise<unknown>;
 }
@@ -66,17 +67,33 @@ interface DummyState {
   lastDamage: number;
   lastCrit: boolean;
   lastBackstab: boolean;
-  shotsFired: number;
-  projectilesActive: number;
-  projectilePositions: number[][];
+  lastAilments: string[];
+  broken: boolean;
+  statuses: string[];
   screenX: number;
   screenY: number;
+}
+interface SkillState {
+  weapon: string;
+  affinity: string;
+  attackSpeed: number;
+  mp: number;
+  fervor: number;
+  stages: string[];
+  executing: string | null;
+  lastSkill: string | null;
+  lastVariants: string[];
+  uses: Record<string, number>;
+  buffs: string[];
+  cooldowns: Record<string, number>;
 }
 type DebugWindow = {
   __STELLA_DEBUG__: {
     player: () => PlayerState;
     hazard: () => HazardState;
     dummy: () => DummyState;
+    skills: () => SkillState;
+    setFervor: (value: number) => number;
   };
 };
 
@@ -238,8 +255,8 @@ try {
   await clickDummy();
   const d1 = await dummy();
   check(
-    "通常攻撃で人形のHPが減る（下級の長剣 6–11、会心で×1.5）",
-    d1.hits === d0.hits + 1 && d1.lastDamage >= 6 && d1.lastDamage <= 16.5 && d1.hp < d0.hp,
+    "通常攻撃で人形のHPが減る（下級の大剣 14–24、会心で×1.5）",
+    d1.hits === d0.hits + 1 && d1.lastDamage >= 14 && d1.lastDamage <= 36 && d1.hp < d0.hp,
     `ヒット ${String(d1.hits - d0.hits)}回・ダメージ ${d1.lastDamage.toFixed(1)}・HP ${d0.hp.toFixed(0)} → ${d1.hp.toFixed(0)}`,
   );
   check("正面からのヒットは背面ではない", !d1.lastBackstab, `背面 ${String(d1.lastBackstab)}`);
@@ -256,16 +273,110 @@ try {
     `ヒット ${String(d2.hits - d1.hits)}回・背面 ${String(d2.lastBackstab)}`,
   );
 
-  // 離れた位置から、右クリックで試験用の投射物を撃つ
-  await walkTo(d0.x - 6, d0.y);
+  // 9〜15. 戦士の技（仕様書v0.2 5.2）
+  const skills = (): Promise<SkillState> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.skills());
+  const setFervor = (value: number): Promise<number> =>
+    page.evaluate(
+      (v: number) => (window as unknown as DebugWindow).__STELLA_DEBUG__.setFervor(v),
+      value,
+    );
+  /** 人形に照準を合わせて、キーで技を使い、動作が終わるまで待つ。 */
+  const waitIdle = (): Promise<unknown> =>
+    page.waitForFunction(
+      () => (window as unknown as DebugWindow).__STELLA_DEBUG__.skills().executing === null,
+      undefined,
+      { timeout: 5000 },
+    );
+  const keyAtDummy = async (key: string, wait = 1000): Promise<void> => {
+    await waitIdle();
+    const d = await dummy();
+    await page.mouse.move(d.screenX * 2, d.screenY * 2);
+    await page.waitForTimeout(50);
+    await page.keyboard.press(key);
+    await page.waitForTimeout(wait);
+  };
+
+  const s0 = await skills();
+  const d4a = await dummy();
+  await waitIdle();
   await clickDummy("right");
-  const d3 = await dummy();
-  const pp = await player();
+  const s1 = await skills();
+  const d4 = await dummy();
   check(
-    "投射物が人形に当たる",
-    d3.hits === d2.hits + 1,
-    `ヒット ${String(d3.hits - d2.hits)}回・撃った数 ${String(d3.shotsFired - d2.shotsFired)}・飛んでいる数 ${String(d3.projectilesActive)}・プレイヤー (${pp.x.toFixed(1)}, ${pp.y.toFixed(1)})・向き ${String(pp.direction8)}・投射物 ${JSON.stringify(d3.projectilePositions.map((v) => v.map((n) => Number(n.toFixed(2)))))}・人形 (${d3.x.toFixed(1)}, ${d3.y.toFixed(1)})`,
+    "右クリックで薙ぎ払い（MP4・大剣は範囲+20%・適性S）",
+    (s1.uses["SKL-WARRIOR-SWEEP"] ?? 0) === 1 &&
+      d4.hits === d4a.hits + 1 &&
+      s1.lastVariants.includes("weapon:TAG-WPN-GREATSWORD") &&
+      s1.affinity === "S",
+    `使った回数 ${String(s1.uses["SKL-WARRIOR-SWEEP"] ?? 0)}・ヒット ${String(d4.hits - d4a.hits)}・変化 ${s1.lastVariants.join(",")}・適性 ${s1.affinity}・MP ${s0.mp.toFixed(1)} → ${s1.mp.toFixed(1)}`,
   );
+  check(
+    "ヒットで闘志が増える",
+    s1.fervor > s0.fervor,
+    `闘志 ${s0.fervor.toFixed(0)} → ${s1.fervor.toFixed(0)}`,
+  );
+
+  await keyAtDummy("Digit2");
+  const s2 = await skills();
+  const d5 = await dummy();
+  check(
+    "2キーで戦吼：自分の攻撃+15%・人形に威圧・闘志+20",
+    s2.buffs.includes("EFF-WARRIOR-WARCRY-ATTACK") &&
+      d5.statuses.includes("EFF-WARRIOR-INTIMIDATE") &&
+      s2.fervor >= s1.fervor + 19,
+    `効果 ${s2.buffs.join(",")}・人形 ${d5.statuses.join(",")}・闘志 ${s1.fervor.toFixed(0)} → ${s2.fervor.toFixed(0)}`,
+  );
+
+  // T6：Tab で大斧に替えると、薙ぎ払いが斧の変化（出血の付与率+30%）になる
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(100);
+  await setFervor(0);
+  await waitIdle();
+  await clickDummy("right");
+  const s3 = await skills();
+  check(
+    "大斧の薙ぎ払いは、斧の変化になる（T6）",
+    s3.weapon === "test-greataxe" && s3.lastVariants.includes("weapon:TAG-WPNGRP-AXE"),
+    `武器 ${s3.weapon}・変化 ${s3.lastVariants.join(",")}`,
+  );
+
+  // T7：闘志50以上で激化、100で破軍
+  await setFervor(60);
+  await waitIdle();
+  await clickDummy("right");
+  const s4 = await skills();
+  check(
+    "闘志50以上で、薙ぎ払いが激化する（T7）",
+    s4.lastVariants.includes("stage:empowered"),
+    `闘志 ${s4.fervor.toFixed(0)}・変化 ${s4.lastVariants.join(",")}`,
+  );
+  await waitIdle();
+  await setFervor(100);
+  const d6a = await dummy();
+  await keyAtDummy("KeyR", 1400);
+  const s5 = await skills();
+  const d6 = await dummy();
+  check(
+    "闘志100で破軍：闘志を全て使い、受けるダメージ-20%の効果を得る（T7）",
+    (s5.uses["SKL-WARRIOR-ROUT"] ?? 0) === 1 &&
+      s5.fervor <= 6 &&
+      s5.buffs.includes("EFF-WARRIOR-ROUT-GUARD") &&
+      d6.hits === d6a.hits + 1,
+    `使った回数 ${String(s5.uses["SKL-WARRIOR-ROUT"] ?? 0)}・闘志 ${s5.fervor.toFixed(0)}・効果 ${s5.buffs.join(",")}・ダメージ ${d6.lastDamage.toFixed(0)}`,
+  );
+
+  // 突進：照準の方向（右）へ8m
+  await waitIdle();
+  const beforeCharge = await player();
+  const ps = await player();
+  await page.mouse.move((ps.screenX + 80) * 2, ps.screenY * 2);
+  await page.waitForTimeout(80);
+  await page.keyboard.press("Digit1");
+  await page.waitForTimeout(700);
+  const afterCharge = await player();
+  const charged = afterCharge.x - beforeCharge.x;
+  check("1キーで突進（右へ約8m）", charged > 7 && charged < 8.6, `右へ ${charged.toFixed(2)}m`);
 
   await page.screenshot({ path: `${outDir}arena.png` });
 } finally {

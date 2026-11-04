@@ -1,0 +1,57 @@
+[
+  {
+    "id": "EFF-WARRIOR-WARCRY-ATTACK",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.15,
+        "filter": {
+          "noneOf": ["TAG-FORM-SPELL"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "allies",
+    "provisional": true,
+    "provisionalNote": "「攻撃」を呪文以外の技と読んだ（docs/progress D-U08-5）"
+  },
+  {
+    "id": "EFF-WARRIOR-INTIMIDATE",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER-TAKEN",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "enemies"
+  },
+  {
+    "id": "EFF-WARRIOR-ROUT-GUARD",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE-TAKEN",
+        "value": -0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "「受けるダメージ-20%」を加算として扱う（docs/progress D-U08-5）"
+  }
+]
