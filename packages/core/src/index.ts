@@ -134,3 +134,27 @@ export {
   type MotionConfig,
   type MotionInput,
 } from "./actor/player-motion.ts";
+
+export { isBehind, overlapsShape, type HitShape } from "./combat/shapes.ts";
+export {
+  ActionTimeline,
+  PLAYER_ATTACK_SPLIT,
+  playerAttackTimeline,
+  type TimelineEvents,
+  type TimelinePhase,
+  type TimelineSpec,
+} from "./combat/timeline.ts";
+export { Health, type DamageApplied, type HealthConfig } from "./combat/health.ts";
+export {
+  ProjectilePool,
+  type ProjectileHit,
+  type ProjectileSpawn,
+  type ProjectileTarget,
+} from "./combat/projectiles.ts";
+export {
+  Combatant,
+  resolveHit,
+  type CombatantInit,
+  type HitInput,
+  type HitReport,
+} from "./combat/combatant.ts";

@@ -92,3 +92,99 @@ export function combatFixture(): {
     ],
   };
 }
+
+/** 状態異常の定義（packages/content の data/ailments/ailments.json と同じ値）。 */
+export const AILMENT_FIXTURE: unknown[] = [
+  {
+    id: "AIL-BURN",
+    tag: "TAG-AIL-BURN",
+    kind: "dot",
+    sourceElements: ["fire"],
+    dotElement: "fire",
+    totalRatio: 0.5,
+    duration: 4,
+    stacking: { mode: "strongest" },
+  },
+  {
+    id: "AIL-BLEED",
+    tag: "TAG-AIL-BLEED",
+    kind: "dot",
+    sourceElements: ["physical"],
+    dotElement: "physical",
+    totalRatio: 1.5,
+    duration: 5,
+    stacking: { mode: "stack", maxStacks: 8 },
+    movingMultiplier: 2,
+  },
+  {
+    id: "AIL-POISON",
+    tag: "TAG-AIL-POISON",
+    kind: "dot",
+    sourceElements: ["physical", "dark"],
+    dotElement: "dark",
+    totalRatio: 0.6,
+    duration: 3,
+    stacking: { mode: "stack" },
+  },
+  {
+    id: "AIL-WEAKEN",
+    tag: "TAG-AIL-WEAKEN",
+    kind: "debuff",
+    sourceElements: ["dark"],
+    duration: 4,
+    dealtMultiplier: 0.85,
+    bossDealtMultiplier: 0.92,
+  },
+  {
+    id: "AIL-STAGGER",
+    tag: "TAG-AIL-STAGGER",
+    kind: "stagger",
+    defaultCoefficient: 0.3,
+    enemy: {
+      gaugeRatio: 0.2,
+      decayDelay: 3,
+      decayPerSecond: 0.1,
+      breakDuration: 2,
+      takenMultiplier: 1.25,
+      growthPerBreak: 1,
+    },
+    boss: {
+      gaugeRatio: 0.15,
+      decayDelay: 3,
+      decayPerSecond: 0.1,
+      breakDuration: 1,
+      takenMultiplier: 1.15,
+      growthPerBreak: 1.5,
+    },
+    player: {
+      gaugeRatio: 0.5,
+      decayDelay: 2,
+      decayPerSecond: 0.2,
+      breakDuration: 0.6,
+      takenMultiplier: 1,
+      growthPerBreak: 1,
+    },
+  },
+];
+
+/** 戦闘の計算に必要なもの一式（タグ・能力値・状態異常）に、効果を加えたデータ。 */
+export function fullCombatDb(effects: unknown[] = []): ContentDb {
+  const fx = combatFixture();
+  const ailmentTags = ["BURN", "POISON", "WEAKEN", "STAGGER"].map((c) =>
+    tag(`TAG-AIL-${c}`, "ailment"),
+  );
+  const extraStats = [
+    stat("STAT-AILMENT-CHANCE", { unit: "ratio", min: 0 }),
+    stat("STAT-AILMENT-DAMAGE", { unit: "ratio" }),
+    stat("STAT-AILMENT-DURATION", { unit: "seconds", min: 0 }),
+    stat("STAT-AILMENT-MAX-STACKS", { min: 0 }),
+    stat("STAT-STAGGER", { unit: "ratio" }),
+    stat("STAT-STAGGER-RESIST", { unit: "ratio", min: 0, baseCap: 1 }),
+  ];
+  return buildDb({
+    tags: [...fx.tags, ...ailmentTags],
+    stats: [...fx.stats, ...extraStats],
+    effects,
+    ailments: AILMENT_FIXTURE,
+  });
+}
