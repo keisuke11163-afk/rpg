@@ -125,3 +125,12 @@ export {
   type AilmentRollInput,
   type AilmentTickTarget,
 } from "./combat/ailments.ts";
+
+export { ZERO, add, length, normalize, scale, toDirection8, type Vec2 } from "./actor/vector.ts";
+export {
+  DEFAULT_MOTION,
+  PlayerMotion,
+  type Bounds,
+  type MotionConfig,
+  type MotionInput,
+} from "./actor/player-motion.ts";

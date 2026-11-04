@@ -2,8 +2,9 @@ import Phaser from "phaser";
 import { CORE_API_VERSION } from "@stella/core";
 import { loadGameContent, text } from "@stella/content";
 import { SCREEN } from "../config.ts";
+import { createPlaceholderTextures } from "../world/placeholders.ts";
 
-/** 起動の画面。U-01 では、ゲームが起動することを確かめるための表示だけを行う。 */
+/** 起動の画面：データを読み込み・検証し、仮素材を作ってから、次の場面へ進む。 */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super("boot");
@@ -47,7 +48,10 @@ export class BootScene extends Phaser.Scene {
       )
       .setOrigin(1, 0);
 
-    // 起動の確認（pnpm smoke）が、描画まで終わったことを知るための印
-    document.body.dataset["stellaReady"] = "true";
+    createPlaceholderTextures(this);
+    // 少しだけ表題を見せてから、試験用の場へ進む（起動の確認は、試験用の場の描画が終わった時点で行う）
+    this.time.delayedCall(800, () => {
+      this.scene.start("arena");
+    });
   }
 }
