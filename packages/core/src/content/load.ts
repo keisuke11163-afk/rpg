@@ -6,6 +6,7 @@ import {
   effectSchema,
 } from "./effect.ts";
 import { KNOWN_HOOKS } from "./hooks.ts";
+import { conversionAllowed } from "./elements.ts";
 import { FLAG_TARGET_CATEGORY } from "./registries.ts";
 import { type Manifest, SUPPORTED_SCHEMA_VERSION, manifestSchema } from "./manifest.ts";
 import { type StatDef, statSchema } from "./stat.ts";
@@ -362,6 +363,19 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         } else {
           overrides.set(key, { effectId: effect.id, file });
         }
+      }
+
+      if (mod.kind === "convert" && mod.from !== mod.to && !conversionAllowed(mod.from, mod.to)) {
+        err({
+          code: "schema",
+          file,
+          id: effect.id,
+          path: at,
+          message:
+            mod.from === "holy"
+              ? "聖から他の属性への変換はできない（仕様書 2.5）"
+              : `変換は上流から下流へだけ（物理→雷→氷→火→闇。仕様書 2.5）：${mod.from} → ${mod.to} はできない`,
+        });
       }
 
       if (mod.kind === "convert" && mod.from === mod.to) {

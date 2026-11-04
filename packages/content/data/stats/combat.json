@@ -1,0 +1,113 @@
+[
+  {
+    "id": "STAT-DAMAGE",
+    "text": "stat.damage",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-ADDED-PHYSICAL",
+    "text": "stat.added.physical",
+    "unit": "flat"
+  },
+  {
+    "id": "STAT-ADDED-LIGHTNING",
+    "text": "stat.added.lightning",
+    "unit": "flat"
+  },
+  {
+    "id": "STAT-ADDED-COLD",
+    "text": "stat.added.cold",
+    "unit": "flat"
+  },
+  {
+    "id": "STAT-ADDED-FIRE",
+    "text": "stat.added.fire",
+    "unit": "flat"
+  },
+  {
+    "id": "STAT-ADDED-DARK",
+    "text": "stat.added.dark",
+    "unit": "flat"
+  },
+  {
+    "id": "STAT-ADDED-HOLY",
+    "text": "stat.added.holy",
+    "unit": "flat"
+  },
+  {
+    "id": "STAT-CRIT-CHANCE",
+    "text": "stat.crit-chance",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-CRIT-MULTIPLIER",
+    "text": "stat.crit-multiplier",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-ACCURACY",
+    "text": "stat.accuracy",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-SKILL-LEVEL",
+    "text": "stat.skill-level",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-ARMOR",
+    "text": "stat.armor",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-EVASION",
+    "text": "stat.evasion",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-RESIST-PHYSICAL",
+    "text": "stat.resist.physical",
+    "unit": "ratio",
+    "baseCap": 0.75,
+    "capLimit": 0.9
+  },
+  {
+    "id": "STAT-RESIST-LIGHTNING",
+    "text": "stat.resist.lightning",
+    "unit": "ratio",
+    "baseCap": 0.75,
+    "capLimit": 0.9
+  },
+  {
+    "id": "STAT-RESIST-COLD",
+    "text": "stat.resist.cold",
+    "unit": "ratio",
+    "baseCap": 0.75,
+    "capLimit": 0.9
+  },
+  {
+    "id": "STAT-RESIST-FIRE",
+    "text": "stat.resist.fire",
+    "unit": "ratio",
+    "baseCap": 0.75,
+    "capLimit": 0.9
+  },
+  {
+    "id": "STAT-RESIST-DARK",
+    "text": "stat.resist.dark",
+    "unit": "ratio",
+    "baseCap": 0.75,
+    "capLimit": 0.9
+  },
+  {
+    "id": "STAT-RESIST-HOLY",
+    "text": "stat.resist.holy",
+    "unit": "ratio",
+    "baseCap": 0.75,
+    "capLimit": 0.9
+  }
+]

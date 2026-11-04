@@ -305,8 +305,9 @@ export class ModifierView {
       }
     }
 
-    const cap =
+    let cap =
       def.baseCap !== undefined || hasCapModifier ? (def.baseCap ?? 0) + capDelta : undefined;
+    if (cap !== undefined && def.capLimit !== undefined) cap = Math.min(cap, def.capLimit);
     let value: number;
     if (override !== undefined) {
       value = override.value;

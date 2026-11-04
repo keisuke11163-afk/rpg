@@ -25,8 +25,9 @@ export type EquipSlot = (typeof EQUIP_SLOTS)[number];
  * - ailmentApply：状態異常の付与（対象の状態異常のタグが必要。例：千の小傷「必ず出血を付与」）
  * - beStaggered：崩される（例：重荷の誇り「崩されなくなる」）
  * - spawnMinion：召喚物を生む（例：一騎当千「召喚物を維持できない」）
+ * - alwaysHit：必中（敵の回避を無視する。例：盲目の賢者の目隠し）
  */
-export const FLAGS = ["crit", "ailmentApply", "beStaggered", "spawnMinion"] as const;
+export const FLAGS = ["crit", "ailmentApply", "beStaggered", "spawnMinion", "alwaysHit"] as const;
 export type FlagId = (typeof FLAGS)[number];
 
 /** 対象のタグが必要な印と、そのタグの分類。 */

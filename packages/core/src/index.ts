@@ -70,3 +70,36 @@ export {
   type RetagEntry,
   type StatResult,
 } from "./effects/evaluate.ts";
+
+export { CONVERSION_ORDER, ELEMENT_TAG, conversionAllowed } from "./content/elements.ts";
+export {
+  AFFIX_SKILL_LEVEL_INCREASED,
+  MAX_BASE_SKILL_LEVEL,
+  SPELL_BASE_MULTIPLIER,
+  WEAPON_SKILL_PCT_PER_LEVEL,
+  baseSkillLevel,
+  spellBaseMultiplier,
+  weaponSkillPct,
+} from "./combat/skill-level.ts";
+export {
+  ARMOR_REDUCTION_CAP,
+  EVASION_CAP,
+  armorReduction,
+  baseAccuracy,
+  evadeChance,
+  hitChance,
+} from "./combat/defense.ts";
+export {
+  BASE_CRIT_MULTIPLIER,
+  COMBAT_STATS,
+  applyConversions,
+  computeHit,
+  expectedHitDamage,
+  type DamageAttacker,
+  type DamageDefender,
+  type DamagePortion,
+  type DamageSkill,
+  type DamageWeapon,
+  type HitOptions,
+  type HitResult,
+} from "./combat/damage.ts";

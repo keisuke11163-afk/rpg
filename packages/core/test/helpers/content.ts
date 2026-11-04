@@ -56,3 +56,38 @@ export const effect = (
   scope: "self",
   ...extra,
 });
+
+const ELEMS = ["PHYSICAL", "LIGHTNING", "COLD", "FIRE", "DARK", "HOLY"];
+
+/** ダメージの計算に必要なタグ・能力値（packages/content の data/stats/combat.json と同じID）。 */
+export function combatFixture(): {
+  tags: Record<string, unknown>[];
+  stats: Record<string, unknown>[];
+} {
+  return {
+    tags: [
+      ...ELEMS.map((e) => tag(`TAG-ELEM-${e}`, "element")),
+      tag("TAG-FORM-MELEE", "form"),
+      tag("TAG-FORM-SPELL", "form"),
+      tag("TAG-FORM-FINISHER", "form"),
+      tag("TAG-AIL-BLEED", "ailment"),
+      tag("TAG-WPNGRP-SWORD", "weaponGroup"),
+      tag("TAG-WPN-SWORD", "weapon", ["TAG-WPNGRP-SWORD"]),
+      tag("TAG-WPN-SCYTHE", "weapon"),
+      tag("TAG-WPN-DAGGER", "weapon"),
+    ],
+    stats: [
+      stat("STAT-DAMAGE", { unit: "ratio" }),
+      ...ELEMS.map((e) => stat(`STAT-ADDED-${e}`)),
+      stat("STAT-CRIT-CHANCE", { unit: "ratio" }),
+      stat("STAT-CRIT-MULTIPLIER", { unit: "ratio" }),
+      stat("STAT-ACCURACY", { min: 0 }),
+      stat("STAT-SKILL-LEVEL", { min: 0 }),
+      stat("STAT-ARMOR", { min: 0 }),
+      stat("STAT-EVASION", { min: 0 }),
+      ...ELEMS.map((e) =>
+        stat(`STAT-RESIST-${e}`, { unit: "ratio", baseCap: 0.75, capLimit: 0.9 }),
+      ),
+    ],
+  };
+}

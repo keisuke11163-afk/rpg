@@ -7,6 +7,7 @@
  */
 import type { RawContent } from "@stella/core";
 import manifest from "../data/manifest.json" with { type: "json" };
+import combatStats from "../data/stats/combat.json" with { type: "json" };
 import ailments from "../data/tags/ailments.json" with { type: "json" };
 import elements from "../data/tags/elements.json" with { type: "json" };
 import enemyFamilies from "../data/tags/enemy-families.json" with { type: "json" };
@@ -29,7 +30,7 @@ export const rawContent: RawContent = {
       { file: "data/tags/regions.json", entries: regions },
       { file: "data/tags/enemy-families.json", entries: enemyFamilies },
     ],
-    stats: [],
+    stats: [{ file: "data/stats/combat.json", entries: combatStats }],
     effects: [],
   },
 };
