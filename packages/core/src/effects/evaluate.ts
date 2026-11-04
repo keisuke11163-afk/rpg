@@ -20,6 +20,11 @@ export interface EffectInstance {
    * 例：重荷の誇りの「重装の防具1部位につき」は、重装の部位の数を入れる。
    */
   readonly stacks?: number;
+  /**
+   * 修正値ごとの値の差し替え（修正値の並びの番号 → 値）。詞の値はアイテムごとに抽選で決まるため、
+   * データの効果は値の型だけを持ち、アイテムの値をここで渡す（U-11）。
+   */
+  readonly values?: readonly (number | Range | undefined)[];
 }
 
 /** 条件の判定に使う、効果の外の事実（装備・ジョブなど）。呼び出す側が数えて渡す。 */
@@ -194,7 +199,12 @@ export class ModifierView {
       const stacks = instance.stacks ?? 1;
       if (!(stacks >= 0) || !Number.isFinite(stacks))
         throw new RangeError(`重ねた数が正しくない：${String(stacks)}`);
-      for (const mod of effect.modifiers) {
+      for (const [index, original] of effect.modifiers.entries()) {
+        const override = instance.values?.[index];
+        const mod =
+          override === undefined || !("value" in original)
+            ? original
+            : ({ ...original, value: override } as Modifier);
         const entry: Entry = { mod, effect, instance, stacks };
         switch (mod.kind) {
           case "added":
