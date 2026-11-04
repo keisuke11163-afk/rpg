@@ -1,0 +1,121 @@
+import { z } from "zod";
+import { ELEMENTS } from "./effect.ts";
+import { idSchema, provisionalFields, textKeySchema } from "./ids.ts";
+import { hitShapeSchema } from "./job.ts";
+
+/** 攻撃の届け方。 */
+export const enemyDeliverySchema = z.discriminatedUnion("type", [
+  // 自分の位置から、向きに合わせて当たり判定を出す（噛みつき・爪・叩きつけ）
+  z.strictObject({ type: z.literal("strike"), shape: hitShapeSchema }),
+  // 決まった距離を、決まった速さで、曲がらずに進む（牙猪の突進）。通り道の相手に1回だけ当たる
+  z.strictObject({
+    type: z.literal("dash"),
+    distance: z.number().positive(),
+    speed: z.number().positive(),
+    width: z.number().positive(),
+  }),
+  // 投射物を撃つ（棘吐き蜥蜴の棘）
+  z.strictObject({
+    type: z.literal("projectile"),
+    speed: z.number().positive(),
+    range: z.number().positive(),
+    radius: z.number().positive(),
+  }),
+  // 予兆の始めの、相手の位置に雲を出す。中にいると、間隔ごとに状態異常を1つ受ける（腐根の苗の胞子）
+  z.strictObject({
+    type: z.literal("cloud"),
+    radius: z.number().positive(),
+    duration: z.number().positive(),
+    interval: z.number().positive(),
+    ailment: idSchema,
+    /** 状態異常の基準値（標準HPに対する割合）。 */
+    baseRatio: z.number().positive(),
+  }),
+]);
+export type EnemyDelivery = z.infer<typeof enemyDeliverySchema>;
+
+/** 敵の攻撃（補助仕様書10.1・10.4）。 */
+export const enemyAttackSchema = z.strictObject({
+  id: z.string().regex(/^[a-z][a-z0-9-]*$/),
+  text: textKeySchema,
+  /** 予兆・当たり判定が出ている時間・硬直（秒）。突進の当たり判定の時間は、距離÷速さ。 */
+  windup: z.number().nonnegative(),
+  active: z.number().nonnegative(),
+  recovery: z.number().nonnegative(),
+  /** 標準HPに対する割合（攻撃の強さ。0.08＝8%）。雲は0（ダメージは状態異常だけ）。 */
+  ratio: z.number().min(0).max(1),
+  staggerCoefficient: z.number().nonnegative(),
+  element: z.enum(ELEMENTS),
+  ailmentChance: z.record(idSchema, z.number().min(0).max(1)).optional(),
+  /** この距離（m。体の端から端）以内で使い始める。 */
+  range: z.number().positive(),
+  /** この距離より近いと使わない（突進）。 */
+  minRange: z.number().nonnegative().optional(),
+  /** 使った後、次に使えるまでの時間（秒）。 */
+  cooldown: z.number().nonnegative(),
+  /** 使える攻撃が複数あるときの重み（省略すると1）。 */
+  weight: z.number().positive().optional(),
+  delivery: enemyDeliverySchema,
+});
+export type EnemyAttackDef = z.infer<typeof enemyAttackSchema>;
+
+/** 敵の動き方（補助仕様書10.4「行動の特徴」）。 */
+export const enemyBehaviorSchema = z.discriminatedUnion("type", [
+  // まっすぐ近づく
+  z.strictObject({ type: z.literal("chase") }),
+  // 相手の横や背後へ回り込む（群れの中の順番で、回り込む角度を変える）
+  z.strictObject({ type: z.literal("flank"), distance: z.number().positive() }),
+  // 決まった距離を保つ
+  z.strictObject({
+    type: z.literal("kite"),
+    min: z.number().positive(),
+    max: z.number().positive(),
+  }),
+  // 動かない
+  z.strictObject({ type: z.literal("stationary") }),
+]);
+export type EnemyBehavior = z.infer<typeof enemyBehaviorSchema>;
+
+/** 敵の種類（補助仕様書10.4）。 */
+export const enemySchema = z.strictObject({
+  id: idSchema,
+  text: textKeySchema,
+  /** 敵の系統のタグ（系統がない敵は省略）。 */
+  family: idSchema.optional(),
+  /** 通常の敵のHP（補助仕様書0.1）に対する倍率。 */
+  hpMultiplier: z.number().positive(),
+  /** 移動の速さ（m/秒。動かない敵は0）。 */
+  moveSpeed: z.number().nonnegative(),
+  /** 旋回の速さ（°/秒）。null は向きを持たない（背面判定が起きない。補助仕様書10.1）。 */
+  turnRate: z.number().positive().nullable(),
+  /** 体の半径（m）。 */
+  radius: z.number().positive(),
+  defense: z.strictObject({
+    evasionPerLevel: z.number().nonnegative().optional(),
+    armorPerLevel: z.number().nonnegative().optional(),
+    resist: z.partialRecord(z.enum(ELEMENTS), z.number()).optional(),
+  }),
+  attacks: z.array(enemyAttackSchema).min(1),
+  behavior: enemyBehaviorSchema,
+  /** 群れの数（単体は1〜1）。 */
+  pack: z.strictObject({ min: z.number().int().positive(), max: z.number().int().positive() }),
+  ...provisionalFields,
+});
+export type EnemyDef = z.infer<typeof enemySchema>;
+
+/** 格（補助仕様書10.3）。 */
+export const ENEMY_RANKS = ["normal", "magic", "elite"] as const;
+export type EnemyRank = (typeof ENEMY_RANKS)[number];
+
+export const enemyRankSchema = z.strictObject({
+  id: idSchema,
+  rank: z.enum(ENEMY_RANKS),
+  text: textKeySchema,
+  hpMultiplier: z.number().positive(),
+  damageMultiplier: z.number().positive(),
+  xpMultiplier: z.number().positive(),
+  /** 体の大きさの倍率（精鋭は1.25）。 */
+  scale: z.number().positive(),
+  ...provisionalFields,
+});
+export type EnemyRankDef = z.infer<typeof enemyRankSchema>;

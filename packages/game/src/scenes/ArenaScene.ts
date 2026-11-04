@@ -8,7 +8,6 @@ import {
   Cooldowns,
   type DamageAttacker,
   FixedStepClock,
-  Health,
   type HitReport,
   type HitShape,
   JobGauge,
@@ -41,11 +40,12 @@ import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import type { Action } from "../input/actions.ts";
 import { InputSystem } from "../input/InputSystem.ts";
+import { EnemyField } from "../world/EnemyField.ts";
 import { TEXTURES } from "../world/placeholders.ts";
 import { PIXELS_PER_METER, toMeters, toPixels } from "../world/units.ts";
 
 /** 試験用の場の大きさ（m）。 */
-const ARENA = { width: 40, height: 24 };
+const ARENA = { width: 80, height: 40 };
 
 /**
  * 回避の無敵時間を確かめるための「試験用の危険地帯」。
@@ -155,7 +155,13 @@ export class ArenaScene extends Phaser.Scene {
   private attacker!: DamageAttacker;
   private attackerVersion = -1;
   private attackSpeed = 1;
-  private playerHealth!: Health;
+  /** プレイヤーの戦う者（HP・状態異常・崩し。敵の攻撃を受ける）。 */
+  private player!: Combatant;
+  private field!: EnemyField;
+  private hitsTaken = 0;
+  private avoidedAttacks = 0;
+  private deaths = 0;
+  private enemyHits = 0;
   private mp = MAX_MP;
   private fervor!: JobGauge;
   private readonly cooldowns = new Cooldowns();
@@ -209,7 +215,6 @@ export class ArenaScene extends Phaser.Scene {
     if (job === undefined || gauge === undefined) throw new Error("戦士のデータがない");
     this.job = job;
     this.fervor = new JobGauge(gauge);
-    this.playerHealth = new Health({ maxHp: 60 });
     this.refreshAttacker();
 
     this.add
@@ -221,6 +226,13 @@ export class ArenaScene extends Phaser.Scene {
       minY: 0.75,
       maxX: ARENA.width - 0.5,
       maxY: ARENA.height - 0.25,
+    });
+    this.player = this.newPlayer();
+    this.field = new EnemyField(this, this.db, this.rng.fork("enemies"), {
+      minX: 0.5,
+      minY: 0.5,
+      maxX: ARENA.width - 0.5,
+      maxY: ARENA.height - 0.5,
     });
     this.dummy = new Combatant(this.db, {
       id: "dummy",
@@ -301,11 +313,34 @@ export class ArenaScene extends Phaser.Scene {
         screenY: this.dummyImage.y - this.cameras.main.scrollY,
       }),
       // 確認用：闘志の量を決める（開発版だけ。自動の確認で、激化・解放を短い時間で試すため）
-      setFervor: (value?: number) => {
+      setFervor: (value?: number | string) => {
         this.fervor.spend("all");
-        this.fervor.add(value ?? 0);
+        this.fervor.add(Number(value ?? 0));
         this.fervor.markCombat();
         return this.fervor.value;
+      },
+      enemies: () => this.field.debug(),
+      playerState: () => ({
+        hp: this.player.health.hp,
+        maxHp: this.player.health.maxHp,
+        hitsTaken: this.hitsTaken,
+        avoided: this.avoidedAttacks,
+        deaths: this.deaths,
+        staggered: this.player.stagger.broken,
+        poison: this.player.ailments.stacks("AIL-POISON"),
+        enemyHits: this.enemyHits,
+        kills: this.field.kills,
+      }),
+      // 確認用：プレイヤーの右3mに敵を出す（開発版だけ）
+      spawnEnemy: (id?: number | string) => {
+        const p = this.motion.position;
+        return this.field.spawn(
+          String(id),
+          "normal",
+          5,
+          { x: p.x + 3, y: p.y },
+          `debug-${String(id)}`,
+        ).id;
       },
       skills: () => ({
         weapon: this.weapon.uid,
@@ -325,6 +360,18 @@ export class ArenaScene extends Phaser.Scene {
       }),
     });
     document.body.dataset["stellaReady"] = "true";
+  }
+
+  /** プレイヤーの戦う者（仮値: 最大HP60＝Lv1の標準HP。キャラクターの能力値は U-10 で入れる）。 */
+  private newPlayer(): Combatant {
+    return new Combatant(this.db, {
+      id: "player",
+      team: "player",
+      position: this.motion.position,
+      radius: 0.35,
+      maxHp: 60,
+      staggerProfile: staggerProfiles(this.db).player,
+    });
   }
 
   /** 効果（戦吼の強化など）が変わったら、攻撃する側の能力値を計算し直す。 */
@@ -425,11 +472,14 @@ export class ArenaScene extends Phaser.Scene {
         x: toMeters(frame.pointerWorld.x) - pos.x,
         y: toMeters(frame.pointerWorld.y) - pos.y,
       };
-      const dodge = pressed.has("dodge");
+      // よろめいている間は、移動・技・回避ができない（補助仕様書3.3）
+      const staggered = this.player.stagger.broken;
+      if (staggered) this.current = undefined;
+      const dodge = pressed.has("dodge") && !staggered;
       if (dodge) this.current = undefined; // 回避で技を取り消せる
 
       // 技を使い始める（照準の方向へ）。枠の順に、使えるものを1つ
-      if (this.current === undefined && !this.motion.dodging && !dodge) {
+      if (this.current === undefined && !this.motion.dodging && !dodge && !staggered) {
         this.motion.update(0, { move: ZERO, aim, dodge: false }); // 向きだけ照準に合わせる
         for (const l of LOADOUT) {
           if (this.wants(l.action, frame.held, pressed) && this.blockOf(l.skill) === undefined) {
@@ -456,25 +506,28 @@ export class ArenaScene extends Phaser.Scene {
         if (tick.warcry !== undefined) {
           const w = tick.warcry;
           for (const e of w.allyEffects) this.buffs.add(e, w.duration, exec.skill.def.id);
-          if (
-            length({
-              x: this.dummy.position.x - w.origin.x,
-              y: this.dummy.position.y - w.origin.y,
-            }) <=
-            w.radius + this.dummy.radius
-          )
-            for (const e of w.enemyEffects)
-              this.dummy.statuses.add(e, w.duration, exec.skill.def.id);
+          for (const t of this.targets()) {
+            if (
+              length({ x: t.position.x - w.origin.x, y: t.position.y - w.origin.y }) >
+              w.radius + t.radius
+            )
+              continue;
+            for (const e of w.enemyEffects) t.statuses.add(e, w.duration, exec.skill.def.id);
+          }
           this.showShape({ type: "circle", radius: w.radius }, w.origin, 0);
         }
         if (tick.pull !== undefined) {
           const p = tick.pull;
-          const d = this.dummy.position;
-          if (
-            !this.dummy.isBoss &&
-            length({ x: d.x - p.origin.x, y: d.y - p.origin.y }) <= p.radius
-          )
-            this.dummy.position = pullTowards(d, p.origin, p.speed * dt, PULL_MIN_DISTANCE);
+          for (const t of this.targets()) {
+            const d = t.position;
+            const movable = this.field.byCombatant(t)?.def.moveSpeed !== 0;
+            if (
+              !t.isBoss &&
+              movable &&
+              length({ x: d.x - p.origin.x, y: d.y - p.origin.y }) <= p.radius
+            )
+              t.position = pullTowards(d, p.origin, p.speed * dt, PULL_MIN_DISTANCE);
+          }
         }
         for (const z of tick.zones) this.zones.push({ exec: z, hit: new Map() });
         moveMultiplier = tick.moveMultiplier;
@@ -484,15 +537,38 @@ export class ArenaScene extends Phaser.Scene {
       this.zones = this.zones.filter((z) => !(z.exec as LingeringZone).done);
 
       this.motion.update(dt, {
-        move: frame.move,
-        aim: this.current === undefined ? aim : ZERO,
+        move: staggered ? ZERO : frame.move,
+        aim: this.current === undefined && !staggered ? aim : ZERO,
         dodge,
         speedMultiplier: moveMultiplier,
+      });
+      this.player.position = this.motion.position;
+      this.player.moving = length(frame.move) > 0 && !staggered;
+
+      // 敵の行動と攻撃
+      this.field.update(dt, this.player, this.motion.invulnerable, this.motion.facing, {
+        onPlayerHit: (report) => {
+          if (report.hit.evaded) return;
+          this.hitsTaken += 1;
+          this.fervor.onDamageTaken(
+            report.applied.toHp + report.applied.toWard,
+            this.player.health.maxHp,
+          );
+        },
+        onAvoided: () => {
+          this.avoidedAttacks += 1;
+        },
       });
 
       const dot = this.dummy.update(dt);
       if (dot > 0) this.recentDamage.push({ t: this.time0, amount: dot });
-      this.playerHealth.update(dt);
+      const playerDot = this.player.update(dt);
+      if (playerDot > 0) this.fervor.onDamageTaken(playerDot, this.player.health.maxHp);
+      // 仮実装: U-18b feature/death-and-return で、死亡の扱い（町に戻る）に置き換える（試験用の場では、その場で全回復する）
+      if (this.player.health.dead) {
+        this.deaths += 1;
+        this.player = this.newPlayer();
+      }
       this.mp = Math.min(MAX_MP, this.mp + MAX_MP * 0.06 * dt);
       this.cooldowns.update(dt);
       this.buffs.update(dt);
@@ -510,34 +586,41 @@ export class ArenaScene extends Phaser.Scene {
     let landed = false;
     for (const s of strikes) {
       this.showShape(s.shape, s.origin, s.facing);
-      const t = this.dummy;
-      if (!overlapsShape(s.shape, s.origin, s.facing, t.position, t.radius)) continue;
-      if (s.group !== undefined) {
-        const set = run.hit.get(s.group) ?? new Set<string>();
-        if (set.has(t.id)) continue;
-        set.add(t.id);
-        run.hit.set(s.group, set);
+      for (const t of this.targets()) {
+        if (!overlapsShape(s.shape, s.origin, s.facing, t.position, t.radius)) continue;
+        if (s.group !== undefined) {
+          const set = run.hit.get(s.group) ?? new Set<string>();
+          if (set.has(t.id)) continue;
+          set.add(t.id);
+          run.hit.set(s.group, set);
+        }
+        const report = resolveHit({
+          db: this.db,
+          attacker: this.attacker,
+          attackerPosition: s.origin,
+          skill: s.damage,
+          skillChance: s.skill.ailmentChance,
+          staggerCoefficient: s.skill.staggerCoefficient,
+          target: t,
+          rng: this.rng,
+          fullStagger: s.fullStagger,
+        });
+        if (t !== this.dummy) this.field.onEnemyHit(t);
+        if (report.hit.evaded) {
+          if (t === this.dummy) this.lastHit = report;
+          continue;
+        }
+        landed = true;
+        this.hitStop = HIT_STOP;
+        if (t === this.dummy) {
+          this.lastHit = report;
+          this.hitCount += 1;
+          this.recentDamage.push({ t: this.time0, amount: report.hit.total });
+          this.flash = FLASH;
+        } else this.enemyHits += 1;
+        if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
+        this.popDamage(report, t.position);
       }
-      const report = resolveHit({
-        db: this.db,
-        attacker: this.attacker,
-        attackerPosition: s.origin,
-        skill: s.damage,
-        skillChance: s.skill.ailmentChance,
-        staggerCoefficient: s.skill.staggerCoefficient,
-        target: t,
-        rng: this.rng,
-        fullStagger: s.fullStagger,
-      });
-      this.lastHit = report;
-      if (report.hit.evaded) continue;
-      landed = true;
-      this.hitCount += 1;
-      this.recentDamage.push({ t: this.time0, amount: report.hit.total });
-      this.hitStop = HIT_STOP;
-      this.flash = FLASH;
-      if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
-      this.popDamage(report);
     }
     // 闘志：1回の当たり判定の発生で、当たれば1回増える（docs/progress D-U08-3）
     const first = strikes[0];
@@ -554,11 +637,16 @@ export class ArenaScene extends Phaser.Scene {
     this.shownStrikes.push({ shape, origin, facing, t: this.time0 });
   }
 
-  private popDamage(report: HitReport): void {
+  /** プレイヤーの技の対象（訓練用の人形と、生きている敵）。 */
+  private targets(): Combatant[] {
+    return [this.dummy, ...this.field.targets()];
+  }
+
+  private popDamage(report: HitReport, at: Vec2): void {
     const color = report.hit.crit ? "#ffd166" : report.backstab ? "#c3a6ff" : "#ffffff";
     const label = `${report.hit.total.toFixed(0)}${report.hit.crit ? "!" : ""}${report.backstab ? "（背面）" : ""}${report.staggerBroke ? "（崩し）" : ""}`;
     const t = this.add
-      .text(this.dummyImage.x, this.dummyImage.y - 18, label, {
+      .text(toPixels(at.x), toPixels(at.y) - 18, label, {
         fontFamily: "sans-serif",
         fontSize: report.hit.crit ? "12px" : "10px",
         color,
@@ -587,9 +675,8 @@ export class ArenaScene extends Phaser.Scene {
     if (this.motion.invulnerable) this.hazardAvoided += 1;
     else {
       this.hazardHits += 1;
-      const taken = this.playerHealth.takeDamage(5);
-      this.fervor.onDamageTaken(taken.toHp + taken.toWard, this.playerHealth.maxHp);
-      if (this.playerHealth.dead) this.playerHealth.restoreFull();
+      const taken = this.player.health.takeDamage(5);
+      this.fervor.onDamageTaken(taken.toHp + taken.toWard, this.player.health.maxHp);
     }
   }
 
@@ -657,6 +744,10 @@ export class ArenaScene extends Phaser.Scene {
     const r = HAZARD.radius * PIXELS_PER_METER;
     if (t < HAZARD.telegraph) g.lineStyle(1, 0xff6b6b, 0.4 + t).strokeCircle(hx, hy, r);
     else if (t < HAZARD.telegraph + HAZARD.active) g.fillStyle(0xff6b6b, 0.5).fillCircle(hx, hy, r);
+    // 敵：予兆・雲・体・HP
+    this.field.render(g, (shape, origin, facing) => {
+      this.drawShape(g, shape, origin, facing);
+    });
     // 残っている亀裂
     for (const z of this.zones) {
       g.fillStyle(0xff9f43, 0.18);
@@ -696,7 +787,7 @@ export class ArenaScene extends Phaser.Scene {
         .fillRect(8, by, Math.round(100 * Math.max(0, Math.min(1, ratio))), 5);
     };
     this.bars.clear();
-    bar(0, this.playerHealth.hp / this.playerHealth.maxHp, 0xff6b6b);
+    bar(0, this.player.health.hp / this.player.health.maxHp, 0xff6b6b);
     bar(1, this.mp / MAX_MP, 0x6fa8ff);
     bar(2, this.motion.currentStamina / this.motion.config.maxStamina, 0x7bd389);
     bar(
@@ -735,7 +826,8 @@ export class ArenaScene extends Phaser.Scene {
         ? "最後のヒット：なし"
         : `最後のヒット：${last.hit.evaded ? "回避された" : `${last.hit.total.toFixed(1)}${last.hit.crit ? "・会心" : ""}${last.backstab ? "・背面" : ""}${last.ailments.length > 0 ? "・出血" : ""}`}${this.lastSkill === undefined ? "" : `（${this.lastSkill.variants.join("・") || "変化なし"}）`}`,
       `危険地帯：被弾 ${String(this.hazardHits)}／回避で無効 ${String(this.hazardAvoided)}`,
-      `HP ${this.playerHealth.hp.toFixed(0)}・MP ${this.mp.toFixed(0)}・気力 ${this.motion.currentStamina.toFixed(0)}・闘志 ${this.fervor.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
+      `敵：倒した数 ${String(this.field.kills)}・被弾 ${String(this.hitsTaken)}・回避で無効 ${String(this.avoidedAttacks)}・倒れた回数 ${String(this.deaths)}${this.player.ailments.stacks("AIL-POISON") > 0 ? `・毒 ${String(this.player.ailments.stacks("AIL-POISON"))}` : ""}${this.player.stagger.broken ? "・よろめき" : ""}`,
+      `HP ${this.player.health.hp.toFixed(0)}・MP ${this.mp.toFixed(0)}・気力 ${this.motion.currentStamina.toFixed(0)}・闘志 ${this.fervor.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
     ]);
   }
 }

@@ -86,6 +86,7 @@ export {
   EVASION_CAP,
   armorReduction,
   baseAccuracy,
+  enemyAccuracy,
   evadeChance,
   hitChance,
 } from "./combat/defense.ts";
@@ -205,3 +206,32 @@ export {
   type Strike,
   type WarcryPulse,
 } from "./combat/skill-execution.ts";
+export { chapterBossHp, normalEnemyHp, standardDps, standardHp } from "./combat/standards.ts";
+export {
+  ENEMY_RANKS,
+  enemyAttackSchema,
+  enemyRankSchema,
+  enemySchema,
+  type EnemyAttackDef,
+  type EnemyBehavior,
+  type EnemyDef,
+  type EnemyDelivery,
+  type EnemyRank,
+  type EnemyRankDef,
+} from "./content/enemy.ts";
+export {
+  ENEMY_RULES,
+  FLANK,
+  Enemy,
+  EnemyAttackers,
+  WANDER,
+  angleDiff,
+  enemyAttackDamage,
+  enemyMaxHp,
+  separate,
+  turnTowards,
+  type EnemyEvent,
+  type EnemyInit,
+  type EnemyState,
+  type EnemyTarget,
+} from "./actor/enemy.ts";
