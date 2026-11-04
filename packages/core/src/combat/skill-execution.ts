@@ -20,6 +20,26 @@ export interface Strike {
   readonly group?: string;
   /** 当てた敵の崩しゲージを満タンにする（激化した突進）。 */
   readonly fullStagger: boolean;
+  /** 必ず会心にする（急所穿ちの5点）。 */
+  readonly forceCrit?: boolean;
+}
+
+/** 照準の位置に置く範囲（煙玉）。 */
+export interface ZonePlacement {
+  readonly center: Vec2;
+  readonly radius: number;
+  readonly duration: number;
+  readonly interval: number;
+  readonly enemyEffects: readonly string[];
+  readonly ailment?: string;
+}
+
+/** 照準の位置に置く罠（罠設置）。 */
+export interface TrapPlacement {
+  readonly center: Vec2;
+  readonly radius: number;
+  readonly duration: number;
+  readonly max: number;
 }
 
 /** 戦吼（自分の周りの味方を強め、敵を弱める）。 */
@@ -52,6 +72,10 @@ export interface ExecutionInput {
 export interface ExecutionTick {
   readonly strikes: readonly Strike[];
   readonly warcry?: WarcryPulse;
+  /** 自分にかける一定時間の効果（毒塗り）。 */
+  readonly selfBuff?: { readonly effects: readonly string[]; readonly duration: number };
+  readonly zone?: ZonePlacement;
+  readonly trap?: TrapPlacement;
   readonly pull?: PullPulse;
   /** 自分を動かす量（突進）。 */
   readonly displacement: Vec2;
@@ -140,14 +164,38 @@ export class SkillExecution {
   private mpTimer = 0;
   private finishedFlag = false;
 
-  constructor(skill: ResolvedSkill, facing: number, attackSpeed: number) {
+  private readonly aimPoint: Vec2 | undefined;
+  private readonly teleportTo: Vec2 | undefined;
+  private hitsFired = 0;
+
+  /**
+   * aimPoint：照準の位置（煙玉・罠は、射程内に収めた位置に置く）。
+   * teleportTo：瞬間移動の行き先（影走り。呼び出す側が対象の敵の背後を決める）。
+   */
+  constructor(
+    skill: ResolvedSkill,
+    facing: number,
+    attackSpeed: number,
+    options: { readonly aimPoint?: Vec2; readonly teleportTo?: Vec2 } = {},
+  ) {
     this.skill = skill;
     this.facing = facing;
+    this.aimPoint = options.aimPoint;
+    this.teleportTo = options.teleportTo;
     const t = skill.action.type;
     this.timeline =
-      t === "strike" || t === "warcry"
-        ? new ActionTimeline(playerAttackTimeline(skillUseSeconds(skill, attackSpeed)))
-        : undefined;
+      t === "dash" || t === "channel"
+        ? undefined
+        : new ActionTimeline(playerAttackTimeline(skillUseSeconds(skill, attackSpeed)));
+  }
+
+  /** 照準の位置を、自分から range 以内に収める。 */
+  private placeAt(position: Vec2, range: number): Vec2 {
+    const p = this.aimPoint ?? add(position, scale(dir(this.facing), range));
+    const d = { x: p.x - position.x, y: p.y - position.y };
+    const len = Math.hypot(d.x, d.y);
+    if (len <= range) return p;
+    return add(position, scale(d, range / len));
   }
 
   get finished(): boolean {
@@ -173,10 +221,25 @@ export class SkillExecution {
     switch (a.type) {
       case "strike": {
         const e = (this.timeline as ActionTimeline).update(dt);
+        this.elapsed += dt;
         const strikes: Strike[] = [];
         const zones: LingeringZone[] = [];
-        if (e.activeStarted) {
-          const parts = this.strikeParts(a.shape, input.position);
+        const total = a.hits ?? 1;
+        const interval = a.hitInterval ?? 0;
+        const windup = (this.timeline as ActionTimeline).spec.windup;
+        // 1撃目は当たり判定が出始めたとき。2撃目からは間隔ごと（動作が終わるまでに、残りを全て出す）
+        while (
+          this.hitsFired < total &&
+          (e.finished ||
+            (this.hitsFired === 0
+              ? e.activeStarted || this.elapsed >= windup - 1e-9
+              : this.elapsed >= windup + this.hitsFired * interval - 1e-9))
+        ) {
+          const firstHit = this.hitsFired === 0;
+          this.hitsFired += 1;
+          const parts = firstHit ? this.strikeParts(a.shape, input.position) : [];
+          if (!firstHit)
+            parts.push({ shape: a.shape, origin: input.position, facing: this.facing });
           const group = parts.length > 1 ? "main" : undefined;
           for (const p of parts) {
             strikes.push({
@@ -185,8 +248,10 @@ export class SkillExecution {
               ...p,
               ...(group === undefined ? {} : { group }),
               fullStagger: false,
+              ...(this.skill.forceCrit ? { forceCrit: true } : {}),
             });
           }
+          if (!firstHit) continue;
           const wave = behavior(this.skill, "shockwave");
           if (wave !== undefined) {
             strikes.push({
@@ -203,6 +268,66 @@ export class SkillExecution {
         }
         this.finishedFlag = e.finished;
         return { ...empty, strikes, zones, finished: e.finished };
+      }
+      case "teleport": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        const to = this.teleportTo;
+        return {
+          ...empty,
+          displacement:
+            e.activeStarted && to !== undefined
+              ? { x: to.x - input.position.x, y: to.y - input.position.y }
+              : ZERO,
+          finished: e.finished,
+        };
+      }
+      case "selfBuff": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        return {
+          ...empty,
+          ...(e.activeStarted ? { selfBuff: { effects: a.effects, duration: a.duration } } : {}),
+          finished: e.finished,
+        };
+      }
+      case "zone": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        return {
+          ...empty,
+          ...(e.activeStarted
+            ? {
+                zone: {
+                  center: this.placeAt(input.position, a.range),
+                  radius: a.radius,
+                  duration: a.duration,
+                  interval: a.interval,
+                  enemyEffects: a.enemyEffects ?? [],
+                  ...(a.ailment === undefined ? {} : { ailment: a.ailment }),
+                },
+              }
+            : {}),
+          finished: e.finished,
+        };
+      }
+      case "trap": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        return {
+          ...empty,
+          ...(e.activeStarted
+            ? {
+                trap: {
+                  center: this.placeAt(input.position, a.range),
+                  radius: a.radius,
+                  duration: a.duration,
+                  max: a.max,
+                },
+              }
+            : {}),
+          finished: e.finished,
+        };
       }
       case "warcry": {
         const e = (this.timeline as ActionTimeline).update(dt);

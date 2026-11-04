@@ -78,6 +78,8 @@ export interface SkillContext {
   /** 主手の武器のタグ（親タグを含む。TagIndex.closure を通したもの）。 */
   readonly weaponTags: ReadonlySet<string>;
   readonly dualWield?: boolean;
+  /** 終結技で使うゲージの量（急所穿ちのコンボ点）。 */
+  readonly gaugeSpent?: number;
 }
 
 export interface SkillBehavior {
@@ -97,6 +99,8 @@ export interface ResolvedSkill {
   /** 状態異常の基本付与率（変化による加算を含む）。 */
   readonly ailmentChance: Readonly<Record<string, number>>;
   readonly behaviors: readonly SkillBehavior[];
+  /** 必ず会心になる（急所穿ちの5点）。 */
+  readonly forceCrit: boolean;
   /** 当てはめた変化（表示・確認用。例：stage:empowered、weapon:TAG-WPN-GREATSWORD、dualWield）。 */
   readonly variants: readonly string[];
 }
@@ -136,6 +140,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   let distanceAdd = 0;
   let hitsPerSecond: number | undefined;
   let radiusMultiplier = 1;
+  let hits: number | undefined;
   const chance: Record<string, number> = { ...(def.ailmentChance ?? {}) };
   const behaviors: SkillBehavior[] = [];
   for (const { mods } of applied) {
@@ -146,6 +151,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     distanceAdd += mods.distanceAdd ?? 0;
     if (mods.hitsPerSecond !== undefined) hitsPerSecond = mods.hitsPerSecond;
     if (mods.radiusMultiplier !== undefined) radiusMultiplier *= mods.radiusMultiplier;
+    if (mods.hits !== undefined) hits = mods.hits;
     for (const [tag, c] of Object.entries(mods.ailmentChance ?? {}))
       chance[tag] = Math.min(1, (chance[tag] ?? 0) + c);
     for (const b of mods.behaviors ?? []) behaviors.push({ hook: b.hook, params: b.params ?? {} });
@@ -154,9 +160,15 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   const a = def.action;
   let action: SkillAction;
   switch (a.type) {
-    case "strike":
-      action = { ...a, shape: scaleShape(a.shape, area, angleDeg) };
+    case "strike": {
+      const n = hits ?? a.hits;
+      action = {
+        ...a,
+        shape: scaleShape(a.shape, area, angleDeg),
+        ...(n === undefined ? {} : { hits: n }),
+      };
       break;
+    }
     case "dash":
       action = { ...a, distance: a.distance + distanceAdd };
       break;
@@ -170,14 +182,29 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
         hitsPerSecond: hitsPerSecond ?? a.hitsPerSecond,
       };
       break;
+    case "zone":
+      action = { ...a, radius: a.radius * radiusMultiplier * area };
+      break;
+    case "teleport":
+    case "selfBuff":
+    case "trap":
+      action = a;
+      break;
   }
 
   const staggerDef = db.ailmentsByTag.get("TAG-AIL-STAGGER");
   const baseCoefficient =
     def.staggerCoefficient ?? (staggerDef?.kind === "stagger" ? staggerDef.defaultCoefficient : 0);
 
+  // 終結技：使ったゲージの量に応じて技倍率が上がり、決まった量なら必ず会心
+  const spent = ctx.gaugeSpent ?? 0;
+  if (def.finisher !== undefined) pct += def.finisher.pctPerPoint * spent;
+  const forceCrit =
+    def.finisher?.forceCritAt !== undefined && spent >= def.finisher.forceCritAt - 1e-9;
+
   return {
     def,
+    forceCrit,
     damage: {
       tags: def.tags,
       kind: def.kind,

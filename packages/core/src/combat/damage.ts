@@ -78,6 +78,10 @@ export interface HitOptions {
   readonly rng: Rng;
   /** random＝最小〜最大で抽選する、average＝平均の値を使う（シミュレーション・表示用）。 */
   readonly roll?: "random" | "average";
+  /** 会心率に足す固定値（例：盗賊の背面判定の+10%。仕様書5.6）。増加の前に足す。 */
+  readonly extraCritChance?: number;
+  /** 必ず会心にする（例：急所穿ちの「5点なら必ず会心」）。会心の禁止の印があれば、禁止が勝つ。 */
+  readonly forceCrit?: boolean;
 }
 
 export interface DamagePortion {
@@ -238,8 +242,11 @@ export function computeHit(
     weaponUid,
   );
   const critBase =
-    (attacker.weapon?.critChance ?? 0) + (critParts.added.min + critParts.added.max) / 2;
-  const critFlag = view.flag("crit", undefined, contextTags).resolution;
+    (attacker.weapon?.critChance ?? 0) +
+    (critParts.added.min + critParts.added.max) / 2 +
+    (options.extraCritChance ?? 0);
+  const flagged = view.flag("crit", undefined, contextTags).resolution;
+  const critFlag = flagged === "forbid" ? "forbid" : options.forceCrit === true ? "force" : flagged;
   const critChance =
     critFlag === "forbid"
       ? 0

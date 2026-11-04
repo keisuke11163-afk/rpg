@@ -9,11 +9,14 @@ import type { RawContent } from "@stella/core";
 import ailmentDefs from "../data/ailments/ailments.json" with { type: "json" };
 import chapter1Enemies from "../data/enemies/chapter1.json" with { type: "json" };
 import enemyRanks from "../data/enemies/ranks.json" with { type: "json" };
+import attributeEffects from "../data/effects/attributes.json" with { type: "json" };
+import rogueEffects from "../data/effects/rogue.json" with { type: "json" };
 import warriorEffects from "../data/effects/warrior.json" with { type: "json" };
 import gauges from "../data/gauges/gauges.json" with { type: "json" };
 import jobDefs from "../data/jobs/jobs.json" with { type: "json" };
 import manifest from "../data/manifest.json" with { type: "json" };
 import commonSkills from "../data/skills/common.json" with { type: "json" };
+import rogueSkills from "../data/skills/rogue.json" with { type: "json" };
 import warriorSkills from "../data/skills/warrior.json" with { type: "json" };
 import combatStats from "../data/stats/combat.json" with { type: "json" };
 import ailments from "../data/tags/ailments.json" with { type: "json" };
@@ -39,11 +42,16 @@ export const rawContent: RawContent = {
       { file: "data/tags/enemy-families.json", entries: enemyFamilies },
     ],
     stats: [{ file: "data/stats/combat.json", entries: combatStats }],
-    effects: [{ file: "data/effects/warrior.json", entries: warriorEffects }],
+    effects: [
+      { file: "data/effects/attributes.json", entries: attributeEffects },
+      { file: "data/effects/warrior.json", entries: warriorEffects },
+      { file: "data/effects/rogue.json", entries: rogueEffects },
+    ],
     ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
     skills: [
       { file: "data/skills/common.json", entries: commonSkills },
       { file: "data/skills/warrior.json", entries: warriorSkills },
+      { file: "data/skills/rogue.json", entries: rogueSkills },
     ],
     gauges: [{ file: "data/gauges/gauges.json", entries: gauges }],
     jobs: [{ file: "data/jobs/jobs.json", entries: jobDefs }],

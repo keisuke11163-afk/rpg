@@ -145,6 +145,7 @@ const REPLACE_RANK: Record<EffectOrigin, number> = {
   implicit: 0,
   inscription: 0,
   ailment: 0,
+  attribute: 0,
 };
 
 interface Entry {

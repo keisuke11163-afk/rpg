@@ -79,6 +79,8 @@ export interface AilmentRollInput {
   /** 技の基本付与率（状態異常のタグのID → 0〜1）。書かれていない種類は0（仕様書v0.2 2.7）。 */
   readonly skillChance?: Readonly<Partial<Record<string, number>>>;
   readonly weaponUid?: string;
+  /** 全ての種類の付与率に足す値（例：盗賊の背面判定の+25%。仕様書5.6）。 */
+  readonly extraChance?: number;
   readonly rng: Rng;
 }
 
@@ -115,7 +117,7 @@ export function ailmentCandidates(input: Omit<AilmentRollInput, "rng">): Ailment
     const context = [...hitTags, def.tag];
     const chanceSums = sums(view.stat(AILMENT_STATS.chance, context), db, weaponUid);
     const flag = view.flag("ailmentApply", def.tag, hitTags).resolution;
-    const rawChance = (skillChance?.[def.tag] ?? 0) + chanceSums.added;
+    const rawChance = (skillChance?.[def.tag] ?? 0) + chanceSums.added + (input.extraChance ?? 0);
     const chance =
       flag === "forbid" ? 0 : flag === "force" ? 1 : Math.min(1, Math.max(0, rawChance));
 

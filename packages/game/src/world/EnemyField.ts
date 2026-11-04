@@ -100,6 +100,8 @@ interface EnemyView {
 export interface FieldHooks {
   onPlayerHit(report: HitReport, enemy: Enemy, attack: EnemyAttackDef): void;
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
+  /** 敵が倒れた（経験値を得る）。 */
+  onEnemyKilled(enemy: Enemy): void;
 }
 
 /** 試験用の場の敵：出現・行動・攻撃の処理・表示。 */
@@ -262,6 +264,7 @@ export class EnemyField {
 
     for (const v of this.views) {
       const e = v.enemy;
+      const wasDead = e.state === "dead";
       if (e.state === "windup") v.hitGroups.clear();
       for (const ev of e.update(dt, target, this.rng, this.bounds)) {
         switch (ev.type) {
@@ -303,7 +306,10 @@ export class EnemyField {
             break;
         }
       }
-      if (e.state === "dead") v.deadFor += dt;
+      if (e.state === "dead") {
+        if (!wasDead) hooks.onEnemyKilled(e);
+        v.deadFor += dt;
+      }
     }
     separate(this.enemies);
 

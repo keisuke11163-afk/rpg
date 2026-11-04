@@ -2,11 +2,13 @@
 import Phaser from "phaser";
 import {
   AFFINITY_ATTACK_SPEED,
+  Character,
   type Affinity,
   Combatant,
   type ContentDb,
   Cooldowns,
   type DamageAttacker,
+  type DamageSkill,
   FixedStepClock,
   type HitReport,
   type HitShape,
@@ -23,7 +25,8 @@ import {
   TimedEffects,
   type Vec2,
   ZERO,
-  baseAccuracy,
+  enemyXp,
+  levelGapMultiplier,
   evaluateEffects,
   length,
   overlapsShape,
@@ -103,18 +106,51 @@ const TEST_WEAPONS: readonly TestWeapon[] = [
     critChance: 0.05,
     attackSpeed: 1.4,
   },
+  {
+    uid: "test-dagger",
+    name: "下級の短剣",
+    tags: ["TAG-WPN-DAGGER"],
+    base: { physical: { min: 4, max: 9 } },
+    critChance: 0.08,
+    attackSpeed: 1.6,
+  },
+  {
+    uid: "test-claw",
+    name: "下級の爪",
+    tags: ["TAG-WPN-CLAW"],
+    base: { physical: { min: 5, max: 8 } },
+    critChance: 0.06,
+    attackSpeed: 1.7,
+  },
 ];
+/** ジョブの初期装備の武器（補助仕様書3.4。転職したときに持ち替える）。 */
+const START_WEAPON: Readonly<Record<string, string>> = {
+  "JOB-WARRIOR": "test-greatsword",
+  "JOB-ROGUE": "test-dagger",
+};
 
-// 仮実装: U-12 feature/inventory-ui で、技の枠の設定に置き換える（試験用の技の並び。破軍は R キー）
-const LOADOUT: readonly { readonly action: Action | "rout"; readonly skill: string }[] = [
-  { action: "skill1", skill: "SKL-BASIC-ATTACK" },
-  { action: "skill2", skill: "SKL-WARRIOR-SWEEP" },
-  { action: "skill3", skill: "SKL-WARRIOR-CHARGE" },
-  { action: "skill4", skill: "SKL-WARRIOR-WARCRY" },
-  { action: "skill5", skill: "SKL-WARRIOR-EARTHSPLITTER" },
-  { action: "skill6", skill: "SKL-WARRIOR-WHIRLWIND" },
-  { action: "rout", skill: "SKL-WARRIOR-ROUT" },
-];
+// 仮実装: U-12 feature/inventory-ui で、技の枠の設定に置き換える（試験用の技の並び。7つ目は R キー）
+type Loadout = readonly { readonly action: Action | "rout"; readonly skill: string }[];
+const LOADOUTS: Readonly<Record<string, Loadout>> = {
+  "JOB-WARRIOR": [
+    { action: "skill1", skill: "SKL-BASIC-ATTACK" },
+    { action: "skill2", skill: "SKL-WARRIOR-SWEEP" },
+    { action: "skill3", skill: "SKL-WARRIOR-CHARGE" },
+    { action: "skill4", skill: "SKL-WARRIOR-WARCRY" },
+    { action: "skill5", skill: "SKL-WARRIOR-EARTHSPLITTER" },
+    { action: "skill6", skill: "SKL-WARRIOR-WHIRLWIND" },
+    { action: "rout", skill: "SKL-WARRIOR-ROUT" },
+  ],
+  "JOB-ROGUE": [
+    { action: "skill1", skill: "SKL-BASIC-ATTACK" },
+    { action: "skill2", skill: "SKL-ROGUE-FLURRY" },
+    { action: "skill3", skill: "SKL-ROGUE-PIERCE" },
+    { action: "skill4", skill: "SKL-ROGUE-SHADOWSTEP" },
+    { action: "skill5", skill: "SKL-ROGUE-POISON" },
+    { action: "skill6", skill: "SKL-ROGUE-SMOKE" },
+    { action: "rout", skill: "SKL-ROGUE-TRAP" },
+  ],
+};
 const SLOT_LABEL: Readonly<Record<string, string>> = {
   skill1: "左",
   skill2: "右",
@@ -124,8 +160,8 @@ const SLOT_LABEL: Readonly<Record<string, string>> = {
   skill6: "4",
   rout: "R",
 };
-// 仮実装: U-10 feature/rogue-and-job-change で、キャラクターのジョブLvに置き換える（試験用に全ての技を覚えている）
-const TEST_JOB_LEVEL = 12;
+// 仮実装: U-13 feature/save-load で、セーブデータのキャラクターに置き換える（試験用に、戦士の出自・キャラLv15・戦士のジョブLv15から始める）
+const TEST_START = { level: 15, jobLevel: 15 } as const;
 
 /** ヒットの手応え：止まる時間（秒）と、白く光る時間。 */
 const HIT_STOP = 0.05;
@@ -134,26 +170,48 @@ const FLASH = 0.08;
 const SHOW_STRIKE = 0.12;
 /** 吸い寄せたとき、これより近くには寄せない（m）。 */
 const PULL_MIN_DISTANCE = 1;
-/** 一番低いMP（仕様書v0.2 2.3：基礎MP60）。 */
-const MAX_MP = 60;
+/** 一定時間の効果を必ず付け直す間隔に、少しだけ余裕を持たせる（煙の中の敵の命中-30%）。 */
+const ZONE_REFRESH = 0.1;
 
 /** 技の実行と、当たった敵の記録（group ごと）。 */
 interface Running {
   readonly exec: SkillExecution | LingeringZone;
   readonly hit: Map<string, Set<string>>;
+  /** 1回の使用で1体以上に当たったときのゲージ（コンボ点）を、もう得たか。 */
+  gained?: boolean;
+}
+
+/** 置いた煙玉。 */
+interface SmokeZone {
+  readonly skill: string;
+  readonly center: Vec2;
+  readonly radius: number;
+  readonly interval: number;
+  readonly enemyEffects: readonly string[];
+  readonly ailment: string | undefined;
+  remaining: number;
+  untilNext: number;
+}
+
+/** 置いた罠。起爆したときの能力値で計算する（仕様書v0.2 5.6）。 */
+interface Trap {
+  readonly skill: ResolvedSkill;
+  readonly center: Vec2;
+  readonly radius: number;
+  remaining: number;
 }
 
 export class ArenaScene extends Phaser.Scene {
   private db!: ContentDb;
   private tags!: TagIndex;
-  private job!: JobDef;
+  private character!: Character;
   private motion!: PlayerMotion;
   private controls!: InputSystem;
   private readonly clock = new FixedStepClock();
   private readonly rng = Rng.fromSeed("arena");
   private weaponIndex = 0;
   private attacker!: DamageAttacker;
-  private attackerVersion = -1;
+  private attackerVersion = "";
   private attackSpeed = 1;
   /** プレイヤーの戦う者（HP・状態異常・崩し。敵の攻撃を受ける）。 */
   private player!: Combatant;
@@ -162,8 +220,15 @@ export class ArenaScene extends Phaser.Scene {
   private avoidedAttacks = 0;
   private deaths = 0;
   private enemyHits = 0;
-  private mp = MAX_MP;
-  private fervor!: JobGauge;
+  private mp = 60;
+  private maxMp = 60;
+  private effectDuration = 1;
+  private smokes: SmokeZone[] = [];
+  private traps: Trap[] = [];
+  private keyJob!: Phaser.Input.Keyboard.Key;
+  private jobPressed = false;
+  private levelUps = 0;
+  private jobGauge!: JobGauge;
   private readonly cooldowns = new Cooldowns();
   private readonly buffs = new TimedEffects();
   private dummy!: Combatant;
@@ -203,6 +268,16 @@ export class ArenaScene extends Phaser.Scene {
     return TEST_WEAPONS[this.weaponIndex] ?? (TEST_WEAPONS[0] as TestWeapon);
   }
 
+  private get job(): JobDef {
+    const j = this.db.jobs.get(this.character.mainJob);
+    if (j === undefined) throw new Error(`ジョブ ${this.character.mainJob} がない`);
+    return j;
+  }
+
+  private get loadout(): Loadout {
+    return LOADOUTS[this.job.id] ?? [];
+  }
+
   private get affinity(): Affinity {
     return weaponAffinity(this.tags, this.job, this.weapon.tags);
   }
@@ -210,12 +285,14 @@ export class ArenaScene extends Phaser.Scene {
   create(): void {
     this.db = loadGameContent();
     this.tags = new TagIndex(this.db.tags);
-    const job = this.db.jobs.get("JOB-WARRIOR");
-    const gauge = this.db.gauges.get(job?.gauge ?? "");
-    if (job === undefined || gauge === undefined) throw new Error("戦士のデータがない");
-    this.job = job;
-    this.fervor = new JobGauge(gauge);
-    this.refreshAttacker();
+    const origin = this.db.jobs.get("JOB-WARRIOR");
+    if (origin === undefined) throw new Error("戦士のデータがない");
+    this.character = new Character({
+      origin,
+      level: TEST_START.level,
+      jobLevels: { [origin.id]: TEST_START.jobLevel },
+    });
+    this.jobGauge = this.newGauge();
 
     this.add
       .tileSprite(0, 0, toPixels(ARENA.width), toPixels(ARENA.height), TEXTURES.floor)
@@ -227,7 +304,9 @@ export class ArenaScene extends Phaser.Scene {
       maxX: ARENA.width - 0.5,
       maxY: ARENA.height - 0.25,
     });
+    this.refreshAttacker();
     this.player = this.newPlayer();
+    this.mp = this.maxMp;
     this.field = new EnemyField(this, this.db, this.rng.fork("enemies"), {
       minX: 0.5,
       minY: 0.5,
@@ -262,6 +341,9 @@ export class ArenaScene extends Phaser.Scene {
     this.keyRout = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R, true);
     this.keyTab.on("down", () => (this.tabPressed = true));
     this.keyRout.on("down", () => (this.routPressed = true));
+    // 仮実装: U-18a feature/town-and-dungeon-base で、町の転職神殿に置き換える（G で転職。キャラLv15から）
+    this.keyJob = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G, true);
+    this.keyJob.on("down", () => (this.jobPressed = true));
 
     const camera = this.cameras.main;
     camera.setBounds(0, 0, toPixels(ARENA.width), toPixels(ARENA.height));
@@ -314,12 +396,17 @@ export class ArenaScene extends Phaser.Scene {
       }),
       // 確認用：闘志の量を決める（開発版だけ。自動の確認で、激化・解放を短い時間で試すため）
       setFervor: (value?: number | string) => {
-        this.fervor.spend("all");
-        this.fervor.add(Number(value ?? 0));
-        this.fervor.markCombat();
-        return this.fervor.value;
+        this.jobGauge.spend("all");
+        this.jobGauge.add(Number(value ?? 0));
+        this.jobGauge.markCombat();
+        return this.jobGauge.value;
       },
       enemies: () => this.field.debug(),
+      // 確認用：経験値を得る（開発版だけ）
+      grantXp: (value?: number | string) => {
+        this.gainXp(Number(value ?? 0));
+        return this.character.level;
+      },
       playerState: () => ({
         hp: this.player.health.hp,
         maxHp: this.player.health.maxHp,
@@ -347,47 +434,102 @@ export class ArenaScene extends Phaser.Scene {
         affinity: this.affinity,
         attackSpeed: this.attackSpeed,
         mp: this.mp,
-        fervor: this.fervor.value,
-        stages: this.fervor.stages,
+        fervor: this.jobGauge.value,
+        stages: this.jobGauge.stages,
         executing: this.current?.slot ?? null,
         lastSkill: this.lastSkill?.id ?? null,
         lastVariants: this.lastSkill?.variants ?? [],
         uses: Object.fromEntries(this.uses),
         buffs: this.buffs.active.map((b) => b.effectId),
         cooldowns: Object.fromEntries(
-          LOADOUT.map((l) => [l.skill, this.cooldowns.remaining(l.skill)]),
+          this.loadout.map((l) => [l.skill, this.cooldowns.remaining(l.skill)]),
         ),
+        job: this.job.id,
+        jobLevel: this.character.jobLevel(this.job.id),
+        jobLevels: Object.fromEntries(
+          [...this.db.jobs.keys()].map((j) => [j, this.character.jobLevel(j)]),
+        ),
+        level: this.character.level,
+        xp: this.character.progress.xp,
+        traps: this.traps.length,
+        smokes: this.smokes.length,
       }),
     });
     document.body.dataset["stellaReady"] = "true";
   }
 
-  /** プレイヤーの戦う者（仮値: 最大HP60＝Lv1の標準HP。キャラクターの能力値は U-10 で入れる）。 */
+  /** プレイヤーの戦う者（最大HPは、能力値の評価の値）。 */
   private newPlayer(): Combatant {
     return new Combatant(this.db, {
       id: "player",
       team: "player",
       position: this.motion.position,
       radius: 0.35,
-      maxHp: 60,
+      maxHp: this.attacker.view.stat("STAT-HP-MAX").value,
       staggerProfile: staggerProfiles(this.db).player,
     });
   }
 
+  /** メインジョブの職能ゲージ（メインジョブのものだけが有効。仕様書5章）。 */
+  private newGauge(): JobGauge {
+    const g = this.db.gauges.get(this.job.gauge ?? "");
+    if (g === undefined) throw new Error(`ジョブ ${this.job.id} の職能ゲージがない`);
+    return new JobGauge(g);
+  }
+
+  /** 経験値を得る。Lvが上がったら、HPを全回復する（最大HPが変わるため）。 */
+  private gainXp(amount: number): void {
+    const before = this.character.level;
+    const r = this.character.gainXp(amount);
+    if (r.characterLevels > 0 || r.jobLevels > 0) {
+      this.levelUps += r.characterLevels + r.jobLevels;
+      this.attackerVersion = "";
+      this.refreshAttacker();
+      if (this.character.level !== before) this.player = this.newPlayer();
+      this.popText(
+        `${r.characterLevels > 0 ? `Lv${String(this.character.level)}` : ""}${r.jobLevels > 0 ? ` ジョブLv${String(this.character.jobLevel(this.job.id))}` : ""}`,
+        this.motion.position,
+        "#7bd389",
+      );
+    }
+  }
+
+  /** 転職する（戦士と盗賊を順に替える）。武器はジョブの初期装備に持ち替える。 */
+  private changeJob(): void {
+    if (this.current !== undefined || !this.character.canChangeJob) return;
+    const jobs = [...this.db.jobs.keys()];
+    const next = jobs[(jobs.indexOf(this.job.id) + 1) % jobs.length];
+    if (next === undefined || !this.character.changeJob(next)) return;
+    const w = TEST_WEAPONS.findIndex((x) => x.uid === START_WEAPON[next]);
+    if (w >= 0) this.weaponIndex = w;
+    this.jobGauge = this.newGauge();
+    this.attackerVersion = "";
+    this.refreshAttacker();
+  }
+
   /** 効果（戦吼の強化など）が変わったら、攻撃する側の能力値を計算し直す。 */
   private refreshAttacker(): void {
-    if (this.attackerVersion === this.buffs.version) return;
-    this.attackerVersion = this.buffs.version;
-    const { view } = evaluateEffects(this.db, this.tags, this.buffs.instances(), {
-      baseStats: { "STAT-ACCURACY": baseAccuracy(1, 10) },
-      equippedTags: { mainHand: this.weapon.tags },
-      mainJob: this.job.tag,
-    });
+    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${this.weapon.uid}`;
+    if (this.attackerVersion === version) return;
+    this.attackerVersion = version;
+    const { view } = evaluateEffects(
+      this.db,
+      this.tags,
+      [...this.buffs.instances(), ...this.character.attributeEffects()],
+      {
+        baseStats: this.character.baseStats(),
+        equippedTags: { mainHand: this.weapon.tags },
+        mainJob: this.job.tag,
+      },
+    );
     const w = this.weapon;
+    this.maxMp = view.stat("STAT-MP-MAX").value;
+    this.mp = Math.min(this.mp, this.maxMp);
+    this.effectDuration = 1 + view.stat("STAT-EFFECT-DURATION").increased;
     this.attacker = {
       db: this.db,
       view,
-      characterLevel: 1,
+      characterLevel: this.character.level,
       weapon: { uid: w.uid, tags: w.tags, base: w.base, critChance: w.critChance },
     };
     // 武器適性の攻撃速度（仕様書5.1）は、加算の増加として足す
@@ -402,7 +544,6 @@ export class ArenaScene extends Phaser.Scene {
   private switchWeapon(): void {
     if (this.current !== undefined) return;
     this.weaponIndex = (this.weaponIndex + 1) % TEST_WEAPONS.length;
-    this.attackerVersion = -1;
     this.refreshAttacker();
   }
 
@@ -412,41 +553,88 @@ export class ArenaScene extends Phaser.Scene {
     return held.has(slot as Action) || pressed.has(slot as Action);
   }
 
-  private blockOf(skillId: string): SkillBlock | "locked" | undefined {
+  private blockOf(skillId: string): SkillBlock | "locked" | "target" | undefined {
     if (
       skillId !== "SKL-BASIC-ATTACK" &&
-      !unlockedSkills(this.job, TEST_JOB_LEVEL).includes(skillId)
+      !unlockedSkills(this.job, this.character.jobLevel(this.job.id)).includes(skillId)
     )
       return "locked";
     const def = this.db.skills.get(skillId);
     if (def === undefined) return "locked";
+    // 影走りは、対象（照準の近くの敵）がいなければ使えない（補助仕様書3.6）
+    if (def.action.type === "teleport" && this.stepTarget(def.action.range) === undefined)
+      return "target";
     return skillBlock(def, {
       cooldown: this.cooldowns.remaining(skillId),
       mp: this.mp,
-      gauge: this.fervor.value,
+      gauge: this.jobGauge.value,
       affinity: this.affinity,
     });
   }
 
+  /** 影走りの対象：自分から range 以内の敵のうち、照準の位置に最も近いもの。 */
+  private stepTarget(range: number): Combatant | undefined {
+    const p = this.motion.position;
+    const aim = this.aimPoint;
+    let best: Combatant | undefined;
+    let bestD = Infinity;
+    for (const t of this.targets()) {
+      if (length({ x: t.position.x - p.x, y: t.position.y - p.y }) > range + t.radius) continue;
+      const d = length({ x: t.position.x - aim.x, y: t.position.y - aim.y });
+      if (d < bestD) {
+        bestD = d;
+        best = t;
+      }
+    }
+    return best;
+  }
+
+  /** 敵の背後の位置（向きを持たない敵は、自分から見て反対側）。 */
+  private behind(t: Combatant, gap: number): Vec2 {
+    const p = this.motion.position;
+    const away =
+      t.facing === undefined
+        ? Math.atan2(t.position.y - p.y, t.position.x - p.x)
+        : t.facing + Math.PI;
+    const d = t.radius + this.player.radius + gap;
+    return { x: t.position.x + Math.cos(away) * d, y: t.position.y + Math.sin(away) * d };
+  }
+
+  private aimPoint: Vec2 = { x: 0, y: 0 };
+
   private startSkill(slot: string, skillId: string): void {
     const def = this.db.skills.get(skillId);
     if (def === undefined) return;
+    // 終結技は、使う前のゲージの量で強さが決まる
+    const cost = def.gauge?.cost;
+    const spent = cost === "all" ? this.jobGauge.value : (cost ?? 0);
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
-      stages: this.fervor.stages,
+      stages: this.jobGauge.stages,
       weaponTags: this.tags.closure(this.weapon.tags),
+      gaugeSpent: spent,
     });
+    let teleportTo: Vec2 | undefined;
+    if (def.action.type === "teleport") {
+      const t = this.stepTarget(def.action.range);
+      if (t === undefined) return;
+      teleportTo = this.behind(t, def.action.behind);
+    }
     this.mp -= def.mpCost;
     this.cooldowns.start(def.id, def.cooldown);
-    if (def.gauge?.cost !== undefined) this.fervor.spend(def.gauge.cost);
-    if (def.gauge?.gainOnUse !== undefined) this.fervor.add(def.gauge.gainOnUse);
-    this.fervor.markCombat();
-    for (const e of def.selfEffects ?? []) this.buffs.add(e.effect, e.duration, def.id);
+    if (def.gauge?.cost !== undefined) this.jobGauge.spend(def.gauge.cost);
+    if (def.gauge?.gainOnUse !== undefined) this.jobGauge.add(def.gauge.gainOnUse);
+    this.jobGauge.markCombat();
+    for (const e of def.selfEffects ?? [])
+      this.buffs.add(e.effect, e.duration * this.effectDuration, def.id);
     this.lastSkill = { id: def.id, variants: resolved.variants };
     this.uses.set(def.id, (this.uses.get(def.id) ?? 0) + 1);
     this.current = {
       slot,
       run: {
-        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeed),
+        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeed, {
+          aimPoint: this.aimPoint,
+          ...(teleportTo === undefined ? {} : { teleportTo }),
+        }),
         hit: new Map(),
       },
     };
@@ -456,6 +644,9 @@ export class ArenaScene extends Phaser.Scene {
     const frame = this.controls.read();
     if (this.tabPressed) this.switchWeapon();
     this.tabPressed = false;
+    if (this.jobPressed) this.changeJob();
+    this.jobPressed = false;
+    this.aimPoint = { x: toMeters(frame.pointerWorld.x), y: toMeters(frame.pointerWorld.y) };
     const { steps } = this.clock.advance(deltaMs / 1000);
     for (let i = 0; i < steps; i++) {
       const dt = this.clock.stepSeconds;
@@ -481,7 +672,7 @@ export class ArenaScene extends Phaser.Scene {
       // 技を使い始める（照準の方向へ）。枠の順に、使えるものを1つ
       if (this.current === undefined && !this.motion.dodging && !dodge && !staggered) {
         this.motion.update(0, { move: ZERO, aim, dodge: false }); // 向きだけ照準に合わせる
-        for (const l of LOADOUT) {
+        for (const l of this.loadout) {
           if (this.wants(l.action, frame.held, pressed) && this.blockOf(l.skill) === undefined) {
             this.startSkill(l.action, l.skill);
             break;
@@ -505,7 +696,8 @@ export class ArenaScene extends Phaser.Scene {
         this.motion.displace(tick.displacement);
         if (tick.warcry !== undefined) {
           const w = tick.warcry;
-          for (const e of w.allyEffects) this.buffs.add(e, w.duration, exec.skill.def.id);
+          for (const e of w.allyEffects)
+            this.buffs.add(e, w.duration * this.effectDuration, exec.skill.def.id);
           for (const t of this.targets()) {
             if (
               length({ x: t.position.x - w.origin.x, y: t.position.y - w.origin.y }) >
@@ -530,10 +722,40 @@ export class ArenaScene extends Phaser.Scene {
           }
         }
         for (const z of tick.zones) this.zones.push({ exec: z, hit: new Map() });
+        if (tick.selfBuff !== undefined) {
+          for (const e of tick.selfBuff.effects)
+            this.buffs.add(e, tick.selfBuff.duration * this.effectDuration, exec.skill.def.id);
+        }
+        if (tick.zone !== undefined) {
+          const z = tick.zone;
+          this.smokes.push({
+            skill: exec.skill.def.id,
+            center: z.center,
+            radius: z.radius,
+            interval: z.interval,
+            enemyEffects: z.enemyEffects,
+            ailment: z.ailment,
+            remaining: z.duration,
+            untilNext: 0,
+          });
+        }
+        if (tick.trap !== undefined) {
+          const t = tick.trap;
+          this.traps.push({
+            skill: exec.skill,
+            center: t.center,
+            radius: t.radius,
+            remaining: t.duration,
+          });
+          // 同時に置ける数を超えたら、古いものから消える
+          while (this.traps.length > t.max) this.traps.shift();
+        }
         moveMultiplier = tick.moveMultiplier;
         if (tick.finished) this.current = undefined;
       }
       for (const z of this.zones) this.resolveStrikes(z, (z.exec as LingeringZone).update(dt));
+      this.updateSmokes(dt);
+      this.updateTraps(dt);
       this.zones = this.zones.filter((z) => !(z.exec as LingeringZone).done);
 
       this.motion.update(dt, {
@@ -550,7 +772,7 @@ export class ArenaScene extends Phaser.Scene {
         onPlayerHit: (report) => {
           if (report.hit.evaded) return;
           this.hitsTaken += 1;
-          this.fervor.onDamageTaken(
+          this.jobGauge.onDamageTaken(
             report.applied.toHp + report.applied.toWard,
             this.player.health.maxHp,
           );
@@ -558,21 +780,28 @@ export class ArenaScene extends Phaser.Scene {
         onAvoided: () => {
           this.avoidedAttacks += 1;
         },
+        onEnemyKilled: (enemy) => {
+          // 経験値（補助仕様書4.2）：5＋2×敵のLv、格の倍率、Lvの差の補正
+          this.gainXp(
+            enemyXp(enemy.level, enemy.rank.xpMultiplier) *
+              levelGapMultiplier(this.character.level, enemy.level),
+          );
+        },
       });
 
       const dot = this.dummy.update(dt);
       if (dot > 0) this.recentDamage.push({ t: this.time0, amount: dot });
       const playerDot = this.player.update(dt);
-      if (playerDot > 0) this.fervor.onDamageTaken(playerDot, this.player.health.maxHp);
+      if (playerDot > 0) this.jobGauge.onDamageTaken(playerDot, this.player.health.maxHp);
       // 仮実装: U-18b feature/death-and-return で、死亡の扱い（町に戻る）に置き換える（試験用の場では、その場で全回復する）
       if (this.player.health.dead) {
         this.deaths += 1;
         this.player = this.newPlayer();
       }
-      this.mp = Math.min(MAX_MP, this.mp + MAX_MP * 0.06 * dt);
+      this.mp = Math.min(this.maxMp, this.mp + this.maxMp * 0.06 * dt);
       this.cooldowns.update(dt);
       this.buffs.update(dt);
-      this.fervor.update(dt);
+      this.jobGauge.update(dt);
       this.refreshAttacker();
       this.time0 += dt;
       this.updateHazard();
@@ -594,38 +823,126 @@ export class ArenaScene extends Phaser.Scene {
           set.add(t.id);
           run.hit.set(s.group, set);
         }
-        const report = resolveHit({
-          db: this.db,
-          attacker: this.attacker,
-          attackerPosition: s.origin,
-          skill: s.damage,
-          skillChance: s.skill.ailmentChance,
-          staggerCoefficient: s.skill.staggerCoefficient,
-          target: t,
-          rng: this.rng,
-          fullStagger: s.fullStagger,
-        });
-        if (t !== this.dummy) this.field.onEnemyHit(t);
-        if (report.hit.evaded) {
-          if (t === this.dummy) this.lastHit = report;
-          continue;
-        }
-        landed = true;
-        this.hitStop = HIT_STOP;
-        if (t === this.dummy) {
-          this.lastHit = report;
-          this.hitCount += 1;
-          this.recentDamage.push({ t: this.time0, amount: report.hit.total });
-          this.flash = FLASH;
-        } else this.enemyHits += 1;
-        if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
-        this.popDamage(report, t.position);
+        if (this.hitTarget(t, s.skill, s.damage, s.origin, s.fullStagger, s.forceCrit === true))
+          landed = true;
       }
     }
-    // 闘志：1回の当たり判定の発生で、当たれば1回増える（docs/progress D-U08-3）
     const first = strikes[0];
-    if (landed && first !== undefined)
-      this.fervor.onHitDealt(this.tags.closure(first.skill.damage.tags));
+    if (!landed || first === undefined) return;
+    // 闘志：1回の当たり判定の発生で、当たれば1回増える（docs/progress D-U08-3）
+    this.jobGauge.onHitDealt(this.tags.closure(first.skill.damage.tags));
+    // コンボ点：1回の使用で、1体以上に当たれば1回だけ増える（docs/progress D-U10-1）
+    const gain = first.skill.def.gauge?.gainOnHit;
+    if (gain !== undefined && run.gained !== true) {
+      run.gained = true;
+      this.jobGauge.add(gain);
+    }
+  }
+
+  /** 1体にヒットを解決する。当たれば true。 */
+  private hitTarget(
+    t: Combatant,
+    skill: ResolvedSkill,
+    damage: DamageSkill,
+    origin: Vec2,
+    fullStagger: boolean,
+    forceCrit: boolean,
+  ): boolean {
+    const bonus = this.job.backstabBonus;
+    const report = resolveHit({
+      db: this.db,
+      attacker: this.attacker,
+      attackerPosition: origin,
+      skill: damage,
+      skillChance: skill.ailmentChance,
+      staggerCoefficient: skill.staggerCoefficient,
+      target: t,
+      rng: this.rng,
+      fullStagger,
+      forceCrit,
+      ...(bonus === undefined ? {} : { backstabBonus: bonus }),
+    });
+    if (t !== this.dummy) this.field.onEnemyHit(t);
+    if (t === this.dummy) this.lastHit = report;
+    if (report.hit.evaded) return false;
+    this.hitStop = HIT_STOP;
+    if (t === this.dummy) {
+      this.hitCount += 1;
+      this.recentDamage.push({ t: this.time0, amount: report.hit.total });
+      this.flash = FLASH;
+    } else this.enemyHits += 1;
+    if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
+    this.popDamage(report, t.position);
+    return true;
+  }
+
+  /** 煙玉：中の敵に命中-30%をかけ続け、間隔ごとに衰弱を必ず付ける（仕様書v0.2 5.6）。 */
+  private updateSmokes(dt: number): void {
+    for (const z of this.smokes) {
+      z.remaining -= dt;
+      z.untilNext -= dt;
+      const pulse = z.untilNext <= 1e-9;
+      if (pulse) z.untilNext += z.interval;
+      const def = z.ailment === undefined ? undefined : this.db.ailmentsByTag.get(z.ailment);
+      for (const t of this.targets()) {
+        if (
+          length({ x: t.position.x - z.center.x, y: t.position.y - z.center.y }) >
+          z.radius + t.radius
+        )
+          continue;
+        for (const e of z.enemyEffects) t.statuses.add(e, dt + ZONE_REFRESH, z.skill);
+        if (pulse && def !== undefined && (def.kind === "debuff" || def.kind === "dot")) {
+          t.ailments.apply({
+            ailmentId: def.id,
+            tag: def.tag,
+            total: 0,
+            duration: def.duration,
+            maxStacks: 1,
+          });
+          if (t !== this.dummy) this.field.onEnemyHit(t);
+        }
+      }
+    }
+    this.smokes = this.smokes.filter((z) => z.remaining > 1e-9);
+  }
+
+  /** 罠：敵が踏むと起爆する（起爆したときの能力値で計算する。主手の武器のヒット）。 */
+  private updateTraps(dt: number): void {
+    const left: Trap[] = [];
+    for (const trap of this.traps) {
+      trap.remaining -= dt;
+      const victim = this.targets().find(
+        (t) =>
+          length({ x: t.position.x - trap.center.x, y: t.position.y - trap.center.y }) <=
+          trap.radius + t.radius,
+      );
+      if (victim !== undefined) {
+        this.showShape({ type: "circle", radius: trap.radius }, trap.center, 0);
+        this.hitTarget(victim, trap.skill, trap.skill.damage, trap.center, false, false);
+        continue;
+      }
+      if (trap.remaining > 1e-9) left.push(trap);
+    }
+    this.traps = left;
+  }
+
+  private popText(label: string, at: Vec2, color: string): void {
+    const t = this.add
+      .text(toPixels(at.x), toPixels(at.y) - 24, label, {
+        fontFamily: "sans-serif",
+        fontSize: "11px",
+        color,
+      })
+      .setOrigin(0.5, 1);
+    this.tweens.add({
+      targets: t,
+      y: t.y - 20,
+      alpha: 0,
+      duration: 1200,
+      onComplete: () => {
+        t.destroy();
+      },
+    });
   }
 
   private skillName(id: string): string {
@@ -676,7 +993,7 @@ export class ArenaScene extends Phaser.Scene {
     else {
       this.hazardHits += 1;
       const taken = this.player.health.takeDamage(5);
-      this.fervor.onDamageTaken(taken.toHp + taken.toWard, this.player.health.maxHp);
+      this.jobGauge.onDamageTaken(taken.toHp + taken.toWard, this.player.health.maxHp);
     }
   }
 
@@ -748,6 +1065,19 @@ export class ArenaScene extends Phaser.Scene {
     this.field.render(g, (shape, origin, facing) => {
       this.drawShape(g, shape, origin, facing);
     });
+    // 煙玉と罠
+    for (const z of this.smokes)
+      g.fillStyle(0x8c88a0, 0.25).fillCircle(
+        toPixels(z.center.x),
+        toPixels(z.center.y),
+        z.radius * PIXELS_PER_METER,
+      );
+    for (const t of this.traps)
+      g.lineStyle(1, 0xffd166, 0.9).strokeCircle(
+        toPixels(t.center.x),
+        toPixels(t.center.y),
+        t.radius * PIXELS_PER_METER,
+      );
     // 残っている亀裂
     for (const z of this.zones) {
       g.fillStyle(0xff9f43, 0.18);
@@ -788,37 +1118,46 @@ export class ArenaScene extends Phaser.Scene {
     };
     this.bars.clear();
     bar(0, this.player.health.hp / this.player.health.maxHp, 0xff6b6b);
-    bar(1, this.mp / MAX_MP, 0x6fa8ff);
+    bar(1, this.mp / this.maxMp, 0x6fa8ff);
     bar(2, this.motion.currentStamina / this.motion.config.maxStamina, 0x7bd389);
     bar(
       3,
-      this.fervor.value / this.fervor.max,
-      this.fervor.hasStage("empowered") ? 0xff9f43 : 0xb5651d,
+      this.jobGauge.value / this.jobGauge.max,
+      this.jobGauge.hasStage("empowered") ? 0xff9f43 : 0xb5651d,
     );
 
     const last = this.lastHit;
-    const stageText = this.fervor.def.stages
-      .filter((s) => this.fervor.hasStage(s.id))
+    const stageText = this.jobGauge.def.stages
+      .filter((s) => this.jobGauge.hasStage(s.id))
       .map((s) => text(s.text as TextKey))
       .join("・");
-    const slots = LOADOUT.map((l) => {
-      const name = this.skillName(l.skill);
-      const block = this.blockOf(l.skill);
-      const cd = this.cooldowns.remaining(l.skill);
-      const state =
-        block === undefined
-          ? ""
-          : block === "cooldown"
-            ? `（${cd.toFixed(1)}秒）`
-            : block === "mp"
-              ? "（MP不足）"
-              : block === "gauge"
-                ? "（闘志不足）"
-                : "（使えない）";
-      return `${SLOT_LABEL[l.action] ?? l.action}:${name}${state}`;
-    }).join(" ");
+    const gaugeName = text(this.jobGauge.def.text as TextKey);
+    const c = this.character;
+    const slots = this.loadout
+      .map((l) => {
+        const name = this.skillName(l.skill);
+        const block = this.blockOf(l.skill);
+        const cd = this.cooldowns.remaining(l.skill);
+        const state =
+          block === undefined
+            ? ""
+            : block === "cooldown"
+              ? `（${cd.toFixed(1)}秒）`
+              : block === "mp"
+                ? "（MP不足）"
+                : block === "gauge"
+                  ? `（${gaugeName}不足）`
+                  : block === "target"
+                    ? "（対象なし）"
+                    : block === "locked"
+                      ? "（未習得）"
+                      : "（使えない）";
+        return `${SLOT_LABEL[l.action] ?? l.action}:${name}${state}`;
+      })
+      .join(" ");
     this.hud.setText([
-      "試験用の場（WASD移動・マウス照準・スペース回避・Tabで武器を替える）",
+      "試験用の場（WASD移動・マウス照準・スペース回避・Tabで武器を替える・Gで転職）",
+      `Lv${String(c.level)}（経験値 ${c.progress.xp.toFixed(0)}／${String(c.progress.toNext)}）・${text(this.job.text as TextKey)} ジョブLv${String(c.jobLevel(this.job.id))}（${c.jobTrack(this.job.id).xp.toFixed(0)}／${String(c.jobTrack(this.job.id).toNext)}）${c.catchingUp ? "・追いつき補正×2" : ""}`,
       slots,
       `武器：${this.weapon.name}（適性${this.affinity}・攻撃速度 ${this.attackSpeed.toFixed(2)}回/秒）${this.buffs.active.length > 0 ? `・効果：${this.buffs.active.map((b) => `${this.skillName(b.ref)}（${b.remaining.toFixed(1)}秒）`).join("・")}` : ""}`,
       `人形：HP ${this.dummy.health.hp.toFixed(0)}／${this.dummy.health.maxHp.toFixed(0)}・DPS ${this.dps().toFixed(1)}・ヒット ${String(this.hitCount)}${this.dummy.stagger.broken ? "・崩れ" : ""}${this.dummy.statuses.active.length > 0 ? "・威圧" : ""}`,
@@ -827,7 +1166,7 @@ export class ArenaScene extends Phaser.Scene {
         : `最後のヒット：${last.hit.evaded ? "回避された" : `${last.hit.total.toFixed(1)}${last.hit.crit ? "・会心" : ""}${last.backstab ? "・背面" : ""}${last.ailments.length > 0 ? "・出血" : ""}`}${this.lastSkill === undefined ? "" : `（${this.lastSkill.variants.join("・") || "変化なし"}）`}`,
       `危険地帯：被弾 ${String(this.hazardHits)}／回避で無効 ${String(this.hazardAvoided)}`,
       `敵：倒した数 ${String(this.field.kills)}・被弾 ${String(this.hitsTaken)}・回避で無効 ${String(this.avoidedAttacks)}・倒れた回数 ${String(this.deaths)}${this.player.ailments.stacks("AIL-POISON") > 0 ? `・毒 ${String(this.player.ailments.stacks("AIL-POISON"))}` : ""}${this.player.stagger.broken ? "・よろめき" : ""}`,
-      `HP ${this.player.health.hp.toFixed(0)}・MP ${this.mp.toFixed(0)}・気力 ${this.motion.currentStamina.toFixed(0)}・闘志 ${this.fervor.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
+      `HP ${this.player.health.hp.toFixed(0)}・MP ${this.mp.toFixed(0)}・気力 ${this.motion.currentStamina.toFixed(0)}・${gaugeName} ${this.jobGauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
     ]);
   }
 }

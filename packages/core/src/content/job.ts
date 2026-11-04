@@ -47,6 +47,8 @@ export const skillModsSchema = z.strictObject({
   pct: z.number().positive().optional(),
   /** 戦吼の範囲の倍率。 */
   radiusMultiplier: z.number().positive().optional(),
+  /** 連撃の数を置き換える（連刃：爪は4連撃、片手剣は2連撃）。 */
+  hits: z.number().int().positive().optional(),
   /** 加える挙動。 */
   behaviors: z.array(skillBehaviorSchema).optional(),
 });
@@ -54,8 +56,48 @@ export type SkillMods = z.infer<typeof skillModsSchema>;
 
 /** 技の動き方。 */
 export const skillActionSchema = z.discriminatedUnion("type", [
-  // 当たり判定を1回出す（薙ぎ払い・地割り・破軍・通常攻撃）
-  z.strictObject({ type: z.literal("strike"), shape: hitShapeSchema }),
+  // 当たり判定を出す（薙ぎ払い・地割り・破軍・通常攻撃）。hits があれば、間隔を空けて連撃する（連刃）
+  z.strictObject({
+    type: z.literal("strike"),
+    shape: hitShapeSchema,
+    hits: z.number().int().positive().optional(),
+    /** 連撃の間隔（秒）。 */
+    hitInterval: z.number().positive().optional(),
+  }),
+  // 照準の近くの敵の背後へ瞬間移動する（影走り）。対象がいなければ使えない
+  z.strictObject({
+    type: z.literal("teleport"),
+    /** 対象を探す範囲（自分から。m）。 */
+    range: z.number().positive(),
+    /** 敵の背後の、どれだけ後ろに出るか（体の端から。m）。 */
+    behind: z.number().nonnegative(),
+  }),
+  // 自分に一定時間の効果をかける（毒塗り）
+  z.strictObject({
+    type: z.literal("selfBuff"),
+    effects: z.array(idSchema).min(1),
+    duration: z.number().positive(),
+  }),
+  // 照準の位置（射程内）に、一定時間残る範囲を置く（煙玉）。中の敵に効果をかけ、間隔ごとに状態異常を必ず付ける
+  z.strictObject({
+    type: z.literal("zone"),
+    range: z.number().positive(),
+    radius: z.number().positive(),
+    duration: z.number().positive(),
+    interval: z.number().positive(),
+    enemyEffects: z.array(idSchema).optional(),
+    /** 中の敵に、間隔ごとに必ず付ける状態異常のタグ。 */
+    ailment: idSchema.optional(),
+  }),
+  // 照準の位置（射程内）に罠を置く。敵が踏むと起爆し、技のダメージを与える（罠設置）
+  z.strictObject({
+    type: z.literal("trap"),
+    range: z.number().positive(),
+    radius: z.number().positive(),
+    duration: z.number().positive(),
+    /** 同時に置ける数。超えると古いものから消える。 */
+    max: z.number().int().positive(),
+  }),
   // 決まった距離を進み、通った敵に当てる（突進）
   z.strictObject({
     type: z.literal("dash"),
@@ -112,6 +154,15 @@ export const skillSchema = z.strictObject({
       requires: z.number().nonnegative().optional(),
       cost: z.union([z.number().nonnegative(), z.literal("all")]).optional(),
       gainOnUse: z.number().nonnegative().optional(),
+      /** 1回の使用で、1体以上に当たったときに増える量（連刃のコンボ点+1）。 */
+      gainOnHit: z.number().nonnegative().optional(),
+    })
+    .optional(),
+  /** 終結技（急所穿ち）：使ったゲージの量1につき技倍率に足す値と、必ず会心になる量。 */
+  finisher: z
+    .strictObject({
+      pctPerPoint: z.number().nonnegative(),
+      forceCritAt: z.number().positive().optional(),
     })
     .optional(),
   /** 使った後、自分に一定時間かかる効果（破軍の「受けるダメージ-20%」など）。 */
@@ -172,6 +223,19 @@ export const jobSchema = z.strictObject({
   affinity: z.record(idSchema, z.enum(AFFINITIES)),
   /** 二刀流の適性（できないジョブは省略）。 */
   dualWield: z.enum(AFFINITIES).optional(),
+  /** 出自にしたときの初期能力値（補助仕様書3.2）。 */
+  originAttributes: z
+    .strictObject({
+      go: z.number().int().nonnegative(),
+      jin: z.number().int().nonnegative(),
+      ri: z.number().int().nonnegative(),
+      kon: z.number().int().nonnegative(),
+    })
+    .optional(),
+  /** 背面からのヒットの補正（メインジョブのときだけ。盗賊：会心率+10%（固定値）・付与率+25%。仕様書5.6）。 */
+  backstabBonus: z
+    .strictObject({ critChance: z.number().min(0).max(1), ailmentChance: z.number().min(0).max(1) })
+    .optional(),
   ...provisionalFields,
 });
 export type JobDef = z.infer<typeof jobSchema>;

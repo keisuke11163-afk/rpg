@@ -200,6 +200,8 @@ export {
   LingeringZone,
   SkillExecution,
   pullTowards,
+  type TrapPlacement,
+  type ZonePlacement,
   type ExecutionInput,
   type ExecutionTick,
   type PullPulse,
@@ -235,3 +237,18 @@ export {
   type EnemyState,
   type EnemyTarget,
 } from "./actor/enemy.ts";
+export {
+  ATTRIBUTE_EFFECTS,
+  CATCH_UP,
+  Character,
+  JOB_CHANGE_LEVEL,
+  JOB_LEVEL_CAP,
+  LEVEL_CAP,
+  LevelTrack,
+  enemyXp,
+  levelGapMultiplier,
+  xpToNext,
+  type Attributes,
+  type CharacterInit,
+  type XpGain,
+} from "./character/progression.ts";
