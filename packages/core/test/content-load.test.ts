@@ -196,6 +196,93 @@ describe("loadContent", () => {
     expect(codes(f.raw)).toEqual([]);
   });
 
+  describe("上書きの重複（同じ効果の中も含む）", () => {
+    function withOverrides(
+      ...effects: { id: string; modifiers: Record<string, unknown>[] }[]
+    ): RawContent {
+      const f = fixture();
+      f.stats.push({ id: "STAT-SPEED", text: "stat.damage", unit: "ratio" });
+      for (const e of effects) {
+        f.effects.push({
+          id: e.id,
+          origin: "unique",
+          modifiers: e.modifiers,
+          affects: { hit: true, ailmentBase: false },
+          scope: "self",
+        });
+      }
+      return f.raw;
+    }
+    const ov = (stat: string, value: number, priority: number): Record<string, unknown> => ({
+      kind: "override",
+      stat,
+      value,
+      priority,
+    });
+
+    it("同じ効果の中・同じ能力値・同じ優先度は誤り（重複した修正値の位置を示す）", () => {
+      const r = loadContent(
+        withOverrides({
+          id: "EFF-A",
+          modifiers: [ov("STAT-DAMAGE", 10, 5), ov("STAT-DAMAGE", 20, 5)],
+        }),
+      );
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.errors).toHaveLength(1);
+      const [e] = r.errors;
+      expect(e?.code).toBe("override-conflict");
+      expect(e?.id).toBe("EFF-A");
+      expect(e?.path).toBe("modifiers.1.priority");
+      expect(e?.message).toContain("modifiers.0");
+    });
+
+    it("同じ効果の中・同じ能力値・異なる優先度は正しい", () => {
+      expect(
+        codes(
+          withOverrides({
+            id: "EFF-A",
+            modifiers: [ov("STAT-DAMAGE", 10, 5), ov("STAT-DAMAGE", 20, 6)],
+          }),
+        ),
+      ).toEqual([]);
+    });
+
+    it("異なる効果の間・同じ能力値・同じ優先度は誤り（相手の効果と位置を示す）", () => {
+      const r = loadContent(
+        withOverrides(
+          { id: "EFF-A", modifiers: [ov("STAT-DAMAGE", 10, 5)] },
+          { id: "EFF-B", modifiers: [ov("STAT-DAMAGE", 20, 5)] },
+        ),
+      );
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.errors.map((e) => e.code)).toEqual(["override-conflict"]);
+      expect(r.errors[0]?.id).toBe("EFF-B");
+      expect(r.errors[0]?.path).toBe("modifiers.0.priority");
+      expect(r.errors[0]?.message).toContain("EFF-A の modifiers.0");
+    });
+
+    it("異なる能力値・同じ優先度は正しい（同じ効果の中でも、異なる効果の間でも）", () => {
+      expect(
+        codes(
+          withOverrides({
+            id: "EFF-A",
+            modifiers: [ov("STAT-DAMAGE", 10, 5), ov("STAT-SPEED", 20, 5)],
+          }),
+        ),
+      ).toEqual([]);
+      expect(
+        codes(
+          withOverrides(
+            { id: "EFF-A", modifiers: [ov("STAT-DAMAGE", 10, 5)] },
+            { id: "EFF-B", modifiers: [ov("STAT-SPEED", 20, 5)] },
+          ),
+        ),
+      ).toEqual([]);
+    });
+  });
+
   it("登録されていないルールフックを検出する", () => {
     const f = fixture();
     f.effects.push({
