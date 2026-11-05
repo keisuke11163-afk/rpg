@@ -51,6 +51,28 @@ interface Slot<P> {
   hitIds: Set<string>;
 }
 
+function requireFinite(value: number, name: string): void {
+  if (!Number.isFinite(value)) throw new RangeError(`${name}は有限の数：${String(value)}`);
+}
+
+function requireNonNegativeFinite(value: number, name: string): void {
+  if (!Number.isFinite(value) || value < 0)
+    throw new RangeError(`${name}は0以上の有限の数：${String(value)}`);
+}
+
+/** 投射物を出す情報を検証する（不正な値で入れ物の状態を壊さないため）。 */
+function validateSpawn(spec: ProjectileSpawn<unknown>): void {
+  requireFinite(spec.position.x, "位置のx");
+  requireFinite(spec.position.y, "位置のy");
+  requireFinite(spec.direction.x, "向きのx");
+  requireFinite(spec.direction.y, "向きのy");
+  requireNonNegativeFinite(spec.speed, "速さ");
+  requireNonNegativeFinite(spec.range, "射程");
+  requireNonNegativeFinite(spec.radius, "半径");
+  if (!Number.isInteger(spec.pierce) || spec.pierce < 0)
+    throw new RangeError(`貫通する数は0以上の整数：${String(spec.pierce)}`);
+}
+
 export class ProjectilePool<P> {
   private readonly slots: Slot<P>[];
   private activeCount = 0;
@@ -81,18 +103,27 @@ export class ProjectilePool<P> {
     return this.activeCount;
   }
 
-  /** 投射物を出す。空きがなければ出さずに -1 を返す。 */
+  /**
+   * 投射物を出す。空きがなければ出さずに -1 を返す。向きの長さが0の場合も出さずに -1 を返す。
+   * 位置・向きが有限の数でない、速さ・射程・半径が有限の0以上の数でない、
+   * 貫通する数が0以上の整数でない場合は RangeError（入れ物の状態は変えない）。
+   */
   spawn(spec: ProjectileSpawn<P>): number {
+    validateSpawn(spec);
     const index = this.slots.findIndex((s) => !s.active);
     const slot = this.slots[index];
     if (slot === undefined) return -1;
-    const len = Math.hypot(spec.direction.x, spec.direction.y);
-    if (!(len > 0)) return -1;
+    // 大きな成分でも長さが無限大に溢れないように、先に最大の成分で割ってから長さを求める
+    const scale = Math.max(Math.abs(spec.direction.x), Math.abs(spec.direction.y));
+    if (!(scale > 0)) return -1;
+    const sx = spec.direction.x / scale;
+    const sy = spec.direction.y / scale;
+    const len = Math.hypot(sx, sy);
     slot.active = true;
     slot.x = spec.position.x;
     slot.y = spec.position.y;
-    slot.dx = spec.direction.x / len;
-    slot.dy = spec.direction.y / len;
+    slot.dx = sx / len;
+    slot.dy = sy / len;
     slot.speed = spec.speed;
     slot.remaining = spec.range;
     slot.radius = spec.radius;
@@ -126,41 +157,114 @@ export class ProjectilePool<P> {
     this.activeCount--;
   }
 
-  /** 時間を進め、この間に当たったものを返す。同じ投射物は、同じ相手に1回だけ当たる。 */
+  /**
+   * 時間を進め、この間に当たったものを返す。同じ投射物は、同じ相手に1回だけ当たる。
+   * 1刻みの移動の前後を結ぶ線分と、相手の円（相手の半径＋投射物の半径）の交差で判定するため、
+   * 半径0・極小の半径・非常に速い投射物でもすり抜けない。1刻みの間に複数の相手に当たるときは、
+   * 線分の上で先に触れる相手から順に当てる（同じ距離なら targets の順）。
+   * 経過時間が0以上の有限の数でない場合、相手の位置が有限の数でない場合、
+   * 相手の半径が0以上の有限の数でない場合、判定する相手の半径と投射物の半径の合計が有限でない場合は、
+   * 状態を変える前に RangeError。
+   */
   update(dt: number, targets: readonly ProjectileTarget[]): ProjectileHit<P>[] {
+    // 投射物の状態を変える前に検証する（NaN・負の数・無限大は位置や射程を壊すため）
+    if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
+    for (const t of targets) validateTarget(t);
+    // 判定に使う「相手の半径＋投射物の半径」が有限であることも先に確かめる
+    // （それぞれが有限でも、合計は Infinity に溢れうる。溢れると離れた相手にも当たってしまう）
+    for (const slot of this.slots) {
+      if (!slot.active) continue;
+      for (const t of targets) {
+        if (t.team === slot.team || slot.hitIds.has(t.id)) continue;
+        requireFinite(t.radius + slot.radius, `相手「${t.id}」の半径と投射物の半径の合計`);
+      }
+    }
     const hits: ProjectileHit<P>[] = [];
+    const contacts: Contact[] = [];
     this.slots.forEach((slot, index) => {
       if (!slot.active) return;
-      // すり抜けを防ぐため、1刻みの移動を、半径より短い区間に分けて判定する
       const distance = Math.min(slot.remaining, slot.speed * dt);
-      const parts = Math.max(1, Math.ceil(distance / Math.max(0.05, slot.radius)));
-      let alive = true;
-      for (let k = 0; k < parts && alive; k++) {
-        const stepLen = distance / parts;
-        slot.x += slot.dx * stepLen;
-        slot.y += slot.dy * stepLen;
-        slot.remaining -= stepLen;
-        for (const t of targets) {
-          if (t.team === slot.team || slot.hitIds.has(t.id)) continue;
-          if (Math.hypot(t.position.x - slot.x, t.position.y - slot.y) > t.radius + slot.radius)
-            continue;
-          slot.hitIds.add(t.id);
-          hits.push({
-            projectileIndex: index,
-            targetId: t.id,
-            position: { x: slot.x, y: slot.y },
-            payload: slot.payload as P,
-          });
-          if (slot.pierceLeft <= 0) {
-            this.release(slot);
-            alive = false;
-            break;
-          }
-          slot.pierceLeft--;
+      // 線分の上で相手の円に入る位置（始点からの距離）を集める
+      contacts.length = 0;
+      targets.forEach((t, order) => {
+        if (t.team === slot.team || slot.hitIds.has(t.id)) return;
+        const s = sweepCircle(slot, distance, t.position, t.radius + slot.radius);
+        if (s !== undefined) contacts.push({ s, order, target: t });
+      });
+      contacts.sort((a, b) => a.s - b.s || a.order - b.order);
+      for (const c of contacts) {
+        const x = slot.x + slot.dx * c.s;
+        const y = slot.y + slot.dy * c.s;
+        slot.hitIds.add(c.target.id);
+        hits.push({
+          projectileIndex: index,
+          targetId: c.target.id,
+          position: { x, y },
+          payload: slot.payload as P,
+        });
+        if (slot.pierceLeft <= 0) {
+          // 貫通し切った：当たった位置で消える
+          slot.x = x;
+          slot.y = y;
+          slot.remaining -= c.s;
+          this.release(slot);
+          return;
         }
+        slot.pierceLeft--;
       }
-      if (alive && slot.remaining <= 1e-9) this.release(slot);
+      slot.x += slot.dx * distance;
+      slot.y += slot.dy * distance;
+      slot.remaining = distance >= slot.remaining ? 0 : slot.remaining - distance;
+      // 射程の終わり。極端に大きな座標で位置が有限でなくなった場合も、判定に混ぜないように消す
+      if (slot.remaining <= 1e-9 || !Number.isFinite(slot.x) || !Number.isFinite(slot.y))
+        this.release(slot);
     });
     return hits;
   }
+}
+
+interface Contact {
+  /** 始点から、相手の円に入る位置までの距離。 */
+  readonly s: number;
+  /** targets の中の順番（同じ距離のときの並び）。 */
+  readonly order: number;
+  readonly target: ProjectileTarget;
+}
+
+/** 相手の情報を検証する（NaN・無限大が判定に混ざらないようにするため）。 */
+function validateTarget(t: ProjectileTarget): void {
+  requireFinite(t.position.x, "相手の位置のx");
+  requireFinite(t.position.y, "相手の位置のy");
+  requireNonNegativeFinite(t.radius, "相手の半径");
+}
+
+/**
+ * 始点 (slot.x, slot.y) から長さ1の向き (slot.dx, slot.dy) に distance だけ進む線分が、
+ * 中心 center・半径 reach の円に触れるとき、最初に触れる位置の始点からの距離（0〜distance）を返す。
+ * 触れなければ undefined。始点が円の中にあれば0。円の縁にちょうど触れる場合も当たりとする。
+ * 二乗を使わない形で計算する（大きな座標で溢れて無限大・NaN にならないように）。
+ * 途中の値が NaN になった場合は、比較が全て偽になるので当たらない扱いになる。
+ */
+function sweepCircle(
+  slot: { readonly x: number; readonly y: number; readonly dx: number; readonly dy: number },
+  distance: number,
+  center: Vec2,
+  reach: number,
+): number | undefined {
+  const fx = center.x - slot.x;
+  const fy = center.y - slot.y;
+  // 進む向きに沿った中心までの距離と、線（無限に伸ばしたもの）から中心までの距離
+  const along = fx * slot.dx + fy * slot.dy;
+  const perp = Math.abs(fx * slot.dy - fy * slot.dx);
+  // 向きを長さ1に揃えたときの丸めの誤差（距離に比例するごく小さな量）だけ余裕を持たせる。
+  // 半径0どうしで、線の上にちょうど乗っている相手を誤差で外さないため
+  const tolerance = (Math.abs(fx) + Math.abs(fy)) * 1e-12;
+  if (!(perp <= reach + tolerance)) return undefined;
+  const r = Math.max(reach, perp);
+  const halfChord = Math.sqrt((r - perp) * (r + perp));
+  const enter = along - halfChord;
+  const exit = along + halfChord;
+  if (!(enter <= distance && exit >= 0)) return undefined;
+  const s = Math.max(0, enter);
+  return Number.isFinite(s) ? s : undefined;
 }

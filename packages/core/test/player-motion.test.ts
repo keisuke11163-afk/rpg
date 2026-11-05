@@ -103,4 +103,62 @@ describe("回避（仕様書v0.2 2.1・補助仕様書 3.1）", () => {
     for (let i = 0; i < 20; i++) m.update(dt, { ...idle, move: { x: -1, y: 0 } });
     expect(m.position.x).toBeGreaterThan(3);
   });
+
+  it("回避の間は照準を反対へ向けても向きが変わらない（実装判断 D-U06-2）", () => {
+    const m = new PlayerMotion({ x: 0, y: 0 });
+    m.update(dt, { ...idle, aim: { x: 0, y: 1 } });
+    expect(m.facing).toBeCloseTo(Math.PI / 2);
+    m.update(dt, { ...idle, aim: { x: 0, y: 1 }, dodge: true });
+    expect(m.dodging).toBe(true);
+    let dodgeSteps = 0;
+    while (m.dodging) {
+      m.update(dt, { ...idle, aim: { x: 0, y: -1 } });
+      dodgeSteps++;
+      expect(m.facing).toBeCloseTo(Math.PI / 2);
+      expect(m.direction8).toBe(2);
+    }
+    expect(dodgeSteps).toBeGreaterThan(0);
+  });
+
+  it("回避を押した刻みの照準で向きが決まり、回避の向きもそれに従う", () => {
+    const m = new PlayerMotion({ x: 0, y: 0 });
+    m.update(dt, { ...idle, aim: { x: -1, y: 0 }, dodge: true });
+    expect(m.facing).toBeCloseTo(Math.PI);
+    while (m.dodging) m.update(dt, { ...idle, aim: { x: 1, y: 0 } });
+    expect(m.facing).toBeCloseTo(Math.PI);
+    expect(m.position.x).toBeCloseTo(-4, 1);
+    expect(m.position.y).toBeCloseTo(0);
+  });
+
+  it("回避が終われば照準の入力で向きが変わる", () => {
+    const m = new PlayerMotion({ x: 0, y: 0 });
+    m.update(dt, { ...idle, aim: { x: 1, y: 0 }, dodge: true });
+    while (m.dodging) m.update(dt, { ...idle, aim: { x: 0, y: 1 } });
+    expect(m.facing).toBeCloseTo(0);
+    m.update(dt, { ...idle, aim: { x: -1, y: 0 } });
+    expect(m.facing).toBeCloseTo(Math.PI);
+    expect(m.direction8).toBe(4);
+  });
+
+  it("回避の間に照準が変わっても、移動の向きと距離は変わらない", () => {
+    const m = new PlayerMotion({ x: 0, y: 0 });
+    m.update(dt, { ...idle, move: { x: 0, y: 1 }, aim: { x: 1, y: 0 }, dodge: true });
+    while (m.dodging) m.update(dt, { ...idle, aim: { x: -1, y: -1 } });
+    expect(m.position.x).toBeCloseTo(0);
+    expect(m.position.y).toBeCloseTo(4, 1);
+  });
+});
+
+describe("経過時間の検証", () => {
+  it("負の数・NaN・無限大は受け付けない（無限大で位置が NaN にならない）", () => {
+    const m = new PlayerMotion({ x: 0, y: 0 });
+    for (const bad of [-dt, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() => {
+        m.update(bad, idle);
+      }).toThrow(RangeError);
+    }
+    expect(m.position).toEqual({ x: 0, y: 0 });
+    m.update(0, idle);
+    expect(m.position).toEqual({ x: 0, y: 0 });
+  });
 });

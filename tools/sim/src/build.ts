@@ -59,7 +59,10 @@ export const buildSchema = z.strictObject({
         z.strictObject({
           id: z.string(),
           stacks: z.number().nonnegative().optional(),
+          /** 出どころの ref（build なら効果の名前、equipment なら装備の uid。省略すると効果のID・ビルドの武器の uid）。 */
           source: z.string().optional(),
+          /** 出どころの種類。equipment にすると装備の効果になり、局所の効果はその武器のヒットだけに効く。 */
+          sourceKind: z.enum(["build", "equipment"]).optional(),
         }),
       ]),
     )

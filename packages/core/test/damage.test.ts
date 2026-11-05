@@ -7,6 +7,7 @@ import {
   type DamageSkill,
   type EffectInstance,
   CONVERSION_ORDER,
+  EQUIPMENT_SOURCE_KIND,
   Rng,
   TagIndex,
   applyConversions,
@@ -486,6 +487,558 @@ describe("属性の変換と付け替え（開発計画書 T4・仕様書2.5）"
           return true;
         },
       ),
+    );
+  });
+});
+
+describe("局所の効果の適用範囲（仕様書v0.2 3.7 の原則5・H-08）", () => {
+  const local = { locality: "local" };
+  const db = buildDb({
+    ...fixture,
+    effects: [
+      // 武器の局所の効果（乗算・追加値・変換・付け替え・職技レベル・命中）
+      effect(
+        "EFF-LOCAL-MORE",
+        "unique",
+        [{ kind: "more", stat: "STAT-DAMAGE", value: 1.5 }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-ADD-PHYS",
+        "affix",
+        [{ kind: "added", stat: "STAT-ADDED-PHYSICAL", value: { min: 10, max: 10 } }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-ADD-FIRE",
+        "affix",
+        [{ kind: "added", stat: "STAT-ADDED-FIRE", value: { min: 10, max: 10 } }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-TO-FIRE",
+        "unique",
+        [{ kind: "convert", from: "physical", to: "fire", value: 0.5 }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-RETAG",
+        "unique",
+        [{ kind: "retag", from: ["physical", "fire"], to: "cold" }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-SKILL-LV2",
+        "affix",
+        [{ kind: "added", stat: "STAT-SKILL-LEVEL", value: 2 }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-ACC",
+        "affix",
+        [{ kind: "added", stat: "STAT-ACCURACY", value: 100 }],
+        local,
+      ),
+      effect("EFF-LOCAL-CRIT", "unique", [{ kind: "flag", flag: "crit", mode: "force" }], local),
+      // 非局所の効果（防具・星辰盤など）
+      effect("EFF-GLOBAL-INC-30", "minorStar", [
+        { kind: "increased", stat: "STAT-DAMAGE", value: 0.3 },
+      ]),
+      effect("EFF-GLOBAL-SKILL-LV1", "affix", [
+        { kind: "added", stat: "STAT-SKILL-LEVEL", value: 1 },
+      ]),
+      effect("EFF-GLOBAL-TO-FIRE", "affix", [
+        { kind: "convert", from: "physical", to: "fire", value: 0.5 },
+      ]),
+      effect("EFF-GLOBAL-RETAG", "keystone", [
+        { kind: "retag", from: ["physical", "fire"], to: "cold" },
+      ]),
+    ],
+  });
+  const FLAT_SWORD = { ...LONGSWORD, base: { physical: { min: 10, max: 10 } } };
+  const FLAT_SCYTHE = { ...SCYTHE, base: { physical: { min: 10, max: 10 } } };
+  const FLAT_FIREBALL: DamageSkill = { ...FIREBALL, base: { fire: { min: 10, max: 10 } } };
+
+  /** 効果を、出どころを指定して有効にする（武器の効果は、その武器の uid を出どころにする）。 */
+  function attackerFrom(
+    instances: readonly { id: string; from: string }[],
+    weapon: DamageAttacker["weapon"] = FLAT_SWORD,
+  ): DamageAttacker {
+    const { view } = evaluateEffects(
+      db,
+      new TagIndex(db.tags),
+      instances.map(({ id, from }) => ({
+        effectId: id,
+        source: { kind: from.startsWith("itm_") ? "equipment" : "starNode", ref: from },
+      })),
+    );
+    return { db, view, characterLevel: 1, weapon };
+  }
+  const onSword = (...ids: string[]): { id: string; from: string }[] =>
+    ids.map((id) => ({ id, from: LONGSWORD.uid }));
+
+  it("1. 武器Aの局所の効果は、武器Aのヒットに効く", () => {
+    const r = computeHit(
+      attackerFrom(onSword("EFF-LOCAL-MORE", "EFF-LOCAL-ADD-PHYS")),
+      BASIC,
+      {},
+      avg,
+    );
+    expect(r.damage.physical).toBeCloseTo((10 + 10) * 1.5);
+  });
+
+  it("2. 武器Aの局所の効果は、武器Bのヒットには効かない（同じ効果でも出どころが違えば効かない）", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-MORE", "EFF-LOCAL-ADD-PHYS"), FLAT_SCYTHE);
+    expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(10);
+    // 武器Bを出どころにした同じ効果は、武器Bに効く
+    const b = attackerFrom([{ id: "EFF-LOCAL-MORE", from: SCYTHE.uid }], FLAT_SCYTHE);
+    expect(computeHit(b, BASIC, {}, avg).damage.physical).toBeCloseTo(15);
+  });
+
+  it("3. 武器Aの局所の効果は、武器Aを持っていても呪文には効かない", () => {
+    const a = attackerFrom(
+      onSword("EFF-LOCAL-MORE", "EFF-LOCAL-ADD-FIRE", "EFF-LOCAL-SKILL-LV2", "EFF-LOCAL-RETAG"),
+    );
+    const r = computeHit(a, FLAT_FIREBALL, {}, avg);
+    expect(r.damage).toEqual({ fire: 10 });
+    expect(r.trace.skillLevel).toBe(1);
+  });
+
+  it("4. 局所の変換は、対象の武器のヒットだけに効く", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-TO-FIRE"));
+    const sword = computeHit(a, BASIC, {}, avg);
+    expect(sword.damage.physical).toBeCloseTo(5);
+    expect(sword.damage.fire).toBeCloseTo(5);
+    const scythe = computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg);
+    expect(scythe.damage).toEqual({ physical: 10 });
+    // 変換の一覧には、適用元（出どころ）が残る
+    expect(a.view.conversions([], { weaponUid: LONGSWORD.uid })).toEqual([
+      expect.objectContaining({
+        effectId: "EFF-LOCAL-TO-FIRE",
+        source: { kind: "equipment", ref: LONGSWORD.uid },
+      }),
+    ]);
+    expect(a.view.conversions([], { weaponUid: SCYTHE.uid })).toEqual([]);
+    expect(a.view.conversions([], { weaponUid: undefined })).toEqual([]);
+  });
+
+  it("5. 局所の付け替えは、対象の武器のヒットだけに効く（呪文にも効かない）", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-RETAG"));
+    expect(computeHit(a, BASIC, {}, avg).damage).toEqual({ cold: 10 });
+    expect(computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg).damage).toEqual({
+      physical: 10,
+    });
+    expect(computeHit(a, FLAT_FIREBALL, {}, avg).damage).toEqual({ fire: 10 });
+    expect(a.view.retagging([], { weaponUid: LONGSWORD.uid })).toEqual([
+      expect.objectContaining({
+        effectId: "EFF-LOCAL-RETAG",
+        source: { kind: "equipment", ref: LONGSWORD.uid },
+      }),
+    ]);
+    expect(a.view.retagging([], { weaponUid: SCYTHE.uid })).toEqual([]);
+  });
+
+  it("6. 局所の職技レベルの追加値は、対象の武器のヒットだけに効く", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-SKILL-LV2"));
+    const sword = computeHit(a, BASIC, {}, avg);
+    expect(sword.trace.skillLevel).toBe(3);
+    expect(sword.damage.physical).toBeCloseTo(10 * (1 + 0.08 * 2));
+    const scythe = computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg);
+    expect(scythe.trace.skillLevel).toBe(1);
+    expect(scythe.damage.physical).toBeCloseTo(10);
+  });
+
+  it("局所の命中は、対象の武器のヒットだけに効く", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-ACC"));
+    expect(computeHit(a, BASIC, { evasion: 100 }, avg).hitChance).toBeCloseTo(hitChance(100, 100));
+    expect(
+      computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, { evasion: 100 }, avg).hitChance,
+    ).toBeCloseTo(hitChance(100, 0));
+  });
+
+  it("局所の印（必ず会心）は、対象の武器のヒットだけに効く", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-CRIT"));
+    expect(computeHit(a, BASIC, {}, avg).critChance).toBe(1);
+    expect(computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg).critChance).toBeCloseTo(
+      SCYTHE.critChance,
+    );
+  });
+
+  it("7. 非局所の効果は、従来どおり全ての武器と呪文に効く", () => {
+    const a = attackerFrom([
+      { id: "EFF-GLOBAL-INC-30", from: "node-1" },
+      { id: "EFF-GLOBAL-SKILL-LV1", from: "node-2" },
+    ]);
+    const inc = 1 + 0.3 + 0.08;
+    expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(10 * inc);
+    expect(computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg).damage.physical).toBeCloseTo(
+      10 * inc,
+    );
+    const spell = computeHit(a, FLAT_FIREBALL, {}, avg);
+    expect(spell.damage.fire).toBeCloseTo(10 * inc);
+    expect(spell.trace.skillLevel).toBe(2);
+    // 非局所の変換・付け替えも、全ての武器に効く
+    const conv = attackerFrom([{ id: "EFF-GLOBAL-TO-FIRE", from: "node-3" }], FLAT_SCYTHE);
+    expect(computeHit(conv, BASIC, {}, avg).damage).toEqual({ physical: 5, fire: 5 });
+    const retag = attackerFrom([{ id: "EFF-GLOBAL-RETAG", from: "node-4" }], FLAT_SCYTHE);
+    expect(computeHit(retag, BASIC, {}, avg).damage).toEqual({ cold: 10 });
+    expect(computeHit(retag, FLAT_FIREBALL, {}, avg).damage).toEqual({ cold: 10 });
+  });
+
+  it("範囲を指定しない問い合わせは、従来どおり局所の効果も含めて集計する", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-SKILL-LV2", "EFF-LOCAL-TO-FIRE"));
+    expect(a.view.stat("STAT-SKILL-LEVEL").value).toBe(2);
+    expect(a.view.conversions()).toHaveLength(1);
+  });
+});
+
+describe("ダメージの計算の非有限値（NaN・Infinity）の検出", () => {
+  const db = buildDb({
+    ...fixture,
+    effects: [
+      effect("EFF-MORE-10", "unique", [{ kind: "more", stat: "STAT-DAMAGE", value: 10 }]),
+      effect("EFF-RETAG-COLD", "keystone", [
+        { kind: "retag", from: ["physical", "fire"], to: "cold" },
+      ]),
+      effect("EFF-CRIT-INC", "affix", [{ kind: "increased", stat: "STAT-CRIT-CHANCE", value: 10 }]),
+    ],
+  });
+  const HUGE = 1e308;
+
+  it("有限の値どうしの乗算で Infinity になる（基礎値 1e300 × 乗算 1e10）と RangeError", () => {
+    // 乗算×10 を10重ねて、乗算の積 1e10（有限。効果の評価の検証は通る）にする
+    const { view } = evaluateEffects(db, new TagIndex(db.tags), [
+      { effectId: "EFF-MORE-10", source: { kind: "test", ref: "x" }, stacks: 10 },
+    ]);
+    expect(view.stat("STAT-DAMAGE").more).toBeCloseTo(1e10);
+    const a: DamageAttacker = {
+      db,
+      view,
+      characterLevel: 1,
+      weapon: { ...LONGSWORD, base: { physical: { min: 1e300, max: 1e300 } } },
+    };
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(RangeError);
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/打撃値（physical・加算と乗算の後）/);
+  });
+
+  it("有限の値どうしの乗算で Infinity になる（基礎値 1.5e308 × 技倍率 1.3）と RangeError", () => {
+    const a = attackerWith(db, [], {
+      weapon: { ...LONGSWORD, base: { physical: { min: 1.5e308, max: 1.5e308 } } },
+    });
+    // 技倍率1.0なら有限
+    expect(Number.isFinite(computeHit(a, BASIC, {}, avg).total)).toBe(true);
+    expect(() => computeHit(a, SWEEP, {}, avg)).toThrow(/基礎値（physical）/);
+  });
+
+  it("同じ属性への合算（付け替えで物理と火が冷気に集まる）の加算で Infinity になると RangeError", () => {
+    const a = attackerWith(db, ["EFF-RETAG-COLD"], {
+      weapon: {
+        ...LONGSWORD,
+        base: { physical: { min: HUGE, max: HUGE }, fire: { min: HUGE, max: HUGE } },
+      },
+    });
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/打撃値（cold・加算と乗算の後）/);
+  });
+
+  it("属性ごとの値は有限でも、最終の打撃値の合計の加算が Infinity になると RangeError", () => {
+    const a = attackerWith(db, [], {
+      weapon: {
+        ...LONGSWORD,
+        base: { physical: { min: HUGE, max: HUGE }, fire: { min: HUGE, max: HUGE } },
+      },
+    });
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/最終の打撃値の合計/);
+  });
+
+  it("敵が受けるダメージの倍率をかけた最終の打撃値が Infinity になると RangeError", () => {
+    const a = attackerWith(db, [], {
+      weapon: { ...LONGSWORD, base: { physical: { min: HUGE, max: HUGE } } },
+    });
+    expect(() => computeHit(a, BASIC, { takenMultiplier: 2 }, avg)).toThrow(
+      /最終の打撃値（physical）/,
+    );
+  });
+
+  it("会心率の計算が Infinity になると RangeError（上限100%に丸めて隠さない）", () => {
+    const a = attackerWith(db, ["EFF-CRIT-INC"], {
+      weapon: { ...LONGSWORD, critChance: HUGE },
+    });
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/会心率/);
+  });
+
+  it("NaN が混入する（武器の基礎値・耐性・防具値・ガード・回避値・敵が受けるダメージの倍率・会心率）と RangeError", () => {
+    const nanBase = attackerWith(db, [], {
+      weapon: { ...LONGSWORD, base: { physical: { min: NaN, max: 10 } } },
+    });
+    expect(() => computeHit(nanBase, BASIC, {}, avg)).toThrow(RangeError);
+    const a = attackerWith(db, []);
+    for (const defender of [
+      { resist: { physical: NaN } },
+      { armor: NaN },
+      { guard: NaN },
+      { evasion: NaN },
+      { takenMultiplier: NaN },
+    ]) {
+      expect(() => computeHit(a, BASIC, defender, avg)).toThrow(RangeError);
+    }
+    const nanCrit = attackerWith(db, [], { weapon: { ...LONGSWORD, critChance: NaN } });
+    expect(() => computeHit(nanCrit, BASIC, {}, avg)).toThrow(/会心率/);
+  });
+
+  it("期待値の計算で Infinity になる（打撃値は有限、会心の期待値をかけると溢れる）と RangeError", () => {
+    const a = attackerWith(db, [], {
+      weapon: { ...LONGSWORD, critChance: 0.5, base: { physical: { min: 1.5e308, max: 1.5e308 } } },
+    });
+    // 1回のヒットの打撃値そのものは有限
+    expect(Number.isFinite(computeHit(a, BASIC, {}, avg).total)).toBe(true);
+    expect(() => expectedHitDamage(a, BASIC, {}, Rng.fromSeed(1))).toThrow(/期待値/);
+  });
+
+  it("通常のダメージの計算は従来どおり（有限の値では結果が変わらない）", () => {
+    const a = attackerWith(db, []);
+    const r = computeHit(a, BASIC, { resist: { physical: 0.2 }, guard: 0.1 }, avg);
+    expect(r.damage.physical).toBeCloseTo(8.5 * 0.8 * 0.9);
+    expect(r.total).toBeCloseTo(8.5 * 0.8 * 0.9);
+    expect(r.ailmentBase.physical).toBeCloseTo(8.5);
+    expect(expectedHitDamage(a, BASIC, {}, Rng.fromSeed(1))).toBeCloseTo(
+      8.5 * (1 + LONGSWORD.critChance * 0.5),
+    );
+  });
+});
+
+describe("局所の効果の出どころの判定（種類と uid の両方）", () => {
+  const db = buildDb({
+    ...fixture,
+    effects: [
+      effect("EFF-LOCAL-MORE", "unique", [{ kind: "more", stat: "STAT-DAMAGE", value: 1.5 }], {
+        locality: "local",
+      }),
+      effect("EFF-GLOBAL-INC-30", "minorStar", [
+        { kind: "increased", stat: "STAT-DAMAGE", value: 0.3 },
+      ]),
+    ],
+  });
+  const FLAT_SWORD = { ...LONGSWORD, base: { physical: { min: 10, max: 10 } } };
+  const FLAT_SCYTHE = { ...SCYTHE, base: { physical: { min: 10, max: 10 } } };
+  const FLAT_FIREBALL: DamageSkill = { ...FIREBALL, base: { fire: { min: 10, max: 10 } } };
+  const attacker = (
+    sources: readonly { id: string; kind: string; ref: string }[],
+    weapon: DamageAttacker["weapon"] = FLAT_SWORD,
+  ): DamageAttacker => {
+    const { view } = evaluateEffects(
+      db,
+      new TagIndex(db.tags),
+      sources.map(({ id, kind, ref }) => ({ effectId: id, source: { kind, ref } })),
+    );
+    return { db, view, characterLevel: 1, weapon };
+  };
+  const onSword = { id: "EFF-LOCAL-MORE", kind: EQUIPMENT_SOURCE_KIND, ref: LONGSWORD.uid };
+
+  it("出どころの種類が装備で、uid がそのヒットの武器と一致すれば効く", () => {
+    const a = attacker([onSword]);
+    expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(15);
+    expect(a.view.stat("STAT-DAMAGE", [], { weaponUid: LONGSWORD.uid }).more).toBeCloseTo(1.5);
+  });
+
+  it("uid だけが一致し、出どころの種類が装備でなければ効かない", () => {
+    for (const kind of ["starNode", "jobNode", "buff", "test"]) {
+      const a = attacker([{ ...onSword, kind }]);
+      expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(10);
+      expect(a.view.stat("STAT-DAMAGE", [], { weaponUid: LONGSWORD.uid }).more).toBe(1);
+    }
+  });
+
+  it("別の武器の出どころの局所の効果は、このヒットに効かない", () => {
+    const a = attacker([onSword], FLAT_SCYTHE);
+    expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(10);
+  });
+
+  it("呪文には、武器の局所の効果が効かない", () => {
+    const a = attacker([onSword]);
+    expect(computeHit(a, FLAT_FIREBALL, {}, avg).damage).toEqual({ fire: 10 });
+  });
+
+  it("グローバルの効果は、出どころの種類に関係なく、武器と呪文の両方に引き続き効く", () => {
+    for (const kind of [EQUIPMENT_SOURCE_KIND, "starNode"]) {
+      const a = attacker([{ id: "EFF-GLOBAL-INC-30", kind, ref: LONGSWORD.uid }]);
+      expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(13);
+      expect(computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg).damage.physical).toBeCloseTo(
+        13,
+      );
+      expect(computeHit(a, FLAT_FIREBALL, {}, avg).damage.fire).toBeCloseTo(13);
+    }
+  });
+});
+
+describe("会心率の計算経路：武器の技と呪文（現行実装の動作確認。呪文の基本の会心率は未確定 D-U04a-7）", () => {
+  const db = buildDb({ ...fixture, effects: [] });
+
+  it("武器の技は、そのヒットに使う武器の基本の会心率を使う（仕様書v0.2 2.4）", () => {
+    expect(computeHit(attackerWith(db, []), BASIC, {}, avg).critChance).toBeCloseTo(
+      LONGSWORD.critChance,
+    );
+    expect(
+      computeHit(attackerWith(db, [], { weapon: SCYTHE }), BASIC, {}, avg).critChance,
+    ).toBeCloseTo(SCYTHE.critChance);
+  });
+
+  it("現行実装では、呪文は持っている武器の基本の会心率を使い、武器がなければ0になる（D-U04a-7：未確定の仮の扱い）", () => {
+    expect(computeHit(attackerWith(db, []), FIREBALL, {}, avg).critChance).toBeCloseTo(
+      LONGSWORD.critChance,
+    );
+    const { view } = evaluateEffects(db, new TagIndex(db.tags), []);
+    expect(computeHit({ db, view, characterLevel: 1 }, FIREBALL, {}, avg).critChance).toBe(0);
+  });
+});
+
+describe("防御の計算の中間値の溢れ（有限の入力から Infinity・NaN を作らない）", () => {
+  // 修正前の式（通常の入力では、修正後もこれと1ビットも違わないことを確かめる）
+  const naiveArmor = (a: number, d: number) =>
+    a <= 0 || d <= 0 ? 0 : Math.min(0.85, a / (a + 10 * d));
+  const naiveEvade = (e: number, acc: number) =>
+    e <= 0 ? 0 : Math.min(0.75, e / (e + Math.max(0, acc) * 1.5));
+
+  it("防具値の分母（防具値＋10×受けるダメージ）が Infinity になっても、本当の比を返す", () => {
+    // 修正前：1e308 ÷ Infinity ＝ 0（軽減なし）になっていた。本当の値は 1 ÷ 11
+    expect(naiveArmor(1e308, 1e308)).toBe(0);
+    expect(armorReduction(1e308, 1e308)).toBeCloseTo(1 / 11, 12);
+    // 10×受けるダメージだけで溢れる：本当の値は約 1e-309（0に近い有限の値）
+    const tiny = armorReduction(1, 1e308);
+    expect(Number.isFinite(tiny)).toBe(true);
+    expect(tiny).toBeGreaterThanOrEqual(0);
+    expect(tiny).toBeLessThan(1e-300);
+    // 防具値も受けるダメージも有限の最大値
+    expect(armorReduction(Number.MAX_VALUE, Number.MAX_VALUE)).toBeCloseTo(1 / 11, 12);
+    // 上限85%は変わらない
+    expect(armorReduction(Number.MAX_VALUE, 1e300)).toBe(0.85);
+  });
+
+  it("回避率の分母（回避値＋命中×1.5）が Infinity になっても、本当の比を返す", () => {
+    // 修正前：1e308 ÷ Infinity ＝ 0（回避率0%）になっていた。本当の値は 1 ÷ 2.5 ＝ 0.4
+    expect(naiveEvade(1e308, 1e308)).toBe(0);
+    expect(evadeChance(1e308, 1e308)).toBeCloseTo(0.4, 12);
+    expect(hitChance(1e308, 1e308)).toBeCloseTo(0.6, 12);
+    // 命中×1.5 だけで溢れる（1.5e308 × 1.5）：本当の値は 1 ÷ 3.25
+    expect(evadeChance(1e308, 1.5e308)).toBeCloseTo(1 / 3.25, 12);
+    expect(evadeChance(Number.MAX_VALUE, Number.MAX_VALUE)).toBeCloseTo(0.4, 12);
+  });
+
+  it("ダメージの計算でも、防具値・回避の分母の溢れで軽減・回避が消えない", () => {
+    const db = buildDb(fixture);
+    const huge = attackerWith(
+      db,
+      [],
+      { weapon: { ...LONGSWORD, base: { physical: { min: 1e308, max: 1e308 } } } },
+      { "STAT-ACCURACY": 1e308 },
+    );
+    const r = computeHit(huge, BASIC, { armor: 1e308, evasion: 1e308 }, avg);
+    expect(r.hitChance).toBeCloseTo(0.6, 12);
+    expect(r.total).toBeCloseTo(1e308 * (10 / 11), -296);
+  });
+
+  it("防具値・回避の入力が NaN・Infinity なら RangeError（0などに置き換えない）", () => {
+    for (const [a, d] of [
+      [NaN, 100],
+      [Infinity, 100],
+      [100, NaN],
+      [100, Infinity],
+      [0, NaN],
+      [-Infinity, 1],
+    ] as const) {
+      expect(() => armorReduction(a, d)).toThrow(RangeError);
+    }
+    for (const [e, acc] of [
+      [NaN, 100],
+      [Infinity, 100],
+      [100, NaN],
+      [100, Infinity],
+      [0, NaN],
+      [100, -Infinity],
+    ] as const) {
+      expect(() => evadeChance(e, acc)).toThrow(RangeError);
+      expect(() => hitChance(e, acc)).toThrow(RangeError);
+    }
+    const a = attackerWith(buildDb(fixture), []);
+    expect(() => computeHit(a, BASIC, { armor: Infinity }, avg)).toThrow(/防具値/);
+    expect(() => computeHit(a, BASIC, { evasion: Infinity }, avg)).toThrow(/回避値/);
+  });
+
+  it("通常の防具値の軽減・回避率は従来どおり（修正前の式と1ビットも違わない）", () => {
+    expect(armorReduction(1000, 200)).toBe(1000 / (1000 + 2000));
+    expect(evadeChance(100, 100)).toBe(100 / (100 + 150));
+    const value = fc.double({ min: 0, max: 1e12, noNaN: true });
+    fc.assert(
+      fc.property(value, value, (x, y) => {
+        expect(armorReduction(x, y)).toBe(naiveArmor(x, y));
+        expect(evadeChance(x, y)).toBe(naiveEvade(x, y));
+        expect(hitChance(x, y)).toBe(1 - naiveEvade(x, y));
+      }),
+    );
+    // 負の命中は0として扱う・防具値や回避値が0以下なら0（従来どおり）
+    expect(evadeChance(100, -50)).toBe(naiveEvade(100, -50));
+    expect(armorReduction(-5, 100)).toBe(0);
+    expect(evadeChance(-5, 100)).toBe(0);
+  });
+});
+
+describe("会心率の非有限値の検出（強制会心・会心禁止の印があっても見逃さない）", () => {
+  const db = buildDb({
+    ...fixture,
+    effects: [
+      effect("EFF-CRIT-FLAT", "minorStar", [
+        { kind: "added", stat: "STAT-CRIT-CHANCE", value: 0.05 },
+      ]),
+      effect("EFF-CRIT-INC", "affix", [{ kind: "increased", stat: "STAT-CRIT-CHANCE", value: 10 }]),
+      effect("EFF-FORCE-CRIT", "jobSkill", [{ kind: "flag", flag: "crit", mode: "force" }]),
+      effect("EFF-NO-CRIT", "unique", [{ kind: "flag", flag: "crit", mode: "forbid" }]),
+    ],
+  });
+
+  it("強制会心の印があっても、会心率に NaN が混入すれば RangeError", () => {
+    const a = attackerWith(db, ["EFF-FORCE-CRIT"], { weapon: { ...LONGSWORD, critChance: NaN } });
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(RangeError);
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/会心率/);
+    expect(() => expectedHitDamage(a, BASIC, {}, Rng.fromSeed(1))).toThrow(/会心率/);
+  });
+
+  it("会心禁止の印があっても、会心率に Infinity が混入すれば RangeError", () => {
+    // 武器の会心率そのものが Infinity
+    const inf = attackerWith(db, ["EFF-NO-CRIT"], {
+      weapon: { ...LONGSWORD, critChance: Infinity },
+    });
+    expect(() => computeHit(inf, BASIC, {}, avg)).toThrow(/会心率/);
+    // 有限の値どうしの計算で Infinity（1e308 ×（1＋10））
+    const overflow = attackerWith(db, ["EFF-NO-CRIT", "EFF-CRIT-INC"], {
+      weapon: { ...LONGSWORD, critChance: 1e308 },
+    });
+    expect(() => computeHit(overflow, BASIC, {}, avg)).toThrow(/会心率/);
+    // 印がなければ、同じ入力は従来どおり RangeError（印の有無で検出が変わらない）
+    const noFlag = attackerWith(db, ["EFF-CRIT-INC"], {
+      weapon: { ...LONGSWORD, critChance: 1e308 },
+    });
+    expect(() => computeHit(noFlag, BASIC, {}, avg)).toThrow(/会心率/);
+  });
+
+  it("強制会心・会心禁止の仕様は変わらない（強制は100%、禁止は0%、禁止が勝つ）", () => {
+    expect(computeHit(attackerWith(db, ["EFF-FORCE-CRIT"]), BASIC, {}, avg).critChance).toBe(1);
+    expect(computeHit(attackerWith(db, ["EFF-NO-CRIT"]), BASIC, {}, avg).critChance).toBe(0);
+    expect(
+      computeHit(attackerWith(db, ["EFF-FORCE-CRIT", "EFF-NO-CRIT"]), BASIC, {}, avg).critChance,
+    ).toBe(0);
+    // 印があっても、有限の大きな会心率は上限100%とは別に問題なく計算される
+    const big = attackerWith(db, ["EFF-FORCE-CRIT", "EFF-CRIT-INC"], {
+      weapon: { ...LONGSWORD, critChance: 1e300 },
+    });
+    expect(computeHit(big, BASIC, {}, avg).critChance).toBe(1);
+  });
+
+  it("通常の会心率は従来どおり（（武器の会心率＋固定値）×（1＋増加%）、上限100%）", () => {
+    expect(computeHit(attackerWith(db, []), BASIC, {}, avg).critChance).toBe(0.05);
+    expect(computeHit(attackerWith(db, ["EFF-CRIT-FLAT"]), BASIC, {}, avg).critChance).toBe(
+      (0.05 + (0.05 + 0.05) / 2) * (1 + 0),
+    );
+    expect(computeHit(attackerWith(db, ["EFF-CRIT-INC"]), BASIC, {}, avg).critChance).toBe(
+      Math.min(1, 0.05 * (1 + 10)),
     );
   });
 });
