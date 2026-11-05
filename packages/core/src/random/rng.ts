@@ -33,6 +33,30 @@ function seedState(seed: number): [number, number, number, number] {
   return [next(), next(), next(), next()];
 }
 
+/**
+ * 保存した状態を、実行時に検証する（型の readonly だけに頼らない。セーブデータなど外から来る値のため）。
+ * 4要素の配列で、各要素が0以上 2^32 未満の整数であること。全てが0の状態は乱数にならないので拒否する。
+ */
+function validateState(state: unknown): [number, number, number, number] {
+  if (!Array.isArray(state) || state.length !== 4) {
+    throw new RangeError("乱数の状態は4要素の配列");
+  }
+  const values = state as unknown[];
+  // forEach などは空要素（sparse array の穴）を飛ばすので、0〜3番目を1つずつ必ず確かめる。
+  // 空要素は undefined として読まれ、数でないので拒否される
+  for (let i = 0; i < 4; i++) {
+    const v = values[i];
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v >= UINT32) {
+      throw new RangeError(`乱数の状態の${String(i)}番目は0以上 2^32 未満の整数（${String(v)}）`);
+    }
+  }
+  const [a, b, c, d] = values as [number, number, number, number];
+  if (a === 0 && b === 0 && c === 0 && d === 0) {
+    throw new RangeError("乱数の状態が全て0（この状態からは乱数が出ない）");
+  }
+  return [a, b, c, d];
+}
+
 export class Rng {
   private a: number;
   private b: number;
@@ -41,22 +65,21 @@ export class Rng {
 
   private constructor(state: RngState) {
     [this.a, this.b, this.c, this.d] = state;
-    // 全てが0の状態では乱数にならないため避ける
-    if ((this.a | this.b | this.c | this.d) === 0) this.d = 1;
   }
 
   /** シード（数値または文字列）から作る。同じシードからは同じ列が出る。 */
   static fromSeed(seed: number | string): Rng {
     const n = typeof seed === "string" ? hashString(seed) : seed;
+    // splitmix32 の出力は、違う入力に対して違う値になる（全単射）ので、4つが全て0になることはない
     const rng = new Rng(seedState(n));
     // 最初の数回は状態が十分に混ざっていないので捨てる
     for (let i = 0; i < 12; i++) rng.nextUint32();
     return rng;
   }
 
-  /** 保存した状態から作り直す。 */
+  /** 保存した状態から作り直す。正しくない状態は RangeError（状態を書き換えて受け入れることはしない）。 */
   static fromState(state: RngState): Rng {
-    return new Rng(state);
+    return new Rng(validateState(state));
   }
 
   /** 現在の状態（保存用）。 */
@@ -93,13 +116,21 @@ export class Rng {
     return min + (value % span);
   }
 
-  /** min以上max未満の数。 */
+  /** min以上max未満の数（min と max が同じなら min）。min・max は有限の数で、max ≧ min。 */
   float(min: number, max: number): number {
-    return min + this.next() * (max - min);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max < min) {
+      throw new RangeError(`float(${String(min)}, ${String(max)}) の範囲が正しくない`);
+    }
+    const span = max - min;
+    if (!Number.isFinite(span)) throw new RangeError("範囲が広すぎる（差が有限の数にならない）");
+    return min + this.next() * span;
   }
 
-  /** 確率 p（0〜1）で true。 */
+  /** 確率 p（0以上1以下の有限の数）で true。 */
   chance(p: number): boolean {
+    if (!Number.isFinite(p) || p < 0 || p > 1) {
+      throw new RangeError(`chance(${String(p)}) の確率は0以上1以下`);
+    }
     if (p <= 0) return false;
     if (p >= 1) return true;
     return this.next() < p;

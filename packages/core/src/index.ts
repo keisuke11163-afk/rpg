@@ -53,6 +53,7 @@ export {
 export { type Condition } from "./content/effect.ts";
 export { TagIndex } from "./effects/tag-index.ts";
 export {
+  EQUIPMENT_SOURCE_KIND,
   ModifierView,
   evaluateEffects,
   type ActiveBehavior,
@@ -65,6 +66,7 @@ export {
   type EvaluationFacts,
   type FlagResolution,
   type FlagResult,
+  type HitScope,
   type Range,
   type ReplacementResult,
   type RetagEntry,
@@ -120,6 +122,8 @@ export {
   rollAilments,
   staggerProfiles,
   staggerValue,
+  resolveMaxStacks,
+  validateAilmentApplication,
   type AilmentApplication,
   type AilmentCandidate,
   type AilmentRollInput,
