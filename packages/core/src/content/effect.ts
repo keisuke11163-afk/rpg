@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { idSchema, provisionalFields } from "./ids.ts";
+import { EQUIP_SLOTS, FACTS, FLAGS, REPLACE_SLOTS } from "./registries.ts";
 
 /**
  * 効果の出どころ（仕様書 2.4・8.3、開発計画書 6.4）。
@@ -127,8 +128,44 @@ export const modifierSchema = z.discriminatedUnion("kind", [
     params: z.record(z.string(), z.unknown()).optional(),
     ...base,
   }),
+  // 「必ず〜する」（force）／「〜しない」（forbid）。禁止は強制に勝つ（仕様書v0.2 2.4.1 の規則1）
+  z.strictObject({
+    kind: z.literal("flag"),
+    flag: z.enum(FLAGS),
+    mode: z.enum(["force", "forbid"]),
+    /** 対象のタグ（ailmentApply では状態異常のタグ）。 */
+    target: idSchema.optional(),
+    ...base,
+  }),
+  // 入力・枠の置き換え。複数あるときは出どころの順位で1つだけ有効（仕様書v0.2 2.4.1 の規則2）
+  z.strictObject({
+    kind: z.literal("replace"),
+    slot: z.enum(REPLACE_SLOTS),
+    /** 置き換えた後の挙動（ルールフックの名前）。 */
+    hook: z.string().regex(/^[a-z][a-zA-Z0-9]*$/, "フックの名前は小文字で始まる英数字"),
+    ...base,
+  }),
 ]);
 export type Modifier = z.infer<typeof modifierSchema>;
+
+/**
+ * 効果が働く条件（仕様書v0.2 4.9.1）。条件は「第1段階の値」（条件のない効果だけで計算した値）で判定する。
+ */
+export const conditionSchema = z.discriminatedUnion("type", [
+  // 能力値が一定以上（例：理の門「理が200以上」）
+  z.strictObject({ type: z.literal("statAtLeast"), stat: idSchema, value: z.number() }),
+  // 事実が一定以上（例：重荷の誇り「重装4部位以上」）
+  z.strictObject({ type: z.literal("factAtLeast"), fact: z.enum(FACTS), value: z.number() }),
+  // 装備のタグ（例：刃の門「主手に剣系」）。slot を省略すると、どの部位でもよい
+  z.strictObject({
+    type: z.literal("equippedTag"),
+    tag: idSchema,
+    slot: z.enum(EQUIP_SLOTS).optional(),
+  }),
+  // メインジョブ（例：潜在効果【黒騎士】）
+  z.strictObject({ type: z.literal("mainJob"), job: idSchema }),
+]);
+export type Condition = z.infer<typeof conditionSchema>;
 
 /**
  * 効果の定義（仕様書 10.1、開発計画書 6.4）。
@@ -138,6 +175,8 @@ export const effectSchema = z.strictObject({
   id: idSchema,
   origin: z.enum(EFFECT_ORIGINS),
   modifiers: z.array(modifierSchema).min(1),
+  /** 全ての条件を満たしたときだけ働く（省略すると常に働く）。 */
+  conditions: z.array(conditionSchema).optional(),
   /** ダメージを変える修正値が、打撃値・基準値に効くか（仕様書 2.7、V-07）。 */
   affects: z.strictObject({ hit: z.boolean(), ailmentBase: z.boolean() }),
   /** 範囲（仕様書 10.1）。 */

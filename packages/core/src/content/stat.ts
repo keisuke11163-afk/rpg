@@ -10,6 +10,10 @@ export const statSchema = z.strictObject({
   text: textKeySchema,
   /** 値の種類。flat＝そのままの数、ratio＝割合（0.1＝10%）、seconds＝秒 */
   unit: z.enum(["flat", "ratio", "seconds"]),
+  /** 値の下限（省略すると下限なし）。 */
+  min: z.number().optional(),
+  /** 値の上限の初期値（例：耐性の75%）。上限を変える修正値（cap）で増減する。省略すると上限なし。 */
+  baseCap: z.number().optional(),
   ...provisionalFields,
 });
 

@@ -6,6 +6,7 @@ import {
   effectSchema,
 } from "./effect.ts";
 import { KNOWN_HOOKS } from "./hooks.ts";
+import { FLAG_TARGET_CATEGORY } from "./registries.ts";
 import { type Manifest, SUPPORTED_SCHEMA_VERSION, manifestSchema } from "./manifest.ts";
 import { type StatDef, statSchema } from "./stat.ts";
 import { ALLOWED_PARENT_CATEGORY, type TagDef, tagSchema } from "./tag.ts";
@@ -95,7 +96,13 @@ function entryId(entry: unknown): string | undefined {
  * データ一式を読み込み、検証する（開発計画書 工程F-2）。
  * 誤りは途中で止めずに全て集めて返す。
  */
-export function loadContent(raw: RawContent): LoadResult {
+export interface LoadOptions {
+  /** 登録されているルールフックの名前（省略すると KNOWN_HOOKS）。 */
+  readonly knownHooks?: ReadonlySet<string>;
+}
+
+export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadResult {
+  const knownHooks = options.knownHooks ?? KNOWN_HOOKS;
   const errors: ContentError[] = [];
   const err = (e: ContentError): void => {
     errors.push(e);
@@ -233,7 +240,7 @@ export function loadContent(raw: RawContent): LoadResult {
   for (const { value: stat, file } of stats) checkText(stat.text, file, stat.id);
 
   // 6. 効果：参照・乗算の出どころ・フック
-  const overrides = new Map<string, { effectId: string; file: string }>();
+  const overrides = new Map<string, { effectId: string; file: string; path: string }>();
   for (const { value: effect, file } of effects) {
     effect.modifiers.forEach((mod, index) => {
       const at = `modifiers.${String(index)}`;
@@ -279,7 +286,59 @@ export function loadContent(raw: RawContent): LoadResult {
         }
       }
 
-      if (mod.kind === "behavior" && !KNOWN_HOOKS.has(mod.hook)) {
+      if (mod.kind === "replace" && !knownHooks.has(mod.hook)) {
+        err({
+          code: "unknown-hook",
+          file,
+          id: effect.id,
+          path: `${at}.hook`,
+          message: `置き換えの挙動 ${mod.hook} は、ルールフックとして登録されていない`,
+        });
+      }
+
+      if (mod.kind === "flag") {
+        const need = FLAG_TARGET_CATEGORY[mod.flag];
+        if (need === undefined && mod.target !== undefined) {
+          err({
+            code: "schema",
+            file,
+            id: effect.id,
+            path: `${at}.target`,
+            message: `印 ${mod.flag} は対象を持たない`,
+          });
+        } else if (need !== undefined) {
+          const target = mod.target === undefined ? undefined : tagMap.get(mod.target);
+          if (mod.target === undefined) {
+            err({
+              code: "schema",
+              file,
+              id: effect.id,
+              path: `${at}.target`,
+              message: `印 ${mod.flag} には対象（${need}のタグ）が必要`,
+            });
+          } else if (target === undefined) {
+            if (!invalidIds.has(mod.target)) {
+              err({
+                code: "unknown-ref",
+                file,
+                id: effect.id,
+                path: `${at}.target`,
+                message: `タグ ${mod.target} がない`,
+              });
+            }
+          } else if (target.category !== need) {
+            err({
+              code: "schema",
+              file,
+              id: effect.id,
+              path: `${at}.target`,
+              message: `印 ${mod.flag} の対象は${need}のタグ（${mod.target} は ${target.category}）`,
+            });
+          }
+        }
+      }
+
+      if (mod.kind === "behavior" && !knownHooks.has(mod.hook)) {
         err({
           code: "unknown-hook",
           file,
@@ -292,16 +351,21 @@ export function loadContent(raw: RawContent): LoadResult {
       if (mod.kind === "override") {
         const key = `${mod.stat}@${String(mod.priority)}`;
         const prev = overrides.get(key);
-        if (prev !== undefined && prev.effectId !== effect.id) {
+        // 同じ効果の中の重複も、ほかの効果との重複と同じく誤りにする（どちらが勝つか決められない）
+        if (prev !== undefined) {
+          const where =
+            prev.effectId === effect.id
+              ? `同じ効果の ${prev.path}`
+              : `${prev.effectId} の ${prev.path}（${prev.file}）`;
           err({
             code: "override-conflict",
             file,
             id: effect.id,
             path: `${at}.priority`,
-            message: `能力値 ${mod.stat} を、同じ優先度 ${String(mod.priority)} で上書きする効果がほかにある（${prev.effectId}）。仕様書v0.2 2.4.1`,
+            message: `能力値 ${mod.stat} を、同じ優先度 ${String(mod.priority)} で上書きする修正値がほかにある（${where}）。仕様書v0.2 2.4.1`,
           });
         } else {
-          overrides.set(key, { effectId: effect.id, file });
+          overrides.set(key, { effectId: effect.id, file, path: at });
         }
       }
 
@@ -313,6 +377,51 @@ export function loadContent(raw: RawContent): LoadResult {
           path: at,
           message: "同じ属性への変換はできない",
         });
+      }
+    });
+
+    // 条件の参照
+    (effect.conditions ?? []).forEach((cond, index) => {
+      const at = `conditions.${String(index)}`;
+      if (cond.type === "statAtLeast" && !statMap.has(cond.stat) && !invalidIds.has(cond.stat)) {
+        err({
+          code: "unknown-ref",
+          file,
+          id: effect.id,
+          path: `${at}.stat`,
+          message: `能力値 ${cond.stat} がない`,
+        });
+      }
+      if (cond.type === "equippedTag" && !tagMap.has(cond.tag) && !invalidIds.has(cond.tag)) {
+        err({
+          code: "unknown-ref",
+          file,
+          id: effect.id,
+          path: `${at}.tag`,
+          message: `タグ ${cond.tag} がない`,
+        });
+      }
+      if (cond.type === "mainJob") {
+        const job = tagMap.get(cond.job);
+        if (job === undefined) {
+          if (!invalidIds.has(cond.job)) {
+            err({
+              code: "unknown-ref",
+              file,
+              id: effect.id,
+              path: `${at}.job`,
+              message: `タグ ${cond.job} がない`,
+            });
+          }
+        } else if (job.category !== "job") {
+          err({
+            code: "schema",
+            file,
+            id: effect.id,
+            path: `${at}.job`,
+            message: `${cond.job} はジョブのタグではない`,
+          });
+        }
       }
     });
   }
