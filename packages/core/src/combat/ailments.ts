@@ -309,6 +309,21 @@ export interface AilmentTickTarget {
   readonly moving?: boolean;
 }
 
+/** 持続ダメージの1つ分の、この間の減り（planTick の計画の中身）。 */
+interface DotTickUpdate {
+  readonly inst: DotInstance;
+  readonly portion: number;
+  readonly step: number;
+}
+
+/** AilmentState.planTick の計画（検証済み。commitTick で反映する）。 */
+export interface AilmentTickPlan {
+  readonly dt: number;
+  /** この間の持続ダメージ（属性ごと）。 */
+  readonly damage: Partial<Record<Element, number>>;
+  readonly updates: readonly DotTickUpdate[];
+}
+
 /** 1体が受けている状態異常（崩しを除く）。 */
 export class AilmentState {
   private readonly dots = new Map<string, DotInstance[]>();
@@ -373,42 +388,29 @@ export class AilmentState {
    * 受ける側が、状態を変える前に結果を検証するのに使う（Combatant.update の合計の検証）。
    */
   previewTick(dt: number, target: AilmentTickTarget = {}): Partial<Record<Element, number>> {
-    return this.computeTick(dt, target).out;
+    return this.planTick(dt, target).damage;
   }
 
   /** 時間を進め、この間の持続ダメージを属性ごとに返す。切れた状態異常は取り除く。 */
   tick(dt: number, target: AilmentTickTarget = {}): Partial<Record<Element, number>> {
-    const { out, updates } = this.computeTick(dt, target);
-    for (const { inst, portion, step } of updates) {
-      inst.remaining -= portion;
-      inst.remainingTime -= step;
-    }
-    for (const [id, list] of this.dots) {
-      const next = list.filter((inst) => inst.remainingTime > 1e-9 && inst.remaining > 1e-12);
-      if (next.length > 0) this.dots.set(id, next);
-      else this.dots.delete(id);
-    }
-    for (const [id, debuff] of this.debuffs) {
-      debuff.remainingTime -= dt;
-      if (debuff.remainingTime <= 1e-9) this.debuffs.delete(id);
-    }
-    return out;
+    const plan = this.planTick(dt, target);
+    this.commitTick(plan);
+    return plan.damage;
   }
 
-  /** tick の計算と検証（状態は変えない）。 */
-  private computeTick(
-    dt: number,
-    target: AilmentTickTarget,
-  ): {
-    out: Partial<Record<Element, number>>;
-    updates: { inst: DotInstance; portion: number; step: number }[];
-  } {
+  /**
+   * tick の計算と検証だけを行い、結果を計画として返す（状態は変えない）。
+   * 経過時間・倍率・耐性・持続ダメージが不正（NaN・Infinity・溢れ）なら RangeError。
+   * 計画は commitTick で反映する。Combatant.update が、HP・崩しゲージなど他の計算も
+   * 全て検証し終えてから反映するのに使う（途中で例外が起きて中途半端に変わらないように）。
+   */
+  planTick(dt: number, target: AilmentTickTarget = {}): AilmentTickPlan {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const taken = finite(target.takenMultiplier ?? 1, "受けるダメージの倍率");
     // 先に全ての計算を済ませて検証し、例外のときに状態を中途半端に変えないようにする
-    const out: Partial<Record<Element, number>> = {};
-    const updates: { inst: DotInstance; portion: number; step: number }[] = [];
+    const damage: Partial<Record<Element, number>> = {};
+    const updates: DotTickUpdate[] = [];
     for (const list of this.dots.values()) {
       for (const inst of list) {
         const step = Math.min(dt, inst.remainingTime);
@@ -425,14 +427,35 @@ export class AilmentState {
           portion * moving * taken * (1 - resist),
           `${inst.def.id} の受けるダメージ`,
         );
-        out[inst.def.dotElement] = finite(
-          (out[inst.def.dotElement] ?? 0) + Math.max(0, dmg),
+        damage[inst.def.dotElement] = finite(
+          (damage[inst.def.dotElement] ?? 0) + Math.max(0, dmg),
           `持続ダメージの合計（${inst.def.dotElement}）`,
         );
         updates.push({ inst, portion, step });
       }
     }
-    return { out, updates };
+    return { dt, damage, updates };
+  }
+
+  /**
+   * planTick の計画を反映する（残りの量・時間を減らし、切れた状態異常を取り除く）。
+   * 検証済みの値の代入と取り除きだけで、例外は起きない。
+   * 計画を作ってから反映するまでの間に、この状態異常を変えてはならない（付与・取り出しなど）。
+   */
+  commitTick(plan: AilmentTickPlan): void {
+    for (const { inst, portion, step } of plan.updates) {
+      inst.remaining -= portion;
+      inst.remainingTime -= step;
+    }
+    for (const [id, list] of this.dots) {
+      const next = list.filter((inst) => inst.remainingTime > 1e-9 && inst.remaining > 1e-12);
+      if (next.length > 0) this.dots.set(id, next);
+      else this.dots.delete(id);
+    }
+    for (const [id, debuff] of this.debuffs) {
+      debuff.remainingTime -= plan.dt;
+      if (debuff.remainingTime <= 1e-9) this.debuffs.delete(id);
+    }
   }
 
   /** 重ねている数。 */
@@ -579,24 +602,59 @@ export class StaggerGauge {
     return true;
   }
 
-  /** 時間を進める（崩れている時間の経過・ゲージの減少）。 */
+  /**
+   * 時間を進める（崩れている時間の経過・ゲージの減少）。
+   * 不正な経過時間・時間の溢れは、状態を変えずに RangeError（planUpdate を参照）。
+   */
   update(dt: number): void {
+    this.commitUpdate(this.planUpdate(dt));
+  }
+
+  /**
+   * update の計算と検証だけを行い、次の状態を計画として返す（状態は変えない）。
+   * - 経過時間が0以上の有限の数でなければ RangeError
+   * - 崩しを受けていない時間（前回からの累計）が有限の数で表せなくなる（Number.MAX_VALUE 秒を超える）
+   *   場合は RangeError（時間を Infinity に丸めて黙って進めない）
+   * - ゲージの減る量は、ゲージの値を超えた分は意味を持たない（減った後は0）。そのため
+   *   「最大値 × 毎秒の割合 × 時間」が Infinity に溢れても、実際の減る量はゲージの値以下であり、
+   *   結果は正しく0になる（溢れを丸めているのではなく、減った後の値を正しく求めている）
+   */
+  planUpdate(dt: number): StaggerUpdatePlan {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const before = this.sinceLast;
     const sinceLast = requireFinite(before + dt, () => "崩しを受けていない時間");
     const decayTime = Math.max(0, sinceLast - Math.max(before, this.profile.decayDelay));
-    const decay =
-      decayTime > 0
-        ? requireFinite(
-            this.max * this.profile.decayPerSecond * decayTime,
-            () => "崩しゲージの減る量",
-          )
-        : 0;
-    if (this.brokenFor > 0) this.brokenFor = Math.max(0, this.brokenFor - dt);
-    this.sinceLast = sinceLast;
-    if (decayTime > 0) this.value = Math.max(0, this.value - decay);
+    let value = this.value;
+    if (decayTime > 0) {
+      // 各項は有限・0以上（最大値は崩れるときに検証済み）なので、積は NaN にならない
+      const decay = this.max * this.profile.decayPerSecond * decayTime;
+      value = decay === Infinity ? 0 : Math.max(0, this.value - decay);
+    }
+    const brokenFor = this.brokenFor > 0 ? Math.max(0, this.brokenFor - dt) : this.brokenFor;
+    return {
+      sinceLast,
+      brokenFor,
+      value: requireFinite(value, () => "崩しゲージの値"),
+    };
   }
+
+  /**
+   * planUpdate の計画を反映する。検証済みの値の代入だけで、例外は起きない。
+   * 計画を作ってから反映するまでの間に、このゲージを変えてはならない（add など）。
+   */
+  commitUpdate(plan: StaggerUpdatePlan): void {
+    this.sinceLast = plan.sinceLast;
+    this.brokenFor = plan.brokenFor;
+    this.value = plan.value;
+  }
+}
+
+/** StaggerGauge.planUpdate の計画（検証済みの次の状態。commitUpdate で反映する）。 */
+export interface StaggerUpdatePlan {
+  readonly sinceLast: number;
+  readonly brokenFor: number;
+  readonly value: number;
 }
 
 /**
