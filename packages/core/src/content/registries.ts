@@ -28,8 +28,9 @@ export type EquipSlot = (typeof EQUIP_SLOTS)[number];
  *   U-03 が持つのは印の評価と問い合わせ（`ModifierView.flag("spawnMinion", …)`）まで。
  *   召喚物を実際に生む処理はまだなく、それを実装する単位が、生む前にこの印を問い合わせ、
  *   `forbid` なら生まないようにする（規則3。docs/progress/開発進捗.md の U-03 を参照）。
+ * - alwaysHit：必中（敵の回避を無視する。例：盲目の賢者の目隠し）
  */
-export const FLAGS = ["crit", "ailmentApply", "beStaggered", "spawnMinion"] as const;
+export const FLAGS = ["crit", "ailmentApply", "beStaggered", "spawnMinion", "alwaysHit"] as const;
 export type FlagId = (typeof FLAGS)[number];
 
 /** 対象のタグが必要な印と、そのタグの分類。 */

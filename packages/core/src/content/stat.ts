@@ -14,6 +14,8 @@ export const statSchema = z.strictObject({
   min: z.number().optional(),
   /** 値の上限の初期値（例：耐性の75%）。上限を変える修正値（cap）で増減する。省略すると上限なし。 */
   baseCap: z.number().optional(),
+  /** 上限を変える修正値で、上限を上げられる限界（例：耐性は75%から、効果で最大90%まで。仕様書2.6）。 */
+  capLimit: z.number().optional(),
   ...provisionalFields,
 });
 

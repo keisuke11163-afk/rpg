@@ -1,4 +1,4 @@
-import { formatContentError, loadContent } from "@stella/core";
+import { COMBAT_STATS, ELEMENTS, formatContentError, loadContent } from "@stella/core";
 import { describe, expect, it } from "vitest";
 import { loadGameContent, rawContent } from "../src/index.ts";
 
@@ -34,5 +34,29 @@ describe("ゲームのデータ", () => {
     expect(parentOf("TAG-WPN-GREATMACE")).toEqual(["TAG-WPNGRP-MACE"]);
     expect(parentOf("TAG-WPN-CROSSBOW")).toEqual(["TAG-WPNGRP-BOW"]);
     expect(parentOf("TAG-WPN-DAGGER")).toBeUndefined();
+  });
+});
+
+describe("ダメージの計算に使う能力値", () => {
+  it("core が使う能力値のIDが、全てデータにある", () => {
+    const db = loadGameContent();
+    const ids = [
+      COMBAT_STATS.damage,
+      COMBAT_STATS.critChance,
+      COMBAT_STATS.critMultiplier,
+      COMBAT_STATS.accuracy,
+      COMBAT_STATS.skillLevel,
+      ...Object.values(COMBAT_STATS.added),
+    ];
+    expect(ids.filter((id) => !db.stats.has(id))).toEqual([]);
+  });
+
+  it("耐性は75%が上限で、効果で90%まで上げられる（仕様書2.6）", () => {
+    const db = loadGameContent();
+    for (const element of ELEMENTS) {
+      const s = db.stats.get(`STAT-RESIST-${element.toUpperCase()}`);
+      expect(s?.baseCap).toBe(0.75);
+      expect(s?.capLimit).toBe(0.9);
+    }
   });
 });
