@@ -29,7 +29,10 @@ export class FixedStepClock {
    *   追いつこうとして更に重くなるのを防ぐ
    */
   constructor(stepSeconds: number = FIXED_STEP_SECONDS, maxStepsPerAdvance = 5) {
-    if (!(stepSeconds > 0)) throw new RangeError("刻みの長さは正の数");
+    // NaN・0以下・Infinity・-Infinity を拒否する（Infinity では刻みが進まなくなる）
+    if (!Number.isFinite(stepSeconds) || stepSeconds <= 0) {
+      throw new RangeError(`刻みの長さは正の有限の数（${String(stepSeconds)}）`);
+    }
     if (!Number.isInteger(maxStepsPerAdvance) || maxStepsPerAdvance < 1) {
       throw new RangeError("刻みの上限は1以上の整数");
     }

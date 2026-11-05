@@ -28,9 +28,16 @@ export class ActionTimeline {
   private finishedFired = false;
 
   constructor(spec: TimelineSpec) {
-    if (spec.windup < 0 || spec.active < 0 || spec.recovery < 0)
-      throw new RangeError("時間は0以上");
-    this.spec = spec;
+    for (const key of ["windup", "active", "recovery"] as const) {
+      const v = spec[key];
+      if (!Number.isFinite(v) || v < 0)
+        throw new RangeError(`${key} の時間は0以上の有限の数：${String(v)}`);
+    }
+    // 各フェーズが有限でも、合計が無限大に溢れると終わらない動作になるため拒否する
+    if (!Number.isFinite(spec.windup + spec.active + spec.recovery))
+      throw new RangeError("動作の時間の合計は有限の数");
+    // 後から書き換えられても検証済みの値を保つため、写しを持つ
+    this.spec = { windup: spec.windup, active: spec.active, recovery: spec.recovery };
   }
 
   get total(): number {
@@ -52,7 +59,8 @@ export class ActionTimeline {
 
   /** 時間を進める。当たり判定の始まりと動作の終わりは、それぞれ1回だけ知らせる。 */
   update(dt: number): TimelineEvents {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
+    // elapsed・イベントの状態を変える前に検証する（NaN・負の数・無限大を受け付けない）
+    if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
     this.elapsed += dt;
     // 1/60秒を足し合わせたときの浮動小数点の誤差で、1刻み遅れないように少しだけ余裕を持たせる
     const activeStarted = !this.activeFired && this.elapsed >= this.spec.windup - 1e-9;

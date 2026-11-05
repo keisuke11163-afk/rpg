@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { type EffectInstance, TagIndex, evaluateEffects } from "../src/index.ts";
+import { type EffectInstance, ModifierView, TagIndex, evaluateEffects } from "../src/index.ts";
 import { buildDb, effect, stat, tag } from "./helpers/content.ts";
 
 const TAGS = [
@@ -453,5 +453,460 @@ describe("入力・枠の置き換え（仕様書v0.2 2.4.1 の規則2）", () =
     ]).view.replacement("dodge");
     expect(a.winner?.effectId).toBe("EFF-SET-A");
     expect(b.winner?.effectId).toBe("EFF-SET-A");
+  });
+});
+
+describe("重ねた数（stacks）の検証と、0のときの扱い", () => {
+  const hooks = new Set(["guardStance", "shadowStep"]);
+  const kinds = [
+    effect("EFF-Z-ADD", "affix", [
+      { kind: "added", stat: "STAT-DAMAGE", value: { min: 1, max: 3 } },
+    ]),
+    effect("EFF-Z-FIXED", "affix", [{ kind: "fixedAdded", stat: "STAT-DAMAGE", value: 2 }]),
+    effect("EFF-Z-INC", "minorStar", [{ kind: "increased", stat: "STAT-DAMAGE", value: 0.3 }]),
+    effect("EFF-Z-MORE", "keystone", [{ kind: "more", stat: "STAT-DAMAGE", value: 1.2 }]),
+    // 上限：基礎の上限がない能力値（STAT-RI）と、ある能力値（STAT-RESIST-FIRE）
+    effect("EFF-Z-CAP", "keystone", [
+      { kind: "cap", stat: "STAT-RI", value: 250 },
+      { kind: "cap", stat: "STAT-RESIST-FIRE", value: 0.05 },
+    ]),
+    effect("EFF-Z-OVR", "keystone", [
+      { kind: "override", stat: "STAT-MOVE", value: 0.5, priority: 1 },
+    ]),
+    effect("EFF-Z-FORCE", "unique", [{ kind: "flag", flag: "crit", mode: "force" }]),
+    effect("EFF-Z-FORBID", "unique", [{ kind: "flag", flag: "crit", mode: "forbid" }]),
+    effect("EFF-Z-REPL", "set", [{ kind: "replace", slot: "dodge", hook: "shadowStep" }]),
+    effect("EFF-Z-BEH", "unique", [{ kind: "behavior", hook: "guardStance", params: { a: 1 } }]),
+    effect("EFF-Z-CONV", "unique", [{ kind: "convert", from: "physical", to: "cold", value: 0.2 }]),
+    effect("EFF-Z-RETAG", "unique", [{ kind: "retag", from: ["physical"], to: "cold" }]),
+    effect("EFF-Z-COND", "notableStar", [{ kind: "increased", stat: "STAT-DAMAGE", value: 0.1 }], {
+      conditions: [{ type: "mainJob", job: "TAG-JOB-WARRIOR" }],
+    }),
+    effect("EFF-Z-RI", "minorStar", [{ kind: "added", stat: "STAT-RI", value: 100 }]),
+    effect("EFF-Z-GATE", "notableStar", [{ kind: "increased", stat: "STAT-DAMAGE", value: 0.5 }], {
+      conditions: [{ type: "statAtLeast", stat: "STAT-RI", value: 350 }],
+    }),
+  ];
+  const db = buildDb({ tags: TAGS, stats: STATS, effects: kinds }, hooks);
+  const index = new TagIndex(db.tags);
+  /** 条件のない効果の全ての種類（印は強制だけ。禁止は別に確かめる）。 */
+  const ALL = [
+    "EFF-Z-ADD",
+    "EFF-Z-FIXED",
+    "EFF-Z-INC",
+    "EFF-Z-MORE",
+    "EFF-Z-CAP",
+    "EFF-Z-OVR",
+    "EFF-Z-FORCE",
+    "EFF-Z-REPL",
+    "EFF-Z-BEH",
+    "EFF-Z-CONV",
+    "EFF-Z-RETAG",
+  ];
+  const facts = { baseStats: { "STAT-RI": 300, "STAT-MOVE": 0.1 }, mainJob: "TAG-JOB-WARRIOR" };
+  const evaluateAll = (stacks: number) =>
+    evaluateEffects(
+      db,
+      index,
+      ALL.map((id) => inst(id, stacks)),
+      facts,
+    );
+
+  it("stacks = 0：全ての種類の効果が何も効かない（数値・上限・上書き・印・置き換え・挙動・変換・付け替え）", () => {
+    const { view, active, dormant } = evaluateAll(0);
+    const dmg = view.stat("STAT-DAMAGE", ["TAG-ELEM-PHYSICAL"]);
+    expect([dmg.added, dmg.fixedAdded, dmg.increased, dmg.more]).toEqual([
+      { min: 0, max: 0 },
+      { min: 0, max: 0 },
+      0,
+      1,
+    ]);
+    expect(dmg.contributions).toEqual([]);
+    expect(view.stat("STAT-MOVE").override).toBeUndefined();
+    expect(view.stat("STAT-MOVE").value).toBe(0.1);
+    expect(view.flag("crit", undefined).resolution).toBeUndefined();
+    expect(view.replacement("dodge")).toEqual({ winner: undefined, overridden: [] });
+    expect(view.activeBehaviors()).toEqual([]);
+    expect(view.conversions()).toEqual([]);
+    expect(view.retagging()).toEqual([]);
+    expect(active).toEqual([]);
+    expect(dormant).toEqual([]);
+  });
+
+  it("stacks = 0：上限が0になる副作用がない（基礎の上限がない能力値は上限なし、ある能力値は基礎の上限のまま）", () => {
+    const { view } = evaluateAll(0);
+    const ri = view.stat("STAT-RI");
+    expect(ri.cap).toBeUndefined();
+    expect(ri.value).toBe(300);
+    const fire = view.stat("STAT-RESIST-FIRE");
+    expect(fire.cap).toBe(0.75);
+    expect(fire.contributions).toEqual([]);
+  });
+
+  it("stacks = 0：禁止の印も効かない（ほかの効果の強制が勝つ）", () => {
+    const { view } = evaluateEffects(db, index, [inst("EFF-Z-FORBID", 0), inst("EFF-Z-FORCE", 1)]);
+    const r = view.flag("crit", undefined);
+    expect(r.resolution).toBe("force");
+    expect(r.forbiddenBy).toEqual([]);
+  });
+
+  it("stacks = 0：置き換え・挙動の候補にも入らない（ほかの置き換えを負かさない）", () => {
+    const { view } = evaluateEffects(db, index, [inst("EFF-Z-REPL", 0), inst("EFF-Z-BEH", 0)]);
+    expect(view.replacement("dodge").winner).toBeUndefined();
+    expect(view.activeBehaviors()).toEqual([]);
+  });
+
+  it("stacks = 1：通常どおり働く", () => {
+    const { view, active } = evaluateAll(1);
+    const dmg = view.stat("STAT-DAMAGE", ["TAG-ELEM-PHYSICAL"]);
+    expect(dmg.added).toEqual({ min: 1, max: 3 });
+    expect(dmg.fixedAdded).toEqual({ min: 2, max: 2 });
+    expect(dmg.increased).toBeCloseTo(0.3);
+    expect(dmg.more).toBeCloseTo(1.2);
+    expect(view.stat("STAT-RI").cap).toBe(250);
+    expect(view.stat("STAT-RI").value).toBe(250);
+    expect(view.stat("STAT-RESIST-FIRE").cap).toBeCloseTo(0.8);
+    expect(view.stat("STAT-MOVE").value).toBe(0.5);
+    expect(view.flag("crit", undefined).resolution).toBe("force");
+    expect(view.replacement("dodge").winner?.hook).toBe("shadowStep");
+    expect(view.activeBehaviors().map((b) => [b.hook, b.stacks])).toEqual([["guardStance", 1]]);
+    expect(view.conversions().map((c) => c.value)).toEqual([0.2]);
+    expect(view.retagging().map((r) => r.to)).toEqual(["cold"]);
+    expect(active).toHaveLength(ALL.length);
+  });
+
+  it("stacks = 2：既存の重ね方（加算・追加・上限・変換は値×数、乗算は数乗、上書き・印は1つ分）", () => {
+    const { view } = evaluateAll(2);
+    const dmg = view.stat("STAT-DAMAGE", ["TAG-ELEM-PHYSICAL"]);
+    expect(dmg.added).toEqual({ min: 2, max: 6 });
+    expect(dmg.fixedAdded).toEqual({ min: 4, max: 4 });
+    expect(dmg.increased).toBeCloseTo(0.6);
+    expect(dmg.more).toBeCloseTo(1.44);
+    expect(view.stat("STAT-RI").cap).toBe(500);
+    expect(view.stat("STAT-RI").value).toBe(300);
+    expect(view.stat("STAT-RESIST-FIRE").cap).toBeCloseTo(0.85);
+    expect(view.stat("STAT-MOVE").value).toBe(0.5);
+    expect(view.flag("crit", undefined).resolution).toBe("force");
+    expect(view.activeBehaviors().map((b) => b.stacks)).toEqual([2]);
+    expect(view.conversions().map((c) => c.value)).toEqual([0.4]);
+  });
+
+  it("stacks = 0 の条件付きの効果：条件を満たさなければ休眠（理由つき）、満たしても有効にはしない", () => {
+    const met = evaluateEffects(db, index, [inst("EFF-Z-COND", 0)], facts);
+    expect(met.active).toEqual([]);
+    expect(met.dormant).toEqual([]);
+    expect(met.view.stat("STAT-DAMAGE").increased).toBe(0);
+    const unmet = evaluateEffects(db, index, [inst("EFF-Z-COND", 0)], {
+      ...facts,
+      mainJob: "TAG-JOB-ROGUE",
+    });
+    expect(unmet.active).toEqual([]);
+    expect(unmet.dormant.map((d) => d.unmet)).toEqual([
+      [{ type: "mainJob", job: "TAG-JOB-WARRIOR" }],
+    ]);
+    // stacks = 1 なら、これまでどおり条件で有効・休眠が決まる
+    expect(evaluateEffects(db, index, [inst("EFF-Z-COND", 1)], facts).active).toHaveLength(1);
+  });
+
+  it("stacks = 0 の効果は、条件の判定（第1段階の値）にも入らない", () => {
+    // 理300＋100（重ねた数0）では、理350以上の条件を満たさない
+    const zero = evaluateEffects(db, index, [inst("EFF-Z-RI", 0), inst("EFF-Z-GATE", 1)], facts);
+    expect(zero.dormant.map((d) => d.instance.effectId)).toEqual(["EFF-Z-GATE"]);
+    const one = evaluateEffects(db, index, [inst("EFF-Z-RI", 1), inst("EFF-Z-GATE", 1)], facts);
+    expect(one.active.map((i) => i.effectId)).toEqual(["EFF-Z-GATE", "EFF-Z-RI"]);
+  });
+
+  it("小数・NaN・Infinity・-Infinity・負の数は RangeError（条件付きの効果・休眠する効果でも）", () => {
+    for (const bad of [
+      1.5,
+      0.5,
+      -1,
+      -0.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ]) {
+      expect(() => evaluateEffects(db, index, [inst("EFF-Z-INC", bad)]), String(bad)).toThrow(
+        RangeError,
+      );
+      expect(
+        () =>
+          evaluateEffects(db, index, [inst("EFF-Z-COND", bad)], {
+            ...facts,
+            mainJob: "TAG-JOB-ROGUE",
+          }),
+        `条件付き ${String(bad)}`,
+      ).toThrow(RangeError);
+      expect(
+        () => new ModifierView(db, index, [inst("EFF-Z-INC", bad)], {}),
+        `ModifierView ${String(bad)}`,
+      ).toThrow(RangeError);
+    }
+    // 大きな整数は受け付ける
+    expect(
+      evaluateEffects(db, index, [inst("EFF-Z-INC", 10)]).view.stat("STAT-DAMAGE").increased,
+    ).toBeCloseTo(3);
+  });
+
+  it("安全な整数の範囲外は RangeError、Number.MAX_SAFE_INTEGER までは受け付ける", () => {
+    for (const bad of [
+      Number.MAX_SAFE_INTEGER + 1, // 2^53：Number.isInteger では true になってしまう値
+      Number.MAX_SAFE_INTEGER + 2,
+      2 ** 60,
+      Number.MAX_VALUE,
+      -Number.MAX_SAFE_INTEGER,
+      -(Number.MAX_SAFE_INTEGER + 1),
+    ]) {
+      expect(() => evaluateEffects(db, index, [inst("EFF-Z-INC", bad)]), String(bad)).toThrow(
+        RangeError,
+      );
+      expect(
+        () =>
+          evaluateEffects(db, index, [inst("EFF-Z-COND", bad)], {
+            ...facts,
+            mainJob: "TAG-JOB-ROGUE",
+          }),
+        `条件付き ${String(bad)}`,
+      ).toThrow(RangeError);
+      expect(
+        () => new ModifierView(db, index, [inst("EFF-Z-INC", bad)], {}),
+        `ModifierView ${String(bad)}`,
+      ).toThrow(RangeError);
+    }
+    // 境界：Number.MAX_SAFE_INTEGER ちょうどは受け付ける
+    const max = Number.MAX_SAFE_INTEGER;
+    expect(
+      evaluateEffects(db, index, [inst("EFF-Z-INC", max)]).active.map((i) => i.stacks),
+    ).toEqual([max]);
+    expect(
+      new ModifierView(db, index, [inst("EFF-Z-INC", max)], {}).stat("STAT-DAMAGE").increased,
+    ).toBe(0.3 * max);
+  });
+
+  it("stacks の省略は1として働く（プロパティなし・実行時の undefined のどちらも）", () => {
+    const omitted = evaluateEffects(
+      db,
+      index,
+      ALL.map((id) => inst(id)),
+      facts,
+    );
+    const one = evaluateAll(1);
+    expect(omitted.view.stat("STAT-DAMAGE")).toEqual(one.view.stat("STAT-DAMAGE"));
+    expect(omitted.view.stat("STAT-DAMAGE").increased).toBeCloseTo(0.3);
+    expect(omitted.view.activeBehaviors().map((b) => [b.hook, b.stacks])).toEqual([
+      ["guardStance", 1],
+    ]);
+    expect(omitted.view.conversions()).toEqual(one.view.conversions());
+    expect(omitted.active.map((i) => i.effectId)).toEqual(one.active.map((i) => i.effectId));
+    // 型では書けないが、JavaScript からは stacks: undefined が来うる。これも省略として1にする
+    const explicitUndefined = {
+      effectId: "EFF-Z-INC",
+      source: src("EFF-Z-INC"),
+      stacks: undefined,
+    } as unknown as EffectInstance;
+    expect(
+      evaluateEffects(db, index, [explicitUndefined]).view.stat("STAT-DAMAGE").increased,
+    ).toBeCloseTo(0.3);
+    expect(
+      new ModifierView(db, index, [explicitUndefined], {}).stat("STAT-DAMAGE").increased,
+    ).toBeCloseTo(0.3);
+  });
+
+  it("stacks: null は省略とみなさず RangeError（条件付きの効果・休眠する効果・ModifierView でも）", () => {
+    // 型では書けないが、JavaScript や保存データの復元からは null が来うる
+    const withNull = (effectId: string) =>
+      ({ effectId, source: src(effectId), stacks: null }) as unknown as EffectInstance;
+    expect(() => evaluateEffects(db, index, [withNull("EFF-Z-INC")])).toThrow(RangeError);
+    expect(() => evaluateEffects(db, index, [withNull("EFF-Z-INC")])).toThrow(/null/);
+    // 正しい効果と混ざっていても拒否する（並べ替えで先に比べられても、null を1として扱わない）
+    expect(() =>
+      evaluateEffects(db, index, [inst("EFF-Z-INC", 1), withNull("EFF-Z-INC"), inst("EFF-Z-ADD")]),
+    ).toThrow(RangeError);
+    // 条件を満たさず休眠する効果でも拒否する
+    expect(() =>
+      evaluateEffects(db, index, [withNull("EFF-Z-COND")], { ...facts, mainJob: "TAG-JOB-ROGUE" }),
+    ).toThrow(RangeError);
+    expect(() => new ModifierView(db, index, [withNull("EFF-Z-INC")], {})).toThrow(RangeError);
+  });
+});
+
+describe("計算結果が有限の値になること（Infinity・-Infinity・NaN を混ぜない）", () => {
+  const big = 1e308;
+  const defs = [
+    effect("EFF-F-ADD", "affix", [
+      { kind: "added", stat: "STAT-DAMAGE", value: { min: 1, max: 3 } },
+    ]),
+    effect("EFF-F-FIXED", "affix", [{ kind: "fixedAdded", stat: "STAT-DAMAGE", value: 2 }]),
+    effect("EFF-F-INC", "minorStar", [{ kind: "increased", stat: "STAT-DAMAGE", value: 0.3 }]),
+    effect("EFF-F-MORE", "keystone", [{ kind: "more", stat: "STAT-DAMAGE", value: 1.2 }]),
+    effect("EFF-F-LESS", "keystone", [{ kind: "more", stat: "STAT-DAMAGE", value: 0.8 }]),
+    effect("EFF-F-CAP", "keystone", [{ kind: "cap", stat: "STAT-RESIST-FIRE", value: 0.05 }]),
+    effect("EFF-F-OVR", "keystone", [
+      { kind: "override", stat: "STAT-MOVE", value: 0.5, priority: 1 },
+    ]),
+    effect("EFF-F-CONV", "unique", [{ kind: "convert", from: "physical", to: "cold", value: 0.2 }]),
+    effect("EFF-F-COND", "unique", [{ kind: "more", stat: "STAT-DAMAGE", value: 1.2 }], {
+      conditions: [{ type: "mainJob", job: "TAG-JOB-WARRIOR" }],
+    }),
+    // 1つ1つは有限でも、重ねると・合計すると有限にならない値
+    effect("EFF-F-BIG-ADD", "affix", [{ kind: "added", stat: "STAT-RI", value: big }]),
+    effect("EFF-F-BIG-ADD2", "affix", [{ kind: "fixedAdded", stat: "STAT-RI", value: big }]),
+    effect("EFF-F-BIG-CAP", "keystone", [{ kind: "cap", stat: "STAT-RI", value: big }]),
+    effect("EFF-F-BIG-NEGCAP", "keystone", [{ kind: "cap", stat: "STAT-RI", value: -big }]),
+    effect("EFF-F-BIG-INC", "minorStar", [{ kind: "increased", stat: "STAT-RI", value: 10 }]),
+    effect("EFF-F-BIG-MORE", "keystone", [{ kind: "more", stat: "STAT-RI", value: 10 }]),
+    effect("EFF-F-GATE", "notableStar", [{ kind: "increased", stat: "STAT-DAMAGE", value: 0.5 }], {
+      conditions: [{ type: "statAtLeast", stat: "STAT-RI", value: 1 }],
+    }),
+  ];
+  const db = buildDb({ tags: TAGS, stats: STATS, effects: defs });
+  const index = new TagIndex(db.tags);
+  const NUMERIC = ["EFF-F-ADD", "EFF-F-FIXED", "EFF-F-INC", "EFF-F-MORE", "EFF-F-CAP", "EFF-F-OVR"];
+  const MAX = Number.MAX_SAFE_INTEGER;
+
+  /** 能力値の結果の数値が全て有限であること。 */
+  const expectAllFinite = (r: ReturnType<ModifierView["stat"]>): void => {
+    const nums = [
+      r.base,
+      r.added.min,
+      r.added.max,
+      r.fixedAdded.min,
+      r.fixedAdded.max,
+      r.increased,
+      r.more,
+      r.value,
+      ...(r.cap === undefined ? [] : [r.cap]),
+      ...(r.override === undefined ? [] : [r.override.value]),
+      ...r.contributions.flatMap((c) =>
+        typeof c.value === "number" ? [c.value] : [c.value.min, c.value.max],
+      ),
+    ];
+    for (const n of nums) expect(Number.isFinite(n), `${r.stat}: ${String(n)}`).toBe(true);
+  };
+
+  it("通常の重ねた数（0・1・2）では、これまでどおりの値になる", () => {
+    const at = (stacks: number) =>
+      evaluateEffects(
+        db,
+        index,
+        [...NUMERIC, "EFF-F-CONV"].map((id) => inst(id, stacks)),
+      ).view;
+    const zero = at(0).stat("STAT-DAMAGE");
+    expect([zero.added, zero.fixedAdded, zero.increased, zero.more, zero.value]).toEqual([
+      { min: 0, max: 0 },
+      { min: 0, max: 0 },
+      0,
+      1,
+      0,
+    ]);
+    const one = at(1).stat("STAT-DAMAGE");
+    expect(one.added).toEqual({ min: 1, max: 3 });
+    expect(one.fixedAdded).toEqual({ min: 2, max: 2 });
+    expect(one.increased).toBeCloseTo(0.3);
+    expect(one.more).toBeCloseTo(1.2);
+    expect(one.value).toBeCloseTo((2 + 2) * 1.3 * 1.2);
+    const two = at(2);
+    const dmg2 = two.stat("STAT-DAMAGE");
+    expect(dmg2.added).toEqual({ min: 2, max: 6 });
+    expect(dmg2.fixedAdded).toEqual({ min: 4, max: 4 });
+    expect(dmg2.increased).toBeCloseTo(0.6);
+    expect(dmg2.more).toBeCloseTo(1.44);
+    expect(dmg2.value).toBeCloseTo((4 + 4) * 1.6 * 1.44);
+    expect(two.stat("STAT-RESIST-FIRE").cap).toBeCloseTo(0.85);
+    expect(two.stat("STAT-MOVE").value).toBe(0.5);
+    expect(two.conversions().map((c) => c.value)).toEqual([0.4]);
+    for (const v of [at(0), at(1), two]) {
+      for (const s of ["STAT-DAMAGE", "STAT-RESIST-FIRE", "STAT-MOVE", "STAT-RI"]) {
+        expectAllFinite(v.stat(s));
+      }
+    }
+  });
+
+  it("巨大な重ねた数で乗算が有限にならない（1.2 の 2^53-1 乗）ときは RangeError（黙って置き換えない）", () => {
+    expect(() => evaluateEffects(db, index, [inst("EFF-F-MORE", MAX)])).toThrow(RangeError);
+    expect(() => evaluateEffects(db, index, [inst("EFF-F-MORE", MAX)])).toThrow(/EFF-F-MORE/);
+    expect(() => new ModifierView(db, index, [inst("EFF-F-MORE", MAX)], {})).toThrow(RangeError);
+    // 条件を満たさず休眠する効果でも、重ねた数の検証と同じく先に拒否する
+    expect(() =>
+      evaluateEffects(db, index, [inst("EFF-F-COND", MAX)], { mainJob: "TAG-JOB-ROGUE" }),
+    ).toThrow(RangeError);
+    // 有限になる範囲の大きな重ねた数は、これまでどおり受け付ける
+    expect(
+      evaluateEffects(db, index, [inst("EFF-F-MORE", 100)]).view.stat("STAT-DAMAGE").more,
+    ).toBeCloseTo(1.2 ** 100);
+  });
+
+  it("巨大な重ねた数でも有限になるもの（加算・追加・上限・変換・1未満の乗算・上書き）は、有限の値のまま", () => {
+    const { view } = evaluateEffects(db, index, [
+      ...["EFF-F-ADD", "EFF-F-FIXED", "EFF-F-INC", "EFF-F-LESS", "EFF-F-CAP", "EFF-F-OVR"].map(
+        (id) => inst(id, MAX),
+      ),
+      inst("EFF-F-CONV", MAX),
+    ]);
+    const dmg = view.stat("STAT-DAMAGE");
+    expect(dmg.added).toEqual({ min: MAX, max: 3 * MAX });
+    expect(dmg.increased).toBe(0.3 * MAX);
+    expect(dmg.more).toBe(0); // 0.8 の 2^53-1 乗は0（有限）
+    expectAllFinite(dmg);
+    expectAllFinite(view.stat("STAT-RESIST-FIRE"));
+    expect(view.stat("STAT-MOVE").value).toBe(0.5); // 上書きは重ねた数に関係しない
+    expectAllFinite(view.stat("STAT-MOVE"));
+    for (const c of view.conversions()) expect(Number.isFinite(c.value)).toBe(true);
+  });
+
+  it("値×重ねた数が有限にならない（追加値・上限）ときは RangeError", () => {
+    for (const id of ["EFF-F-BIG-ADD", "EFF-F-BIG-ADD2", "EFF-F-BIG-CAP", "EFF-F-BIG-NEGCAP"]) {
+      expect(() => evaluateEffects(db, index, [inst(id, 2)]), id).toThrow(RangeError);
+      // 重ねた数1なら有限
+      expectAllFinite(evaluateEffects(db, index, [inst(id, 1)]).view.stat("STAT-RI"));
+    }
+  });
+
+  it("1つ1つは有限でも、合計・積・まとめた値が有限にならないときは RangeError（NaN も混ぜない）", () => {
+    // 追加値の合計：1e308 ＋ 1e308
+    const sum = evaluateEffects(db, index, [inst("EFF-F-BIG-ADD", 1), inst("EFF-F-BIG-ADD2", 1)]);
+    expect(() => sum.view.stat("STAT-RI")).toThrow(RangeError);
+    // 上限の合計：1e308 ＋ 1e308
+    const caps = new ModifierView(
+      db,
+      index,
+      [inst("EFF-F-BIG-CAP", 1), { ...inst("EFF-F-BIG-CAP", 1), source: src("other") }],
+      {},
+    );
+    expect(() => caps.stat("STAT-RI")).toThrow(RangeError);
+    // まとめた値：1e308 ×（1＋10）×10
+    const product = evaluateEffects(db, index, [
+      inst("EFF-F-BIG-ADD", 1),
+      inst("EFF-F-BIG-INC", 1),
+      inst("EFF-F-BIG-MORE", 1),
+    ]);
+    expect(() => product.view.stat("STAT-RI")).toThrow(RangeError);
+    expect(() => product.view.stat("STAT-RI")).toThrow(/STAT-RI/);
+    // 乗算の積：10 の 300乗 × 10 の 300乗（どちらも有限）
+    const more = new ModifierView(
+      db,
+      index,
+      [inst("EFF-F-BIG-MORE", 300), { ...inst("EFF-F-BIG-MORE", 300), source: src("other") }],
+      {},
+    );
+    expect(() => more.stat("STAT-RI")).toThrow(RangeError);
+    // ほかの能力値の問い合わせには影響しない
+    expectAllFinite(product.view.stat("STAT-DAMAGE"));
+  });
+
+  it("基礎の値が Infinity・-Infinity・NaN なら RangeError（条件の判定でも）", () => {
+    for (const bad of [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN]) {
+      const { view } = evaluateEffects(db, index, [inst("EFF-F-INC")], {
+        baseStats: { "STAT-DAMAGE": bad },
+      });
+      expect(() => view.stat("STAT-DAMAGE"), String(bad)).toThrow(RangeError);
+      expect(
+        () =>
+          evaluateEffects(db, index, [inst("EFF-F-GATE")], {
+            baseStats: { "STAT-RI": bad },
+          }),
+        `条件 ${String(bad)}`,
+      ).toThrow(RangeError);
+    }
   });
 });
