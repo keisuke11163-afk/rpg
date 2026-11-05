@@ -1,7 +1,8 @@
 /**
  * DPSシミュレーター（開発計画書 工程BL-1）。
  *
- * 描画なしで、固定の時間刻み（1/60秒）で戦闘を早送りする。ダメージ・状態異常・崩しの計算は、
+ * 描画なしで、固定の時間刻み（1/60秒）で戦闘を早送りする。指定の時間が1/60秒の整数倍でなければ、
+ * 最後の時間刻みだけを残りの時間に縮める（指定の時間を超えて計算しない）。ダメージ・状態異常・崩しの計算は、
  * ゲーム本体と同じ core の関数を使う。位置・移動・敵の行動は扱わない（標準の的を殴り続ける）。
  */
 import {
@@ -54,6 +55,23 @@ export function validateSeconds(seconds: number): number {
   return seconds;
 }
 
+/** 時間刻みの回数が整数かどうかを判定するときの許容誤差（刻みの回数に対する相対値）。 */
+const STEP_EPSILON = 1e-9;
+
+/**
+ * 指定の時間を、固定の時間刻み（dt）の回数と、最後の端数の刻み（dt 未満。なければ 0）に分ける。
+ * 浮動小数点の誤差で整数倍が僅かにずれた値（例：0.1 ＝ 6×(1/60) 付近）は整数倍として扱う。
+ */
+export function splitSteps(seconds: number, dt: number): { fullSteps: number; remainder: number } {
+  const ratio = seconds / dt;
+  const nearest = Math.round(ratio);
+  if (nearest >= 1 && Math.abs(ratio - nearest) <= STEP_EPSILON * Math.max(1, nearest)) {
+    return { fullSteps: nearest, remainder: 0 };
+  }
+  const fullSteps = Math.floor(ratio);
+  return { fullSteps, remainder: seconds - fullSteps * dt };
+}
+
 export interface SkillStats {
   readonly name: string;
   uses: number;
@@ -85,6 +103,8 @@ export interface SimResult {
   readonly damageTaken: number;
   readonly damageTakenPerSecond: number;
   readonly mpSpent: number;
+  /** 戦闘の終わりのMP。 */
+  readonly finalMp: number;
 }
 
 interface PreparedBuild {
@@ -217,7 +237,9 @@ export function simulate(
   const ailmentRng = root.fork("ailment");
   const enemyRng = root.fork("enemy");
   const dt = FIXED_STEP_SECONDS;
-  const steps = Math.ceil(seconds / dt);
+  // 通常の刻みは dt。指定の時間が dt の整数倍でなければ、最後に残りの時間（dt 未満）の刻みを1回足す
+  const { fullSteps, remainder } = splitSteps(seconds, dt);
+  const steps = fullSteps + (remainder > 0 ? 1 : 0);
 
   const ailments = new AilmentState(db);
   const profiles = staggerProfiles(db);
@@ -259,11 +281,15 @@ export function simulate(
   const skillTags = build.rotation.map((s) => hitTags(s, build));
 
   for (let step = 0; step < steps; step++) {
-    time = (step + 1) * dt;
-    mp = Math.min(p.maxMp, mp + p.mpRegen * dt);
-    for (const [name, left] of cooldowns) cooldowns.set(name, Math.max(0, left - dt));
+    // この刻みの幅（最後の端数の刻みだけ dt 未満）。時間に依存する計算には、全てこの幅を渡す
+    const partial = step >= fullSteps;
+    const h = partial ? remainder : dt;
+    // 整数倍の刻みは従来どおり (step+1)×dt。端数の刻みの終わりは、ちょうど指定の時間
+    time = partial ? seconds : (step + 1) * dt;
+    mp = Math.min(p.maxMp, mp + p.mpRegen * h);
+    for (const [name, left] of cooldowns) cooldowns.set(name, Math.max(0, left - h));
     // 動作の時間の端数は次の動作に持ち越す（1/60秒に丸めて、攻撃の回数がずれないように）
-    busy -= dt;
+    busy -= h;
 
     // 技を使う（優先順位の高い順に、使えるものを1つ）
     if (busy <= 0) {
@@ -283,7 +309,7 @@ export function simulate(
         mp -= skill.mpCost;
         mpSpent += skill.mpCost;
         if (skill.cooldown > 0) cooldowns.set(skill.name, skill.cooldown);
-        busy = Math.max(busy, -dt) + useTime;
+        busy = Math.max(busy, -h) + useTime;
         stats.uses += 1;
         const damageSkill = toDamageSkill(skill);
         for (let h = 0; h < (skill.hits ?? 1); h++) {
@@ -336,13 +362,14 @@ export function simulate(
     // ヒットで倒したら、その時点で戦闘を終える（持続ダメージ・的の攻撃は進めない）
     if (killTime !== undefined) break;
 
-    if (busy < -dt) busy = -dt; // 使える技がない間は、端数を溜めない
+    if (busy < -h) busy = -h; // 使える技がない間は、端数を溜めない
 
     // 持続ダメージ・崩しの時間
     // 移動している時間の割合を、時間の上で均等に割り振る
     const ratio = target.movingRatio ?? 0;
+    // （端数の刻みも1回の刻みとして数える。割合1なら常に移動中のまま）
     const moving = Math.floor((step + 1) * ratio) > Math.floor(step * ratio);
-    const dot = ailments.tick(dt, { resist, takenMultiplier: stagger.takenMultiplier, moving });
+    const dot = ailments.tick(h, { resist, takenMultiplier: stagger.takenMultiplier, moving });
     let dotThisStep = 0;
     for (const v of Object.values(dot)) dotThisStep += v;
     // 持続ダメージも、的の残りHPを超えた分は集計しない
@@ -351,7 +378,7 @@ export function simulate(
       killTime = time;
       break;
     }
-    stagger.update(dt);
+    stagger.update(h);
 
     // 的の攻撃
     if (target.attack !== undefined && time >= nextEnemyAttack) {
@@ -393,5 +420,6 @@ export function simulate(
     damageTaken,
     damageTakenPerSecond: damageTaken / elapsed,
     mpSpent,
+    finalMp: mp,
   };
 }
