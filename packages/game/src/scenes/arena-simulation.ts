@@ -96,29 +96,31 @@ const START_WEAPON: Readonly<Record<string, string>> = {
   "JOB-ROGUE": "test-dagger",
 };
 
-/** 技の枠（行動か、試験用の R キー）。 */
-export type SkillSlot = Action | "rout";
+/** 技の枠（補助仕様書1.1：左クリック・右クリック・1〜4 の6枠）。 */
+export const SKILL_SLOTS = ["skill1", "skill2", "skill3", "skill4", "skill5", "skill6"] as const;
+export type SkillSlot = (typeof SKILL_SLOTS)[number];
 
-// 仮実装: U-12 feature/inventory-ui で、技の枠の設定に置き換える（試験用の技の並び。7つ目は R キー）
 export type Loadout = readonly { readonly action: SkillSlot; readonly skill: string }[];
-export const LOADOUTS: Readonly<Record<string, Loadout>> = {
+/**
+ * 技の枠の初期の並び（ジョブごと）。枠1は通常攻撃（補助仕様書1.1）、残りは覚える順（補助仕様書3.5）。
+ * 6つ目より後に覚える技（破軍・罠設置）は、キャラクターの画面で枠に入れる（docs/progress D-U12-9）。
+ */
+export const DEFAULT_SKILL_SLOTS: Readonly<Record<string, readonly string[]>> = {
   "JOB-WARRIOR": [
-    { action: "skill1", skill: "SKL-BASIC-ATTACK" },
-    { action: "skill2", skill: "SKL-WARRIOR-SWEEP" },
-    { action: "skill3", skill: "SKL-WARRIOR-CHARGE" },
-    { action: "skill4", skill: "SKL-WARRIOR-WARCRY" },
-    { action: "skill5", skill: "SKL-WARRIOR-EARTHSPLITTER" },
-    { action: "skill6", skill: "SKL-WARRIOR-WHIRLWIND" },
-    { action: "rout", skill: "SKL-WARRIOR-ROUT" },
+    "SKL-BASIC-ATTACK",
+    "SKL-WARRIOR-SWEEP",
+    "SKL-WARRIOR-CHARGE",
+    "SKL-WARRIOR-WARCRY",
+    "SKL-WARRIOR-EARTHSPLITTER",
+    "SKL-WARRIOR-WHIRLWIND",
   ],
   "JOB-ROGUE": [
-    { action: "skill1", skill: "SKL-BASIC-ATTACK" },
-    { action: "skill2", skill: "SKL-ROGUE-FLURRY" },
-    { action: "skill3", skill: "SKL-ROGUE-PIERCE" },
-    { action: "skill4", skill: "SKL-ROGUE-SHADOWSTEP" },
-    { action: "skill5", skill: "SKL-ROGUE-POISON" },
-    { action: "skill6", skill: "SKL-ROGUE-SMOKE" },
-    { action: "rout", skill: "SKL-ROGUE-TRAP" },
+    "SKL-BASIC-ATTACK",
+    "SKL-ROGUE-FLURRY",
+    "SKL-ROGUE-PIERCE",
+    "SKL-ROGUE-SHADOWSTEP",
+    "SKL-ROGUE-POISON",
+    "SKL-ROGUE-SMOKE",
   ],
 };
 // 仮実装: U-13 feature/save-load で、セーブデータのキャラクターに置き換える（試験用に、戦士の出自・キャラLv15・戦士のジョブLv15から始める）
@@ -137,7 +139,7 @@ const ZONE_REFRESH = 0.1;
 /**
  * 計算の刻みで使う「押した瞬間」の行動。これ以外の押した瞬間の入力は保持しない
  * （まだ使わない行動を保持し続けて、後で古い入力が発動するのを防ぐ）。
- * 回避（U-06）と、技の枠（U-07 の通常攻撃を、U-08 で全ての技の枠に広げた。破軍の R を含む）、
+ * 回避（U-06）と、技の枠（U-07 の通常攻撃を、U-08 で全ての技の枠に広げた）、
  * 装備を拾う F（U-11）。
  */
 const STEP_ACTIONS = [
@@ -149,8 +151,7 @@ const STEP_ACTIONS = [
   "skill4",
   "skill5",
   "skill6",
-  "rout",
-] as const satisfies readonly SkillSlot[];
+] as const satisfies readonly Action[];
 type StepAction = (typeof STEP_ACTIONS)[number];
 
 /** 技の実行と、当たった敵の記録（group ごと）。 */
@@ -189,12 +190,8 @@ export interface ShownStrike {
   readonly t: number;
 }
 
-/** 行動に無い、試験用のキー（R で7つ目の技・Tab で武器を替える・G で転職）の入力。 */
+/** 行動に無い、試験用のキー（G で転職）と確認用の入力。 */
 export interface ArenaExtraInput {
-  /** R を押した瞬間か（このフレームで）。 */
-  readonly routPressed?: boolean;
-  /** R を押しているか。 */
-  readonly routHeld?: boolean;
   /** Tab を押した瞬間か（武器を替える。技の実行中は替えない）。 */
   readonly switchWeapon?: boolean;
   /** G を押した瞬間か（転職。キャラLv15から。技の実行中は替えない）。 */
@@ -244,6 +241,8 @@ export class ArenaSimulation {
   /** 装備（補助仕様書16章。町でもダンジョンでも着替えられる）。 */
   readonly equipment: Equipment;
   private equipmentVersion = 0;
+  /** ジョブごとの技の枠。 */
+  private readonly skillSlotsByJob = new Map<string, (string | undefined)[]>();
   private sheetValue!: CharacterSheet;
   /** 地面に落ちている物。 */
   readonly loot = new LootField(Rng.fromSeed("arena-loot"));
@@ -337,9 +336,52 @@ export class ArenaSimulation {
     if (j === undefined) throw new Error(`ジョブ ${this.character.mainJob} がない`);
     return j;
   }
-  /** メインジョブの技の並び。 */
+  /** メインジョブの技の並び（技を入れた枠だけ。枠の順）。 */
   get loadout(): Loadout {
-    return LOADOUTS[this.job.id] ?? [];
+    return this.slotSkills(this.job.id).flatMap((skill, i) => {
+      const action = SKILL_SLOTS[i];
+      return skill === undefined || action === undefined ? [] : [{ action, skill }];
+    });
+  }
+
+  /** ジョブの技の枠（6つ。空きは undefined）。ジョブごとに残す（転職しても戻せば元の並び）。 */
+  private slotSkills(jobId: string): (string | undefined)[] {
+    let slots = this.skillSlotsByJob.get(jobId);
+    if (slots === undefined) {
+      const init = DEFAULT_SKILL_SLOTS[jobId] ?? ["SKL-BASIC-ATTACK"];
+      slots = SKILL_SLOTS.map((_, i) => init[i]);
+      this.skillSlotsByJob.set(jobId, slots);
+    }
+    return slots;
+  }
+
+  /** 技の枠に入れられる技（通常攻撃と、今のジョブLvで覚えている技）。 */
+  assignableSkills(): string[] {
+    return ["SKL-BASIC-ATTACK", ...unlockedSkills(this.job, this.character.jobLevel(this.job.id))];
+  }
+
+  /**
+   * 技の枠に技を入れる（undefined で空ける）。ほかの枠にある技なら、入れ替える。
+   * 技の実行中・覚えていない技・範囲外の枠なら、何も変えずに false。
+   */
+  setSlotSkill(index: number, skill: string | undefined): boolean {
+    if (this.current !== undefined) return false;
+    if (!(Number.isInteger(index) && index >= 0 && index < SKILL_SLOTS.length)) return false;
+    if (skill !== undefined && !this.assignableSkills().includes(skill)) return false;
+    const slots = this.slotSkills(this.job.id);
+    const other = skill === undefined ? -1 : slots.indexOf(skill);
+    if (other >= 0) slots[other] = slots[index];
+    slots[index] = skill;
+    return true;
+  }
+
+  /** 技の枠の技を、入れられる技の順に1つ進める（dir が -1 なら戻す）。最後の次は空き。 */
+  cycleSlotSkill(index: number, dir: 1 | -1 = 1): boolean {
+    const slots = this.slotSkills(this.job.id);
+    const options: (string | undefined)[] = [...this.assignableSkills(), undefined];
+    const at = options.indexOf(slots[index]);
+    const next = options[(at + dir + options.length) % options.length];
+    return this.setSlotSkill(index, next);
   }
   /** メインジョブの職能ゲージ（戦士は闘志・盗賊はコンボ点）。 */
   get jobGauge(): JobGauge {
@@ -607,10 +649,8 @@ export class ArenaSimulation {
     if (extra.switchWeapon === true) this.switchWeapon();
     if (extra.changeJob === true) this.changeJob();
     this.aimPoint = { x: toMeters(input.pointerWorld.x), y: toMeters(input.pointerWorld.y) };
-    const pressed: StepAction[] = STEP_ACTIONS.filter((a) => a !== "rout" && input.pressed.has(a));
-    if (extra.routPressed === true) pressed.push("rout");
-    this.stepInput.press(pressed);
-    for (let i = 0; i < steps; i++) this.step(input, extra.routHeld === true);
+    this.stepInput.press(STEP_ACTIONS.filter((a) => input.pressed.has(a)));
+    for (let i = 0; i < steps; i++) this.step(input);
     return steps;
   }
 
@@ -816,7 +856,7 @@ export class ArenaSimulation {
     };
   }
 
-  private step(input: InputFrame, routHeld: boolean): void {
+  private step(input: InputFrame): void {
     const dt = this.clock.stepSeconds;
     this.flashLeft = Math.max(0, this.flashLeft - dt);
     // ヒットの手応え：ヒットの瞬間に、ほんの少しだけ止める（押した瞬間の入力は保持したまま）
@@ -833,9 +873,8 @@ export class ArenaSimulation {
     const dodgePressed = this.stepInput.take("dodge");
     const interact = this.stepInput.take("interact");
     const pressed = new Set<SkillSlot>();
-    for (const a of STEP_ACTIONS)
-      if (a !== "dodge" && a !== "interact" && this.stepInput.take(a)) pressed.add(a);
-    const held = (slot: SkillSlot): boolean => (slot === "rout" ? routHeld : input.held.has(slot));
+    for (const a of SKILL_SLOTS) if (this.stepInput.take(a)) pressed.add(a);
+    const held = (slot: SkillSlot): boolean => input.held.has(slot);
     // よろめいている間は、移動・技・回避ができない（補助仕様書3.3）。押した回避は使われずに消える
     const staggered = this.playerValue.stagger.broken;
     if (staggered) this.current = undefined;

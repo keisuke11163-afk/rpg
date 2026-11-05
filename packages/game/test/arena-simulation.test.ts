@@ -143,14 +143,15 @@ describe("ArenaSimulation：技の枠の入力も刻みまで保持する（U-07
     expect(sim.uses.get("SKL-WARRIOR-SWEEP")).toBe(1);
   });
 
-  it("R（破軍）の押した瞬間も、刻みが0のフレームで保持し、闘志100で次の刻みに使う", () => {
+  it("技の枠に入れた破軍（4キー）の押した瞬間も、刻みが0のフレームで保持し、闘志100で次の刻みに使う", () => {
     const sim = new ArenaSimulation();
+    expect(sim.setSlotSkill(5, "SKL-WARRIOR-ROUT")).toBe(true);
     sim.setFervor(100);
-    sim.frame(0, input(), { routPressed: true });
-    expect(sim.pending("rout")).toBe(true);
+    sim.frame(0, input({ pressed: ["skill6"] }));
+    expect(sim.pending("skill6")).toBe(true);
     sim.frame(STEP, input());
-    expect(sim.pending("rout")).toBe(false);
-    expect(sim.executing).toBe("rout");
+    expect(sim.pending("skill6")).toBe(false);
+    expect(sim.executing).toBe("skill6");
     expect(sim.uses.get("SKL-WARRIOR-ROUT")).toBe(1);
   });
 
@@ -461,5 +462,63 @@ describe("ArenaSimulation：装備の着替え（U-12）", () => {
     for (let i = 0; i < 60 && sim.hitCount === 0; i++) sim.frame(STEP, input());
     expect(sim.hitCount).toBe(1);
     expect(sim.lastHit?.hit.weaponUid).toBe("test-dagger");
+  });
+});
+
+describe("ArenaSimulation：技の枠の設定（U-12）", () => {
+  it("初期の並び：枠1は通常攻撃、6つ目より後に覚える技（破軍）は枠に入っていない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.loadout.map((l) => l.skill)).toEqual([
+      "SKL-BASIC-ATTACK",
+      "SKL-WARRIOR-SWEEP",
+      "SKL-WARRIOR-CHARGE",
+      "SKL-WARRIOR-WARCRY",
+      "SKL-WARRIOR-EARTHSPLITTER",
+      "SKL-WARRIOR-WHIRLWIND",
+    ]);
+    expect(sim.assignableSkills()).toContain("SKL-WARRIOR-ROUT");
+  });
+
+  it("ほかの枠にある技を入れると入れ替わる。空けることもできる。覚えていない技・範囲外の枠は入れない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.setSlotSkill(1, "SKL-WARRIOR-WARCRY")).toBe(true);
+    const at = (i: number): string | undefined =>
+      sim.loadout.find((l) => l.action === `skill${String(i + 1)}`)?.skill;
+    expect(at(1)).toBe("SKL-WARRIOR-WARCRY");
+    expect(at(3)).toBe("SKL-WARRIOR-SWEEP");
+    expect(sim.setSlotSkill(2, undefined)).toBe(true);
+    expect(at(2)).toBeUndefined();
+    expect(sim.setSlotSkill(2, "SKL-ROGUE-FLURRY")).toBe(false);
+    expect(sim.setSlotSkill(6, "SKL-WARRIOR-ROUT")).toBe(false);
+    expect(sim.setSlotSkill(-1, "SKL-WARRIOR-ROUT")).toBe(false);
+  });
+
+  it("順に替える：入れられる技の順に進み、最後の次は空き", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    const options = sim.assignableSkills();
+    const seen: (string | undefined)[] = [];
+    for (let i = 0; i <= options.length; i++) {
+      sim.cycleSlotSkill(5);
+      seen.push(sim.loadout.find((l) => l.action === "skill6")?.skill);
+    }
+    expect(seen).toContain("SKL-WARRIOR-ROUT");
+    expect(seen).toContain(undefined);
+  });
+
+  it("技の枠はジョブごとに残る（転職して戻すと元の並び）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.setSlotSkill(5, "SKL-WARRIOR-ROUT");
+    sim.changeJob();
+    expect(sim.job.id).toBe("JOB-ROGUE");
+    expect(sim.loadout[1]?.skill).toBe("SKL-ROGUE-FLURRY");
+    sim.changeJob();
+    expect(sim.loadout.find((l) => l.action === "skill6")?.skill).toBe("SKL-WARRIOR-ROUT");
+  });
+
+  it("技の実行中は替えない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.frame(STEP, input({ pressed: ["skill1"] }));
+    expect(sim.executing).toBe("skill1");
+    expect(sim.setSlotSkill(5, "SKL-WARRIOR-ROUT")).toBe(false);
   });
 });

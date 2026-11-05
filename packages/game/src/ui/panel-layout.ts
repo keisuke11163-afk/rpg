@@ -17,6 +17,8 @@ export const PANEL = {
   detail: { x: 340, y: 52, width: 284 },
   /** キャラクターの画面の能力値の一覧（左の列）。 */
   stats: { x: 16, y: 74, width: 300, row: 11 },
+  /** キャラクターの画面の技の枠（右の列の下）。 */
+  skillSlots: { x: 340, y: 246, width: 284, row: 11, count: 6 },
 } as const;
 
 export type PanelKind = "inventory" | "character";
@@ -24,7 +26,8 @@ export type PanelKind = "inventory" | "character";
 export type PanelTarget =
   | { readonly kind: "slot"; readonly slot: MvpEquipSlot }
   | { readonly kind: "item"; readonly index: number }
-  | { readonly kind: "stat"; readonly index: number };
+  | { readonly kind: "stat"; readonly index: number }
+  | { readonly kind: "skillSlot"; readonly index: number };
 
 /** インベントリの画面で、画面の位置が指しているもの（何も指していなければ undefined）。 */
 export function inventoryTarget(x: number, y: number): PanelTarget | undefined {
@@ -42,8 +45,13 @@ export function inventoryTarget(x: number, y: number): PanelTarget | undefined {
   return undefined;
 }
 
-/** キャラクターの画面で、画面の位置が指している能力値の行（count は行の数）。 */
+/** キャラクターの画面で、画面の位置が指している能力値の行か技の枠（count は能力値の行の数）。 */
 export function characterTarget(x: number, y: number, count: number): PanelTarget | undefined {
+  const k = PANEL.skillSlots;
+  if (x >= k.x && x < k.x + k.width && y >= k.y) {
+    const i = Math.floor((y - k.y) / k.row);
+    if (i < k.count) return { kind: "skillSlot", index: i };
+  }
   const s = PANEL.stats;
   if (x < s.x || x >= s.x + s.width || y < s.y) return undefined;
   const i = Math.floor((y - s.y) / s.row);

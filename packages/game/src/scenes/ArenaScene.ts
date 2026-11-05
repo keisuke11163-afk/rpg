@@ -40,7 +40,6 @@ const SLOT_LABEL: Readonly<Record<string, string>> = {
   skill4: "2",
   skill5: "3",
   skill6: "4",
-  rout: "R",
 };
 
 /** 試験用の場の描画・入力の取得（計算は ArenaSimulation）。 */
@@ -50,9 +49,7 @@ export class ArenaScene extends Phaser.Scene {
   private lootView!: LootView;
   private showLoot = false;
   private controls!: InputSystem;
-  private keyRout!: Phaser.Input.Keyboard.Key;
   private keyJob!: Phaser.Input.Keyboard.Key;
-  private routPressed = false;
   private jobPressed = false;
   private body!: Phaser.GameObjects.Image;
   private facing!: Phaser.GameObjects.Image;
@@ -98,11 +95,8 @@ export class ArenaScene extends Phaser.Scene {
     this.body = this.add.image(0, 0, TEXTURES.player).setOrigin(0.5, 0.5);
     this.facing = this.add.image(0, 0, TEXTURES.facing).setOrigin(-0.6, 0.5);
     this.controls = new InputSystem(this);
-    // 仮実装: U-15 feature/job-board で、技の枠の設定に置き換える（R で7つ目の技〔破軍・罠〕）
     const keyboard = this.input.keyboard;
     if (keyboard === null) throw new Error("キーボードの入力が使えない");
-    this.keyRout = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R, true);
-    this.keyRout.on("down", () => (this.routPressed = true));
     // 仮実装: U-18a feature/town-and-dungeon-base で、町の転職神殿に置き換える（G で転職。キャラLv15から）
     this.keyJob = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G, true);
     this.keyJob.on("down", () => (this.jobPressed = true));
@@ -200,6 +194,9 @@ export class ArenaScene extends Phaser.Scene {
         enemyHits: sim.enemyHits,
         kills: sim.field?.kills ?? 0,
       }),
+      // 確認用：技の枠に技を入れる（開発版だけ。index は0〜5）
+      assignSkill: (index?: number | string, skill?: number | string) =>
+        sim.setSlotSkill(Number(index), skill === undefined ? undefined : String(skill)),
       // 確認用：プレイヤーの右3mに敵を出す（開発版だけ）
       spawnEnemy: (id?: number | string) => sim.spawnEnemy(String(id)),
       skills: () => ({
@@ -253,16 +250,13 @@ export class ArenaScene extends Phaser.Scene {
     const pointer = this.input.activePointer;
     this.panel.hover(pointer.x, pointer.y);
     // 画面を開いている間も、ゲームは止めない（移動・回避はできる）。クリックは画面の操作に使うので、
-    // 技の枠・拾う・7つ目の技の入力は渡さない（docs/progress D-U12-8）
+    // 技の枠・拾うの入力は渡さない（docs/progress D-U12-8）
     const open = this.panel.open !== undefined;
     const frame = open ? withoutPanelBlocked(raw) : raw;
     this.showLoot = frame.held.has("showLoot");
     this.sim.frame((this.debugFrameDeltaMs ?? deltaMs) / 1000, frame, {
-      routPressed: !open && this.routPressed,
-      routHeld: !open && this.keyRout.isDown,
       changeJob: this.jobPressed,
     });
-    this.routPressed = false;
     this.jobPressed = false;
     this.render();
     this.panel.render();

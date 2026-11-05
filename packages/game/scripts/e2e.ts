@@ -154,6 +154,7 @@ type DebugWindow = {
     dropLoot: () => number;
     setFrameDeltaMs: (ms: number | null) => void;
     panel: () => PanelInfo;
+    assignSkill: (index: number, skill: string) => boolean;
   };
 };
 interface PanelInfo {
@@ -487,14 +488,34 @@ try {
     s4.lastVariants.includes("stage:empowered"),
     `闘志 ${s4.fervor.toFixed(0)}・変化 ${s4.lastVariants.join(",")}`,
   );
+  // 技の枠（U-12）：キャラクターの画面で4キーの枠をクリックすると技が替わる。破軍を4キーの枠に入れる
   await waitIdle();
+  await page.keyboard.press("KeyC");
+  await page.waitForTimeout(100);
+  const slotY = PANEL.skillSlots.y + 5 * PANEL.skillSlots.row + 4;
+  const before4 = (await panel()).lines.find((l) => l.startsWith("4："));
+  await page.mouse.move((PANEL.skillSlots.x + 20) * 2, slotY * 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  const after4 = (await panel()).lines.find((l) => l.startsWith("4："));
+  check(
+    "キャラクターの画面で技の枠をクリックすると、技が替わる（U-12）",
+    before4 !== undefined && after4 !== undefined && before4 !== after4,
+    `${String(before4)} → ${String(after4)}`,
+  );
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.assignSkill(5, "SKL-WARRIOR-ROUT"),
+  );
+  await page.keyboard.press("KeyC");
+  await page.waitForTimeout(100);
   await setFervor(100);
   const d6a = await dummy();
-  await keyAtDummy("KeyR", 1400);
+  await keyAtDummy("Digit4", 1400);
   const s5 = await skills();
   const d6 = await dummy();
   check(
-    "闘志100で破軍：闘志を全て使い、受けるダメージ-20%の効果を得る（T7）",
+    "闘志100で、技の枠（4キー）に入れた破軍：闘志を全て使い、受けるダメージ-20%の効果を得る（T7）",
     (s5.uses["SKL-WARRIOR-ROUT"] ?? 0) === 1 &&
       s5.fervor <= 6 &&
       s5.buffs.includes("EFF-WARRIOR-ROUT-GUARD") &&

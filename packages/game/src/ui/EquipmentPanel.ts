@@ -9,7 +9,7 @@ import {
   sheetRows,
 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
-import type { ArenaSimulation } from "../scenes/arena-simulation.ts";
+import { type ArenaSimulation, SKILL_SLOTS, type SkillSlot } from "../scenes/arena-simulation.ts";
 import {
   RARITY_COLOR,
   SLOT_NAME,
@@ -31,6 +31,15 @@ import {
 } from "./panel-layout.ts";
 
 const DEPTH = 1000;
+/** 技の枠のキー（補助仕様書1.1）。 */
+const SKILL_KEY: Readonly<Record<SkillSlot, string>> = {
+  skill1: "左クリック",
+  skill2: "右クリック",
+  skill3: "1",
+  skill4: "2",
+  skill5: "3",
+  skill6: "4",
+};
 const FONT = { fontFamily: "sans-serif", fontSize: "9px" } as const;
 const LINE = 11;
 const colorNumber = (c: string): number => Number.parseInt(c.slice(1), 16);
@@ -95,8 +104,15 @@ export class EquipmentPanel {
     else this.hovered = undefined;
   }
 
-  /** クリック（インベントリの画面だけ）。何かをしたら true。 */
+  /** クリック。何かをしたら true。 */
   click(x: number, y: number, button: "left" | "right"): boolean {
+    if (this.kind === "character") {
+      const target = characterTarget(x, y, sheetRows(this.sim.db, this.sim.sheet).length);
+      if (target?.kind !== "skillSlot") return false;
+      if (!this.sim.cycleSlotSkill(target.index, button === "right" ? -1 : 1))
+        this.say("技の実行中は替えられない");
+      return true;
+    }
     if (this.kind !== "inventory") return false;
     const target = inventoryTarget(x, y);
     if (target === undefined) return false;
@@ -300,6 +316,26 @@ export class EquipmentPanel {
       if (hovered)
         this.g.fillStyle(0x2a2934, 1).fillRect(PANEL.stats.x - 2, y - 1, PANEL.stats.width, 11);
       this.line(PANEL.stats.x, y, { text: sheetRowText(db, row), color: TEXT_COLOR.normal }, 0);
+    });
+    // 技の枠（補助仕様書1.1：左クリック・右クリック・1〜4。左クリックで次の技・右クリックで前の技）
+    const k = PANEL.skillSlots;
+    this.line(k.x, k.y - LINE - 2, { text: "― 技の枠 ―", color: TEXT_COLOR.dim }, 0);
+    const slots = new Map(sim.loadout.map((l) => [l.action, l.skill]));
+    SKILL_SLOTS.forEach((slot, i) => {
+      const y = k.y + i * k.row;
+      if (this.hovered?.kind === "skillSlot" && this.hovered.index === i)
+        this.g.fillStyle(0x2a2934, 1).fillRect(k.x - 2, y - 1, k.width, 11);
+      const skill = slots.get(slot);
+      const def = skill === undefined ? undefined : db.skills.get(skill);
+      this.line(
+        k.x,
+        y,
+        {
+          text: `${SKILL_KEY[slot]}：${def === undefined ? "―" : text(def.text as TextKey)}`,
+          color: def === undefined ? TEXT_COLOR.dim : TEXT_COLOR.normal,
+        },
+        0,
+      );
     });
     const d = PANEL.detail;
     const target = this.hovered;
