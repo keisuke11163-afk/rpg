@@ -2,7 +2,7 @@ import type { Element } from "../content/effect.ts";
 import { ELEMENTS } from "../content/effect.ts";
 import { CONVERSION_ORDER, ELEMENT_TAG } from "../content/elements.ts";
 import type { ContentDb } from "../content/load.ts";
-import type { ModifierView, Range, StatResult } from "../effects/evaluate.ts";
+import type { HitScope, ModifierView, Range, StatResult } from "../effects/evaluate.ts";
 import type { Rng } from "../random/rng.ts";
 import { armorReduction, hitChance } from "./defense.ts";
 import {
@@ -117,13 +117,11 @@ interface Parts {
   more: number;
 }
 
-/** 修正値の内訳から、計算の系統（打撃値か基準値か）と効く範囲（局所か）に合うものだけを集める。 */
-function collectParts(
-  db: ContentDb,
-  result: StatResult,
-  pipeline: Pipeline,
-  weaponUid: string | undefined,
-): Parts {
+/**
+ * 修正値の内訳から、計算の系統（打撃値か基準値か）に合うものだけを集める。
+ * 効く範囲（局所か）の絞り込みは、問い合わせのときに HitScope で済ませてある（仕様書v0.2 3.7 の原則5）。
+ */
+function collectParts(db: ContentDb, result: StatResult, pipeline: Pipeline): Parts {
   const parts: Parts = {
     added: { min: 0, max: 0 },
     fixed: { min: 0, max: 0 },
@@ -134,8 +132,6 @@ function collectParts(
     const effect = db.effects.get(c.effectId);
     if (effect === undefined) continue;
     if (pipeline === "hit" ? !effect.affects.hit : !effect.affects.ailmentBase) continue;
-    if (effect.locality === "local" && (weaponUid === undefined || c.source.ref !== weaponUid))
-      continue;
     const range = typeof c.value === "number" ? { min: c.value, max: c.value } : c.value;
     switch (c.kind) {
       case "added":
@@ -213,28 +209,25 @@ export function computeHit(
 ): HitResult {
   const { db, view } = attacker;
   const weapon = skill.kind === "weapon" ? attacker.weapon : undefined;
-  const weaponUid = attacker.weapon?.uid;
+  // 局所の効果は、そのヒットに使う武器から来たものだけが効く（仕様書v0.2 3.7 の原則5）。
+  // 呪文は武器のヒットではないので、武器を持っていても局所の効果は効かない。
+  const scope: HitScope = { weaponUid: weapon?.uid };
   const contextTags = [...skill.tags, ...(weapon?.tags ?? [])];
   const rng = options.rng;
   const average = options.roll === "average";
 
   // 命中（呪文は回避されない。必中の印があれば回避を無視する）
-  const alwaysHit = view.flag("alwaysHit", undefined, contextTags).resolution === "force";
-  const accuracy = view.stat(COMBAT_STATS.accuracy, contextTags).value;
+  const alwaysHit = view.flag("alwaysHit", undefined, contextTags, scope).resolution === "force";
+  const accuracy = view.stat(COMBAT_STATS.accuracy, contextTags, scope).value;
   const chanceToHit =
     skill.kind === "spell" || alwaysHit ? 1 : hitChance(defender.evasion ?? 0, accuracy);
   const hitRoll = average ? 0 : rng.next();
 
   // 会心
-  const critParts = collectParts(
-    db,
-    view.stat(COMBAT_STATS.critChance, contextTags),
-    "hit",
-    weaponUid,
-  );
+  const critParts = collectParts(db, view.stat(COMBAT_STATS.critChance, contextTags, scope), "hit");
   const critBase =
     (attacker.weapon?.critChance ?? 0) + (critParts.added.min + critParts.added.max) / 2;
-  const critFlag = view.flag("crit", undefined, contextTags).resolution;
+  const critFlag = view.flag("crit", undefined, contextTags, scope).resolution;
   const critChance =
     critFlag === "forbid"
       ? 0
@@ -244,9 +237,8 @@ export function computeHit(
   const critRoll = average ? 1 : rng.next();
   const multParts = collectParts(
     db,
-    view.stat(COMBAT_STATS.critMultiplier, contextTags),
+    view.stat(COMBAT_STATS.critMultiplier, contextTags, scope),
     "hit",
-    weaponUid,
   );
   const critMultiplier =
     BASE_CRIT_MULTIPLIER + (multParts.added.min + multParts.added.max) / 2 + multParts.increased;
@@ -255,7 +247,7 @@ export function computeHit(
   const level = baseSkillLevel(attacker.characterLevel);
   const affixLevels = Math.max(
     0,
-    Math.floor(view.stat(COMBAT_STATS.skillLevel, contextTags).value),
+    Math.floor(view.stat(COMBAT_STATS.skillLevel, contextTags, scope).value),
   );
   const skillPct = skill.kind === "weapon" ? weaponSkillPct(skill.pct, level) : skill.pct;
   const spellMult = skill.kind === "spell" ? spellBaseMultiplier(level) : 1;
@@ -264,8 +256,8 @@ export function computeHit(
   const rollAt: Partial<Record<Element, number>> = {};
   for (const element of ELEMENTS) rollAt[element] = average ? 0.5 : rng.next();
 
-  const conversions = view.conversions(contextTags);
-  const retags = [...view.retagging(contextTags)].sort((a, b) =>
+  const conversions = view.conversions(contextTags, scope);
+  const retags = [...view.retagging(contextTags, scope)].sort((a, b) =>
     a.effectId < b.effectId ? -1 : a.effectId > b.effectId ? 1 : 0,
   );
 
@@ -281,9 +273,8 @@ export function computeHit(
     for (const element of ELEMENTS) {
       const parts = collectParts(
         db,
-        view.stat(COMBAT_STATS.added[element], [...contextTags, ELEMENT_TAG[element]]),
+        view.stat(COMBAT_STATS.added[element], [...contextTags, ELEMENT_TAG[element]], scope),
         pipeline,
-        weaponUid,
       );
       const baseRange = skill.kind === "weapon" ? weapon?.base[element] : skill.base?.[element];
       const base =
@@ -303,7 +294,7 @@ export function computeHit(
     const amounts: Partial<Record<Element, number>> = {};
     for (const p of after) {
       const tags = [...contextTags, ...p.lineage.map((e) => ELEMENT_TAG[e])];
-      const parts = collectParts(db, view.stat(COMBAT_STATS.damage, tags), pipeline, weaponUid);
+      const parts = collectParts(db, view.stat(COMBAT_STATS.damage, tags, scope), pipeline);
       const increased = parts.increased + AFFIX_SKILL_LEVEL_INCREASED * affixLevels;
       amounts[p.element] = (amounts[p.element] ?? 0) + p.amount * (1 + increased) * parts.more;
     }

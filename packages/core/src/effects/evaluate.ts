@@ -110,12 +110,26 @@ export interface ConversionEntry {
   readonly to: Element;
   readonly value: number;
   readonly effectId: string;
+  /** 効果の出どころ（局所の効果の適用元の判定・内訳の表示に使う）。 */
+  readonly source: EffectSource;
 }
 
 export interface RetagEntry {
   readonly from: readonly Element[];
   readonly to: Element;
   readonly effectId: string;
+  /** 効果の出どころ（局所の効果の適用元の判定・内訳の表示に使う）。 */
+  readonly source: EffectSource;
+}
+
+/**
+ * 1回のヒットとして問い合わせるときの範囲（仕様書v0.2 3.7 の原則5）。
+ * これを渡すと、局所（locality: "local"）の効果は、出どころ（source.ref）が weaponUid と一致するものだけが効く。
+ * weaponUid が undefined（呪文など、武器のヒットでない）なら、局所の効果は全て効かない。
+ * 渡さなければ、従来どおり局所の効果も含めて全てを集計する（キャラクターの能力値の表示など）。
+ */
+export interface HitScope {
+  readonly weaponUid: string | undefined;
 }
 
 /** 条件を満たさず、休眠している効果（仕様書v0.2 4.9.1）。 */
@@ -326,12 +340,18 @@ export class ModifierView {
     return this.tags.closure(tagIds);
   }
 
-  private applicable(list: readonly Entry[], context: ReadonlySet<string>): Entry[] {
-    return list.filter((e) => TagIndex.matches(e.mod.filter, context));
+  private applicable(
+    list: readonly Entry[],
+    context: ReadonlySet<string>,
+    hit?: HitScope,
+  ): Entry[] {
+    return list.filter(
+      (e) => TagIndex.matches(e.mod.filter, context) && inHitScope(e.effect, e.instance, hit),
+    );
   }
 
   /** 能力値を、タグの条件（技・ヒットのタグ）で集計する。 */
-  stat(statId: string, tagIds: Iterable<string> = []): StatResult {
+  stat(statId: string, tagIds: Iterable<string> = [], hit?: HitScope): StatResult {
     const def = this.db.stats.get(statId);
     if (def === undefined) throw new Error(`能力値 ${statId} はデータにない`);
     const context = this.context(tagIds);
@@ -348,6 +368,7 @@ export class ModifierView {
     for (const { mod, effect, instance, scaled } of this.applicable(
       this.byStat.get(statId) ?? [],
       context,
+      hit,
     )) {
       const push = (value: Contribution["value"]): void => {
         contributions.push({
@@ -431,11 +452,16 @@ export class ModifierView {
   }
 
   /** 「必ず〜する／〜しない」の解決（仕様書v0.2 2.4.1 の規則1・3：禁止は強制に勝つ）。 */
-  flag(flag: FlagId, target: string | undefined, tagIds: Iterable<string> = []): FlagResult {
+  flag(
+    flag: FlagId,
+    target: string | undefined,
+    tagIds: Iterable<string> = [],
+    hit?: HitScope,
+  ): FlagResult {
     const context = this.context(tagIds);
     const forcedBy: string[] = [];
     const forbiddenBy: string[] = [];
-    for (const { mod, effect } of this.applicable(this.flags, context)) {
+    for (const { mod, effect } of this.applicable(this.flags, context, hit)) {
       if (mod.kind !== "flag" || mod.flag !== flag || mod.target !== target) continue;
       (mod.mode === "forbid" ? forbiddenBy : forcedBy).push(effect.id);
     }
@@ -481,22 +507,46 @@ export class ModifierView {
   }
 
   /** 属性の変換の一覧（計算はダメージの計算の側で行う。仕様書 2.5）。 */
-  conversions(tagIds: Iterable<string> = []): ConversionEntry[] {
+  conversions(tagIds: Iterable<string> = [], hit?: HitScope): ConversionEntry[] {
     const context = this.context(tagIds);
-    return this.applicable(this.converts, context).flatMap(({ mod, effect, scaled }) =>
-      mod.kind === "convert"
-        ? [{ from: mod.from, to: mod.to, value: scaled as number, effectId: effect.id }]
-        : [],
+    return this.applicable(this.converts, context, hit).flatMap(
+      ({ mod, effect, instance, scaled }) =>
+        mod.kind === "convert"
+          ? [
+              {
+                from: mod.from,
+                to: mod.to,
+                value: scaled as number,
+                effectId: effect.id,
+                source: instance.source,
+              },
+            ]
+          : [],
     );
   }
 
   /** 属性の付け替えの一覧（仕様書v0.2 2.5）。 */
-  retagging(tagIds: Iterable<string> = []): RetagEntry[] {
+  retagging(tagIds: Iterable<string> = [], hit?: HitScope): RetagEntry[] {
     const context = this.context(tagIds);
-    return this.applicable(this.retags, context).flatMap(({ mod, effect }) =>
-      mod.kind === "retag" ? [{ from: mod.from, to: mod.to, effectId: effect.id }] : [],
+    return this.applicable(this.retags, context, hit).flatMap(({ mod, effect, instance }) =>
+      mod.kind === "retag"
+        ? [{ from: mod.from, to: mod.to, effectId: effect.id, source: instance.source }]
+        : [],
     );
   }
+}
+
+/**
+ * 局所の効果が、問い合わせたヒットに効くか（仕様書v0.2 3.7 の原則5）。
+ * 範囲の指定がなければ全て効く。指定があれば、局所の効果は出どころが使う武器と一致するときだけ効く。
+ */
+function inHitScope(
+  effect: EffectDef,
+  instance: EffectInstance,
+  hit: HitScope | undefined,
+): boolean {
+  if (hit === undefined || effect.locality !== "local") return true;
+  return hit.weaponUid !== undefined && instance.source.ref === hit.weaponUid;
 }
 
 /** 効果の評価の結果。 */

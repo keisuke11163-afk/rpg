@@ -489,3 +489,204 @@ describe("属性の変換と付け替え（開発計画書 T4・仕様書2.5）"
     );
   });
 });
+
+describe("局所の効果の適用範囲（仕様書v0.2 3.7 の原則5・H-08）", () => {
+  const local = { locality: "local" };
+  const db = buildDb({
+    ...fixture,
+    effects: [
+      // 武器の局所の効果（乗算・追加値・変換・付け替え・職技レベル・命中）
+      effect(
+        "EFF-LOCAL-MORE",
+        "unique",
+        [{ kind: "more", stat: "STAT-DAMAGE", value: 1.5 }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-ADD-PHYS",
+        "affix",
+        [{ kind: "added", stat: "STAT-ADDED-PHYSICAL", value: { min: 10, max: 10 } }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-ADD-FIRE",
+        "affix",
+        [{ kind: "added", stat: "STAT-ADDED-FIRE", value: { min: 10, max: 10 } }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-TO-FIRE",
+        "unique",
+        [{ kind: "convert", from: "physical", to: "fire", value: 0.5 }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-RETAG",
+        "unique",
+        [{ kind: "retag", from: ["physical", "fire"], to: "cold" }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-SKILL-LV2",
+        "affix",
+        [{ kind: "added", stat: "STAT-SKILL-LEVEL", value: 2 }],
+        local,
+      ),
+      effect(
+        "EFF-LOCAL-ACC",
+        "affix",
+        [{ kind: "added", stat: "STAT-ACCURACY", value: 100 }],
+        local,
+      ),
+      effect("EFF-LOCAL-CRIT", "unique", [{ kind: "flag", flag: "crit", mode: "force" }], local),
+      // 非局所の効果（防具・星辰盤など）
+      effect("EFF-GLOBAL-INC-30", "minorStar", [
+        { kind: "increased", stat: "STAT-DAMAGE", value: 0.3 },
+      ]),
+      effect("EFF-GLOBAL-SKILL-LV1", "affix", [
+        { kind: "added", stat: "STAT-SKILL-LEVEL", value: 1 },
+      ]),
+      effect("EFF-GLOBAL-TO-FIRE", "affix", [
+        { kind: "convert", from: "physical", to: "fire", value: 0.5 },
+      ]),
+      effect("EFF-GLOBAL-RETAG", "keystone", [
+        { kind: "retag", from: ["physical", "fire"], to: "cold" },
+      ]),
+    ],
+  });
+  const FLAT_SWORD = { ...LONGSWORD, base: { physical: { min: 10, max: 10 } } };
+  const FLAT_SCYTHE = { ...SCYTHE, base: { physical: { min: 10, max: 10 } } };
+  const FLAT_FIREBALL: DamageSkill = { ...FIREBALL, base: { fire: { min: 10, max: 10 } } };
+
+  /** 効果を、出どころを指定して有効にする（武器の効果は、その武器の uid を出どころにする）。 */
+  function attackerFrom(
+    instances: readonly { id: string; from: string }[],
+    weapon: DamageAttacker["weapon"] = FLAT_SWORD,
+  ): DamageAttacker {
+    const { view } = evaluateEffects(
+      db,
+      new TagIndex(db.tags),
+      instances.map(({ id, from }) => ({
+        effectId: id,
+        source: { kind: from.startsWith("itm_") ? "equipment" : "starNode", ref: from },
+      })),
+    );
+    return { db, view, characterLevel: 1, weapon };
+  }
+  const onSword = (...ids: string[]): { id: string; from: string }[] =>
+    ids.map((id) => ({ id, from: LONGSWORD.uid }));
+
+  it("1. 武器Aの局所の効果は、武器Aのヒットに効く", () => {
+    const r = computeHit(
+      attackerFrom(onSword("EFF-LOCAL-MORE", "EFF-LOCAL-ADD-PHYS")),
+      BASIC,
+      {},
+      avg,
+    );
+    expect(r.damage.physical).toBeCloseTo((10 + 10) * 1.5);
+  });
+
+  it("2. 武器Aの局所の効果は、武器Bのヒットには効かない（同じ効果でも出どころが違えば効かない）", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-MORE", "EFF-LOCAL-ADD-PHYS"), FLAT_SCYTHE);
+    expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(10);
+    // 武器Bを出どころにした同じ効果は、武器Bに効く
+    const b = attackerFrom([{ id: "EFF-LOCAL-MORE", from: SCYTHE.uid }], FLAT_SCYTHE);
+    expect(computeHit(b, BASIC, {}, avg).damage.physical).toBeCloseTo(15);
+  });
+
+  it("3. 武器Aの局所の効果は、武器Aを持っていても呪文には効かない", () => {
+    const a = attackerFrom(
+      onSword("EFF-LOCAL-MORE", "EFF-LOCAL-ADD-FIRE", "EFF-LOCAL-SKILL-LV2", "EFF-LOCAL-RETAG"),
+    );
+    const r = computeHit(a, FLAT_FIREBALL, {}, avg);
+    expect(r.damage).toEqual({ fire: 10 });
+    expect(r.trace.skillLevel).toBe(1);
+  });
+
+  it("4. 局所の変換は、対象の武器のヒットだけに効く", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-TO-FIRE"));
+    const sword = computeHit(a, BASIC, {}, avg);
+    expect(sword.damage.physical).toBeCloseTo(5);
+    expect(sword.damage.fire).toBeCloseTo(5);
+    const scythe = computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg);
+    expect(scythe.damage).toEqual({ physical: 10 });
+    // 変換の一覧には、適用元（出どころ）が残る
+    expect(a.view.conversions([], { weaponUid: LONGSWORD.uid })).toEqual([
+      expect.objectContaining({
+        effectId: "EFF-LOCAL-TO-FIRE",
+        source: { kind: "equipment", ref: LONGSWORD.uid },
+      }),
+    ]);
+    expect(a.view.conversions([], { weaponUid: SCYTHE.uid })).toEqual([]);
+    expect(a.view.conversions([], { weaponUid: undefined })).toEqual([]);
+  });
+
+  it("5. 局所の付け替えは、対象の武器のヒットだけに効く（呪文にも効かない）", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-RETAG"));
+    expect(computeHit(a, BASIC, {}, avg).damage).toEqual({ cold: 10 });
+    expect(computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg).damage).toEqual({
+      physical: 10,
+    });
+    expect(computeHit(a, FLAT_FIREBALL, {}, avg).damage).toEqual({ fire: 10 });
+    expect(a.view.retagging([], { weaponUid: LONGSWORD.uid })).toEqual([
+      expect.objectContaining({
+        effectId: "EFF-LOCAL-RETAG",
+        source: { kind: "equipment", ref: LONGSWORD.uid },
+      }),
+    ]);
+    expect(a.view.retagging([], { weaponUid: SCYTHE.uid })).toEqual([]);
+  });
+
+  it("6. 局所の職技レベルの追加値は、対象の武器のヒットだけに効く", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-SKILL-LV2"));
+    const sword = computeHit(a, BASIC, {}, avg);
+    expect(sword.trace.skillLevel).toBe(3);
+    expect(sword.damage.physical).toBeCloseTo(10 * (1 + 0.08 * 2));
+    const scythe = computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg);
+    expect(scythe.trace.skillLevel).toBe(1);
+    expect(scythe.damage.physical).toBeCloseTo(10);
+  });
+
+  it("局所の命中は、対象の武器のヒットだけに効く", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-ACC"));
+    expect(computeHit(a, BASIC, { evasion: 100 }, avg).hitChance).toBeCloseTo(hitChance(100, 100));
+    expect(
+      computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, { evasion: 100 }, avg).hitChance,
+    ).toBeCloseTo(hitChance(100, 0));
+  });
+
+  it("局所の印（必ず会心）は、対象の武器のヒットだけに効く", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-CRIT"));
+    expect(computeHit(a, BASIC, {}, avg).critChance).toBe(1);
+    expect(computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg).critChance).toBeCloseTo(
+      SCYTHE.critChance,
+    );
+  });
+
+  it("7. 非局所の効果は、従来どおり全ての武器と呪文に効く", () => {
+    const a = attackerFrom([
+      { id: "EFF-GLOBAL-INC-30", from: "node-1" },
+      { id: "EFF-GLOBAL-SKILL-LV1", from: "node-2" },
+    ]);
+    const inc = 1 + 0.3 + 0.08;
+    expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(10 * inc);
+    expect(computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg).damage.physical).toBeCloseTo(
+      10 * inc,
+    );
+    const spell = computeHit(a, FLAT_FIREBALL, {}, avg);
+    expect(spell.damage.fire).toBeCloseTo(10 * inc);
+    expect(spell.trace.skillLevel).toBe(2);
+    // 非局所の変換・付け替えも、全ての武器に効く
+    const conv = attackerFrom([{ id: "EFF-GLOBAL-TO-FIRE", from: "node-3" }], FLAT_SCYTHE);
+    expect(computeHit(conv, BASIC, {}, avg).damage).toEqual({ physical: 5, fire: 5 });
+    const retag = attackerFrom([{ id: "EFF-GLOBAL-RETAG", from: "node-4" }], FLAT_SCYTHE);
+    expect(computeHit(retag, BASIC, {}, avg).damage).toEqual({ cold: 10 });
+    expect(computeHit(retag, FLAT_FIREBALL, {}, avg).damage).toEqual({ cold: 10 });
+  });
+
+  it("範囲を指定しない問い合わせは、従来どおり局所の効果も含めて集計する", () => {
+    const a = attackerFrom(onSword("EFF-LOCAL-SKILL-LV2", "EFF-LOCAL-TO-FIRE"));
+    expect(a.view.stat("STAT-SKILL-LEVEL").value).toBe(2);
+    expect(a.view.conversions()).toHaveLength(1);
+  });
+});

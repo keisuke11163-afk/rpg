@@ -65,6 +65,7 @@ export {
   type EvaluationFacts,
   type FlagResolution,
   type FlagResult,
+  type HitScope,
   type Range,
   type ReplacementResult,
   type RetagEntry,
