@@ -194,5 +194,13 @@
   "enemy.pack-leader": "群れ長の大牙",
   "enemy.attack.bite3": "噛みつき3連",
   "enemy.attack.leap": "飛びかかり",
-  "enemy.attack.howl": "遠吠え"
+  "enemy.attack.howl": "遠吠え",
+  "region.a2": "苔むす小道",
+  "region.a3": "獣の巣穴",
+  "region.a4": "腐根の奥地",
+  "secret.a3-bush": "怪しい茂み",
+  "quest.forest": "森の異変",
+  "quest.forest.1": "苔むす小道に到達する",
+  "quest.forest.2": "群れ長の大牙を倒す",
+  "quest.forest.3": "腐根の奥地に到達する"
 }

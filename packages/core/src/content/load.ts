@@ -45,7 +45,7 @@ import {
   starNodeSchema,
 } from "./board.ts";
 import type { Condition } from "./effect.ts";
-import { type RegionDef, inRect, regionSchema } from "./region.ts";
+import { type QuestDef, type RegionDef, inRect, questSchema, regionSchema } from "./region.ts";
 import { conversionAllowed } from "./elements.ts";
 import { FLAG_TARGET_CATEGORY } from "./registries.ts";
 import { type Manifest, SUPPORTED_SCHEMA_VERSION, manifestSchema } from "./manifest.ts";
@@ -87,6 +87,8 @@ export interface RawContent {
     readonly constellations?: readonly RawSource[];
     /** 地域（町・ダンジョン。省略すると無し）。 */
     readonly regions?: readonly RawSource[];
+    /** クエスト（省略すると無し）。 */
+    readonly quests?: readonly RawSource[];
   };
 }
 
@@ -151,6 +153,8 @@ export interface ContentDb {
   readonly constellations: ReadonlyMap<string, ConstellationDef>;
   /** 地域（町・ダンジョン）。 */
   readonly regions: ReadonlyMap<string, RegionDef>;
+  /** クエスト。 */
+  readonly quests: ReadonlyMap<string, QuestDef>;
 }
 
 export type LoadResult =
@@ -263,6 +267,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const starNodes = parseAll(raw.collections.starNodes ?? [], starNodeSchema);
   const constellations = parseAll(raw.collections.constellations ?? [], constellationSchema);
   const regions = parseAll(raw.collections.regions ?? [], regionSchema);
+  const quests = parseAll(raw.collections.quests ?? [], questSchema);
 
   // 3. IDの重複（全てのコレクションを通して）
   const seen = new Map<string, string>();
@@ -284,6 +289,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     ...starNodes,
     ...constellations,
     ...regions,
+    ...quests,
   ];
   for (const { value, file } of all) {
     const prev = seen.get(value.id);
@@ -1229,6 +1235,28 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       });
     if (!inside(r.entrance))
       err({ code: "schema", file, id: r.id, path: "entrance", message: "地域の広さの外にある" });
+    (r.fixedEnemies ?? []).forEach((f, i) => {
+      refCheck(enemyMap, "敵", f.enemy, file, r.id, `fixedEnemies.${String(i)}.enemy`);
+      if (!inside(f.at))
+        err({
+          code: "schema",
+          file,
+          id: r.id,
+          path: `fixedEnemies.${String(i)}.at`,
+          message: "地域の広さの外にある",
+        });
+    });
+    (r.secrets ?? []).forEach((x, i) => {
+      checkText(x.text, file, r.id);
+      if (!inside(x.at))
+        err({
+          code: "schema",
+          file,
+          id: r.id,
+          path: `secrets.${String(i)}.at`,
+          message: "地域の広さの外にある",
+        });
+    });
     (r.exits ?? []).forEach((x, i) => {
       if (!regionMap.has(x.to) && !invalidIds.has(x.to))
         err({
@@ -1241,9 +1269,37 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
   }
 
+  // 13. クエスト：地域・敵の参照、段階のIDの重なり
+  const stageIds = new Set<string>();
+  for (const { value: q, file } of quests) {
+    checkText(q.text, file, q.id);
+    q.stages.forEach((st, i) => {
+      checkText(st.text, file, q.id);
+      if (stageIds.has(st.id))
+        err({
+          code: "duplicate-id",
+          file,
+          id: q.id,
+          path: `stages.${String(i)}.id`,
+          message: `段階 ${st.id} が重複している`,
+        });
+      stageIds.add(st.id);
+      if (st.trigger.type === "enterRegion" && !regionMap.has(st.trigger.region))
+        err({
+          code: "unknown-ref",
+          file,
+          id: q.id,
+          path: `stages.${String(i)}.trigger.region`,
+          message: `地域 ${st.trigger.region} がない`,
+        });
+      if (st.trigger.type === "defeat")
+        refCheck(enemyMap, "敵", st.trigger.enemy, file, q.id, `stages.${String(i)}.trigger.enemy`);
+    });
+  }
+
   if (errors.length > 0 || manifest === undefined) return { ok: false, errors };
 
-  // 13. 仮値の一覧
+  // 14. 仮値の一覧
   const provisional: ProvisionalEntry[] = [];
   const collect = (
     collection: string,
@@ -1281,6 +1337,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("starNodes", starNodes);
   collect("constellations", constellations);
   collect("regions", regions);
+  collect("quests", quests);
 
   return {
     ok: true,
@@ -1306,6 +1363,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       starLinks,
       constellations: new Map(constellations.map((c) => [c.value.id, c.value])),
       regions: regionMap,
+      quests: new Map(quests.map((q) => [q.value.id, q.value])),
     },
     provisional,
   };

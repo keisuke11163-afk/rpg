@@ -269,6 +269,9 @@ export class ArenaScene extends Phaser.Scene {
           y: f.at.y,
         })),
         stone: sim.region?.teleportStone ?? null,
+        secrets: (sim.region?.secrets ?? []).map((x) => ({ id: x.id, x: x.at.x, y: x.at.y })),
+        quests: [...sim.questStages],
+        starPoints: sim.starPoints,
         exits: (sim.region?.exits ?? []).map((x) => ({ to: x.to, ...x.rect })),
         hp: sim.player.health.hp,
         maxHp: sim.player.health.maxHp,
@@ -696,6 +699,10 @@ export class ArenaScene extends Phaser.Scene {
           10,
           8,
         );
+      // 隠し星（怪しい茂み。見つけるまで）
+      for (const x of region.secrets ?? [])
+        if (!sim.secretsFound.has(x.id))
+          g.fillStyle(0x3f6b3a, 1).fillCircle(toPixels(x.at.x), toPixels(x.at.y), 6);
       for (const x of region.exits ?? [])
         g.lineStyle(1, 0x7bd389, 0.8).strokeRect(
           toPixels(x.rect.x),
@@ -805,7 +812,9 @@ export class ArenaScene extends Phaser.Scene {
             ? `　【F：${FACILITY_NAME[n.facility]}】`
             : n.kind === "chest"
               ? "　【F：宝箱を開ける】"
-              : "　【F：転移の石に触れる】";
+              : n.kind === "secret"
+                ? "　【F：調べる】"
+                : "　【F：転移の石に触れる】";
         })()}`,
         `Lv${String(c.level)}（経験値 ${c.progress.xp.toFixed(0)}／${String(c.progress.toNext)}）・${text(sim.job.text as TextKey)} ジョブLv${String(c.jobLevel(sim.job.id))}（${c.jobTrack(sim.job.id).xp.toFixed(0)}／${String(c.jobTrack(sim.job.id).toNext)}）${c.catchingUp ? "・追いつき補正×2" : ""}`,
         slots,

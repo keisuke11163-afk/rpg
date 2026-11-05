@@ -1,0 +1,35 @@
+[
+  {
+    "id": "QUEST-FOREST",
+    "text": "quest.forest",
+    "stages": [
+      {
+        "id": "QUEST-FOREST-1",
+        "text": "quest.forest.1",
+        "trigger": {
+          "type": "enterRegion",
+          "region": "REGION-A2"
+        },
+        "questPoints": 1
+      },
+      {
+        "id": "QUEST-FOREST-2",
+        "text": "quest.forest.2",
+        "trigger": {
+          "type": "defeat",
+          "enemy": "ENM-PACK-LEADER"
+        },
+        "questPoints": 1
+      },
+      {
+        "id": "QUEST-FOREST-3",
+        "text": "quest.forest.3",
+        "trigger": {
+          "type": "enterRegion",
+          "region": "REGION-A4"
+        },
+        "questPoints": 1
+      }
+    ]
+  }
+]

@@ -18,6 +18,7 @@ import craftingEffects from "../data/effects/crafting.json" with { type: "json" 
 import starNodes from "../data/boards/star.json" with { type: "json" };
 import constellations from "../data/boards/constellations.json" with { type: "json" };
 import regionDefs from "../data/regions/regions.json" with { type: "json" };
+import questDefs from "../data/regions/quests.json" with { type: "json" };
 import implicitEffects from "../data/effects/implicits.json" with { type: "json" };
 import gauges from "../data/gauges/gauges.json" with { type: "json" };
 import affixes from "../data/items/affixes.json" with { type: "json" };
@@ -81,6 +82,7 @@ export const rawContent: RawContent = {
     starNodes: [{ file: "data/boards/star.json", entries: starNodes }],
     constellations: [{ file: "data/boards/constellations.json", entries: constellations }],
     regions: [{ file: "data/regions/regions.json", entries: regionDefs }],
+    quests: [{ file: "data/regions/quests.json", entries: questDefs }],
   },
 };
 
@@ -107,6 +109,7 @@ export function registeredDataFiles(): string[] {
       ...(c.starNodes ?? []),
       ...(c.constellations ?? []),
       ...(c.regions ?? []),
+      ...(c.quests ?? []),
     ].map((s) => s.file),
   ];
 }

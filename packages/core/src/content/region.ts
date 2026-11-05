@@ -52,6 +52,23 @@ export const regionSchema = z.strictObject({
   eliteSpawns: z.array(point).optional(),
   woodChests: z.array(point).optional(),
   oldChests: z.array(point).optional(),
+  /** 決まった位置に、いつも出る敵（中ボスなど。補助仕様書9.2）。 */
+  fixedEnemies: z
+    .array(
+      z.strictObject({ id: idSchema, enemy: idSchema, level: z.number().int().min(1), at: point }),
+    )
+    .optional(),
+  /** 隠し星（調べると探索のポイント。補助仕様書9.5）。1回だけ。 */
+  secrets: z
+    .array(
+      z.strictObject({
+        id: idSchema,
+        text: textKeySchema,
+        at: point,
+        explorationPoints: z.number().int().positive(),
+      }),
+    )
+    .optional(),
   /** 出口（その範囲に入ると、別の地域へ移る）。 */
   exits: z.array(z.strictObject({ to: idSchema, rect })).optional(),
   /** 町の施設。 */
@@ -64,3 +81,26 @@ export type RegionDef = z.infer<typeof regionSchema>;
 export function inRect(p: { x: number; y: number }, r: Rect): boolean {
   return p.x >= r.x && p.y >= r.y && p.x <= r.x + r.width && p.y <= r.y + r.height;
 }
+
+/**
+ * クエスト（補助仕様書9.6）：段階ごとの条件と、星図の欠片（星辰盤のクエストのポイント）。
+ */
+export const questSchema = z.strictObject({
+  id: idSchema,
+  text: textKeySchema,
+  stages: z
+    .array(
+      z.strictObject({
+        id: idSchema,
+        text: textKeySchema,
+        trigger: z.discriminatedUnion("type", [
+          z.strictObject({ type: z.literal("enterRegion"), region: idSchema }),
+          z.strictObject({ type: z.literal("defeat"), enemy: idSchema }),
+        ]),
+        questPoints: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1),
+  ...provisionalFields,
+});
+export type QuestDef = z.infer<typeof questSchema>;

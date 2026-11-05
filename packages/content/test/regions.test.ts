@@ -49,7 +49,12 @@ describe("地域のデータ", () => {
         ...rawContent,
         collections: {
           ...rawContent.collections,
-          regions: [{ file: "test-regions.json", entries: [region("REGION-TOWN"), a1] }],
+          regions: [
+            {
+              file: "test-regions.json",
+              entries: [...db.regions.values()].map((r) => (r.id === "REGION-A1" ? a1 : r)),
+            },
+          ],
         },
       };
       const r = loadContent(raw);
@@ -86,6 +91,36 @@ describe("地域のデータ", () => {
     expect(
       bad({ exits: [{ to: "REGION-NONE", rect: { x: 0, y: 0, width: 1, height: 1 } }] }),
     ).toContain("REGION-NONE");
+  });
+});
+
+describe("第1章の地域とクエスト（補助仕様書9.2・9.5・9.6）", () => {
+  it("A1〜A4 の敵のLvは表のとおり（A1 1〜3・A2 4〜7・A3 8〜11・A4 12〜14）", () => {
+    const range = (id: string): [number, number] => {
+      const secs = region(id).sections ?? [];
+      return [
+        Math.min(...secs.map((s) => s.levels.min)),
+        Math.max(...secs.map((s) => s.levels.max)),
+      ];
+    };
+    expect(range("REGION-A1")).toEqual([1, 3]);
+    expect(range("REGION-A2")).toEqual([4, 7]);
+    expect(range("REGION-A3")).toEqual([8, 11]);
+    expect(range("REGION-A4")).toEqual([12, 14]);
+  });
+
+  it("A3 に中ボス（Lv11）と隠し星。クエスト「森の異変」は A2 到達・中ボス・A4 到達で星図の欠片1つずつ", () => {
+    expect(region("REGION-A3").fixedEnemies).toEqual([
+      expect.objectContaining({ enemy: "ENM-PACK-LEADER", level: 11 }),
+    ]);
+    expect(region("REGION-A3").secrets?.[0]?.explorationPoints).toBe(1);
+    const q = db.quests.get("QUEST-FOREST");
+    expect(q?.stages.map((s) => s.trigger)).toEqual([
+      { type: "enterRegion", region: "REGION-A2" },
+      { type: "defeat", enemy: "ENM-PACK-LEADER" },
+      { type: "enterRegion", region: "REGION-A4" },
+    ]);
+    expect(q?.stages.every((s) => s.questPoints === 1)).toBe(true);
   });
 });
 

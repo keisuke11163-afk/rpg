@@ -308,6 +308,8 @@ export function newCharacterProfile(db: ContentDb, originId: string, name: strin
     activeLoadout: 1,
     unlockedRegions: [],
     deathLog: { count: 0, lastCause: null },
+    questStages: [],
+    secretsFound: [],
     kept: emptyKeptFields(),
   };
 }
@@ -348,6 +350,8 @@ export function testStartProfile(db: ContentDb): PlayerProfile {
     activeLoadout: 1,
     unlockedRegions: [],
     deathLog: { count: 0, lastCause: null },
+    questStages: [],
+    secretsFound: [],
     kept: emptyKeptFields(),
   };
 }
@@ -381,6 +385,13 @@ export class ArenaSimulation {
   readonly unlockedRegions: Set<string>;
   /** 死亡の記録（補助仕様書7章）。 */
   deathLog: { count: number; lastCause: string | null };
+  /** 終えたクエストの段階（補助仕様書9.6）。 */
+  readonly questStages: Set<string>;
+  /** 見つけた隠し星（補助仕様書9.5）。 */
+  readonly secretsFound: Set<string>;
+  /** 星辰盤のクエストのポイント（星図の欠片）と探索のポイント（隠し星）。 */
+  private questPoints: number;
+  private explorationPoints: number;
   private lastHitBy: string | null = null;
   private readonly onExit: ((to: string) => void) | undefined;
   private readonly onDeath: (() => void) | undefined;
@@ -472,6 +483,10 @@ export class ArenaSimulation {
     this.onFacility = options.onFacility;
     this.unlockedRegions = new Set(profile.unlockedRegions);
     this.deathLog = { ...profile.deathLog };
+    this.questStages = new Set(profile.questStages);
+    this.secretsFound = new Set(profile.secretsFound);
+    this.questPoints = profile.kept.questPoints;
+    this.explorationPoints = profile.kept.explorationPoints;
     this.starsValue = new StarAllocation(this.db, profile.starAllocation);
     this.loadoutList = [...profile.loadouts];
     this.activeLoadoutId = profile.activeLoadout;
@@ -524,14 +539,24 @@ export class ArenaSimulation {
         this.db,
         this.rng.fork("enemies"),
         bounds,
-        layout.packs.map((p, i) => ({
-          id: `pack-${String(i)}`,
-          enemy: p.enemy,
-          level: p.level,
-          count: p.count,
-          at: p.at,
-          ranks: p.ranks,
-        })),
+        [
+          ...layout.packs.map((p, i) => ({
+            id: `pack-${String(i)}`,
+            enemy: p.enemy,
+            level: p.level,
+            count: p.count,
+            at: p.at,
+            ranks: p.ranks,
+          })),
+          // 決まった位置の敵（中ボス）は、入るたびに出る
+          ...(region.fixedEnemies ?? []).map((f) => ({
+            id: f.id,
+            enemy: f.enemy,
+            level: f.level,
+            count: 1,
+            at: f.at,
+          })),
+        ],
         false,
       );
       for (const c of layout.chests) this.chests.push({ ...c, opened: false });
@@ -559,6 +584,28 @@ export class ArenaSimulation {
             maxHp: 5000,
             staggerProfile: staggerProfiles(this.db).enemy,
           });
+    if (region !== undefined) this.progressQuests({ type: "enterRegion", id: region.id });
+  }
+
+  /** クエストの段階を進める（条件に合う段階を終え、星図の欠片を得る。補助仕様書9.6）。 */
+  private progressQuests(event: { type: "enterRegion" | "defeat"; id: string }): void {
+    for (const q of this.db.quests.values())
+      for (const st of q.stages) {
+        if (this.questStages.has(st.id)) continue;
+        const t = st.trigger;
+        const hit =
+          (t.type === "enterRegion" && event.type === "enterRegion" && t.region === event.id) ||
+          (t.type === "defeat" && event.type === "defeat" && t.enemy === event.id);
+        if (!hit) continue;
+        this.questStages.add(st.id);
+        this.questPoints += st.questPoints;
+        this.attackerVersion = "";
+        this.onText?.(
+          `${text(q.text as TextKey)}：${text(st.text as TextKey)}（星図の欠片 +${String(st.questPoints)}）`,
+          this.motion.position,
+          "#ffd166",
+        );
+      }
   }
 
   /** 商人の品揃え（町に入るたびに入れ替わる。補助仕様書5章）。 */
@@ -605,9 +652,10 @@ export class ArenaSimulation {
     return this.region?.kind === "town";
   }
 
-  /** 近くの、F で調べられるもの（宝箱・転移の石・町の施設）。 */
+  /** 近くの、F で調べられるもの（宝箱・隠し星・転移の石・町の施設）。 */
   nearbyInteractable():
     | { readonly kind: "chest"; readonly chest: FieldChest }
+    | { readonly kind: "secret"; readonly id: string; readonly points: number }
     | { readonly kind: "stone" }
     | { readonly kind: "facility"; readonly facility: Facility }
     | undefined {
@@ -618,6 +666,9 @@ export class ArenaSimulation {
     if (chest !== undefined) return { kind: "chest", chest };
     const r = this.region;
     if (r === undefined) return undefined;
+    const secret = (r.secrets ?? []).find((x) => !this.secretsFound.has(x.id) && near(x.at));
+    if (secret !== undefined)
+      return { kind: "secret", id: secret.id, points: secret.explorationPoints };
     if (r.kind === "dungeon" && r.teleportStone !== undefined && near(r.teleportStone))
       return { kind: "stone" };
     const f = r.facilities?.find((x) => x.kind !== "dummy" && near(x.at));
@@ -632,6 +683,16 @@ export class ArenaSimulation {
       case "chest":
         t.chest.opened = true;
         this.dropLoot(t.chest.kind, t.chest.level, t.chest.at);
+        return true;
+      case "secret":
+        this.secretsFound.add(t.id);
+        this.explorationPoints += t.points;
+        this.attackerVersion = "";
+        this.onText?.(
+          `隠し星を見つけた（星辰盤のポイント +${String(t.points)}）`,
+          this.motion.position,
+          "#ffd166",
+        );
         return true;
       case "stone":
         if (this.region !== undefined && !this.unlockedRegions.has(this.region.id)) {
@@ -971,7 +1032,7 @@ export class ArenaSimulation {
 
   /** 星辰盤のポイント（キャラLv−1＋クエスト＋探索。仕様書v0.2 4.12）。 */
   get starPoints(): number {
-    return starPoints(this.character.level, this.kept.questPoints, this.kept.explorationPoints);
+    return starPoints(this.character.level, this.questPoints, this.explorationPoints);
   }
 
   /** 星辰盤の始点（メインジョブ）。 */
@@ -1081,7 +1142,13 @@ export class ArenaSimulation {
       activeLoadout: this.activeLoadoutId,
       unlockedRegions: [...this.unlockedRegions],
       deathLog: { ...this.deathLog },
-      kept: this.kept,
+      questStages: [...this.questStages],
+      secretsFound: [...this.secretsFound],
+      kept: {
+        ...this.kept,
+        questPoints: this.questPoints,
+        explorationPoints: this.explorationPoints,
+      },
     };
   }
 
@@ -1552,6 +1619,7 @@ export class ArenaSimulation {
           enemyXp(enemy.level, enemy.rank.xpMultiplier) *
             levelGapMultiplier(this.character.level, enemy.level),
         );
+        this.progressQuests({ type: "defeat", id: enemy.def.id });
         // ドロップ（仕様書v0.2 3.5、補助仕様書12章）。敵の格（通常・魔法・精鋭）がドロップの出どころ
         this.dropLoot(
           enemy.def.dropSource ?? enemy.rank.rank,

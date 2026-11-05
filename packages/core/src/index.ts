@@ -467,8 +467,10 @@ export {
   FACILITIES,
   type Facility,
   type Rect,
+  type QuestDef,
   type RegionDef,
   inRect,
+  questSchema,
   regionSchema,
 } from "./content/region.ts";
 export {

@@ -871,3 +871,69 @@ describe("新しいキャラクター（補助仕様書3.4）", () => {
     }
   });
 });
+
+describe("ArenaSimulation：第1章の地域・クエスト・隠し星（U-18b、補助仕様書9章）", () => {
+  const db = new ArenaSimulation(undefined, { enemies: false }).db;
+  const region = (id: string) => {
+    const r = db.regions.get(id);
+    if (r === undefined) throw new Error(`${id} が無い`);
+    return r;
+  };
+
+  it("A1→A2→A3→A4 の出口がつながっている", () => {
+    expect(region("REGION-A1").exits?.map((x) => x.to)).toEqual(["REGION-TOWN", "REGION-A2"]);
+    expect(region("REGION-A2").exits?.map((x) => x.to)).toEqual(["REGION-A1", "REGION-A3"]);
+    expect(region("REGION-A3").exits?.map((x) => x.to)).toEqual(["REGION-A2", "REGION-A4"]);
+    expect(region("REGION-A4").exits?.map((x) => x.to)).toEqual(["REGION-A3"]);
+  });
+
+  it("A2 に入るとクエスト「森の異変」の段階1を終え、星辰盤のポイントが1増える（1回だけ）", () => {
+    const sim = new ArenaSimulation(undefined, { db, region: region("REGION-A1") });
+    const before = sim.starPoints;
+    const a2 = new ArenaSimulation(undefined, {
+      db,
+      region: region("REGION-A2"),
+      profile: sim.profile(),
+    });
+    expect(a2.questStages.has("QUEST-FOREST-1")).toBe(true);
+    expect(a2.starPoints).toBe(before + 1);
+    const again = new ArenaSimulation(undefined, {
+      db,
+      region: region("REGION-A2"),
+      profile: a2.profile(),
+    });
+    expect(again.starPoints).toBe(before + 1);
+  });
+
+  it("A3 には中ボスがいつもいる。倒すと段階2を終える", () => {
+    const sim = new ArenaSimulation(undefined, {
+      db,
+      region: region("REGION-A3"),
+      layoutSeed: "a3",
+    });
+    const boss = sim.field?.entries.find((e) => e.enemy.def.id === "ENM-PACK-LEADER");
+    expect(boss).toBeDefined();
+    expect(boss?.enemy.level).toBe(11);
+    const points = sim.starPoints;
+    // 中ボスのHPを1にして、倒す（敵が倒れたときの処理を通す）
+    const c = boss?.enemy.combatant;
+    c?.health.takeDamage(c.health.hp + 1);
+    for (let i = 0; i < 5; i++) sim.frame(STEP, input());
+    expect(sim.questStages.has("QUEST-FOREST-2")).toBe(true);
+    expect(sim.starPoints).toBe(points + 1);
+  });
+
+  it("A3 の怪しい茂みを F で調べると、隠し星（探索のポイント+1）を1回だけ得る", () => {
+    const sim = new ArenaSimulation(undefined, { db, region: region("REGION-A3"), enemies: false });
+    const bush = region("REGION-A3").secrets?.[0];
+    if (bush === undefined) throw new Error("隠し星が無い");
+    const p = sim.motion.position;
+    sim.motion.displace({ x: bush.at.x - p.x, y: bush.at.y - 1 - p.y });
+    const points = sim.starPoints;
+    expect(sim.nearbyInteractable()).toMatchObject({ kind: "secret", id: "SECRET-A3-BUSH" });
+    sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(sim.starPoints).toBe(points + 1);
+    expect(sim.secretsFound.has("SECRET-A3-BUSH")).toBe(true);
+    expect(sim.nearbyInteractable()?.kind).not.toBe("secret");
+  });
+});

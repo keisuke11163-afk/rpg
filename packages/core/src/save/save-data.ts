@@ -22,8 +22,9 @@ import { INSCRIPTIONS, MAX_FORGE_LOAD } from "../items/crafting.ts";
  * - 版2：金貨（gold）と、ジョブごとの技の枠（jobs[].skill_slots）を足した（U-13）
  * - 版3：装備の実体に、強化値・鍛造負荷・封詞・亀裂・銘を足した（U-17）
  * - 版4：解放した転移の石（unlocked_regions）と、死亡の記録（death_log）を足した（U-18a）
+ * - 版5：終えたクエストの段階（quest_stages）と、見つけた隠し星（secrets_found）を足した（U-18b）
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 /** 技の枠の数（補助仕様書1.1）。 */
 export const SAVE_SKILL_SLOTS = 6;
 
@@ -105,7 +106,7 @@ const characterSchema = z.strictObject({
 
 const deathLogSchema = z.strictObject({ count, last_cause: z.string().nullable() });
 
-/** 版4（今の版）のセーブデータ。 */
+/** 版5（今の版）のセーブデータ。 */
 export const saveDataSchema = z.strictObject({
   save_version: z.literal(SAVE_VERSION),
   character: characterSchema,
@@ -114,9 +115,23 @@ export const saveDataSchema = z.strictObject({
   items: z.record(id, itemSchema),
   unlocked_regions: z.array(id),
   death_log: deathLogSchema,
+  quest_stages: z.array(id),
+  secrets_found: z.array(id),
   ...commonFields,
 });
 export type SaveData = z.infer<typeof saveDataSchema>;
+
+/** 版4。移行のためだけに使う。 */
+export const saveDataV4Schema = z.strictObject({
+  save_version: z.literal(4),
+  character: characterSchema,
+  jobs: z.record(id, jobSchemaV2),
+  gold: count,
+  items: z.record(id, itemSchema),
+  unlocked_regions: z.array(id),
+  death_log: deathLogSchema,
+  ...commonFields,
+});
 
 /** 版3。移行のためだけに使う。 */
 export const saveDataV3Schema = z.strictObject({
@@ -195,6 +210,11 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
       death_log: { count: 0, last_cause: null },
     };
   },
+  /** 版4 → 版5：クエストの段階・隠し星は無し。 */
+  4: (data) => {
+    const v4 = saveDataV4Schema.parse(data);
+    return { ...v4, save_version: 5, quest_stages: [], secrets_found: [] };
+  },
 };
 
 /** セーブデータの問題（壊れたデータの検出）。 */
@@ -270,6 +290,10 @@ export interface PlayerProfile {
   readonly unlockedRegions: readonly string[];
   /** 死亡の回数と原因（最後に受けた攻撃。補助仕様書7章）。 */
   readonly deathLog: { readonly count: number; readonly lastCause: string | null };
+  /** 終えたクエストの段階（補助仕様書9.6）。 */
+  readonly questStages: readonly string[];
+  /** 見つけた隠し星（補助仕様書9.5）。 */
+  readonly secretsFound: readonly string[];
   /** まだゲームで使っていない項目（職紋盤・討伐証など）。読み込んだ値をそのまま保存し直す。 */
   readonly kept: KeptSaveFields;
 }
@@ -376,6 +400,8 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
     active_loadout: profile.activeLoadout,
     unlocked_regions: [...profile.unlockedRegions],
     death_log: { count: profile.deathLog.count, last_cause: profile.deathLog.lastCause },
+    quest_stages: [...profile.questStages],
+    secrets_found: [...profile.secretsFound],
     gold: profile.inventory.gold,
     materials: Object.fromEntries(profile.inventory.materials),
     boss_tokens: { ...kept.bossTokens },
@@ -576,6 +602,19 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       return [...data.unlocked_regions];
     })(),
     deathLog: { count: data.death_log.count, lastCause: data.death_log.last_cause },
+    questStages: (() => {
+      const known = new Set([...db.quests.values()].flatMap((q) => q.stages.map((st) => st.id)));
+      for (const st of data.quest_stages)
+        ref(known.has(st), () => `クエストの段階 ${st} がデータに無い`);
+      return [...data.quest_stages];
+    })(),
+    secretsFound: (() => {
+      const known = new Set(
+        [...db.regions.values()].flatMap((r) => (r.secrets ?? []).map((x) => x.id)),
+      );
+      for (const x of data.secrets_found) ref(known.has(x), () => `隠し星 ${x} がデータに無い`);
+      return [...data.secrets_found];
+    })(),
     kept: {
       subJob: c.sub_job,
       boards: Object.fromEntries(

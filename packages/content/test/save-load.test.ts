@@ -102,6 +102,8 @@ function sampleProfile(): PlayerProfile {
     activeLoadout: 1,
     unlockedRegions: ["REGION-A1"],
     deathLog: { count: 2, lastCause: "ENM-FOREST-WOLF" },
+    questStages: ["QUEST-FOREST-1"],
+    secretsFound: ["SECRET-A3-BUSH"],
     kept: emptyKeptFields(),
   };
 }
@@ -198,6 +200,8 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
             activeLoadout: 1,
             unlockedRegions: [],
             deathLog: { count: 0, lastCause: null },
+            questStages: [],
+            secretsFound: [],
             kept: emptyKeptFields(),
           };
           const store = new SaveStore(db, new MemoryBackend());
@@ -215,9 +219,17 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
 });
 
 /** 版1（開発計画書6.9 の例の形）のデータ。 */
+/** 版4（クエストの段階・隠し星が無い）のデータ。 */
+function v4Sample(): Record<string, unknown> {
+  const v5 = { ...(toSaveData(db, sampleProfile()) as Record<string, unknown>) };
+  delete v5["quest_stages"];
+  delete v5["secrets_found"];
+  return { ...v5, save_version: 4 };
+}
+
 /** 版3（転移の石・死亡の記録が無い）のデータ。 */
 function v3Sample(): Record<string, unknown> {
-  const v4 = { ...(toSaveData(db, sampleProfile()) as Record<string, unknown>) };
+  const v4 = { ...v4Sample() };
   delete v4["unlocked_regions"];
   delete v4["death_log"];
   return { ...v4, save_version: 3 };
@@ -295,7 +307,21 @@ describe("T11：1つ前の版のデータを移行できる", () => {
       ...data,
       unlocked_regions: ["REGION-A1"],
       death_log: { count: 2, last_cause: "ENM-FOREST-WOLF" },
+      quest_stages: ["QUEST-FOREST-1"],
+      secrets_found: ["SECRET-A3-BUSH"],
     }).toEqual(toSaveData(db, sampleProfile()));
+  });
+
+  it("版4 → 版5：クエストの段階・隠し星は無し。データに無い段階は参照の問題", () => {
+    const data = decodeSave(wrap(v4Sample()));
+    expect(data.quest_stages).toEqual([]);
+    expect(data.secrets_found).toEqual([]);
+    expect(() => fromSaveData(db, { ...data, quest_stages: ["QUEST-NONE"] })).toThrow(
+      SaveDataError,
+    );
+    expect(() => fromSaveData(db, { ...data, secrets_found: ["SECRET-NONE"] })).toThrow(
+      SaveDataError,
+    );
   });
 
   it("版3 → 版4：転移の石は未解放・死亡の記録は0", () => {
