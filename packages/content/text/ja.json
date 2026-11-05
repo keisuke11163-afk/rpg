@@ -94,5 +94,11 @@
   "stat.resist.cold": "氷耐性",
   "stat.resist.fire": "火耐性",
   "stat.resist.dark": "闇耐性",
-  "stat.resist.holy": "聖耐性"
+  "stat.resist.holy": "聖耐性",
+  "stat.ailment-chance": "状態異常付与率",
+  "stat.ailment-damage": "状態異常ダメージ",
+  "stat.ailment-duration": "状態異常の持続",
+  "stat.ailment-max-stacks": "状態異常の最大スタック",
+  "stat.stagger": "崩し値",
+  "stat.stagger-resist": "崩されにくさ"
 }

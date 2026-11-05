@@ -60,3 +60,66 @@ describe("ダメージの計算に使う能力値", () => {
     }
   });
 });
+
+describe("状態異常のデータ（仕様書v0.2 2.7・補助仕様書3.3）", () => {
+  const byTag = (tag: string) => loadGameContent().ailmentsByTag.get(tag);
+
+  it("9種類の状態異常の定義がある（MVPの範囲外の4種類は未実装の印）", () => {
+    const db = loadGameContent();
+    expect(db.ailments.size).toBe(9);
+    const pending = [...db.ailments.values()]
+      .filter((a) => a.kind === "pending")
+      .map((a) => a.tag)
+      .sort();
+    expect(pending).toEqual(["TAG-AIL-CHILL", "TAG-AIL-FREEZE", "TAG-AIL-SHOCK", "TAG-AIL-STIGMA"]);
+  });
+
+  it("出血：総量150%・5秒・8スタック・移動中2倍／毒：総量60%・3秒・無制限／燃焼：総量50%・4秒・最も強いもの", () => {
+    expect(byTag("TAG-AIL-BLEED")).toMatchObject({
+      kind: "dot",
+      totalRatio: 1.5,
+      duration: 5,
+      stacking: { mode: "stack", maxStacks: 8 },
+      movingMultiplier: 2,
+    });
+    expect(byTag("TAG-AIL-POISON")).toMatchObject({
+      kind: "dot",
+      sourceElements: ["physical", "dark"],
+      totalRatio: 0.6,
+      duration: 3,
+      stacking: { mode: "stack" },
+    });
+    expect(byTag("TAG-AIL-BURN")).toMatchObject({
+      kind: "dot",
+      totalRatio: 0.5,
+      duration: 4,
+      stacking: { mode: "strongest" },
+    });
+  });
+
+  it("衰弱：-15%（ボス-8%）・4秒", () => {
+    expect(byTag("TAG-AIL-WEAKEN")).toMatchObject({
+      kind: "debuff",
+      duration: 4,
+      dealtMultiplier: 0.85,
+      bossDealtMultiplier: 0.92,
+    });
+  });
+
+  it("崩し：敵0.2・ダウン2秒・×1.25／ボス0.15・怯み1秒・×1.15・毎回1.5倍／プレイヤー0.5・0.6秒", () => {
+    expect(byTag("TAG-AIL-STAGGER")).toMatchObject({
+      kind: "stagger",
+      defaultCoefficient: 0.3,
+      enemy: {
+        gaugeRatio: 0.2,
+        decayDelay: 3,
+        decayPerSecond: 0.1,
+        breakDuration: 2,
+        takenMultiplier: 1.25,
+        growthPerBreak: 1,
+      },
+      boss: { gaugeRatio: 0.15, breakDuration: 1, takenMultiplier: 1.15, growthPerBreak: 1.5 },
+      player: { gaugeRatio: 0.5, decayDelay: 2, decayPerSecond: 0.2, breakDuration: 0.6 },
+    });
+  });
+});

@@ -6,6 +6,7 @@
  * データの検証（pnpm validate:data）が誤りとして知らせる。
  */
 import type { RawContent } from "@stella/core";
+import ailmentDefs from "../data/ailments/ailments.json" with { type: "json" };
 import manifest from "../data/manifest.json" with { type: "json" };
 import combatStats from "../data/stats/combat.json" with { type: "json" };
 import ailments from "../data/tags/ailments.json" with { type: "json" };
@@ -32,11 +33,15 @@ export const rawContent: RawContent = {
     ],
     stats: [{ file: "data/stats/combat.json", entries: combatStats }],
     effects: [],
+    ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
   },
 };
 
 /** 登録されているデータのファイル（data/ からの場所）。 */
 export function registeredDataFiles(): string[] {
   const c = rawContent.collections;
-  return [rawContent.manifest.file, ...[...c.tags, ...c.stats, ...c.effects].map((s) => s.file)];
+  return [
+    rawContent.manifest.file,
+    ...[...c.tags, ...c.stats, ...c.effects, ...(c.ailments ?? [])].map((s) => s.file),
+  ];
 }
