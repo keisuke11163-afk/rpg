@@ -18,7 +18,8 @@ export interface EffectInstance {
   /**
    * 重ねた数（省略すると1）。加算・追加・上限は値×数、乗算は値の数乗になる。
    * 例：重荷の誇りの「重装の防具1部位につき」は、重装の部位の数を入れる。
-   * 0以上の整数だけを受け付ける（小数・負の数・NaN・Infinity は RangeError）。
+   * 0以上の整数だけを受け付ける（小数・負の数・NaN・Infinity・null は RangeError）。
+   * 省略（プロパティなし、または undefined）だけを1として扱う。null は省略とみなさない。
    * 0のときは、その効果は何も効かない（全ての種類の修正値を無視し、有効な効果の一覧にも入れない）。
    */
   readonly stacks?: number;
@@ -156,11 +157,23 @@ interface Entry {
   readonly stacks: number;
 }
 
-/** 重ねた数を検証して返す（省略は1）。有限の0以上の整数だけを受け付ける。 */
+/**
+ * 重ねた数の生の値（検証前）。省略（undefined）だけを1にする。
+ * `??` を使うと null まで1になってしまうので、undefined とだけ比べる。
+ */
+function rawStacks(instance: EffectInstance): unknown {
+  return instance.stacks === undefined ? 1 : instance.stacks;
+}
+
+/**
+ * 重ねた数を検証して返す（省略は1）。有限の0以上の整数だけを受け付ける。
+ * EffectInstance は呼び出す側（JavaScript・保存データの復元など）から型の外の値が来うるので、
+ * 効果を登録・評価する唯一の入口であるここで、実行時に検証する。
+ */
 function stacksOf(instance: EffectInstance): number {
-  const stacks = instance.stacks ?? 1;
-  // Number.isInteger は、小数・NaN・Infinity・-Infinity を全て false にする
-  if (!Number.isInteger(stacks) || stacks < 0) {
+  const stacks = rawStacks(instance);
+  // Number.isInteger は、null・文字列・小数・NaN・Infinity・-Infinity を全て false にする
+  if (typeof stacks !== "number" || !Number.isInteger(stacks) || stacks < 0) {
     throw new RangeError(
       `重ねた数は0以上の整数（効果 ${instance.effectId}：${String(instance.stacks)}）`,
     );
@@ -173,7 +186,16 @@ function compareInstances(a: EffectInstance, b: EffectInstance): number {
     `${i.effectId}\u0000${i.source.kind}\u0000${i.source.ref}`;
   const ka = key(a);
   const kb = key(b);
-  return ka < kb ? -1 : ka > kb ? 1 : (a.stacks ?? 1) - (b.stacks ?? 1);
+  // 並べ替えは検証の前に行うので、ここでは数として比べられる値だけを使う（不正な値はこの後 stacksOf で拒否する）
+  const sa = rawStacks(a);
+  const sb = rawStacks(b);
+  return ka < kb
+    ? -1
+    : ka > kb
+      ? 1
+      : typeof sa === "number" && typeof sb === "number"
+        ? sa - sb
+        : 0;
 }
 
 function mid(r: Range): number {

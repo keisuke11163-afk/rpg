@@ -647,4 +647,50 @@ describe("重ねた数（stacks）の検証と、0のときの扱い", () => {
       evaluateEffects(db, index, [inst("EFF-Z-INC", 10)]).view.stat("STAT-DAMAGE").increased,
     ).toBeCloseTo(3);
   });
+
+  it("stacks の省略は1として働く（プロパティなし・実行時の undefined のどちらも）", () => {
+    const omitted = evaluateEffects(
+      db,
+      index,
+      ALL.map((id) => inst(id)),
+      facts,
+    );
+    const one = evaluateAll(1);
+    expect(omitted.view.stat("STAT-DAMAGE")).toEqual(one.view.stat("STAT-DAMAGE"));
+    expect(omitted.view.stat("STAT-DAMAGE").increased).toBeCloseTo(0.3);
+    expect(omitted.view.activeBehaviors().map((b) => [b.hook, b.stacks])).toEqual([
+      ["guardStance", 1],
+    ]);
+    expect(omitted.view.conversions()).toEqual(one.view.conversions());
+    expect(omitted.active.map((i) => i.effectId)).toEqual(one.active.map((i) => i.effectId));
+    // 型では書けないが、JavaScript からは stacks: undefined が来うる。これも省略として1にする
+    const explicitUndefined = {
+      effectId: "EFF-Z-INC",
+      source: src("EFF-Z-INC"),
+      stacks: undefined,
+    } as unknown as EffectInstance;
+    expect(
+      evaluateEffects(db, index, [explicitUndefined]).view.stat("STAT-DAMAGE").increased,
+    ).toBeCloseTo(0.3);
+    expect(
+      new ModifierView(db, index, [explicitUndefined], {}).stat("STAT-DAMAGE").increased,
+    ).toBeCloseTo(0.3);
+  });
+
+  it("stacks: null は省略とみなさず RangeError（条件付きの効果・休眠する効果・ModifierView でも）", () => {
+    // 型では書けないが、JavaScript や保存データの復元からは null が来うる
+    const withNull = (effectId: string) =>
+      ({ effectId, source: src(effectId), stacks: null }) as unknown as EffectInstance;
+    expect(() => evaluateEffects(db, index, [withNull("EFF-Z-INC")])).toThrow(RangeError);
+    expect(() => evaluateEffects(db, index, [withNull("EFF-Z-INC")])).toThrow(/null/);
+    // 正しい効果と混ざっていても拒否する（並べ替えで先に比べられても、null を1として扱わない）
+    expect(() =>
+      evaluateEffects(db, index, [inst("EFF-Z-INC", 1), withNull("EFF-Z-INC"), inst("EFF-Z-ADD")]),
+    ).toThrow(RangeError);
+    // 条件を満たさず休眠する効果でも拒否する
+    expect(() =>
+      evaluateEffects(db, index, [withNull("EFF-Z-COND")], { ...facts, mainJob: "TAG-JOB-ROGUE" }),
+    ).toThrow(RangeError);
+    expect(() => new ModifierView(db, index, [withNull("EFF-Z-INC")], {})).toThrow(RangeError);
+  });
 });
