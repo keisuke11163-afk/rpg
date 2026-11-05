@@ -241,15 +241,17 @@ export function computeHit(
   // 呪文の基本の会心率は仕様書に書かれていない未確定事項（D-U04a-7）で、これは仮の扱い。
   // 決定が出るまで変えない（局所の効果の範囲 scope とは別で、呪文では scope の武器は undefined）。
   const critParts = collectParts(db, view.stat(COMBAT_STATS.critChance, contextTags, scope), "hit");
-  const critBase =
-    (attacker.weapon?.critChance ?? 0) + (critParts.added.min + critParts.added.max) / 2;
+  // 基本の会心率・追加値・加算率の計算は、強制会心・会心禁止の印の有無にかかわらず検証する
+  // （印があると計算の結果は使われないが、NaN・Infinity の混入を印で見逃さないため）。
+  const critBase = finite(
+    (attacker.weapon?.critChance ?? 0) + (critParts.added.min + critParts.added.max) / 2,
+    "会心率（基本の会心率＋追加値）",
+  );
+  const critIncreased = finite(critParts.increased, "会心率の加算");
+  const critRate = finite(critBase * (1 + critIncreased), "会心率");
   const critFlag = view.flag("crit", undefined, contextTags, scope).resolution;
   const critChance =
-    critFlag === "forbid"
-      ? 0
-      : critFlag === "force"
-        ? 1
-        : Math.min(1, Math.max(0, finite(critBase * (1 + critParts.increased), "会心率")));
+    critFlag === "forbid" ? 0 : critFlag === "force" ? 1 : Math.min(1, Math.max(0, critRate));
   const critRoll = average ? 1 : rng.next();
   const multParts = collectParts(
     db,
@@ -337,13 +339,16 @@ export function computeHit(
   if (!evaded) {
     const taken = defender.takenMultiplier ?? 1;
     const guard = Math.min(1, Math.max(0, defender.guard ?? 0));
+    const armor = defender.armor ?? 0;
     for (const element of ELEMENTS) {
       const amount = hit.amounts[element];
       if (amount === undefined || amount <= 0) continue;
       // 4. 会心 → 敵が受けるダメージの倍率 → 耐性 → 防御
       let value =
         amount * (crit ? critMultiplier : 1) * taken * (1 - (defender.resist?.[element] ?? 0));
-      if (element === "physical") value *= 1 - armorReduction(defender.armor ?? 0, value);
+      // 防具値0では軽減しない（armorReduction も0を返す）。0でなければ（NaN・Infinity を含む）
+      // armorReduction が防具値と受けるダメージを検証する。
+      if (element === "physical" && armor !== 0) value *= 1 - armorReduction(armor, value);
       value *= 1 - guard;
       value = Math.max(0, finite(value, `最終の打撃値（${element}）`));
       damage[element] = value;

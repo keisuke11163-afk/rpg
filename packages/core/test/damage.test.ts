@@ -890,3 +890,155 @@ describe("会心率の計算経路：武器の技と呪文（現行実装の動�
     expect(computeHit({ db, view, characterLevel: 1 }, FIREBALL, {}, avg).critChance).toBe(0);
   });
 });
+
+describe("防御の計算の中間値の溢れ（有限の入力から Infinity・NaN を作らない）", () => {
+  // 修正前の式（通常の入力では、修正後もこれと1ビットも違わないことを確かめる）
+  const naiveArmor = (a: number, d: number) =>
+    a <= 0 || d <= 0 ? 0 : Math.min(0.85, a / (a + 10 * d));
+  const naiveEvade = (e: number, acc: number) =>
+    e <= 0 ? 0 : Math.min(0.75, e / (e + Math.max(0, acc) * 1.5));
+
+  it("防具値の分母（防具値＋10×受けるダメージ）が Infinity になっても、本当の比を返す", () => {
+    // 修正前：1e308 ÷ Infinity ＝ 0（軽減なし）になっていた。本当の値は 1 ÷ 11
+    expect(naiveArmor(1e308, 1e308)).toBe(0);
+    expect(armorReduction(1e308, 1e308)).toBeCloseTo(1 / 11, 12);
+    // 10×受けるダメージだけで溢れる：本当の値は約 1e-309（0に近い有限の値）
+    const tiny = armorReduction(1, 1e308);
+    expect(Number.isFinite(tiny)).toBe(true);
+    expect(tiny).toBeGreaterThanOrEqual(0);
+    expect(tiny).toBeLessThan(1e-300);
+    // 防具値も受けるダメージも有限の最大値
+    expect(armorReduction(Number.MAX_VALUE, Number.MAX_VALUE)).toBeCloseTo(1 / 11, 12);
+    // 上限85%は変わらない
+    expect(armorReduction(Number.MAX_VALUE, 1e300)).toBe(0.85);
+  });
+
+  it("回避率の分母（回避値＋命中×1.5）が Infinity になっても、本当の比を返す", () => {
+    // 修正前：1e308 ÷ Infinity ＝ 0（回避率0%）になっていた。本当の値は 1 ÷ 2.5 ＝ 0.4
+    expect(naiveEvade(1e308, 1e308)).toBe(0);
+    expect(evadeChance(1e308, 1e308)).toBeCloseTo(0.4, 12);
+    expect(hitChance(1e308, 1e308)).toBeCloseTo(0.6, 12);
+    // 命中×1.5 だけで溢れる（1.5e308 × 1.5）：本当の値は 1 ÷ 3.25
+    expect(evadeChance(1e308, 1.5e308)).toBeCloseTo(1 / 3.25, 12);
+    expect(evadeChance(Number.MAX_VALUE, Number.MAX_VALUE)).toBeCloseTo(0.4, 12);
+  });
+
+  it("ダメージの計算でも、防具値・回避の分母の溢れで軽減・回避が消えない", () => {
+    const db = buildDb(fixture);
+    const huge = attackerWith(
+      db,
+      [],
+      { weapon: { ...LONGSWORD, base: { physical: { min: 1e308, max: 1e308 } } } },
+      { "STAT-ACCURACY": 1e308 },
+    );
+    const r = computeHit(huge, BASIC, { armor: 1e308, evasion: 1e308 }, avg);
+    expect(r.hitChance).toBeCloseTo(0.6, 12);
+    expect(r.total).toBeCloseTo(1e308 * (10 / 11), -296);
+  });
+
+  it("防具値・回避の入力が NaN・Infinity なら RangeError（0などに置き換えない）", () => {
+    for (const [a, d] of [
+      [NaN, 100],
+      [Infinity, 100],
+      [100, NaN],
+      [100, Infinity],
+      [0, NaN],
+      [-Infinity, 1],
+    ] as const) {
+      expect(() => armorReduction(a, d)).toThrow(RangeError);
+    }
+    for (const [e, acc] of [
+      [NaN, 100],
+      [Infinity, 100],
+      [100, NaN],
+      [100, Infinity],
+      [0, NaN],
+      [100, -Infinity],
+    ] as const) {
+      expect(() => evadeChance(e, acc)).toThrow(RangeError);
+      expect(() => hitChance(e, acc)).toThrow(RangeError);
+    }
+    const a = attackerWith(buildDb(fixture), []);
+    expect(() => computeHit(a, BASIC, { armor: Infinity }, avg)).toThrow(/防具値/);
+    expect(() => computeHit(a, BASIC, { evasion: Infinity }, avg)).toThrow(/回避値/);
+  });
+
+  it("通常の防具値の軽減・回避率は従来どおり（修正前の式と1ビットも違わない）", () => {
+    expect(armorReduction(1000, 200)).toBe(1000 / (1000 + 2000));
+    expect(evadeChance(100, 100)).toBe(100 / (100 + 150));
+    const value = fc.double({ min: 0, max: 1e12, noNaN: true });
+    fc.assert(
+      fc.property(value, value, (x, y) => {
+        expect(armorReduction(x, y)).toBe(naiveArmor(x, y));
+        expect(evadeChance(x, y)).toBe(naiveEvade(x, y));
+        expect(hitChance(x, y)).toBe(1 - naiveEvade(x, y));
+      }),
+    );
+    // 負の命中は0として扱う・防具値や回避値が0以下なら0（従来どおり）
+    expect(evadeChance(100, -50)).toBe(naiveEvade(100, -50));
+    expect(armorReduction(-5, 100)).toBe(0);
+    expect(evadeChance(-5, 100)).toBe(0);
+  });
+});
+
+describe("会心率の非有限値の検出（強制会心・会心禁止の印があっても見逃さない）", () => {
+  const db = buildDb({
+    ...fixture,
+    effects: [
+      effect("EFF-CRIT-FLAT", "minorStar", [
+        { kind: "added", stat: "STAT-CRIT-CHANCE", value: 0.05 },
+      ]),
+      effect("EFF-CRIT-INC", "affix", [{ kind: "increased", stat: "STAT-CRIT-CHANCE", value: 10 }]),
+      effect("EFF-FORCE-CRIT", "jobSkill", [{ kind: "flag", flag: "crit", mode: "force" }]),
+      effect("EFF-NO-CRIT", "unique", [{ kind: "flag", flag: "crit", mode: "forbid" }]),
+    ],
+  });
+
+  it("強制会心の印があっても、会心率に NaN が混入すれば RangeError", () => {
+    const a = attackerWith(db, ["EFF-FORCE-CRIT"], { weapon: { ...LONGSWORD, critChance: NaN } });
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(RangeError);
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/会心率/);
+    expect(() => expectedHitDamage(a, BASIC, {}, Rng.fromSeed(1))).toThrow(/会心率/);
+  });
+
+  it("会心禁止の印があっても、会心率に Infinity が混入すれば RangeError", () => {
+    // 武器の会心率そのものが Infinity
+    const inf = attackerWith(db, ["EFF-NO-CRIT"], {
+      weapon: { ...LONGSWORD, critChance: Infinity },
+    });
+    expect(() => computeHit(inf, BASIC, {}, avg)).toThrow(/会心率/);
+    // 有限の値どうしの計算で Infinity（1e308 ×（1＋10））
+    const overflow = attackerWith(db, ["EFF-NO-CRIT", "EFF-CRIT-INC"], {
+      weapon: { ...LONGSWORD, critChance: 1e308 },
+    });
+    expect(() => computeHit(overflow, BASIC, {}, avg)).toThrow(/会心率/);
+    // 印がなければ、同じ入力は従来どおり RangeError（印の有無で検出が変わらない）
+    const noFlag = attackerWith(db, ["EFF-CRIT-INC"], {
+      weapon: { ...LONGSWORD, critChance: 1e308 },
+    });
+    expect(() => computeHit(noFlag, BASIC, {}, avg)).toThrow(/会心率/);
+  });
+
+  it("強制会心・会心禁止の仕様は変わらない（強制は100%、禁止は0%、禁止が勝つ）", () => {
+    expect(computeHit(attackerWith(db, ["EFF-FORCE-CRIT"]), BASIC, {}, avg).critChance).toBe(1);
+    expect(computeHit(attackerWith(db, ["EFF-NO-CRIT"]), BASIC, {}, avg).critChance).toBe(0);
+    expect(
+      computeHit(attackerWith(db, ["EFF-FORCE-CRIT", "EFF-NO-CRIT"]), BASIC, {}, avg).critChance,
+    ).toBe(0);
+    // 印があっても、有限の大きな会心率は上限100%とは別に問題なく計算される
+    const big = attackerWith(db, ["EFF-FORCE-CRIT", "EFF-CRIT-INC"], {
+      weapon: { ...LONGSWORD, critChance: 1e300 },
+    });
+    expect(computeHit(big, BASIC, {}, avg).critChance).toBe(1);
+  });
+
+  it("通常の会心率は従来どおり（（武器の会心率＋固定値）×（1＋増加%）、上限100%）", () => {
+    expect(computeHit(attackerWith(db, []), BASIC, {}, avg).critChance).toBe(0.05);
+    expect(computeHit(attackerWith(db, ["EFF-CRIT-FLAT"]), BASIC, {}, avg).critChance).toBe(
+      (0.05 + (0.05 + 0.05) / 2) * (1 + 0),
+    );
+    expect(computeHit(attackerWith(db, ["EFF-CRIT-INC"]), BASIC, {}, avg).critChance).toBe(
+      Math.min(1, 0.05 * (1 + 10)),
+    );
+  });
+});
