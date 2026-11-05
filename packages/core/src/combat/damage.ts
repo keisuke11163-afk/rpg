@@ -79,6 +79,10 @@ export interface HitOptions {
   readonly rng: Rng;
   /** random＝最小〜最大で抽選する、average＝平均の値を使う（シミュレーション・表示用）。 */
   readonly roll?: "random" | "average";
+  /** 会心率に足す固定値（例：盗賊の背面判定の+10%。仕様書5.6）。増加の前に足す。 */
+  readonly extraCritChance?: number;
+  /** 必ず会心にする（例：急所穿ちの「5点なら必ず会心」）。会心の禁止の印があれば、禁止が勝つ。 */
+  readonly forceCrit?: boolean;
 }
 
 export interface DamagePortion {
@@ -258,8 +262,14 @@ export function computeHit(
     "会心率（基本の会心率＋追加値）",
   );
   const critIncreased = finite(critParts.increased, "会心率の加算");
-  const critRate = finite(critBase * (1 + critIncreased), "会心率");
-  const critFlag = view.flag("crit", undefined, contextTags, scope).resolution;
+  // extraCritChance：会心率の固定値の加算（盗賊の背面判定の補正。基本の会心率に足す。U-10）
+  const critRate = finite(
+    (critBase + finite(options.extraCritChance ?? 0, "会心率の固定値の加算")) * (1 + critIncreased),
+    "会心率",
+  );
+  const flagged = view.flag("crit", undefined, contextTags, scope).resolution;
+  // 会心しない（禁止）は、必ず会心（急所穿ちの5点）に勝つ（仕様書v0.2 2.4.1 の規則1）
+  const critFlag = flagged === "forbid" ? "forbid" : options.forceCrit === true ? "force" : flagged;
   const critChance =
     critFlag === "forbid" ? 0 : critFlag === "force" ? 1 : Math.min(1, Math.max(0, critRate));
   const critRoll = average ? 1 : rng.next();

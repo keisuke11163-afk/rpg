@@ -25,6 +25,7 @@ export const EFFECT_ORIGINS = [
   "bond", // 縁
   "ailment", // 状態異常（感電・崩しなど）
   "inscription", // 銘
+  "attribute", // 能力値（剛・迅・理・魂。仕様書2.2）
 ] as const;
 
 export type EffectOrigin = (typeof EFFECT_ORIGINS)[number];

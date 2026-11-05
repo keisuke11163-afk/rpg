@@ -89,6 +89,7 @@ export {
   EVASION_CAP,
   armorReduction,
   baseAccuracy,
+  enemyAccuracy,
   evadeChance,
   hitChance,
 } from "./combat/defense.ts";
@@ -128,7 +129,9 @@ export {
   type AilmentApplication,
   type AilmentCandidate,
   type AilmentRollInput,
+  type AilmentTickPlan,
   type AilmentTickTarget,
+  type StaggerUpdatePlan,
 } from "./combat/ailments.ts";
 
 export { ZERO, add, length, normalize, scale, toDirection8, type Vec2 } from "./actor/vector.ts";
@@ -139,3 +142,125 @@ export {
   type MotionConfig,
   type MotionInput,
 } from "./actor/player-motion.ts";
+
+export { isBehind, overlapsShape, type HitShape } from "./combat/shapes.ts";
+export {
+  ActionTimeline,
+  PLAYER_ATTACK_SPLIT,
+  playerAttackTimeline,
+  type TimelineEvents,
+  type TimelinePhase,
+  type TimelineSpec,
+} from "./combat/timeline.ts";
+export {
+  Health,
+  type DamageApplied,
+  type HealthConfig,
+  type HealthUpdatePlan,
+} from "./combat/health.ts";
+export {
+  ProjectilePool,
+  type ProjectileHit,
+  type ProjectileSpawn,
+  type ProjectileTarget,
+} from "./combat/projectiles.ts";
+export {
+  Combatant,
+  RECEIVED_STATS,
+  resolveHit,
+  type CombatantInit,
+  type ReceivedMultipliers,
+  type HitInput,
+  type HitReport,
+} from "./combat/combatant.ts";
+
+export {
+  AFFINITIES,
+  gaugeSchema,
+  hitShapeSchema,
+  jobSchema,
+  skillSchema,
+  type Affinity,
+  type GaugeDef,
+  type JobDef,
+  type SkillAction,
+  type SkillDef,
+  type SkillMods,
+} from "./content/job.ts";
+export { SKILL_HOOKS, SKILL_HOOK_PARAMS, type SkillHook } from "./content/hooks.ts";
+export { JobGauge, OUT_OF_COMBAT_SECONDS } from "./combat/gauge.ts";
+export { TimedEffects } from "./combat/timed-effects.ts";
+export {
+  AFFINITY_ATTACK_SPEED,
+  Cooldowns,
+  affinityAtLeast,
+  dualWieldAffinity,
+  higherAffinity,
+  lowerAffinity,
+  resolveSkill,
+  skillBlock,
+  skillUseSeconds,
+  unlockedSkills,
+  weaponAffinity,
+  type ResolvedSkill,
+  type SkillBehavior,
+  type SkillBlock,
+  type SkillContext,
+  type SkillUseState,
+} from "./combat/skills.ts";
+export {
+  LingeringZone,
+  SkillExecution,
+  pullTowards,
+  type TrapPlacement,
+  type ZonePlacement,
+  type ExecutionInput,
+  type ExecutionTick,
+  type PullPulse,
+  type Strike,
+  type WarcryPulse,
+} from "./combat/skill-execution.ts";
+export { chapterBossHp, normalEnemyHp, standardDps, standardHp } from "./combat/standards.ts";
+export {
+  ENEMY_RANKS,
+  enemyAttackSchema,
+  enemyRankSchema,
+  enemySchema,
+  type EnemyAttackDef,
+  type EnemyBehavior,
+  type EnemyDef,
+  type EnemyDelivery,
+  type EnemyRank,
+  type EnemyRankDef,
+} from "./content/enemy.ts";
+export {
+  ENEMY_RULES,
+  FLANK,
+  Enemy,
+  EnemyAttackers,
+  WANDER,
+  angleDiff,
+  enemyAttackDamage,
+  enemyMaxHp,
+  separate,
+  turnTowards,
+  type EnemyEvent,
+  type EnemyInit,
+  type EnemyState,
+  type EnemyTarget,
+} from "./actor/enemy.ts";
+export {
+  ATTRIBUTE_EFFECTS,
+  CATCH_UP,
+  Character,
+  JOB_CHANGE_LEVEL,
+  JOB_LEVEL_CAP,
+  LEVEL_CAP,
+  LevelTrack,
+  enemyXp,
+  levelGapMultiplier,
+  xpToNext,
+  type Attributes,
+  type CharacterInit,
+  type XpGain,
+} from "./character/progression.ts";
