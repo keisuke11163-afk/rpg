@@ -2,7 +2,8 @@
  * DPSシミュレーター（開発計画書 工程BL-1）。
  *
  * 描画なしで、固定の時間刻み（1/60秒）で戦闘を早送りする。指定の時間が1/60秒の整数倍でなければ、
- * 最後の時間刻みだけを残りの時間に縮める（指定の時間を超えて計算しない）。ダメージ・状態異常・崩しの計算は、
+ * 最後の時間刻みだけを残りの時間に縮める（指定の時間を超えて計算しない）。的が移動している時間は、
+ * 刻みの回数ではなく実際の経過時間に移動の割合をかけて割り振る（端数の刻みでも同じ）。ダメージ・状態異常・崩しの計算は、
  * ゲーム本体と同じ core の関数を使う。位置・移動・敵の行動は扱わない（標準の的を殴り続ける）。
  */
 import {
@@ -105,6 +106,8 @@ export interface SimResult {
   readonly mpSpent: number;
   /** 戦闘の終わりのMP。 */
   readonly finalMp: number;
+  /** 持続ダメージの計算で、的が移動していたとして扱った時間（秒。経過時間 × 移動の割合）。 */
+  readonly movingSeconds: number;
 }
 
 interface PreparedBuild {
@@ -278,12 +281,17 @@ export function simulate(
   let nextEnemyAttack = target.attack?.interval ?? Infinity;
   let killTime: number | undefined;
   let time = 0;
+  // 移動している時間の割合（0〜1）。経過時間に対して均等に割り振る
+  const ratio = target.movingRatio ?? 0;
+  let movingSeconds = 0;
   const skillTags = build.rotation.map((s) => hitTags(s, build));
 
   for (let step = 0; step < steps; step++) {
     // この刻みの幅（最後の端数の刻みだけ dt 未満）。時間に依存する計算には、全てこの幅を渡す
     const partial = step >= fullSteps;
     const h = partial ? remainder : dt;
+    // この刻みの始まりの時間（前の刻みの終わり）
+    const stepStart = time;
     // 整数倍の刻みは従来どおり (step+1)×dt。端数の刻みの終わりは、ちょうど指定の時間
     time = partial ? seconds : (step + 1) * dt;
     mp = Math.min(p.maxMp, mp + p.mpRegen * h);
@@ -365,13 +373,23 @@ export function simulate(
     if (busy < -h) busy = -h; // 使える技がない間は、端数を溜めない
 
     // 持続ダメージ・崩しの時間
-    // 移動している時間の割合を、時間の上で均等に割り振る
-    const ratio = target.movingRatio ?? 0;
-    // （端数の刻みも1回の刻みとして数える。割合1なら常に移動中のまま）
-    const moving = Math.floor((step + 1) * ratio) > Math.floor(step * ratio);
-    const dot = ailments.tick(h, { resist, takenMultiplier: stagger.takenMultiplier, moving });
+    // 移動している時間は、刻みの回数ではなく経過時間で決める：時刻 t までの移動の時間 ＝ t × 割合。
+    // この刻みの移動の時間は、その差（端数の刻みでも、実際の幅に応じた分だけ）。割合0・1は刻み全体を1つの状態で扱う
+    const movingPart =
+      ratio <= 0 ? 0 : ratio >= 1 ? h : Math.min(h, Math.max(0, ratio * time - ratio * stepStart));
+    movingSeconds += movingPart;
+    // 1つの刻みに移動と停止が混ざるときは、それぞれの時間で tick を呼ぶ。
+    // tick の持続ダメージは経過時間に比例するので、合計は時間の配分どおりになる
+    const tickTarget = { resist, takenMultiplier: stagger.takenMultiplier };
     let dotThisStep = 0;
-    for (const v of Object.values(dot)) dotThisStep += v;
+    for (const [span, moving] of [
+      [movingPart, true],
+      [h - movingPart, false],
+    ] as const) {
+      if (span <= 0) continue;
+      const dot = ailments.tick(span, { ...tickTarget, moving });
+      for (const v of Object.values(dot)) dotThisStep += v;
+    }
     // 持続ダメージも、的の残りHPを超えた分は集計しない
     dotDamage += dealDamage(dotThisStep);
     if (remainingHp <= 0) {
@@ -421,5 +439,6 @@ export function simulate(
     damageTakenPerSecond: damageTaken / elapsed,
     mpSpent,
     finalMp: mp,
+    movingSeconds,
   };
 }
