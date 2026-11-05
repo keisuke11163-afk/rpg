@@ -97,7 +97,8 @@ export class PlayerMotion {
 
   /** 1刻み進める。 */
   update(dt: number, input: MotionInput): void {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
+    // FixedStepClock.advance と同じく、NaN・負の数・無限大を受け付けない（無限大は位置を NaN にする）
+    if (!(dt >= 0) || !Number.isFinite(dt)) throw new RangeError("経過時間は0以上の有限の数");
     if (length(input.aim) > 1e-9) this.facingAngle = Math.atan2(input.aim.y, input.aim.x);
     const moveDir = normalize(input.move);
 

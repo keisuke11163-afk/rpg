@@ -104,3 +104,17 @@ describe("回避（仕様書v0.2 2.1・補助仕様書 3.1）", () => {
     expect(m.position.x).toBeGreaterThan(3);
   });
 });
+
+describe("経過時間の検証", () => {
+  it("負の数・NaN・無限大は受け付けない（無限大で位置が NaN にならない）", () => {
+    const m = new PlayerMotion({ x: 0, y: 0 });
+    for (const bad of [-dt, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() => {
+        m.update(bad, idle);
+      }).toThrow(RangeError);
+    }
+    expect(m.position).toEqual({ x: 0, y: 0 });
+    m.update(0, idle);
+    expect(m.position).toEqual({ x: 0, y: 0 });
+  });
+});

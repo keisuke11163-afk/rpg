@@ -1,18 +1,8 @@
 import Phaser from "phaser";
-import type { Vec2 } from "@stella/core";
 import { ACTIONS, type Action, type Binding, DEFAULT_BINDINGS } from "./actions.ts";
+import type { InputFrame } from "./frame.ts";
 
-/** 1フレーム分の入力。 */
-export interface InputFrame {
-  /** 押している行動。 */
-  readonly held: ReadonlySet<Action>;
-  /** このフレームで押し始めた行動。 */
-  readonly pressed: ReadonlySet<Action>;
-  /** 移動の入力（WASD。長さは揃えていない）。 */
-  readonly move: Vec2;
-  /** マウスの位置（世界の座標・ピクセル）。 */
-  readonly pointerWorld: Vec2;
-}
+export type { InputFrame } from "./frame.ts";
 
 /** キーボード・マウスを読み、行動に変える。 */
 export class InputSystem {

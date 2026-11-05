@@ -27,6 +27,7 @@ interface Page {
     options: { timeout: number },
   ): Promise<unknown>;
   evaluate<T>(fn: () => T): Promise<T>;
+  evaluate<T, A>(fn: (arg: A) => T, arg: A): Promise<T>;
   waitForTimeout(ms: number): Promise<void>;
   screenshot(options: { path: string }): Promise<unknown>;
 }
@@ -45,6 +46,8 @@ interface PlayerState {
   stamina: number;
   dodging: boolean;
   invulnerable: boolean;
+  dodgePending: boolean;
+  totalSteps: number;
   screenX: number;
   screenY: number;
 }
@@ -55,7 +58,13 @@ interface HazardState {
   x: number;
   y: number;
 }
-type DebugWindow = { __STELLA_DEBUG__: { player: () => PlayerState; hazard: () => HazardState } };
+type DebugWindow = {
+  __STELLA_DEBUG__: {
+    player: () => PlayerState;
+    hazard: () => HazardState;
+    setFrameDeltaMs: (ms: number | null) => void;
+  };
+};
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright") as { chromium: { launch(): Promise<Browser> } };
@@ -128,6 +137,40 @@ try {
     "回避で気力を使う",
     afterDodge.stamina < beforeDodge.stamina,
     `気力 ${beforeDodge.stamina.toFixed(0)} → ${afterDodge.stamina.toFixed(0)}`,
+  );
+
+  // 3b. 刻みが0の描画のフレームで押した回避を取りこぼさない（実際の ArenaScene.update とキーの入力）
+  //     描画のフレームの経過時間を0に固定し、その間にスペースを押して離す
+  const setFrameDelta = (ms: number | null): Promise<void> =>
+    page.evaluate((v: number | null) => {
+      (window as unknown as DebugWindow).__STELLA_DEBUG__.setFrameDeltaMs(v);
+    }, ms);
+  await page.waitForTimeout(500); // 回避が終わり、気力が少し回復するのを待つ
+  await setFrameDelta(0);
+  await page.waitForTimeout(100);
+  const zeroBefore = await player();
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(300); // 刻みが0のフレームが何回も続く
+  const zeroHeld = await player();
+  check(
+    "刻みが0のフレームで押した回避を保持する",
+    zeroHeld.dodgePending &&
+      !zeroHeld.dodging &&
+      zeroHeld.totalSteps === zeroBefore.totalSteps &&
+      zeroHeld.stamina === zeroBefore.stamina &&
+      zeroHeld.x === zeroBefore.x,
+    `保持 ${String(zeroHeld.dodgePending)}、刻み ${String(zeroHeld.totalSteps - zeroBefore.totalSteps)}`,
+  );
+  // 1刻み（1/60秒）ちょうどのフレームにすると、次の刻みで1回だけ発動する
+  await setFrameDelta(1000 / 60);
+  await page.waitForTimeout(1000);
+  await setFrameDelta(null);
+  const zeroAfter = await player();
+  const zeroDodged = zeroAfter.x - zeroHeld.x;
+  check(
+    "保持した回避が次の刻みで1回だけ発動する",
+    !zeroAfter.dodgePending && zeroDodged > 3.9 && zeroDodged < 4.1,
+    `右へ ${zeroDodged.toFixed(2)}m`,
   );
 
   // 4. 危険地帯の中に立っていると被弾する
