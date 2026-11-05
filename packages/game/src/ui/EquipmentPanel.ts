@@ -5,6 +5,7 @@ import {
   type MvpEquipSlot,
   type SheetRow,
   damagePreview,
+  effectMatchesContexts,
   Rng,
   sheetRows,
 } from "@stella/core";
@@ -455,6 +456,10 @@ export class EquipmentPanel {
       p.x >= a.x && p.y >= a.y && p.x <= a.x + a.width && p.y <= a.y + a.height;
     const active = new Set(board?.active ?? []);
     const allocated = new Set(sim.stars.nodes);
+    // タグの強調：今の技に効く効果を持つノード（仕様書v0.2 11章「タグが一致すると光る」）
+    const contexts = sim.skillContexts();
+    const matches = (id: string): boolean =>
+      (db.starNodes.get(id)?.effects ?? []).some((e) => effectMatchesContexts(db, e, contexts));
     // つながり
     for (const [id, near] of db.starLinks) {
       const from = db.starNodes.get(id);
@@ -485,6 +490,7 @@ export class EquipmentPanel {
       const stroke = n.kind === "gate" ? 0xc3a6ff : can ? 0x7bd389 : 0x8c88a0;
       g.lineStyle(1, stroke, 1).strokeCircle(p.x, p.y, r);
       if (n.kind === "start" && !isRoot) g.lineStyle(1, 0x8c88a0, 1).strokeCircle(p.x, p.y, r + 2);
+      if (matches(n.id)) g.lineStyle(1, 0xffe08a, 0.9).strokeCircle(p.x, p.y, r + 2);
       if (this.hovered?.kind === "starNode" && this.hovered.id === n.id)
         g.lineStyle(1, 0xffffff, 1).strokeCircle(p.x, p.y, r + 3);
     }

@@ -657,17 +657,17 @@ export class ArenaSimulation {
     });
   }
 
+  /** 今の技の並びの文脈（「タグが一致すると光る」の判定に使う）。 */
+  skillContexts(): ReadonlySet<string>[] {
+    return skillContexts(this.db, this.tags, this.loadoutSkillTags(), this.sheetValue.weaponTags);
+  }
+
   /** 装備のツールチップの中身（今の能力値・キャラLv・技の並びで判定する）。 */
   tooltip(item: ItemInstance): ItemTooltip {
     return itemTooltip(this.db, item, {
       attributes: this.sheetValue.attributes,
       characterLevel: this.character.level,
-      contexts: skillContexts(
-        this.db,
-        this.tags,
-        this.loadoutSkillTags(),
-        this.sheetValue.weaponTags,
-      ),
+      contexts: this.skillContexts(),
     });
   }
 
