@@ -1,0 +1,33 @@
+{
+  "id": "lv1-warrior-longsword",
+  "name": "Lv1・戦士・下級の長剣（薙ぎ払い＋通常攻撃）",
+  "note": "仕様書2.8「Lv1でDPS15」の確認用。技の値は仕様書5.2・補助仕様書3.6（職技のデータは U-08 で正式に作り、このビルドを置き換える）",
+  "characterLevel": 1,
+  "weapon": {
+    "uid": "sim-longsword",
+    "tags": ["TAG-WPN-SWORD"],
+    "base": { "physical": { "min": 6, "max": 11 } },
+    "critChance": 0.05,
+    "attackSpeed": 1.4
+  },
+  "rotation": [
+    {
+      "name": "薙ぎ払い",
+      "tags": ["TAG-FORM-MELEE", "TAG-FORM-AREA"],
+      "kind": "weapon",
+      "pct": 1.3,
+      "mpCost": 4,
+      "cooldown": 0,
+      "staggerCoefficient": 0.4
+    },
+    {
+      "name": "通常攻撃",
+      "tags": ["TAG-FORM-MELEE"],
+      "kind": "weapon",
+      "pct": 1.0,
+      "mpCost": 0,
+      "cooldown": 0,
+      "staggerCoefficient": 0.3
+    }
+  ]
+}

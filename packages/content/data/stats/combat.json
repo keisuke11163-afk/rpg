@@ -144,5 +144,33 @@
     "unit": "ratio",
     "min": 0,
     "baseCap": 1
+  },
+  {
+    "id": "STAT-ATTACK-SPEED",
+    "text": "stat.attack-speed",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-CAST-SPEED",
+    "text": "stat.cast-speed",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-MP-MAX",
+    "text": "stat.mp-max",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-MP-REGEN",
+    "text": "stat.mp-regen",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-HP-MAX",
+    "text": "stat.hp-max",
+    "unit": "flat",
+    "min": 1
   }
 ]

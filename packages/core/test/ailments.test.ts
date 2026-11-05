@@ -386,6 +386,27 @@ describe("持続ダメージ（仕様書v0.2 2.7）", () => {
     expect(state.dealtMultiplier(false)).toBe(1);
   });
 
+  it("最も早く切れる持続ダメージの残り時間（なければ Infinity。状態は変えない）", () => {
+    const state = new AilmentState(db);
+    expect(state.nextDotExpiry()).toBe(Infinity);
+    state.apply(app("AIL-WEAKEN", "TAG-AIL-WEAKEN", 0, 0.5)); // 弱体化は持続ダメージではないので数えない
+    expect(state.nextDotExpiry()).toBe(Infinity);
+    state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 10, 5, 8));
+    state.apply(app("AIL-POISON", "TAG-AIL-POISON", 5, 3));
+    state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 10, 2, 8));
+    expect(state.nextDotExpiry()).toBe(2);
+    expect(state.nextDotExpiry()).toBe(2);
+    expect(state.remainingDotTotal()).toBe(25);
+    state.tick(1.5);
+    expect(state.nextDotExpiry()).toBeCloseTo(0.5, 12);
+    state.tick(0.5);
+    expect(state.nextDotExpiry()).toBeCloseTo(1, 12);
+    state.tick(1);
+    expect(state.nextDotExpiry()).toBeCloseTo(2, 12);
+    state.tick(2);
+    expect(state.nextDotExpiry()).toBe(Infinity);
+  });
+
   it("千変のための、残りの持続ダメージの取り出し（60%を与えて消える）", () => {
     const state = new AilmentState(db);
     state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 10, 5, 8));

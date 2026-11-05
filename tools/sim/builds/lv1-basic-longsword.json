@@ -1,0 +1,23 @@
+{
+  "id": "lv1-basic-longsword",
+  "name": "Lv1・下級の長剣・通常攻撃だけ",
+  "note": "仕様書3.2 の長剣（6–11・1.40回/秒・会心5%）。補正なし",
+  "characterLevel": 1,
+  "weapon": {
+    "uid": "sim-longsword",
+    "tags": ["TAG-WPN-SWORD"],
+    "base": { "physical": { "min": 6, "max": 11 } },
+    "critChance": 0.05,
+    "attackSpeed": 1.4
+  },
+  "rotation": [
+    {
+      "name": "通常攻撃",
+      "tags": ["TAG-FORM-MELEE"],
+      "kind": "weapon",
+      "pct": 1.0,
+      "mpCost": 0,
+      "cooldown": 0
+    }
+  ]
+}
