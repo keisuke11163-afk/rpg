@@ -522,3 +522,53 @@ describe("ArenaSimulation：技の枠の設定（U-12）", () => {
     expect(sim.setSlotSkill(5, "SKL-WARRIOR-ROUT")).toBe(false);
   });
 });
+
+describe("ArenaSimulation：セーブ・ロード（U-13）", () => {
+  it("セーブデータにして戻すと、着替え・技の枠・金貨・Lvが同じ状態で始まる", async () => {
+    const { MemoryBackend, SaveStore } = await import("@stella/core");
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.equipFromInventory("test-dagger");
+    sim.setSlotSkill(5, "SKL-WARRIOR-ROUT");
+    sim.inventory.addGold(77);
+    sim.gainXp(500);
+    const store = new SaveStore(sim.db, new MemoryBackend());
+    store.save(1, sim.saveData());
+    const r = store.load(1);
+    if (!r.ok) throw new Error(r.error?.message ?? "空");
+    const back = new ArenaSimulation(undefined, { enemies: false, db: sim.db, profile: r.profile });
+    expect(back.weapon?.uid).toBe("test-dagger");
+    expect(back.loadout.find((l) => l.action === "skill6")?.skill).toBe("SKL-WARRIOR-ROUT");
+    expect(back.inventory.gold).toBe(77);
+    expect(back.character.level).toBe(sim.character.level);
+    expect(back.character.progress.xp).toBe(sim.character.progress.xp);
+    // 計算し直した能力値が一致する（T11）
+    expect(back.attackSpeed).toBe(sim.attackSpeed);
+    expect(back.player.health.maxHp).toBe(sim.player.health.maxHp);
+    expect(back.saveData()).toEqual(sim.saveData());
+  });
+
+  it("試験用の場はダンジョンとして扱い、60秒ごとに自動セーブの時期になる", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.autosave.due()).toBe(false);
+    for (let i = 0; i < Math.ceil(60 / STEP) + 1; i++) sim.frame(STEP, input());
+    expect(sim.autosave.due()).toBe(true);
+    expect(sim.autosave.due()).toBe(false);
+  });
+
+  it("拾った物の uid は、セーブデータの装備の番号の続きから振る", async () => {
+    const { MemoryBackend, SaveStore } = await import("@stella/core");
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.dropLoot("elite", 5, sim.motion.position);
+    for (let i = 0; i < 10; i++) sim.frame(STEP, input({ pressed: ["interact"] }));
+    const store = new SaveStore(sim.db, new MemoryBackend());
+    store.save(1, sim.saveData());
+    const r = store.load(1);
+    if (!r.ok) throw new Error(r.error?.message ?? "空");
+    const back = new ArenaSimulation(undefined, { enemies: false, db: sim.db, profile: r.profile });
+    back.dropLoot("elite", 5, back.motion.position);
+    const owned = new Set(back.inventory.items.map((i) => i.uid));
+    const dropped = back.loot.drops.flatMap((d) => (d.kind === "item" ? [d.item.uid] : []));
+    expect(dropped.length).toBeGreaterThan(0);
+    expect(dropped.every((u) => !owned.has(u))).toBe(true);
+  });
+});

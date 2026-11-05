@@ -155,8 +155,15 @@ type DebugWindow = {
     setFrameDeltaMs: (ms: number | null) => void;
     panel: () => PanelInfo;
     assignSkill: (index: number, skill: string) => boolean;
+    saveNow: () => boolean;
+    saves: () => SavesInfo;
   };
 };
+interface SavesInfo {
+  status: string;
+  slots: { slot: number; state: string; name: string | null; level: number | null }[];
+  keys: string[];
+}
 interface PanelInfo {
   open: string | null;
   lines: string[];
@@ -753,6 +760,61 @@ try {
   );
 
   await page.screenshot({ path: `${outDir}arena.png` });
+
+  // セーブ・ロード（U-13）：保存してページを読み込み直すと、同じ状態から始まる
+  const saves = (): Promise<SavesInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.saves());
+  const reload = async (): Promise<void> => {
+    await page.goto("http://localhost:5174/");
+    await page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
+      timeout: 20000,
+    });
+  };
+  const saved = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.saveNow(),
+  );
+  const sv0 = await saves();
+  const beforeReload = { skills: await skills(), inv: await inv(), hp: (await combat()).maxHp };
+  check(
+    "セーブすると、スロット1に保存される（U-13）",
+    saved && sv0.slots[0]?.state === "ok" && sv0.slots[1]?.state === "empty",
+    `${sv0.status}・スロット ${sv0.slots.map((x) => `${String(x.slot)}:${x.state}`).join(",")}`,
+  );
+  await reload();
+  const afterReload = { skills: await skills(), inv: await inv(), hp: (await combat()).maxHp };
+  check(
+    "ページを読み込み直すと、セーブデータから同じ状態で始まる（Lv・ジョブ・武器・持ち物・金貨・最大HP）（U-13）",
+    afterReload.skills.level === beforeReload.skills.level &&
+      afterReload.skills.job === beforeReload.skills.job &&
+      afterReload.skills.weapon === beforeReload.skills.weapon &&
+      JSON.stringify(afterReload.skills.jobLevels) ===
+        JSON.stringify(beforeReload.skills.jobLevels) &&
+      afterReload.inv.gold === beforeReload.inv.gold &&
+      afterReload.inv.items.length === beforeReload.inv.items.length &&
+      afterReload.hp === beforeReload.hp,
+    `Lv ${String(beforeReload.skills.level)} → ${String(afterReload.skills.level)}・ジョブ ${afterReload.skills.job}・武器 ${String(afterReload.skills.weapon)}・金貨 ${String(beforeReload.inv.gold)} → ${String(afterReload.inv.gold)}・持ち物 ${String(afterReload.inv.items.length)}・最大HP ${String(afterReload.hp)}`,
+  );
+  // 壊れたデータ：読み込みでは上書きせず、新しく始める。保存するときに .corrupt に退避する
+  await page.evaluate(() => {
+    window.localStorage.setItem("stella-sigil/slot1", "壊れたデータ");
+  });
+  await reload();
+  const sv1 = await saves();
+  const started = await skills();
+  await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.saveNow());
+  const sv2 = await saves();
+  const corrupt = await page.evaluate(() =>
+    window.localStorage.getItem("stella-sigil/slot1.corrupt"),
+  );
+  check(
+    "壊れたセーブデータは検出して新しく始め、元のデータは .corrupt に退避してから保存する（U-13）",
+    sv1.status.includes("壊れている") &&
+      sv1.slots[0]?.state === "corrupt" &&
+      started.level === 15 &&
+      sv2.slots[0]?.state === "ok" &&
+      corrupt === "壊れたデータ",
+    `${sv1.status}・保存の後 ${String(sv2.slots[0]?.state)}・退避 ${String(corrupt)}`,
+  );
 } finally {
   await browser.close();
   await server.close();

@@ -1,7 +1,16 @@
 // 仮実装: U-18a feature/town-and-dungeon-base で、町とダンジョンの地図に置き換える（試験用の場）
 import Phaser from "phaser";
-import type { HitReport, HitShape, Vec2 } from "@stella/core";
+import {
+  type HitReport,
+  type HitShape,
+  type PlayerProfile,
+  SaveDataError,
+  SaveStore,
+  type Vec2,
+} from "@stella/core";
+import { loadGameContent } from "@stella/content";
 import { text, type TextKey } from "@stella/content";
+import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
 import { EquipmentPanel } from "../ui/EquipmentPanel.ts";
 import { itemName } from "../ui/item-text.ts";
 import { SCREEN } from "../config.ts";
@@ -13,6 +22,9 @@ import { LootView } from "../world/LootView.ts";
 import { TEXTURES } from "../world/placeholders.ts";
 import { PIXELS_PER_METER, toPixels } from "../world/units.ts";
 import { ARENA, ArenaSimulation, DUMMY_POSITION, HAZARD } from "./arena-simulation.ts";
+
+/** セーブのスロット（タイトルの画面ができるまでは1つ目だけ）。 */
+const SAVE_SLOT = 1;
 
 /** 画面を開いている間は渡さない行動（クリックを画面の操作に使うため）。 */
 const PANEL_BLOCKED: ReadonlySet<Action> = new Set<Action>([
@@ -60,6 +72,10 @@ export class ArenaScene extends Phaser.Scene {
   private bars!: Phaser.GameObjects.Graphics;
   /** インベントリ・装備（I）とキャラクター（C）の画面。 */
   private panel!: EquipmentPanel;
+  /** セーブの保存先（補助仕様書15章）。 */
+  private store!: SaveStore;
+  /** 最後のセーブ・読み込みの結果（HUD に出す）。 */
+  private saveStatus = "";
   /** 開発用：描画のフレームの経過時間を固定する（ミリ秒）。null なら実際の経過時間を使う。 */
   private debugFrameDeltaMs: number | null = null;
 
@@ -72,7 +88,12 @@ export class ArenaScene extends Phaser.Scene {
       .tileSprite(0, 0, toPixels(ARENA.width), toPixels(ARENA.height), TEXTURES.floor)
       .setOrigin(0, 0);
     this.fx = this.add.graphics();
+    const db = loadGameContent();
+    this.store = new SaveStore(db, new LocalStorageBackend());
+    const profile = this.loadProfile();
     this.sim = new ArenaSimulation(undefined, {
+      db,
+      ...(profile === undefined ? {} : { profile }),
       onHit: (report, at) => {
         if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
         this.popDamage(report, at);
@@ -224,6 +245,18 @@ export class ArenaScene extends Phaser.Scene {
         traps: sim.traps.length,
         smokes: sim.smokes.length,
       }),
+      // セーブ（U-13）：今すぐ保存する・スロットの一覧・最後の結果（開発版だけ）
+      saveNow: () => this.saveNow(),
+      saves: () => ({
+        status: this.saveStatus,
+        slots: this.store.list().map((x) => ({
+          slot: x.slot,
+          state: x.state,
+          name: x.state === "ok" ? x.name : null,
+          level: x.state === "ok" ? x.level : null,
+        })),
+        keys: Object.keys(window.localStorage).filter((k) => k.startsWith("stella-sigil/")),
+      }),
       // 画面（U-12）：開いている画面・表示した行・戦闘の能力値
       panel: () => {
         const p = this.panel.snapshot();
@@ -239,6 +272,36 @@ export class ArenaScene extends Phaser.Scene {
       },
     });
     document.body.dataset["stellaReady"] = "true";
+  }
+
+  /**
+   * セーブデータを読み込む。無ければ・壊れていれば undefined（試験用の初期の状態で始める）。
+   * 壊れたデータは上書きせずに残す（次の保存のときに .corrupt に退避する）。
+   */
+  private loadProfile(): PlayerProfile | undefined {
+    // 仮実装: U-18a feature/town-and-dungeon-base で、タイトルのキャラクターの選択（3スロット）に置き換える（常にスロット1）
+    const r = this.store.load(SAVE_SLOT);
+    if (r.ok) {
+      this.saveStatus = `スロット${String(SAVE_SLOT)}から読み込んだ`;
+      return r.profile;
+    }
+    this.saveStatus =
+      r.error === undefined
+        ? "セーブデータなし（新しく始めた）"
+        : `セーブデータが壊れている（${r.error.kind}）。元のデータは残し、新しく始めた`;
+    return undefined;
+  }
+
+  /** 今の状態を保存する（自動セーブ）。失敗したら、元のデータを変えずに知らせる。 */
+  private saveNow(): boolean {
+    try {
+      this.store.save(SAVE_SLOT, this.sim.saveData());
+      this.saveStatus = `自動セーブ（${new Date().toLocaleTimeString()}）`;
+      return true;
+    } catch (e) {
+      this.saveStatus = `セーブできなかった：${e instanceof SaveDataError ? e.message : String(e)}`;
+      return false;
+    }
   }
 
   override update(_time: number, deltaMs: number): void {
@@ -258,6 +321,7 @@ export class ArenaScene extends Phaser.Scene {
       changeJob: this.jobPressed,
     });
     this.jobPressed = false;
+    if (this.sim.autosave.due()) this.saveNow();
     this.render();
     this.panel.render();
   }
@@ -471,6 +535,7 @@ export class ArenaScene extends Phaser.Scene {
       `危険地帯：被弾 ${String(sim.hazardHits)}／回避で無効 ${String(sim.hazardAvoided)}`,
       `持ち物：装備 ${String(sim.inventory.items.length)}／${String(sim.inventory.capacity)}・金貨 ${String(sim.inventory.gold)}・素材 ${String([...sim.inventory.materials.values()].reduce((a, b) => a + b, 0))}（F で装備を拾う・Alt で名前を全て表示）`,
       `敵：倒した数 ${String(sim.field?.kills ?? 0)}・被弾 ${String(sim.hitsTaken)}・回避で無効 ${String(sim.attacksAvoided)}・倒れた回数 ${String(sim.deaths)}${sim.player.ailments.stacks("AIL-POISON") > 0 ? `・毒 ${String(sim.player.ailments.stacks("AIL-POISON"))}` : ""}${sim.player.stagger.broken ? "・よろめき" : ""}`,
+      `セーブ：${this.saveStatus}`,
       `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・気力 ${motion.currentStamina.toFixed(0)}・${gaugeName} ${gauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
     ]);
   }

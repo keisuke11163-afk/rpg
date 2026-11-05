@@ -13,9 +13,16 @@ import {
   type HitReport,
   type HitShape,
   type CharacterSheet,
+  AutoSaveTimer,
   Equipment,
   type ItemInstance,
   Inventory,
+  type KeptSaveFields,
+  type PlayerProfile,
+  type SaveData,
+  createStash,
+  emptyKeptFields,
+  toSaveData,
   JobGauge,
   type MvpEquipSlot,
   type JobDef,
@@ -79,7 +86,7 @@ export const HAZARD = {
 /** 訓練用の人形の位置（m）。 */
 export const DUMMY_POSITION = { x: 20, y: 12 } as const;
 
-// 仮実装: U-13 feature/save-load で、セーブデータの持ち物に置き換える（試験用の持ち物：補助仕様書14章の MVP の下級の武器を1つずつ。通常のレアリティ・詞なし）
+// 仮実装: U-18a feature/town-and-dungeon-base で、新しいキャラクターの作成（補助仕様書3.4 の初期装備）に置き換える（セーブデータが無いときの試験用の持ち物：補助仕様書14章の MVP の下級の武器を1つずつ。通常のレアリティ・詞なし）
 /** 試験用の武器（uid → ベース）。uid は表示の確認・テストで使う。 */
 export const TEST_WEAPONS: readonly { readonly uid: string; readonly base: string }[] = [
   { uid: "test-greatsword", base: "BASE-WPN-GREATSWORD-T1" },
@@ -123,7 +130,7 @@ export const DEFAULT_SKILL_SLOTS: Readonly<Record<string, readonly string[]>> = 
     "SKL-ROGUE-SMOKE",
   ],
 };
-// 仮実装: U-13 feature/save-load で、セーブデータのキャラクターに置き換える（試験用に、戦士の出自・キャラLv15・戦士のジョブLv15から始める）
+// 仮実装: U-18a feature/town-and-dungeon-base で、新しいキャラクターの作成に置き換える（セーブデータが無いときは、試験用に戦士の出自・キャラLv15・戦士のジョブLv15から始める）
 const TEST_START = { level: 15, jobLevel: 15 } as const;
 
 /** ヒットの手応え：止まる時間（秒）と、白く光る時間。 */
@@ -207,6 +214,35 @@ export interface ArenaSimulationOptions {
   enemies?: boolean;
   /** 文字を出す（Lvアップなど。表示用）。 */
   onText?: (label: string, at: Vec2, color: string) => void;
+  /** セーブデータから戻したプレイヤー（省略すると試験用の初期の状態）。 */
+  profile?: PlayerProfile;
+}
+
+/** セーブデータが無いときの、試験用の初期の状態。 */
+export function testStartProfile(db: ContentDb): PlayerProfile {
+  const origin = db.jobs.get("JOB-WARRIOR");
+  if (origin === undefined) throw new Error("戦士のデータがない");
+  const character = new Character({
+    origin,
+    level: TEST_START.level,
+    jobLevels: { [origin.id]: TEST_START.jobLevel },
+  });
+  const inventory = new Inventory();
+  const equipment = new Equipment(db);
+  for (const w of TEST_WEAPONS) {
+    const item = { uid: w.uid, base: w.base, rarity: "normal" as const, itemLevel: 1, affixes: [] };
+    if (w.uid === START_WEAPON[origin.id]) equipment.equip(item, "mainHand", true);
+    else inventory.addItem(item);
+  }
+  return {
+    name: "試験用の戦士",
+    character,
+    equipment,
+    inventory,
+    stash: createStash(),
+    skillSlots: new Map(),
+    kept: emptyKeptFields(origin.id),
+  };
 }
 
 /**
@@ -237,9 +273,17 @@ export class ArenaSimulation {
   private readonly dropRng = Rng.fromSeed("arena-drops");
   private itemSerial = 0;
   /** 持ち物（補助仕様書13章）。 */
-  readonly inventory = new Inventory();
+  readonly inventory: Inventory;
+  /** 倉庫（町だけで使う。試験用の場では、セーブデータの中身を保つだけ）。 */
+  readonly stash: Inventory;
   /** 装備（補助仕様書16章。町でもダンジョンでも着替えられる）。 */
   readonly equipment: Equipment;
+  /** キャラクターの名前（セーブデータ）。 */
+  readonly name: string;
+  /** まだ使っていないセーブデータの項目（保存し直すときに、そのまま戻す）。 */
+  private readonly kept: KeptSaveFields;
+  /** 自動セーブの時期（試験用の場はダンジョンとして扱う：60秒ごと）。 */
+  readonly autosave = new AutoSaveTimer();
   private equipmentVersion = 0;
   /** ジョブごとの技の枠。 */
   private readonly skillSlotsByJob = new Map<string, (string | undefined)[]>();
@@ -283,24 +327,24 @@ export class ArenaSimulation {
     this.onHit = options.onHit;
     this.onText = options.onText;
     this.tags = new TagIndex(this.db.tags);
-    const origin = this.db.jobs.get("JOB-WARRIOR");
-    if (origin === undefined) throw new Error("戦士のデータがない");
-    this.character = new Character({
-      origin,
-      level: TEST_START.level,
-      jobLevels: { [origin.id]: TEST_START.jobLevel },
-    });
+    const profile = options.profile ?? testStartProfile(this.db);
+    this.name = profile.name;
+    this.character = profile.character;
+    this.equipment = profile.equipment;
+    this.inventory = profile.inventory;
+    this.stash = profile.stash;
+    this.kept = profile.kept;
+    for (const [job, slots] of profile.skillSlots) this.skillSlotsByJob.set(job, [...slots]);
+    // 拾った物の uid が、持っている物と重ならないように続きの番号から始める
+    for (const i of [
+      ...this.inventory.items,
+      ...this.stash.items,
+      ...this.equipment.entries().map(([, x]) => x),
+    ]) {
+      const m = /^itm_(\d+)$/.exec(i.uid);
+      if (m !== null) this.itemSerial = Math.max(this.itemSerial, Number(m[1]));
+    }
     this.jobGaugeValue = this.newGauge();
-    this.equipment = new Equipment(this.db);
-    for (const w of TEST_WEAPONS)
-      this.inventory.addItem({
-        uid: w.uid,
-        base: w.base,
-        rarity: "normal",
-        itemLevel: 1,
-        affixes: [],
-      });
-    this.equipFromInventory(START_WEAPON[origin.id] ?? "test-greatsword", "mainHand");
     this.motion = new PlayerMotion({ x: 12, y: 12 }, undefined, {
       minX: 0.5,
       minY: 0.75,
@@ -535,6 +579,24 @@ export class ArenaSimulation {
     const slots = slotsFor(base, this.canDualWield);
     if (base.category === "weapon") return "mainHand";
     return slots.find((s) => this.equipment.get(s) === undefined) ?? slots[0];
+  }
+
+  /** 今の状態（セーブデータにする元）。 */
+  profile(): PlayerProfile {
+    return {
+      name: this.name,
+      character: this.character,
+      equipment: this.equipment,
+      inventory: this.inventory,
+      stash: this.stash,
+      skillSlots: this.skillSlotsByJob,
+      kept: this.kept,
+    };
+  }
+
+  /** セーブデータ（今の版）。 */
+  saveData(): SaveData {
+    return toSaveData(this.db, this.profile());
   }
 
   /** 今の技の並びのタグ（ツールチップの「タグが一致すると光る」の文脈）。 */
@@ -858,6 +920,8 @@ export class ArenaSimulation {
 
   private step(input: InputFrame): void {
     const dt = this.clock.stepSeconds;
+    // 試験用の場はダンジョンとして扱う（60秒ごとの自動セーブ。補助仕様書15章）
+    this.autosave.tick(dt, true);
     this.flashLeft = Math.max(0, this.flashLeft - dt);
     // ヒットの手応え：ヒットの瞬間に、ほんの少しだけ止める（押した瞬間の入力は保持したまま）
     if (this.hitStopLeft > 0) {
