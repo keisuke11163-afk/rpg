@@ -163,12 +163,22 @@ export class ProjectilePool<P> {
    * 半径0・極小の半径・非常に速い投射物でもすり抜けない。1刻みの間に複数の相手に当たるときは、
    * 線分の上で先に触れる相手から順に当てる（同じ距離なら targets の順）。
    * 経過時間が0以上の有限の数でない場合、相手の位置が有限の数でない場合、
-   * 相手の半径が0以上の有限の数でない場合は、状態を変える前に RangeError。
+   * 相手の半径が0以上の有限の数でない場合、判定する相手の半径と投射物の半径の合計が有限でない場合は、
+   * 状態を変える前に RangeError。
    */
   update(dt: number, targets: readonly ProjectileTarget[]): ProjectileHit<P>[] {
     // 投射物の状態を変える前に検証する（NaN・負の数・無限大は位置や射程を壊すため）
     if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
     for (const t of targets) validateTarget(t);
+    // 判定に使う「相手の半径＋投射物の半径」が有限であることも先に確かめる
+    // （それぞれが有限でも、合計は Infinity に溢れうる。溢れると離れた相手にも当たってしまう）
+    for (const slot of this.slots) {
+      if (!slot.active) continue;
+      for (const t of targets) {
+        if (t.team === slot.team || slot.hitIds.has(t.id)) continue;
+        requireFinite(t.radius + slot.radius, `相手「${t.id}」の半径と投射物の半径の合計`);
+      }
+    }
     const hits: ProjectileHit<P>[] = [];
     const contacts: Contact[] = [];
     this.slots.forEach((slot, index) => {

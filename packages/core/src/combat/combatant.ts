@@ -72,20 +72,37 @@ export class Combatant {
     return this.stagger.takenMultiplier;
   }
 
-  /** 時間を進める：持続ダメージを受け、崩しゲージ・魔障を更新する。受けた持続ダメージの合計を返す。 */
+  /**
+   * 時間を進める：持続ダメージを受け、崩しゲージ・魔障を更新する。受けた持続ダメージの合計を返す。
+   * 経過時間が0以上の有限の数でない場合、属性ごとの持続ダメージの合計が有限でない場合（NaN・Infinity）は、
+   * HP・魔障・状態異常・崩しゲージ・時間を変える前に RangeError。
+   */
   update(dt: number): number {
-    const dot = this.ailments.tick(dt, {
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
+    const target = {
       resist: this.resist,
       takenMultiplier: this.takenMultiplier,
       moving: this.moving,
-    });
-    let total = 0;
-    for (const v of Object.values(dot)) total += v;
+    };
+    // 状態を変えずに同じ計算をして、合計を先に検証する（各属性が有限でも、合計は溢れうる）
+    const total = sumDot(this.ailments.previewTick(dt, target));
+    // 検証の後で状態を進める（previewTick と同じ計算なので、結果も同じ）
+    this.ailments.tick(dt, target);
     if (total > 0) this.health.takeDamage(total);
     this.stagger.update(dt);
     this.health.update(dt);
     return total;
   }
+}
+
+/** 属性ごとの持続ダメージの合計。合計が有限でなければ RangeError。 */
+function sumDot(dot: Partial<Record<Element, number>>): number {
+  let total = 0;
+  for (const v of Object.values(dot)) total += v;
+  if (!Number.isFinite(total))
+    throw new RangeError(`持続ダメージの合計は有限の数（${String(total)}）`);
+  return total;
 }
 
 export interface HitInput {

@@ -368,8 +368,41 @@ export class AilmentState {
     this.dots.set(def.id, list);
   }
 
+  /**
+   * tick と同じ計算で、この間の持続ダメージを属性ごとに返す。状態は変えない。
+   * 受ける側が、状態を変える前に結果を検証するのに使う（Combatant.update の合計の検証）。
+   */
+  previewTick(dt: number, target: AilmentTickTarget = {}): Partial<Record<Element, number>> {
+    return this.computeTick(dt, target).out;
+  }
+
   /** 時間を進め、この間の持続ダメージを属性ごとに返す。切れた状態異常は取り除く。 */
   tick(dt: number, target: AilmentTickTarget = {}): Partial<Record<Element, number>> {
+    const { out, updates } = this.computeTick(dt, target);
+    for (const { inst, portion, step } of updates) {
+      inst.remaining -= portion;
+      inst.remainingTime -= step;
+    }
+    for (const [id, list] of this.dots) {
+      const next = list.filter((inst) => inst.remainingTime > 1e-9 && inst.remaining > 1e-12);
+      if (next.length > 0) this.dots.set(id, next);
+      else this.dots.delete(id);
+    }
+    for (const [id, debuff] of this.debuffs) {
+      debuff.remainingTime -= dt;
+      if (debuff.remainingTime <= 1e-9) this.debuffs.delete(id);
+    }
+    return out;
+  }
+
+  /** tick の計算と検証（状態は変えない）。 */
+  private computeTick(
+    dt: number,
+    target: AilmentTickTarget,
+  ): {
+    out: Partial<Record<Element, number>>;
+    updates: { inst: DotInstance; portion: number; step: number }[];
+  } {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const taken = finite(target.takenMultiplier ?? 1, "受けるダメージの倍率");
@@ -399,20 +432,7 @@ export class AilmentState {
         updates.push({ inst, portion, step });
       }
     }
-    for (const { inst, portion, step } of updates) {
-      inst.remaining -= portion;
-      inst.remainingTime -= step;
-    }
-    for (const [id, list] of this.dots) {
-      const next = list.filter((inst) => inst.remainingTime > 1e-9 && inst.remaining > 1e-12);
-      if (next.length > 0) this.dots.set(id, next);
-      else this.dots.delete(id);
-    }
-    for (const [id, debuff] of this.debuffs) {
-      debuff.remainingTime -= dt;
-      if (debuff.remainingTime <= 1e-9) this.debuffs.delete(id);
-    }
-    return out;
+    return { out, updates };
   }
 
   /** 重ねている数。 */
