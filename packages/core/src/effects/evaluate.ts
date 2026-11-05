@@ -18,6 +18,9 @@ export interface EffectInstance {
   /**
    * 重ねた数（省略すると1）。加算・追加・上限は値×数、乗算は値の数乗になる。
    * 例：重荷の誇りの「重装の防具1部位につき」は、重装の部位の数を入れる。
+   * 0以上の安全な整数（Number.MAX_SAFE_INTEGER 以下）だけを受け付ける（小数・負の数・NaN・Infinity・null・安全な整数の範囲外は RangeError）。
+   * 省略（プロパティなし、または undefined）だけを1として扱う。null は省略とみなさない。
+   * 0のときは、その効果は何も効かない（全ての種類の修正値を無視し、有効な効果の一覧にも入れない）。
    */
   readonly stacks?: number;
 }
@@ -152,6 +155,75 @@ interface Entry {
   readonly effect: EffectDef;
   readonly instance: EffectInstance;
   readonly stacks: number;
+  /** 重ねた数を反映した後の値（数値の修正値だけ。有限であることを検証済み）。 */
+  readonly scaled: number | Range | undefined;
+}
+
+/**
+ * 計算した値が有限であることを確かめる。Infinity・-Infinity・NaN は、黙ってほかの値に置き換えずに
+ * RangeError にする（重ねた数・入力の値の誤りと同じ扱い）。
+ */
+function requireFinite(value: number, what: () => string): number {
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`${what()}が有限の値にならない（${String(value)}）`);
+  }
+  return value;
+}
+
+/**
+ * 修正値に重ねた数を反映した値（加算・追加・上限・変換は値×数、乗算は値の数乗）。
+ * 数値を持たない修正値（印・置き換え・挙動・付け替え）と、重ねた数に関係しない上書きは undefined。
+ * 安全な整数の重ねた数でも、値×数・値の数乗は有限にならないことがある（例：1.2 の 2^53-1 乗）ので、
+ * ここで検証して RangeError にする。
+ */
+function scaledValue(mod: Modifier, stacks: number, effectId: string): number | Range | undefined {
+  const what = (): string =>
+    `効果 ${effectId} の修正値（${mod.kind}${"stat" in mod ? `・${mod.stat}` : ""}）を重ねた数 ${String(stacks)} で計算した値`;
+  switch (mod.kind) {
+    case "added":
+    case "fixedAdded": {
+      const r = typeof mod.value === "number" ? { min: mod.value, max: mod.value } : mod.value;
+      return {
+        min: requireFinite(r.min * stacks, what),
+        max: requireFinite(r.max * stacks, what),
+      };
+    }
+    case "increased":
+    case "cap":
+    case "convert":
+      return requireFinite(mod.value * stacks, what);
+    case "more":
+      return requireFinite(mod.value ** stacks, what);
+    case "override":
+      return requireFinite(mod.value, what);
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * 重ねた数の生の値（検証前）。省略（undefined）だけを1にする。
+ * `??` を使うと null まで1になってしまうので、undefined とだけ比べる。
+ */
+function rawStacks(instance: EffectInstance): unknown {
+  return instance.stacks === undefined ? 1 : instance.stacks;
+}
+
+/**
+ * 重ねた数を検証して返す（省略は1）。0以上の安全な整数（Number.MAX_SAFE_INTEGER 以下）だけを受け付ける。
+ * EffectInstance は呼び出す側（JavaScript・保存データの復元など）から型の外の値が来うるので、
+ * 効果を登録・評価する唯一の入口であるここで、実行時に検証する。
+ */
+function stacksOf(instance: EffectInstance): number {
+  const stacks = rawStacks(instance);
+  // Number.isSafeInteger は、null・文字列・小数・NaN・Infinity・-Infinity と、
+  // 安全な整数の範囲（±(2^53 - 1)）の外の値を全て false にする
+  if (typeof stacks !== "number" || !Number.isSafeInteger(stacks) || stacks < 0) {
+    throw new RangeError(
+      `重ねた数は0以上の安全な整数（効果 ${instance.effectId}：${String(instance.stacks)}）`,
+    );
+  }
+  return stacks;
 }
 
 function compareInstances(a: EffectInstance, b: EffectInstance): number {
@@ -159,11 +231,23 @@ function compareInstances(a: EffectInstance, b: EffectInstance): number {
     `${i.effectId}\u0000${i.source.kind}\u0000${i.source.ref}`;
   const ka = key(a);
   const kb = key(b);
-  return ka < kb ? -1 : ka > kb ? 1 : (a.stacks ?? 1) - (b.stacks ?? 1);
+  // 並べ替えは検証の前に行うので、ここでは数として比べられる値だけを使う（不正な値はこの後 stacksOf で拒否する）
+  const sa = rawStacks(a);
+  const sb = rawStacks(b);
+  return ka < kb
+    ? -1
+    : ka > kb
+      ? 1
+      : typeof sa === "number" && typeof sb === "number"
+        ? sa - sb
+        : 0;
 }
 
 function mid(r: Range): number {
-  return (r.min + r.max) / 2;
+  const sum = r.min + r.max;
+  // 最小・最大がどちらも有限でも、和だけが有限にならないことがある（例：1e308 ＋ 1e308）。
+  // そのときだけ半分ずつ足す（有限の和では、これまでと同じ計算のまま）
+  return Number.isFinite(sum) ? sum / 2 : r.min / 2 + r.max / 2;
 }
 
 /** 修正値の集まりに対する問い合わせ。 */
@@ -190,11 +274,18 @@ export class ModifierView {
     for (const instance of instances) {
       const effect = db.effects.get(instance.effectId);
       if (effect === undefined) throw new Error(`効果 ${instance.effectId} はデータにない`);
-      const stacks = instance.stacks ?? 1;
-      if (!(stacks >= 0) || !Number.isFinite(stacks))
-        throw new RangeError(`重ねた数が正しくない：${String(stacks)}`);
+      const stacks = stacksOf(instance);
+      // 重ねた数が0の効果は、どの種類の修正値も登録しない（印・置き換え・上書き・挙動・付け替え・上限も含めて、
+      // 何も効かない。上限が0になるなどの副作用も起きない）
+      if (stacks === 0) continue;
       for (const mod of effect.modifiers) {
-        const entry: Entry = { mod, effect, instance, stacks };
+        const entry: Entry = {
+          mod,
+          effect,
+          instance,
+          stacks,
+          scaled: scaledValue(mod, stacks, effect.id),
+        };
         switch (mod.kind) {
           case "added":
           case "fixedAdded":
@@ -244,7 +335,7 @@ export class ModifierView {
     const def = this.db.stats.get(statId);
     if (def === undefined) throw new Error(`能力値 ${statId} はデータにない`);
     const context = this.context(tagIds);
-    const base = this.baseStats[statId] ?? 0;
+    const base = requireFinite(this.baseStats[statId] ?? 0, () => `能力値 ${statId} の基礎の値`);
     const added = { min: 0, max: 0 };
     const fixedAdded = { min: 0, max: 0 };
     let increased = 0;
@@ -254,7 +345,7 @@ export class ModifierView {
     let override: StatResult["override"];
     const contributions: Contribution[] = [];
 
-    for (const { mod, effect, instance, stacks } of this.applicable(
+    for (const { mod, effect, instance, scaled } of this.applicable(
       this.byStat.get(statId) ?? [],
       context,
     )) {
@@ -270,28 +361,25 @@ export class ModifierView {
       switch (mod.kind) {
         case "added":
         case "fixedAdded": {
-          const r = typeof mod.value === "number" ? { min: mod.value, max: mod.value } : mod.value;
-          const scaled = { min: r.min * stacks, max: r.max * stacks };
+          const r = scaled as Range;
           const target = mod.kind === "added" ? added : fixedAdded;
-          target.min += scaled.min;
-          target.max += scaled.max;
-          push(scaled);
+          target.min += r.min;
+          target.max += r.max;
+          push(r);
           break;
         }
         case "increased":
-          increased += mod.value * stacks;
-          push(mod.value * stacks);
+          increased += scaled as number;
+          push(scaled as number);
           break;
-        case "more": {
-          const factor = mod.value ** stacks;
-          more *= factor;
-          push(factor);
+        case "more":
+          more *= scaled as number;
+          push(scaled as number);
           break;
-        }
         case "cap":
           hasCapModifier = true;
-          capDelta += mod.value * stacks;
-          push(mod.value * stacks);
+          capDelta += scaled as number;
+          push(scaled as number);
           break;
         case "override":
           // 優先度の高いものが勝つ（仕様書v0.2 2.4.1 の規則4。同じ優先度はデータの検証で禁止している）
@@ -305,8 +393,19 @@ export class ModifierView {
       }
     }
 
+    // 1つ1つの修正値が有限でも、合計・積は有限にならないことがある（例：巨大な追加値を重ねた合計）
+    const total = (part: string, n: number): number =>
+      requireFinite(n, () => `能力値 ${statId} の${part}`);
+    total("追加値の合計", added.min);
+    total("追加値の合計", added.max);
+    total("固定の追加の合計", fixedAdded.min);
+    total("固定の追加の合計", fixedAdded.max);
+    total("加算の合計", increased);
+    total("乗算の積", more);
     let cap =
-      def.baseCap !== undefined || hasCapModifier ? (def.baseCap ?? 0) + capDelta : undefined;
+      def.baseCap !== undefined || hasCapModifier
+        ? total("上限", (def.baseCap ?? 0) + capDelta)
+        : undefined;
     if (cap !== undefined && def.capLimit !== undefined) cap = Math.min(cap, def.capLimit);
     let value: number;
     if (override !== undefined) {
@@ -316,6 +415,7 @@ export class ModifierView {
       if (def.min !== undefined) value = Math.max(def.min, value);
       if (cap !== undefined) value = Math.min(cap, value);
     }
+    total("まとめた値", value);
     return {
       stat: statId,
       base,
@@ -383,9 +483,9 @@ export class ModifierView {
   /** 属性の変換の一覧（計算はダメージの計算の側で行う。仕様書 2.5）。 */
   conversions(tagIds: Iterable<string> = []): ConversionEntry[] {
     const context = this.context(tagIds);
-    return this.applicable(this.converts, context).flatMap(({ mod, effect, stacks }) =>
+    return this.applicable(this.converts, context).flatMap(({ mod, effect, scaled }) =>
       mod.kind === "convert"
-        ? [{ from: mod.from, to: mod.to, value: mod.value * stacks, effectId: effect.id }]
+        ? [{ from: mod.from, to: mod.to, value: scaled as number, effectId: effect.id }]
         : [],
     );
   }
@@ -453,9 +553,15 @@ export function evaluateEffects(
   for (const instance of sorted) {
     const effect = db.effects.get(instance.effectId);
     if (effect === undefined) throw new Error(`効果 ${instance.effectId} はデータにない`);
+    // 条件付きの効果も含めて、全ての効果の重ねた数と、重ねた数を反映した値が有限かを先に検証する
+    const stacks = stacksOf(instance);
+    const zero = stacks === 0;
+    if (!zero) for (const mod of effect.modifiers) scaledValue(mod, stacks, effect.id);
     const conditions = effect.conditions ?? [];
-    if (conditions.length === 0) unconditional.push(instance);
-    else conditional.push({ instance, conditions });
+    if (conditions.length === 0) {
+      // 重ねた数が0の効果は、有効な効果にしない（第1段階の値にも入れない）
+      if (!zero) unconditional.push(instance);
+    } else conditional.push({ instance, conditions });
   }
 
   const stage1 = new ModifierView(db, tags, unconditional, baseStats);
@@ -463,8 +569,10 @@ export function evaluateEffects(
   const dormant: DormantEffect[] = [];
   for (const { instance, conditions } of conditional) {
     const unmet = conditions.filter((c) => !conditionMet(c, stage1, facts, tags));
-    if (unmet.length === 0) active.push(instance);
-    else dormant.push({ instance, unmet });
+    // 休眠は「条件を満たしていない」ことを表す（仕様書v0.2 4.9.1）。重ねた数が0でも、条件を満たしていなければ
+    // 休眠として理由を返す。条件を満たしていても、重ねた数が0なら有効な効果にはしない
+    if (unmet.length > 0) dormant.push({ instance, unmet });
+    else if (stacksOf(instance) > 0) active.push(instance);
   }
   active.sort(compareInstances);
   return { view: new ModifierView(db, tags, active, baseStats), active, dormant };

@@ -50,4 +50,28 @@ describe("FixedStepClock", () => {
     expect(() => new FixedStepClock().advance(-1)).toThrow(RangeError);
     expect(() => new FixedStepClock().advance(Number.NaN)).toThrow(RangeError);
   });
+
+  it("刻みの長さは正の有限の数だけ受け入れる（0以下・NaN・Infinity・-Infinity は RangeError）", () => {
+    for (const bad of [
+      0,
+      -0,
+      -FIXED_STEP_SECONDS,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ]) {
+      expect(() => new FixedStepClock(bad), String(bad)).toThrow(RangeError);
+    }
+  });
+
+  it("刻みの長さの境界値：最小の正の数・大きな有限の数でも作れる", () => {
+    expect(new FixedStepClock(Number.MIN_VALUE).stepSeconds).toBe(Number.MIN_VALUE);
+    const slow = new FixedStepClock(Number.MAX_VALUE);
+    expect(slow.stepSeconds).toBe(Number.MAX_VALUE);
+    expect(slow.advance(1).steps).toBe(0);
+    // 既定値（1/60秒）はそのまま
+    expect(new FixedStepClock().stepSeconds).toBe(FIXED_STEP_SECONDS);
+    const tenth = new FixedStepClock(0.1, 100);
+    expect(tenth.advance(1).steps).toBe(10);
+  });
 });
