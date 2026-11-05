@@ -1,11 +1,24 @@
 /**
  * HPと魔障（仕様書2.6：魔障はHPより先にダメージを吸収する。被弾がない状態が2秒続くと毎秒20%ずつ回復）。
+ *
+ * 入力の許容範囲（範囲の外・NaN・±Infinity は RangeError。検証は状態を変える前に行う）：
+ * - maxHp：0より大きい有限の数
+ * - maxWard：0以上の有限の数（省略で0）
+ * - wardRechargeDelay：0以上の有限の数（省略で2秒）
+ * - update(dt)・takeDamage(amount)・heal(amount)：0以上の有限の数（0は何もしない）
  */
 export interface HealthConfig {
+  /** 最大HP（0より大きい有限の数）。 */
   readonly maxHp: number;
+  /** 最大魔障（0以上の有限の数。省略で0）。 */
   readonly maxWard?: number;
-  /** 魔障が回復し始めるまでの秒数（法衣の統一ボーナスで-1秒。仕様書3.3）。 */
+  /** 魔障が回復し始めるまでの秒数（0以上の有限の数。省略で2。法衣の統一ボーナスで-1秒。仕様書3.3）。 */
   readonly wardRechargeDelay?: number;
+}
+
+function requireNonNegativeFinite(value: number, name: string): void {
+  if (!Number.isFinite(value) || value < 0)
+    throw new RangeError(`${name}は0以上の有限の数：${String(value)}`);
 }
 
 export interface DamageApplied {
@@ -24,10 +37,15 @@ export class Health {
   private sinceHit = Infinity;
 
   constructor(config: HealthConfig) {
-    if (!(config.maxHp > 0)) throw new RangeError("最大HPは正の数");
+    const maxWard = config.maxWard ?? 0;
+    const rechargeDelay = config.wardRechargeDelay ?? 2;
+    if (!Number.isFinite(config.maxHp) || !(config.maxHp > 0))
+      throw new RangeError(`最大HPは0より大きい有限の数：${String(config.maxHp)}`);
+    requireNonNegativeFinite(maxWard, "最大魔障");
+    requireNonNegativeFinite(rechargeDelay, "魔障が回復し始めるまでの秒数");
     this.maxHp = config.maxHp;
-    this.maxWard = Math.max(0, config.maxWard ?? 0);
-    this.rechargeDelay = config.wardRechargeDelay ?? 2;
+    this.maxWard = maxWard;
+    this.rechargeDelay = rechargeDelay;
     this.hpValue = this.maxHp;
     this.wardValue = this.maxWard;
   }
@@ -42,9 +60,13 @@ export class Health {
     return this.hpValue <= 0;
   }
 
-  /** ダメージを受ける。魔障が先に吸収する。 */
+  /**
+   * ダメージを受ける。魔障が先に吸収する。0、または死亡後は何もしない。
+   * 0以上の有限の数でなければ、状態を変えずに RangeError。
+   */
   takeDamage(amount: number): DamageApplied {
-    if (!(amount > 0) || this.dead) return { toWard: 0, toHp: 0, died: false };
+    requireNonNegativeFinite(amount, "ダメージ");
+    if (amount === 0 || this.dead) return { toWard: 0, toHp: 0, died: false };
     this.sinceHit = 0;
     const toWard = Math.min(this.wardValue, amount);
     this.wardValue -= toWard;
@@ -53,8 +75,13 @@ export class Health {
     return { toWard, toHp, died: this.hpValue <= 0 };
   }
 
+  /**
+   * HPを回復し、実際に回復した量を返す（最大HPまで）。0、または死亡後は何もしない。
+   * 0以上の有限の数でなければ、状態を変えずに RangeError。
+   */
   heal(amount: number): number {
-    if (!(amount > 0) || this.dead) return 0;
+    requireNonNegativeFinite(amount, "回復量");
+    if (amount === 0 || this.dead) return 0;
     const healed = Math.min(this.maxHp - this.hpValue, amount);
     this.hpValue += healed;
     return healed;
@@ -67,8 +94,9 @@ export class Health {
     this.sinceHit = Infinity;
   }
 
+  /** 時間を進め、魔障を回復する。0以上の有限の数でなければ、状態を変えずに RangeError。 */
   update(dt: number): void {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
+    requireNonNegativeFinite(dt, "経過時間");
     const before = this.sinceHit;
     this.sinceHit += dt;
     if (this.dead || this.maxWard <= 0) return;
