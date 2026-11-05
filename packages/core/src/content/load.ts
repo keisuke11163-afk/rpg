@@ -37,6 +37,14 @@ import {
   jobSchema,
   skillSchema,
 } from "./job.ts";
+import {
+  type ConstellationDef,
+  NODE_EFFECT_ORIGIN,
+  type StarNodeDef,
+  constellationSchema,
+  starNodeSchema,
+} from "./board.ts";
+import type { Condition } from "./effect.ts";
 import { conversionAllowed } from "./elements.ts";
 import { FLAG_TARGET_CATEGORY } from "./registries.ts";
 import { type Manifest, SUPPORTED_SCHEMA_VERSION, manifestSchema } from "./manifest.ts";
@@ -73,6 +81,9 @@ export interface RawContent {
     readonly affixes?: readonly RawSource[];
     readonly materials?: readonly RawSource[];
     readonly dropProfiles?: readonly RawSource[];
+    /** 星辰盤のノードと星座（省略すると無し）。 */
+    readonly starNodes?: readonly RawSource[];
+    readonly constellations?: readonly RawSource[];
   };
 }
 
@@ -129,6 +140,12 @@ export interface ContentDb {
   readonly materials: ReadonlyMap<string, MaterialDef>;
   /** ドロップの出どころ → 定義。 */
   readonly dropProfiles: ReadonlyMap<DropSource, DropProfileDef>;
+  /** 星辰盤のノード。 */
+  readonly starNodes: ReadonlyMap<string, StarNodeDef>;
+  /** 星辰盤のつながり（向きを持たない。ノード → 隣のノード）。 */
+  readonly starLinks: ReadonlyMap<string, ReadonlySet<string>>;
+  /** 星座。 */
+  readonly constellations: ReadonlyMap<string, ConstellationDef>;
 }
 
 export type LoadResult =
@@ -238,6 +255,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const affixes = parseAll(raw.collections.affixes ?? [], affixSchema);
   const materials = parseAll(raw.collections.materials ?? [], materialSchema);
   const dropProfiles = parseAll(raw.collections.dropProfiles ?? [], dropProfileSchema);
+  const starNodes = parseAll(raw.collections.starNodes ?? [], starNodeSchema);
+  const constellations = parseAll(raw.collections.constellations ?? [], constellationSchema);
 
   // 3. IDの重複（全てのコレクションを通して）
   const seen = new Map<string, string>();
@@ -256,6 +275,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     ...affixes,
     ...materials,
     ...dropProfiles,
+    ...starNodes,
+    ...constellations,
   ];
   for (const { value, file } of all) {
     const prev = seen.get(value.id);
@@ -990,9 +1011,133 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     else dropMap.set(d.source, d);
   }
 
+  // 11. 星辰盤：つながり・効果の出どころ・始点・星門・星座
+  const starMap = new Map(starNodes.map((n) => [n.value.id, n.value]));
+  const starLinks = new Map<string, Set<string>>();
+  for (const id of starMap.keys()) starLinks.set(id, new Set());
+  const checkCondition = (c: Condition, file: string, id: string, path: string): void => {
+    switch (c.type) {
+      case "statAtLeast":
+        refCheck(statMap, "能力値", c.stat, file, id, `${path}.stat`);
+        break;
+      case "equippedTag":
+        refCheck(tagMap, "タグ", c.tag, file, id, `${path}.tag`);
+        break;
+      case "mainJob":
+        refCheck(jobMap, "ジョブ", c.job, file, id, `${path}.job`);
+        break;
+      case "factAtLeast":
+        break;
+    }
+  };
+  for (const { value: n, file } of starNodes) {
+    if (n.text !== undefined) checkText(n.text, file, n.id);
+    n.links.forEach((l, i) => {
+      const at = `links.${String(i)}`;
+      if (l === n.id)
+        err({ code: "schema", file, id: n.id, path: at, message: "自分自身とはつながれない" });
+      else if (refCheck(starMap, "ノード", l, file, n.id, at)) {
+        starLinks.get(n.id)?.add(l);
+        starLinks.get(l)?.add(n.id);
+      }
+    });
+    const allowed = NODE_EFFECT_ORIGIN[n.kind];
+    for (const [key, list] of [
+      ["effects", n.effects ?? []],
+      ["resonance.effects", n.resonance?.effects ?? []],
+    ] as const)
+      list.forEach((e, i) => {
+        const at = `${key}.${String(i)}`;
+        if (!refCheck(effectMap, "効果", e, file, n.id, at)) return;
+        const origin = effectMap.get(e)?.origin ?? "";
+        if (!allowed.includes(origin))
+          err({
+            code: "schema",
+            file,
+            id: n.id,
+            path: at,
+            message: `${n.kind} のノードの効果 ${e} の出どころ ${origin} は使えない（${allowed.join("・") || "効果なし"}）`,
+          });
+      });
+    if ((n.kind === "start") !== (n.startFor !== undefined && n.startFor.length > 0))
+      err({
+        code: "schema",
+        file,
+        id: n.id,
+        path: "startFor",
+        message:
+          "始点（start）のノードだけが、始点にするジョブ（startFor）を持つ（start には必須）",
+      });
+    (n.startFor ?? []).forEach((j, i) => {
+      refCheck(jobMap, "ジョブ", j, file, n.id, `startFor.${String(i)}`);
+    });
+    if ((n.kind === "gate") !== (n.gate !== undefined))
+      err({
+        code: "schema",
+        file,
+        id: n.id,
+        path: "gate",
+        message: "星門（gate）のノードだけが条件（gate）を持つ（gate には必須）",
+      });
+    n.gate?.conditions.forEach((c, i) => {
+      checkCondition(c, file, n.id, `gate.conditions.${String(i)}`);
+    });
+    if (n.resonance !== undefined && n.kind !== "keystone")
+      err({
+        code: "schema",
+        file,
+        id: n.id,
+        path: "resonance",
+        message: "共鳴変化は天極（keystone）だけが持つ",
+      });
+  }
+  const starters = new Map<string, string>();
+  for (const { value: n, file } of starNodes)
+    for (const j of n.startFor ?? []) {
+      const prev = starters.get(j);
+      if (prev !== undefined)
+        err({
+          code: "schema",
+          file,
+          id: n.id,
+          path: "startFor",
+          message: `ジョブ ${j} の始点が2つある（${prev}）`,
+        });
+      else starters.set(j, n.id);
+    }
+  const inConstellation = new Map<string, string>();
+  for (const { value: c, file } of constellations) {
+    checkText(c.text, file, c.id);
+    c.nodes.forEach((nodeId, i) => {
+      const at = `nodes.${String(i)}`;
+      if (!refCheck(starMap, "ノード", nodeId, file, c.id, at)) return;
+      const prev = inConstellation.get(nodeId);
+      if (prev !== undefined)
+        err({
+          code: "schema",
+          file,
+          id: c.id,
+          path: at,
+          message: `ノード ${nodeId} は、ほかの星座（${prev}）にも入っている`,
+        });
+      else inConstellation.set(nodeId, c.id);
+    });
+    if (refCheck(effectMap, "効果", c.completionEffect, file, c.id, "completionEffect")) {
+      const origin = effectMap.get(c.completionEffect)?.origin;
+      if (origin !== "constellation")
+        err({
+          code: "schema",
+          file,
+          id: c.id,
+          path: "completionEffect",
+          message: `完成ボーナスの効果の出どころが constellation ではない（${String(origin)}）`,
+        });
+    }
+  }
+
   if (errors.length > 0 || manifest === undefined) return { ok: false, errors };
 
-  // 11. 仮値の一覧
+  // 12. 仮値の一覧
   const provisional: ProvisionalEntry[] = [];
   const collect = (
     collection: string,
@@ -1027,6 +1172,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("affixes", affixes);
   collect("materials", materials);
   collect("dropProfiles", dropProfiles);
+  collect("starNodes", starNodes);
+  collect("constellations", constellations);
 
   return {
     ok: true,
@@ -1048,6 +1195,9 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       affixes: new Map(affixes.map((a) => [a.value.id, a.value])),
       materials: materialMap,
       dropProfiles: dropMap,
+      starNodes: starMap,
+      starLinks,
+      constellations: new Map(constellations.map((c) => [c.value.id, c.value])),
     },
     provisional,
   };

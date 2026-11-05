@@ -56,7 +56,9 @@ export { TagIndex } from "./effects/tag-index.ts";
 export {
   EQUIPMENT_SOURCE_KIND,
   ModifierView,
+  conditionMet,
   evaluateEffects,
+  stageOneView,
   type ActiveBehavior,
   type Contribution,
   type ConversionEntry,
@@ -398,3 +400,26 @@ export {
   decodeSave,
   encodeSave,
 } from "./save/save-store.ts";
+
+export {
+  NODE_EFFECT_ORIGIN,
+  STAR_NODE_KINDS,
+  STAR_REGIONS,
+  type ConstellationDef,
+  type StarNodeDef,
+  type StarNodeKind,
+  type StarRegion,
+  constellationSchema,
+  starNodeSchema,
+} from "./content/board.ts";
+export {
+  CONSTELLATION_SOURCE,
+  type DormantReason,
+  STAR_NODE_SOURCE,
+  StarAllocation,
+  type StarBoardInput,
+  type StarBoardResult,
+  evaluateStarBoard,
+  startNodeOf,
+  starPoints,
+} from "./board/star-board.ts";
