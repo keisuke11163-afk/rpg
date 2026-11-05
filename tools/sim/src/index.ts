@@ -11,18 +11,32 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadGameContent } from "@stella/content";
 import { buildSchema } from "./build.ts";
+import { argValue, parseSeconds } from "./options.ts";
 import { simulate } from "./simulate.ts";
 import { standardDps } from "./standards.ts";
 import { dummy, targetByName } from "./targets.ts";
 
+function fail(message: string): never {
+  console.error(message);
+  process.exit(1);
+}
+
 function arg(name: string): string | undefined {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : undefined;
+  try {
+    return argValue(process.argv, name);
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : String(e));
+  }
 }
 
 const buildsDir = fileURLToPath(new URL("../builds", import.meta.url));
 const only = arg("build");
-const seconds = Number(arg("seconds") ?? 60);
+let seconds: number;
+try {
+  seconds = parseSeconds(arg("seconds"));
+} catch (e) {
+  fail(e instanceof Error ? e.message : String(e));
+}
 const seed = arg("seed") ?? "sim";
 const targetName = arg("target");
 
