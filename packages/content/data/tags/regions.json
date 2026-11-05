@@ -1,0 +1,47 @@
+[
+  {
+    "id": "TAG-REGION-GOU",
+    "category": "region",
+    "text": "tag.region.gou"
+  },
+  {
+    "id": "TAG-REGION-GOUKON",
+    "category": "region",
+    "text": "tag.region.goukon"
+  },
+  {
+    "id": "TAG-REGION-KON",
+    "category": "region",
+    "text": "tag.region.kon"
+  },
+  {
+    "id": "TAG-REGION-RIKON",
+    "category": "region",
+    "text": "tag.region.rikon"
+  },
+  {
+    "id": "TAG-REGION-RI",
+    "category": "region",
+    "text": "tag.region.ri"
+  },
+  {
+    "id": "TAG-REGION-JINRI",
+    "category": "region",
+    "text": "tag.region.jinri"
+  },
+  {
+    "id": "TAG-REGION-JIN",
+    "category": "region",
+    "text": "tag.region.jin"
+  },
+  {
+    "id": "TAG-REGION-GOUJIN",
+    "category": "region",
+    "text": "tag.region.goujin"
+  },
+  {
+    "id": "TAG-REGION-CORE",
+    "category": "region",
+    "text": "tag.region.core"
+  }
+]

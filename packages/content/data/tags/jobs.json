@@ -1,0 +1,32 @@
+[
+  {
+    "id": "TAG-JOB-WARRIOR",
+    "category": "job",
+    "text": "tag.job.warrior"
+  },
+  {
+    "id": "TAG-JOB-KNIGHT",
+    "category": "job",
+    "text": "tag.job.knight"
+  },
+  {
+    "id": "TAG-JOB-MAGE",
+    "category": "job",
+    "text": "tag.job.mage"
+  },
+  {
+    "id": "TAG-JOB-SUMMONER",
+    "category": "job",
+    "text": "tag.job.summoner"
+  },
+  {
+    "id": "TAG-JOB-ROGUE",
+    "category": "job",
+    "text": "tag.job.rogue"
+  },
+  {
+    "id": "TAG-JOB-ARCHER",
+    "category": "job",
+    "text": "tag.job.archer"
+  }
+]
