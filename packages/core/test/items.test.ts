@@ -17,6 +17,8 @@ import {
   evaluateEffects,
   formatContentError,
   generateItem,
+  INVENTORY_SLOTS,
+  Inventory,
   itemEffectInstances,
   loadContent,
   rarityWeights,
@@ -596,5 +598,55 @@ describe("効果の値の差し替え（EffectInstance.values）", () => {
     expect(bad([{ min: 5, max: 2 }], "EFF-A-RANGE")).toThrow(RangeError);
     expect(bad([Number.NaN])).toThrow(RangeError);
     expect(bad([Infinity])).toThrow(RangeError);
+  });
+});
+
+describe("インベントリ（補助仕様書13章）", () => {
+  const item = (uid: string) => ({
+    uid,
+    base: "BASE-W",
+    rarity: "normal" as const,
+    itemLevel: 1,
+    affixes: [],
+  });
+  it("60枠。いっぱいなら入れずに false（状態は変わらない）", () => {
+    const inv = new Inventory();
+    expect(inv.capacity).toBe(INVENTORY_SLOTS);
+    expect(INVENTORY_SLOTS).toBe(60);
+    for (let i = 0; i < 60; i++) expect(inv.addItem(item(`u${String(i)}`))).toBe(true);
+    expect(inv.full).toBe(true);
+    expect(inv.addItem(item("over"))).toBe(false);
+    expect(inv.items).toHaveLength(60);
+    expect(inv.items.some((i) => i.uid === "over")).toBe(false);
+  });
+  it("同じ uid の装備は入れない（RangeError）", () => {
+    const inv = new Inventory();
+    inv.addItem(item("a"));
+    expect(() => inv.addItem(item("a"))).toThrow(RangeError);
+    expect(inv.items).toHaveLength(1);
+  });
+  it("金貨・素材は枠を使わない。不正な数は状態を変えずに RangeError", () => {
+    const inv = new Inventory(0);
+    inv.addGold(30);
+    inv.addGold(12);
+    inv.addMaterial("MAT-A", 2);
+    inv.addMaterial("MAT-A", 1);
+    expect(inv.gold).toBe(42);
+    expect(inv.material("MAT-A")).toBe(3);
+    expect(inv.material("MAT-B")).toBe(0);
+    for (const bad of [-1, 1.5, Number.NaN, Infinity]) {
+      expect(() => {
+        inv.addGold(bad);
+      }).toThrow(RangeError);
+      expect(() => {
+        inv.addMaterial("MAT-A", bad);
+      }).toThrow(RangeError);
+    }
+    expect(() => {
+      inv.addGold(Number.MAX_SAFE_INTEGER);
+    }).toThrow(RangeError);
+    expect(inv.gold).toBe(42);
+    expect(inv.material("MAT-A")).toBe(3);
+    expect(() => new Inventory(-1)).toThrow(RangeError);
   });
 });

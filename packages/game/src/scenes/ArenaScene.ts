@@ -6,6 +6,7 @@ import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import { InputSystem } from "../input/InputSystem.ts";
 import { EnemyFieldView } from "../world/EnemyFieldView.ts";
+import { LootView } from "../world/LootView.ts";
 import { TEXTURES } from "../world/placeholders.ts";
 import { PIXELS_PER_METER, toPixels } from "../world/units.ts";
 import { ARENA, ArenaSimulation, DUMMY_POSITION, HAZARD } from "./arena-simulation.ts";
@@ -24,6 +25,8 @@ const SLOT_LABEL: Readonly<Record<string, string>> = {
 export class ArenaScene extends Phaser.Scene {
   private sim!: ArenaSimulation;
   private enemyView: EnemyFieldView | undefined;
+  private lootView!: LootView;
+  private showLoot = false;
   private controls!: InputSystem;
   private keyTab!: Phaser.Input.Keyboard.Key;
   private keyRout!: Phaser.Input.Keyboard.Key;
@@ -60,6 +63,7 @@ export class ArenaScene extends Phaser.Scene {
       },
     });
     if (this.sim.field !== undefined) this.enemyView = new EnemyFieldView(this, this.sim.field);
+    this.lootView = new LootView(this, this.sim.db);
     // 位置は体の中心（照準を合わせた所に当たるように。docs/progress D-U07-4）
     this.dummyImage = this.add
       .image(toPixels(DUMMY_POSITION.x), toPixels(DUMMY_POSITION.y), TEXTURES.dummy)
@@ -138,6 +142,27 @@ export class ArenaScene extends Phaser.Scene {
       // 確認用：闘志の量を決める（開発版だけ。自動の確認で、激化・解放を短い時間で試すため）
       setFervor: (value?: number | string) => sim.setFervor(Number(value ?? 0)),
       enemies: () => sim.field?.debug() ?? [],
+      // 地面の物と持ち物（U-11）
+      loot: () =>
+        sim.loot.drops.map((d) => ({
+          id: d.id,
+          kind: d.kind,
+          x: d.position.x,
+          y: d.position.y,
+          rarity: d.kind === "item" ? d.item.rarity : null,
+          label: this.lootView.label(d).text,
+        })),
+      inventory: () => ({
+        items: sim.inventory.items.map((i) => ({ uid: i.uid, base: i.base, rarity: i.rarity })),
+        gold: sim.inventory.gold,
+        materials: Object.fromEntries(sim.inventory.materials),
+      }),
+      // 確認用：プレイヤーの右1mに、精鋭（Lv5）のドロップを置く（開発版だけ）
+      dropLoot: () => {
+        const p = sim.motion.position;
+        sim.dropLoot("elite", 5, { x: p.x + 1, y: p.y });
+        return sim.loot.drops.length;
+      },
       // 確認用：経験値を得る（開発版だけ）
       grantXp: (value?: number | string) => {
         sim.gainXp(Number(value ?? 0));
@@ -192,6 +217,7 @@ export class ArenaScene extends Phaser.Scene {
   override update(_time: number, deltaMs: number): void {
     // 入力の取得はフレームごと。保持と刻みへの受け渡しは ArenaSimulation が行う
     const frame = this.controls.read();
+    this.showLoot = frame.held.has("showLoot");
     this.sim.frame((this.debugFrameDeltaMs ?? deltaMs) / 1000, frame, {
       routPressed: this.routPressed,
       routHeld: this.keyRout.isDown,
@@ -316,6 +342,8 @@ export class ArenaScene extends Phaser.Scene {
       this.enemyView?.render(sim.field, g, (shape, origin, facing) => {
         this.drawShape(g, shape, origin, facing);
       });
+    // 地面の物（名前は近くの物だけ。Alt を押している間は全て）
+    this.lootView.render(sim.loot, g, motion.position, this.showLoot);
     // 煙玉と罠
     for (const z of sim.smokes)
       g.fillStyle(0x8c88a0, 0.25).fillCircle(
@@ -409,6 +437,7 @@ export class ArenaScene extends Phaser.Scene {
         ? "最後のヒット：なし"
         : `最後のヒット：${last.hit.evaded ? "回避された" : `${last.hit.total.toFixed(1)}${last.hit.crit ? "・会心" : ""}${last.backstab ? "・背面" : ""}${last.ailments.length > 0 ? "・出血" : ""}`}${lastSkill === undefined ? "" : `（${lastSkill.variants.join("・") || "変化なし"}）`}`,
       `危険地帯：被弾 ${String(sim.hazardHits)}／回避で無効 ${String(sim.hazardAvoided)}`,
+      `持ち物：装備 ${String(sim.inventory.items.length)}／${String(sim.inventory.capacity)}・金貨 ${String(sim.inventory.gold)}・素材 ${String([...sim.inventory.materials.values()].reduce((a, b) => a + b, 0))}（F で装備を拾う・Alt で名前を全て表示）`,
       `敵：倒した数 ${String(sim.field?.kills ?? 0)}・被弾 ${String(sim.hitsTaken)}・回避で無効 ${String(sim.attacksAvoided)}・倒れた回数 ${String(sim.deaths)}${sim.player.ailments.stacks("AIL-POISON") > 0 ? `・毒 ${String(sim.player.ailments.stacks("AIL-POISON"))}` : ""}${sim.player.stagger.broken ? "・よろめき" : ""}`,
       `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・気力 ${motion.currentStamina.toFixed(0)}・${gaugeName} ${gauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
     ]);

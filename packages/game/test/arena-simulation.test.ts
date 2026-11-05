@@ -104,8 +104,8 @@ describe("ArenaSimulation：回避の入力を刻みまで保持する", () => {
 
   it("試験用の場で使わない行動の押した瞬間の入力は保持しない（後で発動しないように）", () => {
     const sim = new ArenaSimulation();
-    // U-08 で skill3〜6 は戦士の技の枠になったので、使わない行動は薬瓶・調べる
-    sim.frame(0, input({ pressed: ["flaskHp", "flaskMp", "interact"] }));
+    // U-08 で skill3〜6 は戦士の技の枠に、U-11 で interact（F）は装備を拾う操作になったので、使わない行動は薬瓶・インベントリ
+    sim.frame(0, input({ pressed: ["flaskHp", "flaskMp", "inventory"] }));
     expect(sim.dodgePending).toBe(false);
     expect(sim.attackPending).toBe(false);
     expect(sim.pending("skill2")).toBe(false);
@@ -322,5 +322,86 @@ describe("ArenaSimulation：転職・経験値（U-10）", () => {
     expect(sim.player.health.hp).toBe(sim.player.health.maxHp);
     expect(sim.levelUps).toBeGreaterThan(0);
     expect(texts.length).toBe(1);
+  });
+});
+
+describe("ArenaSimulation：地面の物と拾得（U-11、補助仕様書13章）", () => {
+  /** プレイヤーの位置にドロップを置く（精鋭 Lv5：アイテム2〜4個・金貨は必ず）。 */
+  function withLoot(): ArenaSimulation {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.dropLoot("elite", 5, sim.motion.position);
+    return sim;
+  }
+
+  it("金貨・素材は半径1.5m以内なら自動で拾い、装備は拾わない", () => {
+    const sim = withLoot();
+    const items = sim.loot.drops.filter((d) => d.kind === "item").length;
+    expect(items).toBeGreaterThanOrEqual(2);
+    sim.frame(STEP, input());
+    expect(sim.inventory.gold).toBeGreaterThan(0);
+    expect(sim.loot.drops.every((d) => d.kind === "item")).toBe(true);
+    expect(sim.loot.drops).toHaveLength(items);
+    expect(sim.inventory.items).toHaveLength(0);
+  });
+
+  it("F で、近くの装備を1回に1つ拾う（刻みが0のフレームで押しても保持する）", () => {
+    const sim = withLoot();
+    const items = sim.loot.drops.filter((d) => d.kind === "item").length;
+    sim.frame(0, input({ pressed: ["interact"] }));
+    expect(sim.pending("interact")).toBe(true);
+    sim.frame(STEP, input());
+    expect(sim.pending("interact")).toBe(false);
+    expect(sim.inventory.items).toHaveLength(1);
+    for (let i = 0; i < 10; i++) sim.frame(STEP, input());
+    expect(sim.inventory.items).toHaveLength(1);
+    for (let i = 1; i < items; i++) sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(sim.inventory.items).toHaveLength(items);
+    expect(sim.loot.drops).toHaveLength(0);
+  });
+
+  it("1.5mより遠い物は拾わない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    const p = sim.motion.position;
+    sim.dropLoot("elite", 5, { x: p.x + 6, y: p.y });
+    const before = sim.loot.drops.length;
+    sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(sim.loot.drops).toHaveLength(before);
+    expect(sim.inventory.gold).toBe(0);
+  });
+
+  it("インベントリがいっぱいなら、装備は拾えず地面に残る", () => {
+    const texts: string[] = [];
+    const sim = new ArenaSimulation(undefined, { enemies: false, onText: (t) => texts.push(t) });
+    for (let i = 0; i < sim.inventory.capacity; i++)
+      sim.inventory.addItem({
+        uid: `fill-${String(i)}`,
+        base: "BASE-WPN-LONGSWORD-T1",
+        rarity: "normal",
+        itemLevel: 1,
+        affixes: [],
+      });
+    sim.dropLoot("elite", 5, sim.motion.position);
+    const items = sim.loot.drops.filter((d) => d.kind === "item").length;
+    sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(sim.inventory.items).toHaveLength(sim.inventory.capacity);
+    expect(sim.loot.drops.filter((d) => d.kind === "item")).toHaveLength(items);
+    expect(texts).toContain("インベントリがいっぱい");
+  });
+
+  it("敵を倒すとドロップを抽選する（同じ操作なら同じ結果）", () => {
+    const run = (): number[] => {
+      const sim = new ArenaSimulation();
+      const id = sim.spawnEnemy("ENM-THORN-RAT");
+      const rat = sim.field?.enemies.find((e) => e.id === id);
+      // 確実に倒すため、HPを1にしてから通常攻撃を押し続ける
+      rat?.combatant.health.takeDamage(rat.combatant.health.hp - 1);
+      const held = { ...input(), held: new Set<Action>(["skill1"]) };
+      for (let i = 0; i < 240 && (sim.field?.kills ?? 0) === 0; i++) sim.frame(STEP, held);
+      for (let i = 0; i < 60; i++) sim.frame(STEP, input());
+      return [sim.field?.kills ?? 0, sim.loot.drops.length, sim.inventory.gold];
+    };
+    const a = run();
+    expect(a[0]).toBe(1);
+    expect(run()).toEqual(a);
   });
 });

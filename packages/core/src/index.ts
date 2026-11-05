@@ -307,3 +307,4 @@ export {
   jobTargetedBases,
   rollDrops,
 } from "./items/drops.ts";
+export { INVENTORY_SLOTS, Inventory } from "./items/inventory.ts";

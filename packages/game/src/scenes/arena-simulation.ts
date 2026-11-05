@@ -8,10 +8,12 @@ import {
   Cooldowns,
   type DamageAttacker,
   type DamageSkill,
+  type DropSource,
   FixedStepClock,
   type Health,
   type HitReport,
   type HitShape,
+  Inventory,
   JobGauge,
   type JobDef,
   LingeringZone,
@@ -34,6 +36,7 @@ import {
   pullTowards,
   resolveHit,
   resolveSkill,
+  rollDrops,
   skillBlock,
   staggerProfiles,
   unlockedSkills,
@@ -43,6 +46,7 @@ import { loadGameContent } from "@stella/content";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
 import { EnemyField } from "../world/EnemyField.ts";
+import { LootField } from "../world/LootField.ts";
 import { toMeters } from "../world/units.ts";
 
 /** 試験用の場の大きさ（m）。 */
@@ -178,10 +182,12 @@ const ZONE_REFRESH = 0.1;
 /**
  * 計算の刻みで使う「押した瞬間」の行動。これ以外の押した瞬間の入力は保持しない
  * （まだ使わない行動を保持し続けて、後で古い入力が発動するのを防ぐ）。
- * 回避（U-06）と、技の枠（U-07 の通常攻撃を、U-08 で全ての技の枠に広げた。破軍の R を含む）。
+ * 回避（U-06）と、技の枠（U-07 の通常攻撃を、U-08 で全ての技の枠に広げた。破軍の R を含む）、
+ * 装備を拾う F（U-11）。
  */
 const STEP_ACTIONS = [
   "dodge",
+  "interact",
   "skill1",
   "skill2",
   "skill3",
@@ -275,6 +281,13 @@ export class ArenaSimulation {
   readonly buffs = new TimedEffects();
   private readonly stepInput = new StepInputBuffer<StepAction>();
   private readonly rng = Rng.fromSeed("arena");
+  /** ドロップの抽選（戦闘の乱数の列を変えないように、別の列にする）。 */
+  private readonly dropRng = Rng.fromSeed("arena-drops");
+  private itemSerial = 0;
+  /** 持ち物（補助仕様書13章）。 */
+  readonly inventory = new Inventory();
+  /** 地面に落ちている物。 */
+  readonly loot = new LootField(Rng.fromSeed("arena-loot"));
   private readonly onHit: ((report: HitReport, at: Vec2) => void) | undefined;
   private readonly onText: ((label: string, at: Vec2, color: string) => void) | undefined;
   private jobGaugeValue: JobGauge;
@@ -403,6 +416,22 @@ export class ArenaSimulation {
   /** プレイヤーの技が敵に当たった回数。 */
   get enemyHits(): number {
     return this.enemyHitCount;
+  }
+
+  /**
+   * ドロップを抽選して、地面に置く（敵が倒れたとき。確認用にも使う）。
+   * ジョブに合わせたドロップは、今のメインジョブ（仕様書v0.2 3.5）。
+   */
+  dropLoot(source: DropSource, enemyLevel: number, at: Vec2, enemyFamily?: string): void {
+    const result = rollDrops(this.db, this.dropRng, {
+      source,
+      enemyLevel,
+      ...(enemyFamily === undefined ? {} : { enemyFamily }),
+      mainJob: this.job,
+      tags: this.tags,
+      nextUid: () => `itm_${String(++this.itemSerial).padStart(6, "0")}`,
+    });
+    this.loot.place(result, at);
   }
 
   /** 確認用：プレイヤーの右3mに敵を出す（開発版の確認用）。 */
@@ -713,8 +742,10 @@ export class ArenaSimulation {
     };
     // 保持している押した瞬間の入力は、最初に進んだ刻みで取り出され、以降の刻みには渡らない
     const dodgePressed = this.stepInput.take("dodge");
+    const interact = this.stepInput.take("interact");
     const pressed = new Set<SkillSlot>();
-    for (const a of STEP_ACTIONS) if (a !== "dodge" && this.stepInput.take(a)) pressed.add(a);
+    for (const a of STEP_ACTIONS)
+      if (a !== "dodge" && a !== "interact" && this.stepInput.take(a)) pressed.add(a);
     const held = (slot: SkillSlot): boolean => (slot === "rout" ? routHeld : input.held.has(slot));
     // よろめいている間は、移動・技・回避ができない（補助仕様書3.3）。押した回避は使われずに消える
     const staggered = this.playerValue.stagger.broken;
@@ -832,8 +863,18 @@ export class ArenaSimulation {
           enemyXp(enemy.level, enemy.rank.xpMultiplier) *
             levelGapMultiplier(this.character.level, enemy.level),
         );
+        // ドロップ（仕様書v0.2 3.5、補助仕様書12章）。敵の格（通常・魔法・精鋭）がドロップの出どころ
+        this.dropLoot(enemy.rank.rank, enemy.level, enemy.position, enemy.def.family);
       },
     });
+
+    // 拾う（補助仕様書13章）：金貨・素材は近づくと自動で、装備は F で
+    this.loot.autoPickup(this.motion.position, this.inventory);
+    if (interact) {
+      const r = this.loot.pickNearestItem(this.motion.position, this.inventory);
+      if (r.kind === "full")
+        this.onText?.("インベントリがいっぱい", this.motion.position, "#ff6b6b");
+    }
 
     const dot = this.dummy.update(dt);
     if (dot > 0) this.recentDamage.push({ t: this.elapsed, amount: dot });

@@ -113,6 +113,19 @@ interface EnemyInfo {
   hp: number;
   maxHp: number;
 }
+interface LootInfo {
+  id: number;
+  kind: string;
+  x: number;
+  y: number;
+  rarity: string | null;
+  label: string;
+}
+interface InventoryInfo {
+  items: { uid: string; base: string; rarity: string }[];
+  gold: number;
+  materials: Record<string, number>;
+}
 interface PlayerCombat {
   hp: number;
   maxHp: number;
@@ -135,6 +148,9 @@ type DebugWindow = {
     playerState: () => PlayerCombat;
     spawnEnemy: (id: string) => string;
     grantXp: (value: number) => number;
+    loot: () => LootInfo[];
+    inventory: () => InventoryInfo;
+    dropLoot: () => number;
     setFrameDeltaMs: (ms: number | null) => void;
   };
 };
@@ -607,6 +623,39 @@ try {
     "回避しなければ、敵の攻撃を受ける",
     c3.hitsTaken > c2.hitsTaken,
     `被弾 ${String(c2.hitsTaken)} → ${String(c3.hitsTaken)}・HP ${c2.hp.toFixed(0)} → ${c3.hp.toFixed(0)}`,
+  );
+
+  // 地面の物と拾得（U-11、補助仕様書13章）
+  const lootState = (): Promise<LootInfo[]> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.loot());
+  const inv = (): Promise<InventoryInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.inventory());
+  // 拾った物が混ざらないように、今ある物を数えてから置く
+  const inv0 = await inv();
+  const placed = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.dropLoot(),
+  );
+  const near = (await lootState()).filter((d) => d.kind === "item");
+  // プレイヤーの右1mに置いた（散らばりは1.2m以内）。近づいて、金貨は自動で拾う
+  const pl = await player();
+  await walkTo(pl.x + 1, pl.y);
+  await page.waitForTimeout(200);
+  const inv1 = await inv();
+  check(
+    "精鋭のドロップが地面に出て、金貨は近づくと自動で拾う",
+    placed > 0 && near.length >= 2 && inv1.gold > inv0.gold,
+    `置いた数 ${String(placed)}・装備 ${String(near.length)}・金貨 ${String(inv0.gold)} → ${String(inv1.gold)}`,
+  );
+  for (let i = 0; i < near.length; i++) {
+    await page.keyboard.press("KeyF");
+    await page.waitForTimeout(120);
+  }
+  const inv2 = await inv();
+  check(
+    "F で装備を拾い、インベントリに入る",
+    inv2.items.length - inv0.items.length >= 1 &&
+      inv2.items.length - inv0.items.length <= near.length,
+    `インベントリ ${String(inv0.items.length)} → ${String(inv2.items.length)}（近くの装備 ${String(near.length)}）`,
   );
 
   await page.screenshot({ path: `${outDir}arena.png` });
