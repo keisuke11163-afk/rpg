@@ -8,7 +8,9 @@ import {
   CRAFT_OPS,
   type CraftOp,
   INSCRIPTIONS,
+  MAX_LOADOUTS,
   craftBlock,
+  loadoutsUsing,
   damagePreview,
   effectMatchesContexts,
   enhanceCost,
@@ -51,6 +53,13 @@ import {
 } from "./panel-layout.ts";
 
 const DEPTH = 1000;
+/** インベントリの画面のロードアウトの切り替えの列（画面のピクセル）。 */
+const LOADOUT_ROW = {
+  x: PANEL.grid.x,
+  y: PANEL.grid.y + PANEL.grid.rows * PANEL.grid.cell + 44,
+  w: 40,
+  h: 12,
+};
 /** 技の枠のキー（補助仕様書1.1）。 */
 const SKILL_KEY: Readonly<Record<SkillSlot, string>> = {
   skill1: "左クリック",
@@ -88,6 +97,8 @@ export class EquipmentPanel {
   private hovered: PanelTarget | undefined;
   private shown: string[] = [];
   private message: { text: string; until: number; color: string } | undefined;
+  /** 星辰盤の全体の振り直しの行（クリックの当たり判定）。 */
+  private respecRow: { y0: number; y1: number } | undefined;
   /** 鍛冶屋で選んだ装備の uid。 */
   private smithSelected: string | undefined;
   /** 鍛冶屋の操作の行（クリックの当たり判定。描くたびに作り直す）。 */
@@ -196,6 +207,11 @@ export class EquipmentPanel {
       return true;
     }
     if (this.kind === "starBoard") {
+      const r = this.respecRow;
+      if (r !== undefined && x >= BOARD_DETAIL.x && y >= r.y0 && y < r.y1) {
+        if (this.sim.resetStars()) this.say("星辰盤を全て振り直した", TEXT_COLOR.good);
+        return true;
+      }
       const n = nodeAt(this.sim.db, this.camera, x, y);
       if (n === undefined) return false;
       if (button === "left") {
@@ -220,6 +236,21 @@ export class EquipmentPanel {
       return true;
     }
     if (this.kind !== "inventory") return false;
+    const lo = LOADOUT_ROW;
+    if (y >= lo.y && y < lo.y + lo.h && x >= lo.x && x < lo.x + lo.w * MAX_LOADOUTS) {
+      const id = Math.floor((x - lo.x) / lo.w) + 1;
+      const r = this.sim.switchLoadout(id);
+      if (r === "ok") this.say(`ロードアウト${String(id)}に切り替えた`, TEXT_COLOR.good);
+      else if (r !== "same")
+        this.say(
+          r === "notSafe"
+            ? "安全地帯（人形の近く）でだけ切り替えられる"
+            : r === "inventoryFull"
+              ? "インベントリがいっぱい"
+              : "切り替えられない",
+        );
+      return true;
+    }
     const target = inventoryTarget(x, y);
     if (target === undefined) return false;
     const sim = this.sim;
@@ -357,6 +388,22 @@ export class EquipmentPanel {
       ],
       155,
     );
+    // ロードアウト（仕様書v0.2 4.13）：番号をクリックで切り替え（安全地帯だけ）
+    const lo = LOADOUT_ROW;
+    this.line(lo.x, lo.y - LINE - 2, {
+      text: `ロードアウト（${sim.inSafeZone ? "クリックで切り替え" : "人形の近くで切り替えられる"}）`,
+      color: TEXT_COLOR.dim,
+    });
+    for (let id = 1; id <= MAX_LOADOUTS; id++) {
+      const x = lo.x + (id - 1) * lo.w;
+      const active = sim.activeLoadout === id;
+      const exists = sim.loadouts.some((l) => l.id === id);
+      this.g.lineStyle(1, active ? 0xffd166 : 0x4a4858, 1).strokeRect(x, lo.y, lo.w - 4, lo.h);
+      this.line(x + 4, lo.y + 1, {
+        text: `${String(id)}${exists ? "" : "（空き）"}`,
+        color: active ? TEXT_COLOR.highlight : TEXT_COLOR.normal,
+      });
+    }
     // ツールチップと比較
     const d = PANEL.detail;
     const target = this.hovered;
@@ -546,6 +593,15 @@ export class EquipmentPanel {
         d.width,
       );
     const dormantCount = board?.dormant.size ?? 0;
+    // 全体の振り直し（町の星読み師。MVPでは無料）。安全地帯だけ
+    this.respecRow = { y0: y + 6, y1: y + 6 + LINE };
+    this.line(d.x, y + 6, {
+      text: sim.inSafeZone
+        ? "［全体の振り直し（無料）］"
+        : "全体の振り直しは、人形の近く（町の星読み師）で",
+      color: sim.inSafeZone ? TEXT_COLOR.good : TEXT_COLOR.dim,
+    });
+    y += LINE + 2;
     this.lines(
       d.x,
       y + 6,
@@ -672,7 +728,10 @@ export class EquipmentPanel {
       if (item.sealed !== a.id) op({ kind: "seal", affix: a.id }, `封詞：${name}`);
     }
     actions.push({
-      label: "分解する（装備はなくなる）",
+      label: (() => {
+        const using = loadoutsUsing(sim.loadouts, uid);
+        return `分解する（装備はなくなる${using.length > 0 ? `。ロードアウト${using.join("・")}の部位が空きになる` : ""}）`;
+      })(),
       run: () => {
         this.runSmith(uid, { kind: "disassemble" });
       },

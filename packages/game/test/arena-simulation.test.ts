@@ -674,3 +674,74 @@ describe("ArenaSimulation：鍛冶屋（U-17）", () => {
     expect(sim.attacker.weapon?.base.physical?.min).toBeCloseTo(4 * 1.15 * 0.6, 12); // 迅の要求値の未達
   });
 });
+
+describe("ArenaSimulation：ロードアウト（U-20、仕様書v0.2 4.13）", () => {
+  /** 訓練用の人形の近く（安全地帯）へ動かす。 */
+  function toSafeZone(sim: ArenaSimulation): void {
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 17 - p.x, y: 12 - p.y });
+    expect(sim.inSafeZone).toBe(true);
+  }
+
+  it("安全地帯でだけ切り替えられる。まだ無いロードアウトは今の状態の写しで作る", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.inSafeZone).toBe(false);
+    expect(sim.switchLoadout(2)).toBe("notSafe");
+    toSafeZone(sim);
+    expect(sim.switchLoadout(1)).toBe("same");
+    expect(sim.switchLoadout(4)).toBe("unknown");
+    expect(sim.switchLoadout(2)).toBe("ok");
+    expect(sim.activeLoadout).toBe(2);
+    expect(sim.weapon?.uid).toBe("test-greatsword");
+    expect(sim.loadouts.map((l) => l.id)).toEqual([1, 2]);
+  });
+
+  it("ロードアウトごとに装備と星辰盤を別々に持ち、切り替えると戻る", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    toSafeZone(sim);
+    sim.allocateStar("STAR-GOU-0001");
+    expect(sim.switchLoadout(2)).toBe("ok");
+    // ロードアウト2：短剣に持ち替え、星辰盤を振り直す
+    sim.equipFromInventory("test-dagger");
+    expect(sim.resetStars()).toBe(true);
+    sim.allocateStar("STAR-GOUJIN-0001");
+    expect(sim.switchLoadout(1)).toBe("ok");
+    expect(sim.weapon?.uid).toBe("test-greatsword");
+    expect(sim.stars.nodes).toEqual(["STAR-GOU-0001"]);
+    expect(sim.inventory.items.some((i) => i.uid === "test-dagger")).toBe(true);
+    expect(sim.switchLoadout(2)).toBe("ok");
+    expect(sim.weapon?.uid).toBe("test-dagger");
+    expect(sim.stars.nodes).toEqual(["STAR-GOUJIN-0001"]);
+    expect(sim.inventory.items.some((i) => i.uid === "test-greatsword")).toBe(true);
+  });
+
+  it("分解した装備を登録していたロードアウトは、その部位が空きになる（M-15）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    toSafeZone(sim);
+    sim.switchLoadout(2);
+    sim.equipFromInventory("test-dagger");
+    sim.switchLoadout(1);
+    // ロードアウト2 の主手の短剣を分解する
+    expect(sim.smith("test-dagger", { kind: "disassemble" }).ok).toBe(true);
+    expect(sim.loadouts.find((l) => l.id === 2)?.equipment.mainHand).toBeUndefined();
+    expect(sim.switchLoadout(2)).toBe("ok");
+    expect(sim.weapon).toBeUndefined();
+  });
+
+  it("ロードアウトはセーブデータに入り、戻すと同じ一覧になる", async () => {
+    const { MemoryBackend, SaveStore } = await import("@stella/core");
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    toSafeZone(sim);
+    sim.switchLoadout(2);
+    sim.equipFromInventory("test-axe");
+    sim.allocateStar("STAR-GOU-0001");
+    sim.switchLoadout(3);
+    const store = new SaveStore(sim.db, new MemoryBackend());
+    store.save(1, sim.saveData());
+    const r = store.load(1);
+    if (!r.ok) throw new Error(r.error?.message ?? "空");
+    const back = new ArenaSimulation(undefined, { enemies: false, db: sim.db, profile: r.profile });
+    expect(back.activeLoadout).toBe(3);
+    expect(back.loadouts).toEqual(sim.loadouts);
+  });
+});

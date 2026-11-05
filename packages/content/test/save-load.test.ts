@@ -25,6 +25,9 @@ import {
   damagePreview,
   decodeSave,
   emptyKeptFields,
+  emptyLoadout,
+  forgetItem,
+  loadoutsUsing,
   encodeSave,
   fromSaveData,
   generateItem,
@@ -95,7 +98,9 @@ function sampleProfile(): PlayerProfile {
       ],
     ]),
     starAllocation: ["STAR-JIN-0001", "STAR-JIN-0002", "STAR-JIN-0201"],
-    kept: emptyKeptFields("JOB-ROGUE"),
+    loadouts: [emptyLoadout(1, "JOB-ROGUE")],
+    activeLoadout: 1,
+    kept: emptyKeptFields(),
   };
 }
 
@@ -187,7 +192,9 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
             stash: new Inventory(STASH_SLOTS),
             skillSlots: new Map(),
             starAllocation: [],
-            kept: emptyKeptFields("JOB-ROGUE"),
+            loadouts: [emptyLoadout(1, "JOB-ROGUE")],
+            activeLoadout: 1,
+            kept: emptyKeptFields(),
           };
           const store = new SaveStore(db, new MemoryBackend());
           store.save(2, toSaveData(db, p));
@@ -350,6 +357,26 @@ describe("T11：壊れたデータは検出し、元のデータを上書きし�
     expect(load(withStars(["STAR-GOU-START"]))).toBe("reference");
     expect(load(withStars(["STAR-JIN-0001", "STAR-JIN-0001"]))).toBe("reference");
     expect(load(withStars(["STAR-GOU-0101"]))).toBe("ok");
+    // 使っていないロードアウト：持っていない装備・データに無いノードは参照の問題。持っている装備なら良い
+    const other = (extra: Partial<SaveData["loadouts"][number]>): SaveData => ({
+      ...base,
+      loadouts: [
+        lo,
+        {
+          id: 2,
+          name: "2",
+          main_job: "JOB-WARRIOR",
+          equipment: {},
+          star_allocation: [],
+          extra_entries: [],
+          ...extra,
+        },
+      ],
+    });
+    expect(load(other({ equipment: { mainHand: "itm_none" } }))).toBe("reference");
+    expect(load(other({ star_allocation: ["STAR-NONE"] }))).toBe("reference");
+    expect(load(other({ main_job: "JOB-NONE" }))).toBe("reference");
+    expect(load(other({ equipment: { mainHand: "itm_3" } }))).toBe("ok");
   });
 
   it("壊れたデータを読み込んでも、保存先は変わらない", () => {
@@ -393,6 +420,23 @@ describe("T11：壊れたデータは検出し、元のデータを上書きし�
       store.save(1, { ...data, inventory: [...data.inventory, "itm_none"] });
     }).toThrow(SaveDataError);
     expect(backend.data).toEqual(snapshot);
+  });
+});
+
+describe("ロードアウトの装備の参照（仕様書v0.2 4.13、M-15）", () => {
+  it("なくした装備を登録していた全てのロードアウトで、その部位が空きになる", () => {
+    const list = [
+      { ...emptyLoadout(1, "JOB-WARRIOR"), equipment: { mainHand: "a", offHand: "b" } },
+      { ...emptyLoadout(2, "JOB-WARRIOR"), equipment: { mainHand: "a" } },
+      emptyLoadout(3, "JOB-ROGUE"),
+    ];
+    expect(loadoutsUsing(list, "a")).toEqual([1, 2]);
+    const after = forgetItem(list, "a");
+    expect(after[0]?.equipment).toEqual({ offHand: "b" });
+    expect(after[1]?.equipment).toEqual({});
+    expect(after[2]).toBe(list[2]);
+    expect(list[0]?.equipment.mainHand).toBe("a");
+    expect(() => emptyLoadout(4, "JOB-WARRIOR")).toThrow(RangeError);
   });
 });
 

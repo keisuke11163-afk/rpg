@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Character } from "../character/progression.ts";
+import { type LoadoutRecord, MAX_LOADOUTS } from "../character/loadouts.ts";
 import { ITEM_RARITIES, AFFIX_TIERS } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
 import { dualWieldAffinity } from "../combat/skills.ts";
@@ -65,7 +66,7 @@ const jobSchemaV2 = z.strictObject({
 });
 
 const loadoutSchema = z.strictObject({
-  id: z.number().int().min(1),
+  id: z.number().int().min(1).max(MAX_LOADOUTS),
   name: z.string(),
   main_job: id,
   /** 部位 → 装備の uid（空きは null か省略）。 */
@@ -78,7 +79,7 @@ const commonFields = {
   content_version: z.string(),
   inventory: z.array(id),
   stash: z.array(id),
-  loadouts: z.array(loadoutSchema).min(1).max(3),
+  loadouts: z.array(loadoutSchema).min(1).max(MAX_LOADOUTS),
   active_loadout: z.number().int().min(1),
   materials: z.record(id, count),
   boss_tokens: z.record(id, count),
@@ -234,7 +235,13 @@ export interface PlayerProfile {
   readonly skillSlots: ReadonlyMap<string, readonly (string | undefined)[]>;
   /** 星辰盤の取得（使っているロードアウトの分。取った順）。 */
   readonly starAllocation: readonly string[];
-  /** まだゲームで使っていない項目（星辰盤・討伐証など）。読み込んだ値をそのまま保存し直す。 */
+  /**
+   * ロードアウト（仕様書v0.2 4.13）。使っているロードアウトの装備・星辰盤・メインジョブは、保存するときに
+   * 今の状態（equipment・starAllocation・character.mainJob）で置き換える。
+   */
+  readonly loadouts: readonly LoadoutRecord[];
+  readonly activeLoadout: number;
+  /** まだゲームで使っていない項目（職紋盤・討伐証など）。読み込んだ値をそのまま保存し直す。 */
   readonly kept: KeptSaveFields;
 }
 
@@ -242,8 +249,6 @@ export interface PlayerProfile {
 export interface KeptSaveFields {
   readonly subJob: string | null;
   readonly boards: Readonly<Record<string, { board: string[]; mastery: string | null }>>;
-  readonly loadouts: SaveData["loadouts"];
-  readonly activeLoadout: number;
   readonly bossTokens: Readonly<Record<string, number>>;
   readonly discoveries: SaveData["discoveries"];
   readonly questPoints: number;
@@ -252,21 +257,10 @@ export interface KeptSaveFields {
 }
 
 /** 新しいキャラクターの、まだゲームで使っていない項目の初期値。 */
-export function emptyKeptFields(mainJob: string): KeptSaveFields {
+export function emptyKeptFields(): KeptSaveFields {
   return {
     subJob: null,
     boards: {},
-    loadouts: [
-      {
-        id: 1,
-        name: "ロードアウト1",
-        main_job: mainJob,
-        equipment: {},
-        star_allocation: [],
-        extra_entries: [],
-      },
-    ],
-    activeLoadout: 1,
     bossTokens: {},
     discoveries: { latent_revealed: [], bonds_revealed: [], interactions_seen: [] },
     questPoints: 0,
@@ -314,11 +308,25 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
       skill_slots: slots === undefined ? [] : slots.map((s) => s ?? null),
     };
   }
-  // 今の装備とメインジョブは、使っているロードアウトに入れる（ロードアウトの切り替えは U-20）
-  const loadouts = kept.loadouts.map((l) =>
-    l.id === kept.activeLoadout
-      ? { ...l, main_job: c.mainJob, equipment, star_allocation: [...profile.starAllocation] }
-      : l,
+  // 今の装備・星辰盤・メインジョブは、使っているロードアウトに入れる
+  const loadouts: SaveData["loadouts"] = profile.loadouts.map((l) =>
+    l.id === profile.activeLoadout
+      ? {
+          id: l.id,
+          name: l.name,
+          main_job: c.mainJob,
+          equipment,
+          star_allocation: [...profile.starAllocation],
+          extra_entries: [...l.extraEntries],
+        }
+      : {
+          id: l.id,
+          name: l.name,
+          main_job: l.mainJob,
+          equipment: { ...l.equipment },
+          star_allocation: [...l.starAllocation],
+          extra_entries: [...l.extraEntries],
+        },
   );
   return {
     save_version: SAVE_VERSION,
@@ -336,7 +344,7 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
     inventory,
     stash,
     loadouts,
-    active_loadout: kept.activeLoadout,
+    active_loadout: profile.activeLoadout,
     gold: profile.inventory.gold,
     materials: Object.fromEntries(profile.inventory.materials),
     boss_tokens: { ...kept.bossTokens },
@@ -461,8 +469,35 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
   const stash = new Inventory(STASH_SLOTS);
   ref(data.stash.length <= STASH_SLOTS, () => "倉庫の装備が枠の数を超える");
   for (const uid of data.stash) stash.addItem(take(uid, "倉庫"));
-  // ほかのロードアウトが参照する装備は、どこかに持っている物だけ（分解した装備の扱いは U-20）
   ref(used.size === items.size, () => "どこにも持っていない装備が items にある");
+  // ほかのロードアウト：参照する装備は持っている物だけ（なくした装備の参照は、なくしたときに空きにしている）。
+  // 星辰盤のノードはデータにある物だけ
+  const loadouts: LoadoutRecord[] = [];
+  for (const l of data.loadouts) {
+    ref(
+      db.jobs.has(l.main_job),
+      () => `ロードアウト ${String(l.id)} のメインジョブ ${l.main_job} がデータに無い`,
+    );
+    const eq: Partial<Record<MvpEquipSlot, string>> = {};
+    for (const [slot, uid] of Object.entries(l.equipment) as [MvpEquipSlot, string | null][]) {
+      if (uid === null) continue;
+      ref(items.has(uid), () => `ロードアウト ${String(l.id)} の装備 ${uid} を持っていない`);
+      eq[slot] = uid;
+    }
+    for (const n of l.star_allocation)
+      ref(
+        db.starNodes.has(n),
+        () => `ロードアウト ${String(l.id)} の星辰盤のノード ${n} がデータに無い`,
+      );
+    loadouts.push({
+      id: l.id,
+      name: l.name,
+      mainJob: l.main_job,
+      equipment: eq,
+      starAllocation: [...l.star_allocation],
+      extraEntries: [...l.extra_entries],
+    });
+  }
   inventory.addGold(data.gold);
   for (const [m, n] of Object.entries(data.materials)) {
     ref(db.materials.has(m), () => `素材 ${m} がデータに無い`);
@@ -502,6 +537,8 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
     stash,
     skillSlots,
     starAllocation,
+    loadouts,
+    activeLoadout: data.active_loadout,
     kept: {
       subJob: c.sub_job,
       boards: Object.fromEntries(
@@ -510,8 +547,6 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
           { board: [...j.board_allocation], mastery: j.mastery_choice },
         ]),
       ),
-      loadouts: data.loadouts,
-      activeLoadout: data.active_loadout,
       bossTokens: data.boss_tokens,
       discoveries: data.discoveries,
       questPoints: data.quest_points,

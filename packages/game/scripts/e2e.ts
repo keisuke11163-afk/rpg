@@ -158,6 +158,11 @@ type DebugWindow = {
     saveNow: () => boolean;
     stars: () => StarsInfo;
     grantMaterial: (id: string, n: number) => number;
+    loadouts: () => {
+      active: number;
+      list: { id: number; mainHand: string | null; stars: number }[];
+      safe: boolean;
+    };
     itemDetail: (
       uid: string,
     ) => { rarity: string; affixes: number; enhance: number; forgeLoad: number } | null;
@@ -839,6 +844,34 @@ try {
   );
   await page.screenshot({ path: `${outDir}smith.png` });
   await page.keyboard.press("KeyB");
+  await page.waitForTimeout(100);
+
+  // ロードアウト（U-20）：人形の近く（安全地帯）でインベントリの画面のロードアウト2をクリックすると切り替わる
+  const lo = (): Promise<{
+    active: number;
+    list: { id: number; mainHand: string | null; stars: number }[];
+    safe: boolean;
+  }> => page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.loadouts());
+  const dm = await dummy();
+  await walkTo(dm.x - 2.5, dm.y);
+  const lo0 = await lo();
+  await page.keyboard.press("KeyI");
+  await page.waitForTimeout(100);
+  const loadoutButton = {
+    x: PANEL.grid.x + 40 + 10,
+    y: PANEL.grid.y + PANEL.grid.rows * PANEL.grid.cell + 44 + 6,
+  };
+  await page.mouse.move(loadoutButton.x * 2, loadoutButton.y * 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const lo1 = await lo();
+  check(
+    "安全地帯（人形の近く）で、インベントリの画面からロードアウト2に切り替える（U-20）",
+    lo0.safe && lo0.active === 1 && lo1.active === 2 && lo1.list.length === 2,
+    `安全地帯 ${String(lo0.safe)}・${String(lo0.active)} → ${String(lo1.active)}・一覧 ${JSON.stringify(lo1.list)}`,
+  );
+  await page.keyboard.press("KeyI");
   await page.waitForTimeout(100);
 
   // セーブ・ロード（U-13）：保存してページを読み込み直すと、同じ状態から始まる

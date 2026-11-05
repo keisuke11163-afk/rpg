@@ -32,6 +32,10 @@ import {
   type SaveData,
   createStash,
   emptyKeptFields,
+  emptyLoadout,
+  forgetItem,
+  type LoadoutRecord,
+  MAX_LOADOUTS,
   toSaveData,
   JobGauge,
   type MvpEquipSlot,
@@ -238,6 +242,9 @@ const CRAFT_BLOCK_TEXT: Readonly<Record<CraftBlock, string>> = {
   material: "素材が足りない",
 };
 
+/** 試験用の場の安全地帯（訓練用の人形の周り。m）。 */
+export const SAFE_ZONE_RADIUS = 4;
+
 /** 還星の灯（星辰盤の1ノードを返す。仕様書v0.2 4.13）。 */
 export const RETURN_LAMP = "MAT-RETURN-LAMP";
 
@@ -267,7 +274,9 @@ export function testStartProfile(db: ContentDb): PlayerProfile {
     stash: createStash(),
     skillSlots: new Map(),
     starAllocation: [],
-    kept: emptyKeptFields(origin.id),
+    loadouts: [emptyLoadout(1, origin.id)],
+    activeLoadout: 1,
+    kept: emptyKeptFields(),
   };
 }
 
@@ -310,8 +319,11 @@ export class ArenaSimulation {
   private readonly kept: KeptSaveFields;
   /** 自動セーブの時期（試験用の場はダンジョンとして扱う：60秒ごと）。 */
   readonly autosave = new AutoSaveTimer();
-  /** 星辰盤の取得（仕様書v0.2 4章）。 */
-  readonly stars: StarAllocation;
+  /** 星辰盤の取得（仕様書v0.2 4章。ロードアウトを替えると替わる）。 */
+  private starsValue: StarAllocation;
+  /** ロードアウト（仕様書v0.2 4.13）。使っているものの装備・星辰盤は、今の状態が正。 */
+  private loadoutList: LoadoutRecord[];
+  private activeLoadoutId: number;
   /** クラフトの抽選（戦闘・ドロップの乱数の列を変えないように、別の列にする）。 */
   private readonly craftRng = Rng.fromSeed("arena-craft");
   private starVersion = 0;
@@ -365,7 +377,9 @@ export class ArenaSimulation {
     this.inventory = profile.inventory;
     this.stash = profile.stash;
     this.kept = profile.kept;
-    this.stars = new StarAllocation(this.db, profile.starAllocation);
+    this.starsValue = new StarAllocation(this.db, profile.starAllocation);
+    this.loadoutList = [...profile.loadouts];
+    this.activeLoadoutId = profile.activeLoadout;
     for (const [job, slots] of profile.skillSlots) this.skillSlotsByJob.set(job, [...slots]);
     // 拾った物の uid が、持っている物と重ならないように続きの番号から始める
     for (const i of [
@@ -613,6 +627,122 @@ export class ArenaSimulation {
     return slots.find((s) => this.equipment.get(s) === undefined) ?? slots[0];
   }
 
+  /** 星辰盤の取得。 */
+  get stars(): StarAllocation {
+    return this.starsValue;
+  }
+
+  /** ロードアウトの一覧（使っているものは、今の状態で置き換えた形）。 */
+  get loadouts(): readonly LoadoutRecord[] {
+    return this.loadoutList.map((l) =>
+      l.id === this.activeLoadoutId ? this.currentLoadout(l) : l,
+    );
+  }
+  get activeLoadout(): number {
+    return this.activeLoadoutId;
+  }
+
+  /** 今の状態を、ロードアウトの形にする。 */
+  private currentLoadout(base: LoadoutRecord): LoadoutRecord {
+    return {
+      ...base,
+      mainJob: this.character.mainJob,
+      equipment: Object.fromEntries(this.equipment.entries().map(([s, i]) => [s, i.uid])),
+      starAllocation: [...this.stars.nodes],
+    };
+  }
+
+  /**
+   * 安全地帯か（ロードアウトの切り替え・星辰盤の全体の振り直しは町でだけできる。補助仕様書8章）。
+   * 仮実装: U-18a feature/town-and-dungeon-base で、町の中かどうかに置き換える（試験用の場では、訓練用の人形の周り4m）
+   */
+  get inSafeZone(): boolean {
+    const p = this.motion.position;
+    return Math.hypot(p.x - DUMMY_POSITION.x, p.y - DUMMY_POSITION.y) <= SAFE_ZONE_RADIUS;
+  }
+
+  /**
+   * ロードアウトを切り替える（仕様書v0.2 4.13）。今の装備・星辰盤・メインジョブを今のロードアウトに保存し、
+   * 切り替え先の装備（インベントリ・倉庫にある物）・星辰盤・メインジョブにする。まだ無いロードアウトは、今の状態の写しで作る。
+   * 持っていない装備・装備できない部位は空きにする。切り替えた後のインベントリが枠を超えるなら、何も変えない。
+   */
+  switchLoadout(id: number): "ok" | "same" | "notSafe" | "busy" | "inventoryFull" | "unknown" {
+    if (!(Number.isInteger(id) && id >= 1 && id <= MAX_LOADOUTS)) return "unknown";
+    if (id === this.activeLoadoutId) return "same";
+    if (this.current !== undefined) return "busy";
+    if (!this.inSafeZone) return "notSafe";
+    const here = this.loadoutList.find((l) => l.id === this.activeLoadoutId);
+    const saved = this.currentLoadout(
+      here ?? emptyLoadout(this.activeLoadoutId, this.character.mainJob),
+    );
+    const target = this.loadoutList.find((l) => l.id === id) ?? {
+      ...saved,
+      id,
+      name: `ロードアウト${String(id)}`,
+    };
+    // 切り替えた後のインベントリの数を先に確かめる
+    const equipped = new Set(this.equipment.entries().map(([, i]) => i.uid));
+    const wanted = new Set(Object.values(target.equipment));
+    const fromInventory = [...wanted].filter(
+      (u) => !equipped.has(u) && this.inventory.items.some((i) => i.uid === u),
+    ).length;
+    const toInventory = [...equipped].filter((u) => !wanted.has(u)).length;
+    if (this.inventory.items.length - fromInventory + toInventory > this.inventory.capacity)
+      return "inventoryFull";
+    // 保存
+    this.loadoutList = [
+      ...this.loadoutList.filter((l) => l.id !== saved.id && l.id !== target.id),
+      saved,
+      target,
+    ].sort((a, b) => a.id - b.id);
+    // メインジョブ（転職できるときだけ。docs/progress D-U20-2）
+    if (target.mainJob !== this.character.mainJob && this.character.canChangeJob) {
+      this.character.changeJob(target.mainJob);
+      this.jobGaugeValue = this.newGauge();
+    }
+    // 装備：今の装備を外して脇に置き、切り替え先の装備を集めて付ける
+    const aside = this.equipment.entries().map(([slot]) => this.equipment.unequip(slot));
+    const pick = (uid: string): ItemInstance | undefined => {
+      const held = aside.find((i) => i?.uid === uid);
+      if (held !== undefined) {
+        aside.splice(aside.indexOf(held), 1);
+        return held;
+      }
+      return this.inventory.removeItem(uid) ?? this.stash.removeItem(uid);
+    };
+    const kept: Partial<Record<MvpEquipSlot, string>> = {};
+    for (const [slot, uid] of Object.entries(target.equipment) as [MvpEquipSlot, string][]) {
+      const item = pick(uid);
+      if (item === undefined) continue;
+      const base = this.db.itemBases.get(item.base);
+      if (base === undefined || !slotsFor(base, this.canDualWield).includes(slot)) {
+        this.inventory.addItem(item);
+        continue;
+      }
+      for (const out of this.equipment.equip(item, slot, this.canDualWield))
+        this.inventory.addItem(out);
+      kept[slot] = uid;
+    }
+    for (const i of aside) if (i !== undefined) this.inventory.addItem(i);
+    this.starsValue = new StarAllocation(this.db, target.starAllocation);
+    this.activeLoadoutId = id;
+    this.equipmentVersion += 1;
+    this.starVersion += 1;
+    this.attackerVersion = "";
+    this.refreshAttacker();
+    this.syncPlayerMaxHp();
+    return "ok";
+  }
+
+  /** 星辰盤の全体の振り直し（町の星読み師。MVPでは常に無料。仕様書v0.2 4.13・補助仕様書5章）。安全地帯だけ。 */
+  resetStars(): boolean {
+    if (!this.inSafeZone || this.current !== undefined) return false;
+    this.stars.clear();
+    this.starsChanged();
+    this.autosave.notify("respec");
+    return true;
+  }
+
   /** 星辰盤のポイント（キャラLv−1＋クエスト＋探索。仕様書v0.2 4.12）。 */
   get starPoints(): number {
     return starPoints(this.character.level, this.kept.questPoints, this.kept.explorationPoints);
@@ -683,6 +813,8 @@ export class ArenaSimulation {
         break;
       case "disassemble": {
         const got = disassembleFromInventory(this.inventory, uid);
+        // その装備を登録していた全てのロードアウトで、その部位を空きにする（仕様書v0.2 4.13）
+        this.loadoutList = forgetItem(this.loadoutList, uid);
         result = {
           ok: true,
           message: `分解した（${Object.entries(got)
@@ -719,6 +851,8 @@ export class ArenaSimulation {
       stash: this.stash,
       skillSlots: this.skillSlotsByJob,
       starAllocation: this.stars.nodes,
+      loadouts: this.loadoutList,
+      activeLoadout: this.activeLoadoutId,
       kept: this.kept,
     };
   }

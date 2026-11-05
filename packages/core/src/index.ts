@@ -454,3 +454,11 @@ export {
   inscribe,
   opLoad,
 } from "./items/crafting.ts";
+
+export {
+  type LoadoutRecord,
+  MAX_LOADOUTS,
+  emptyLoadout,
+  forgetItem,
+  loadoutsUsing,
+} from "./character/loadouts.ts";

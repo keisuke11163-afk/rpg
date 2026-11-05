@@ -273,6 +273,16 @@ export class ArenaScene extends Phaser.Scene {
         lamps: sim.inventory.material("MAT-RETURN-LAMP"),
       }),
       starNodeScreen: (id?: number | string) => this.panel.nodeScreen(String(id)) ?? null,
+      // ロードアウト（U-20）
+      loadouts: () => ({
+        active: sim.activeLoadout,
+        list: sim.loadouts.map((l) => ({
+          id: l.id,
+          mainHand: l.equipment.mainHand ?? null,
+          stars: l.starAllocation.length,
+        })),
+        safe: sim.inSafeZone,
+      }),
       // 確認用：素材を得る（開発版だけ）
       grantMaterial: (id?: number | string, n?: number | string) => {
         sim.inventory.addMaterial(String(id), Number(n ?? 1));
