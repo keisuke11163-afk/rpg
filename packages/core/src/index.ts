@@ -122,6 +122,7 @@ export {
   rollAilments,
   staggerProfiles,
   staggerValue,
+  validateAilmentApplication,
   type AilmentApplication,
   type AilmentCandidate,
   type AilmentRollInput,

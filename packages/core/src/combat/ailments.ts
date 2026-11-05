@@ -8,7 +8,8 @@ import type { Element } from "../content/effect.ts";
 import { ELEMENTS } from "../content/effect.ts";
 import { ELEMENT_TAG } from "../content/elements.ts";
 import type { ContentDb } from "../content/load.ts";
-import type { ModifierView, StatResult } from "../effects/evaluate.ts";
+import type { HitScope, ModifierView, StatResult } from "../effects/evaluate.ts";
+import { requireFinite } from "../effects/evaluate.ts";
 import type { Rng } from "../random/rng.ts";
 import type { HitResult } from "./damage.ts";
 
@@ -37,23 +38,48 @@ export function countAilmentTypes(tagIds: Iterable<string>): number {
   return kinds.size;
 }
 
-/** 修正値の合計（局所の効果は、その武器のヒットだけ）。 */
+/**
+ * 状態異常の計算の途中の値・入力の値が有限であることを確かめる（NaN・Infinity は RangeError）。
+ * U-04a のダメージの計算と同じく、異常な値を 0 などに置き換えずに、原因の分かる例外にする。
+ * 有限の値どうしの積・和でも Infinity になることがあるので、比較・合計に使う前の境目で検証する。
+ */
+const finite = (value: number, what: string): number =>
+  requireFinite(value, () => `状態異常の計算の${what}`);
+
+/**
+ * 1回のヒットとして問い合わせる範囲（局所の効果の絞り込み。仕様書v0.2 3.7 の原則5）。
+ * 絞り込みは U-04a と同じく、ModifierView の問い合わせに HitScope を渡して行う
+ * （出どころの種類が装備で、ref が weaponUid と一致する局所の効果だけが効く。weaponUid が undefined なら局所の効果は効かない）。
+ * weaponUid を指定したのに、ヒットがその武器のヒットでない（呪文・別の武器）場合は、局所の効果が漏れるので例外にする。
+ */
+function hitScope(hit: HitResult, weaponUid: string | undefined): HitScope {
+  if (weaponUid !== undefined && weaponUid !== hit.weaponUid) {
+    throw new RangeError(
+      `状態異常の計算の武器（${weaponUid}）が、ヒットに使った武器（${hit.weaponUid ?? "なし（呪文など）"}）と一致しない`,
+    );
+  }
+  return { weaponUid };
+}
+
+/**
+ * 修正値の合計。局所の効果の絞り込みは、問い合わせのときに HitScope で済ませてある。
+ * 範囲の値は平均を使う。合計・積が有限であることを検証する。
+ */
 function sums(
   result: StatResult,
-  db: ContentDb,
-  weaponUid: string | undefined,
+  what: string,
 ): { added: number; increased: number; more: number } {
   let added = 0;
   let increased = 0;
   let more = 1;
   for (const c of result.contributions) {
-    const effect = db.effects.get(c.effectId);
-    if (effect?.locality === "local" && (weaponUid === undefined || c.source.ref !== weaponUid))
-      continue;
-    const v = typeof c.value === "number" ? c.value : (c.value.min + c.value.max) / 2;
-    if (c.kind === "added") added += v;
-    else if (c.kind === "increased") increased += v;
-    else if (c.kind === "more") more *= v;
+    const v = finite(
+      typeof c.value === "number" ? c.value : (c.value.min + c.value.max) / 2,
+      `${what}の修正値（${c.effectId}）`,
+    );
+    if (c.kind === "added") added = finite(added + v, `${what}の追加値の合計`);
+    else if (c.kind === "increased") increased = finite(increased + v, `${what}の加算の合計`);
+    else if (c.kind === "more") more = finite(more * v, `${what}の乗算の積`);
   }
   return { added, increased, more };
 }
@@ -68,6 +94,23 @@ export interface AilmentApplication {
   readonly duration: number;
   /** 重ねられる上限（重ねる状態異常のみ。undefined は上限なし）。 */
   readonly maxStacks: number | undefined;
+}
+
+/**
+ * 付与する状態異常の入力の検証（AilmentState.apply の入口）。
+ * - total：有限かつ0以上
+ * - duration：有限かつ正の数
+ * - maxStacks：指定するなら正の安全な整数（0・負の数・小数・NaN・Infinity は不可）
+ * 不正な値は黙って補正せずに RangeError にする。
+ */
+export function validateAilmentApplication(app: AilmentApplication): void {
+  const where = `状態異常 ${app.ailmentId} の付与`;
+  if (!(Number.isFinite(app.total) && app.total >= 0))
+    throw new RangeError(`${where}の総量は有限かつ0以上（${String(app.total)}）`);
+  if (!(Number.isFinite(app.duration) && app.duration > 0))
+    throw new RangeError(`${where}の持続は有限かつ正の数（${String(app.duration)}）`);
+  if (app.maxStacks !== undefined && !(Number.isSafeInteger(app.maxStacks) && app.maxStacks > 0))
+    throw new RangeError(`${where}の最大スタックは正の安全な整数（${String(app.maxStacks)}）`);
 }
 
 export interface AilmentRollInput {
@@ -90,7 +133,11 @@ export interface AilmentCandidate {
 }
 
 function sourceBase(def: DotAilmentDef | DebuffAilmentDef, hit: HitResult): number {
-  return def.sourceElements.reduce((sum, e) => sum + (hit.ailmentBase[e] ?? 0), 0);
+  return def.sourceElements.reduce(
+    (sum, e) =>
+      finite(sum + finite(hit.ailmentBase[e] ?? 0, `基準値（${e}）`), `${def.id} の基準値の合計`),
+    0,
+  );
 }
 
 /**
@@ -102,42 +149,69 @@ function sourceBase(def: DotAilmentDef | DebuffAilmentDef, hit: HitResult): numb
 export function ailmentCandidates(input: Omit<AilmentRollInput, "rng">): AilmentCandidate[] {
   const { db, view, hit, tags, skillChance, weaponUid } = input;
   if (hit.evaded) return [];
+  const scope = hitScope(hit, weaponUid);
   const out: AilmentCandidate[] = [];
   // ヒットが持つ属性のタグも条件に含める（例：「[物理] 必ず出血」）
   const hitTags = [
     ...tags,
-    ...ELEMENTS.filter((e) => (hit.ailmentBase[e] ?? 0) > 0).map((e) => ELEMENT_TAG[e]),
+    ...ELEMENTS.filter((e) => finite(hit.ailmentBase[e] ?? 0, `基準値（${e}）`) > 0).map(
+      (e) => ELEMENT_TAG[e],
+    ),
   ];
   for (const def of [...db.ailments.values()].sort((a, b) => (a.id < b.id ? -1 : 1))) {
     if (def.kind !== "dot" && def.kind !== "debuff") continue;
     const base = sourceBase(def, hit);
     if (!(base > 0)) continue;
     const context = [...hitTags, def.tag];
-    const chanceSums = sums(view.stat(AILMENT_STATS.chance, context), db, weaponUid);
-    const flag = view.flag("ailmentApply", def.tag, hitTags).resolution;
-    const rawChance = (skillChance?.[def.tag] ?? 0) + chanceSums.added;
+    const chanceSums = sums(view.stat(AILMENT_STATS.chance, context, scope), `${def.id} の付与率`);
+    const flag = view.flag("ailmentApply", def.tag, hitTags, scope).resolution;
+    // 付与率は、強制・禁止の印の有無にかかわらず検証する（印で NaN・Infinity を見逃さないため。U-04a の会心率と同じ）
+    const rawChance = finite(
+      finite(skillChance?.[def.tag] ?? 0, `${def.id} の技の基本付与率`) + chanceSums.added,
+      `${def.id} の付与率`,
+    );
     const chance =
       flag === "forbid" ? 0 : flag === "force" ? 1 : Math.min(1, Math.max(0, rawChance));
 
-    const durationSums = sums(view.stat(AILMENT_STATS.duration, context), db, weaponUid);
+    const durationSums = sums(
+      view.stat(AILMENT_STATS.duration, context, scope),
+      `${def.id} の持続`,
+    );
     const duration = Math.max(
       0.1,
-      (def.duration + durationSums.added) * (1 + durationSums.increased),
+      finite(
+        (def.duration + durationSums.added) * (1 + durationSums.increased),
+        `${def.id} の持続`,
+      ),
     );
     let total = 0;
     let maxStacks: number | undefined;
     if (def.kind === "dot") {
-      const dmg = sums(view.stat(AILMENT_STATS.damage, context), db, weaponUid);
-      total = base * def.totalRatio * (1 + dmg.increased) * dmg.more;
+      const dmg = sums(view.stat(AILMENT_STATS.damage, context, scope), `${def.id} のダメージ`);
+      total = finite(
+        base * def.totalRatio * (1 + dmg.increased) * dmg.more,
+        `${def.id} の持続ダメージの総量`,
+      );
       if (def.stacking.mode === "stack" && def.stacking.maxStacks !== undefined) {
-        const extra = sums(view.stat(AILMENT_STATS.maxStacks, context), db, weaponUid).added;
-        maxStacks = Math.max(1, Math.floor(def.stacking.maxStacks + extra));
+        const extra = sums(
+          view.stat(AILMENT_STATS.maxStacks, context, scope),
+          `${def.id} の最大スタック`,
+        ).added;
+        maxStacks = Math.max(
+          1,
+          Math.floor(finite(def.stacking.maxStacks + extra, `${def.id} の最大スタック`)),
+        );
       }
     }
-    out.push({
-      application: { ailmentId: def.id, tag: def.tag, total, duration, maxStacks },
-      chance,
-    });
+    const application: AilmentApplication = {
+      ailmentId: def.id,
+      tag: def.tag,
+      total,
+      duration,
+      maxStacks,
+    };
+    validateAilmentApplication(application);
+    out.push({ application, chance });
   }
   return out;
 }
@@ -187,6 +261,7 @@ export class AilmentState {
   apply(app: AilmentApplication): void {
     const def = this.defs.get(app.ailmentId);
     if (def === undefined) throw new Error(`状態異常 ${app.ailmentId} はデータにない`);
+    validateAilmentApplication(app);
     if (def.kind === "debuff") {
       // 重ね掛けはせず、持続を新しくする
       const current = this.debuffs.get(def.id);
@@ -220,7 +295,10 @@ export class AilmentState {
           shortest = i;
       }
       list.splice(shortest, 1);
-      while (list.length >= max) list.shift();
+      // 上限が前の付与より小さい場合は、さらに古いものから取り除き、新しいものの分を空ける。
+      // max は1以上（validateAilmentApplication で検証済み）なので、取り除く数は有限で、繰り返しはない。
+      const excess = list.length - (max - 1);
+      if (excess > 0) list.splice(0, excess);
     }
     list.push(instance);
     this.dots.set(def.id, list);
@@ -228,21 +306,41 @@ export class AilmentState {
 
   /** 時間を進め、この間の持続ダメージを属性ごとに返す。切れた状態異常は取り除く。 */
   tick(dt: number, target: AilmentTickTarget = {}): Partial<Record<Element, number>> {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
+    const taken = finite(target.takenMultiplier ?? 1, "受けるダメージの倍率");
+    // 先に全ての計算を済ませて検証し、例外のときに状態を中途半端に変えないようにする
     const out: Partial<Record<Element, number>> = {};
-    for (const [id, list] of this.dots) {
-      const next: DotInstance[] = [];
+    const updates: { inst: DotInstance; portion: number; step: number }[] = [];
+    for (const list of this.dots.values()) {
       for (const inst of list) {
         const step = Math.min(dt, inst.remainingTime);
-        const portion = Math.min(inst.remaining, (inst.total * step) / inst.duration);
-        inst.remaining -= portion;
-        inst.remainingTime -= step;
+        const portion = Math.min(
+          inst.remaining,
+          finite((inst.total * step) / inst.duration, `${inst.def.id} のこの間の持続ダメージ`),
+        );
         const moving = target.moving === true ? (inst.def.movingMultiplier ?? 1) : 1;
-        const resist = target.resist?.[inst.def.dotElement] ?? 0;
-        const dmg = portion * moving * (target.takenMultiplier ?? 1) * (1 - resist);
-        out[inst.def.dotElement] = (out[inst.def.dotElement] ?? 0) + Math.max(0, dmg);
-        if (inst.remainingTime > 1e-9 && inst.remaining > 1e-12) next.push(inst);
+        const resist = finite(
+          target.resist?.[inst.def.dotElement] ?? 0,
+          `耐性（${inst.def.dotElement}）`,
+        );
+        const dmg = finite(
+          portion * moving * taken * (1 - resist),
+          `${inst.def.id} の受けるダメージ`,
+        );
+        out[inst.def.dotElement] = finite(
+          (out[inst.def.dotElement] ?? 0) + Math.max(0, dmg),
+          `持続ダメージの合計（${inst.def.dotElement}）`,
+        );
+        updates.push({ inst, portion, step });
       }
+    }
+    for (const { inst, portion, step } of updates) {
+      inst.remaining -= portion;
+      inst.remainingTime -= step;
+    }
+    for (const [id, list] of this.dots) {
+      const next = list.filter((inst) => inst.remainingTime > 1e-9 && inst.remaining > 1e-12);
       if (next.length > 0) this.dots.set(id, next);
       else this.dots.delete(id);
     }
@@ -274,7 +372,8 @@ export class AilmentState {
   /** 持続ダメージの残りの総量（補正の前）。千変（K12）の計算に使う。 */
   remainingDotTotal(): number {
     let sum = 0;
-    for (const list of this.dots.values()) for (const inst of list) sum += inst.remaining;
+    for (const list of this.dots.values())
+      for (const inst of list) sum = finite(sum + inst.remaining, "持続ダメージの残りの合計");
     return sum;
   }
 
@@ -283,10 +382,17 @@ export class AilmentState {
    * 耐性・受けるダメージの倍率は、呼び出す側でかける。
    */
   consumeDots(ratio: number): Partial<Record<Element, number>> {
+    if (!(Number.isFinite(ratio) && ratio >= 0))
+      throw new RangeError(`取り出す割合は有限かつ0以上（${String(ratio)}）`);
+    // 検証が全て済んでから持続ダメージを消す（例外のときは状態を変えない）
     const out: Partial<Record<Element, number>> = {};
     for (const list of this.dots.values()) {
       for (const inst of list)
-        out[inst.def.dotElement] = (out[inst.def.dotElement] ?? 0) + inst.remaining * ratio;
+        out[inst.def.dotElement] = finite(
+          (out[inst.def.dotElement] ?? 0) +
+            finite(inst.remaining * ratio, `${inst.def.id} の取り出す量`),
+          `取り出す持続ダメージの合計（${inst.def.dotElement}）`,
+        );
     }
     this.dots.clear();
     return out;
@@ -314,14 +420,29 @@ export class StaggerGauge {
   private breakCount = 0;
 
   constructor(profile: StaggerProfile, maxHp: number) {
-    if (!(maxHp > 0)) throw new RangeError("最大HPは正の数");
+    if (!(Number.isFinite(maxHp) && maxHp > 0))
+      throw new RangeError(`最大HPは有限かつ正の数（${String(maxHp)}）`);
+    for (const key of ["gaugeRatio", "breakDuration", "takenMultiplier", "growthPerBreak"] as const)
+      if (!(Number.isFinite(profile[key]) && profile[key] > 0))
+        throw new RangeError(`崩しの設定の ${key} は有限かつ正の数（${String(profile[key])}）`);
+    for (const key of ["decayDelay", "decayPerSecond"] as const)
+      if (!(Number.isFinite(profile[key]) && profile[key] >= 0))
+        throw new RangeError(`崩しの設定の ${key} は有限かつ0以上（${String(profile[key])}）`);
     this.profile = profile;
     this.maxHp = maxHp;
+    // 最初の最大値が有限・正であることを確かめる（最大HP × 割合の溢れ・0への丸め）
+    if (!(this.max > 0)) throw new RangeError(`崩しゲージの最大値は正の数（${String(this.max)}）`);
   }
 
-  /** ゲージの最大値（崩れるたびに growthPerBreak 倍になる）。 */
+  /** ゲージの最大値（崩れるたびに growthPerBreak 倍になる）。有限でなくなったら RangeError。 */
   get max(): number {
-    return this.maxHp * this.profile.gaugeRatio * this.profile.growthPerBreak ** this.breakCount;
+    return this.maxAt(this.breakCount);
+  }
+  private maxAt(breaks: number): number {
+    return requireFinite(
+      this.maxHp * this.profile.gaugeRatio * this.profile.growthPerBreak ** breaks,
+      () => `崩しゲージの最大値（崩れた回数 ${String(breaks)}）`,
+    );
   }
   get current(): number {
     return this.value;
@@ -340,10 +461,16 @@ export class StaggerGauge {
 
   /** 崩し値を加える。崩れた場合は true を返す。崩れている間は溜まらない。 */
   add(amount: number): boolean {
-    if (!(amount > 0) || this.broken) return false;
+    if (!(Number.isFinite(amount) && amount >= 0))
+      throw new RangeError(`崩し値は有限かつ0以上（${String(amount)}）`);
+    if (amount === 0 || this.broken) return false;
+    const value = requireFinite(this.value + amount, () => "崩しゲージの値");
+    const breaking = value >= this.max;
+    // 崩れる場合は、次の最大値も有限であることを、状態を変える前に確かめる
+    if (breaking) this.maxAt(this.breakCount + 1);
     this.sinceLast = 0;
-    this.value += amount;
-    if (this.value < this.max) return false;
+    this.value = value;
+    if (!breaking) return false;
     this.value = 0;
     this.brokenFor = this.profile.breakDuration;
     this.breakCount += 1;
@@ -352,13 +479,21 @@ export class StaggerGauge {
 
   /** 時間を進める（崩れている時間の経過・ゲージの減少）。 */
   update(dt: number): void {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
-    if (this.brokenFor > 0) this.brokenFor = Math.max(0, this.brokenFor - dt);
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const before = this.sinceLast;
-    this.sinceLast += dt;
-    const decayTime = Math.max(0, this.sinceLast - Math.max(before, this.profile.decayDelay));
-    if (decayTime > 0)
-      this.value = Math.max(0, this.value - this.max * this.profile.decayPerSecond * decayTime);
+    const sinceLast = requireFinite(before + dt, () => "崩しを受けていない時間");
+    const decayTime = Math.max(0, sinceLast - Math.max(before, this.profile.decayDelay));
+    const decay =
+      decayTime > 0
+        ? requireFinite(
+            this.max * this.profile.decayPerSecond * decayTime,
+            () => "崩しゲージの減る量",
+          )
+        : 0;
+    if (this.brokenFor > 0) this.brokenFor = Math.max(0, this.brokenFor - dt);
+    this.sinceLast = sinceLast;
+    if (decayTime > 0) this.value = Math.max(0, this.value - decay);
   }
 }
 
@@ -380,15 +515,24 @@ export function staggerValue(input: {
   readonly weaponUid?: string;
 }): number {
   if (input.hit.evaded || input.targetImmune === true) return 0;
+  const scope = hitScope(input.hit, input.weaponUid);
   const def = input.db.ailmentsByTag.get("TAG-AIL-STAGGER");
-  const coefficient = input.coefficient ?? (def?.kind === "stagger" ? def.defaultCoefficient : 0);
-  const inc = sums(
-    input.view.stat(AILMENT_STATS.stagger, input.tags),
-    input.db,
-    input.weaponUid,
-  ).increased;
-  const resist = Math.min(1, Math.max(0, input.targetResist ?? 0));
-  return Math.max(0, input.hit.preMitigationTotal * coefficient * (1 + inc) * (1 - resist));
+  const coefficient = finite(
+    input.coefficient ?? (def?.kind === "stagger" ? def.defaultCoefficient : 0),
+    "崩し係数",
+  );
+  const inc = sums(input.view.stat(AILMENT_STATS.stagger, input.tags, scope), "崩し値").increased;
+  const resist = Math.min(1, Math.max(0, finite(input.targetResist ?? 0, "崩されにくさ")));
+  return Math.max(
+    0,
+    finite(
+      finite(input.hit.preMitigationTotal, "打撃値の合計（会心の後・防御の前）") *
+        coefficient *
+        (1 + inc) *
+        (1 - resist),
+      "崩し値",
+    ),
+  );
 }
 
 /** 崩しの定義（データの AIL-STAGGER）を取り出す。 */

@@ -100,6 +100,11 @@ export interface HitResult {
    * 崩し値の元にする（仕様書v0.2 2.7「打撃値（全属性の合計・防御の前）」）。
    */
   readonly preMitigationTotal: number;
+  /**
+   * このヒットに使った武器の uid（呪文など、武器のヒットでなければ undefined）。
+   * 状態異常・崩しの計算で、局所の効果の範囲（HitScope）がこのヒットと食い違わないことを確かめるために使う。
+   */
+  readonly weaponUid: string | undefined;
   /** 属性ごとの基準値（状態異常の強さの元。会心・倍率・耐性・防御を含まない。仕様書v0.2 2.7）。 */
   readonly ailmentBase: Readonly<Partial<Record<Element, number>>>;
   readonly hitChance: number;
@@ -350,6 +355,7 @@ export function computeHit(
       const amount = hit.amounts[element];
       if (amount === undefined || amount <= 0) continue;
       // 4. 会心 → 敵が受けるダメージの倍率 → 耐性 → 防御
+      // 崩し値の元（U-04b）。有限であることは、使う側（staggerValue）で検証する
       const afterCrit = amount * (crit ? critMultiplier : 1);
       preMitigationTotal += afterCrit;
       let value = afterCrit * taken * (1 - (defender.resist?.[element] ?? 0));
@@ -369,6 +375,7 @@ export function computeHit(
     damage,
     total,
     preMitigationTotal,
+    weaponUid: weapon?.uid,
     ailmentBase: evaded ? {} : ailmentBase,
     hitChance: chanceToHit,
     critChance,
