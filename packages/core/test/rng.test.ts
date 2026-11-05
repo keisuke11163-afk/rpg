@@ -2,6 +2,8 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { Rng } from "../src/index.ts";
 
+/** テストの表示用（undefined は JSON にならないため）。 */
+const label = (v: unknown): string => (v === undefined ? "undefined" : JSON.stringify(v));
 const take = (rng: Rng, n: number): number[] => Array.from({ length: n }, () => rng.nextUint32());
 
 describe("Rng", () => {
@@ -87,6 +89,150 @@ describe("Rng", () => {
     for (let i = 0; i < 100; i++) {
       expect(rng.chance(0)).toBe(false);
       expect(rng.chance(1)).toBe(true);
+    }
+  });
+
+  it("状態を保存・復元した後の列は、元の列と完全に一致する（性質のテスト）", () => {
+    fc.assert(
+      fc.property(fc.integer(), fc.integer({ min: 0, max: 200 }), (seed, skip) => {
+        const a = Rng.fromSeed(seed);
+        take(a, skip);
+        const state = a.getState();
+        const b = Rng.fromState(state);
+        // 状態そのものも同じ
+        if (JSON.stringify(b.getState()) !== JSON.stringify(state)) return false;
+        return JSON.stringify(take(a, 30)) === JSON.stringify(take(b, 30));
+      }),
+    );
+  });
+
+  it("JSONを通した状態からも、同じ列を復元できる（セーブデータの形）", () => {
+    const a = Rng.fromSeed("save");
+    take(a, 3);
+    const restored = JSON.parse(JSON.stringify(a.getState())) as [number, number, number, number];
+    const b = Rng.fromState(restored);
+    expect(take(b, 20)).toEqual(take(a, 20));
+  });
+
+  it("有効な状態の境界値（0 と 2^32 - 1）は受け入れる", () => {
+    const max = 0xffff_ffff;
+    expect(Rng.fromState([0, 0, 0, 1]).getState()).toEqual([0, 0, 0, 1]);
+    expect(Rng.fromState([max, max, max, max]).getState()).toEqual([max, max, max, max]);
+    expect(Rng.fromState([1, 0, 0, 0]).getState()).toEqual([1, 0, 0, 0]);
+  });
+
+  it("fromState は正しくない状態を RangeError にする（書き換えて受け入れない）", () => {
+    const bad: unknown[] = [
+      [0, 0, 0, 0], // 全て0
+      [1, 2, 3], // 3要素
+      [1, 2, 3, 4, 5], // 5要素
+      [], // 空
+      [1, 2, 3, -1], // 負の数
+      [1, 2, 3, 0x1_0000_0000], // 2^32
+      [1, 2, 3, 1.5], // 整数でない
+      [1, 2, 3, Number.NaN],
+      [1, 2, 3, Number.POSITIVE_INFINITY],
+      [1, 2, 3, Number.NEGATIVE_INFINITY],
+      [1, 2, 3, "4"], // 文字列
+      [1, 2, 3, null],
+      [1, 2, 3, undefined],
+      "1,2,3,4", // 配列でない
+      { 0: 1, 1: 2, 2: 3, 3: 4, length: 4 }, // 配列に似たもの
+      null,
+      undefined,
+      42,
+    ];
+    for (const state of bad) {
+      expect(() => Rng.fromState(state as never), label(state)).toThrow(RangeError);
+    }
+  });
+
+  it("fromState は空要素のある配列（sparse array）を RangeError にする", () => {
+    // 空要素は forEach などで飛ばされるため、全ての位置を確かめる必要がある
+    const holes = [
+      [1, , , 1], // 途中が2つ空
+      [1, , 3, 4], // 途中が1つ空
+      [, 2, 3, 4], // 先頭が空
+      [1, 2, 3, ,], // 末尾が空（長さは4）
+      [, , , ,], // 全て空
+      new Array<number>(4), // 長さだけの配列
+    ];
+    for (const state of holes) {
+      expect(state).toHaveLength(4);
+      expect(() => Rng.fromState(state as never), label(state)).toThrow(RangeError);
+    }
+  });
+
+  it("空要素の検査を加えた後も、有効な状態は正しく復元できる", () => {
+    const a = Rng.fromSeed("sparse");
+    take(a, 7);
+    const state = [...a.getState()];
+    const b = Rng.fromState(state as unknown as [number, number, number, number]);
+    expect(b.getState()).toEqual(state);
+    expect(take(b, 20)).toEqual(take(a, 20));
+  });
+
+  it("float は min 以上 max 未満。min と max が同じなら min", () => {
+    const rng = Rng.fromSeed(11);
+    for (let i = 0; i < 1000; i++) {
+      const x = rng.float(-2.5, 3);
+      expect(x).toBeGreaterThanOrEqual(-2.5);
+      expect(x).toBeLessThan(3);
+    }
+    expect(rng.float(4, 4)).toBe(4);
+    expect(rng.float(-0.5, -0.5)).toBe(-0.5);
+    // 大きいが有限の範囲
+    const big = rng.float(-1e300, 1e300);
+    expect(Number.isFinite(big)).toBe(true);
+  });
+
+  it("float は正しくない引数を RangeError にする", () => {
+    const rng = Rng.fromSeed(12);
+    const bad: [number, number][] = [
+      [1, 0], // max < min
+      [0, -Number.EPSILON],
+      [Number.NaN, 1],
+      [0, Number.NaN],
+      [Number.NEGATIVE_INFINITY, 0],
+      [0, Number.POSITIVE_INFINITY],
+      [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY],
+      [-Number.MAX_VALUE, Number.MAX_VALUE], // 差が有限の数にならない
+    ];
+    for (const [min, max] of bad) {
+      expect(() => rng.float(min, max), `${String(min)}, ${String(max)}`).toThrow(RangeError);
+    }
+  });
+
+  it("chance は 0〜1 の確率で true（境界の 0 と 1 を含む）", () => {
+    const rng = Rng.fromSeed(13);
+    let hits = 0;
+    for (let i = 0; i < 20000; i++) if (rng.chance(0.25)) hits++;
+    expect(Math.abs(hits / 20000 - 0.25)).toBeLessThan(0.02);
+    expect(typeof rng.chance(Number.MIN_VALUE)).toBe("boolean"); // 0 より大きい最小の確率
+    // 1 の直前でも例外にならない
+    expect(typeof rng.chance(1 - Number.EPSILON)).toBe("boolean");
+  });
+
+  it("chance は 0 と 1 では乱数の列を進めない（既存の動作）", () => {
+    const a = Rng.fromSeed(14);
+    const b = Rng.fromSeed(14);
+    a.chance(0);
+    a.chance(1);
+    expect(take(a, 5)).toEqual(take(b, 5));
+  });
+
+  it("chance は正しくない確率を RangeError にする", () => {
+    const rng = Rng.fromSeed(15);
+    for (const p of [
+      -Number.EPSILON,
+      -1,
+      1 + Number.EPSILON,
+      2,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ]) {
+      expect(() => rng.chance(p), String(p)).toThrow(RangeError);
     }
   });
 });
