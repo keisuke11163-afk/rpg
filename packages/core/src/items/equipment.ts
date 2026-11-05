@@ -72,6 +72,13 @@ export class Equipment {
     this.db = db;
   }
 
+  /** 同じ装備の写し（比較の表示で、装備したときの能力値を、状態を変えずに計算するため）。 */
+  clone(): Equipment {
+    const out = new Equipment(this.db);
+    for (const [s, i] of this.slots) out.slots.set(s, i);
+    return out;
+  }
+
   get(slot: MvpEquipSlot): ItemInstance | undefined {
     return this.slots.get(slot);
   }

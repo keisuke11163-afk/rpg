@@ -57,6 +57,14 @@ export class Inventory {
     this.goldValue = requireSafeTotal(this.goldValue + amount, "金貨の合計");
   }
 
+  /** 金貨を使う。足りなければ、何も変えずに false。 */
+  spendGold(amount: number): boolean {
+    requireCount(amount, "金貨");
+    if (this.goldValue < amount) return false;
+    this.goldValue -= amount;
+    return true;
+  }
+
   addMaterial(id: string, count: number): void {
     requireCount(count, `素材 ${id} の数`);
     this.materialCounts.set(id, requireSafeTotal(this.material(id) + count, `素材 ${id} の合計`));

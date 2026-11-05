@@ -325,6 +325,36 @@ export {
 } from "./items/drops.ts";
 export { INVENTORY_SLOTS, Inventory } from "./items/inventory.ts";
 export {
+  type ItemTooltip,
+  type TooltipContext,
+  type TooltipEffectLine,
+  effectMatchesContexts,
+  itemTooltip,
+  skillContexts,
+} from "./items/tooltip.ts";
+export {
+  type CompareOptions,
+  type EquipComparison,
+  type StatChange,
+  compareEquip,
+} from "./items/compare.ts";
+export {
+  AWAKENING_DUST,
+  AWAKENING_DUST_PRICE,
+  MERCHANT_STOCK_SIZE,
+  SELL_MULTIPLIER,
+  STASH_SLOTS,
+  type StockInput,
+  basePrice,
+  buyAwakeningDust,
+  buyItem,
+  createStash,
+  rollMerchantStock,
+  sellItem,
+  sellPrice,
+  transferItem,
+} from "./items/merchant.ts";
+export {
   Equipment,
   MVP_EQUIP_SLOTS,
   type MvpEquipSlot,
