@@ -52,9 +52,9 @@ export class BootScene extends Phaser.Scene {
       this,
       [...content.enemies.values()].map((e) => ({ id: e.id, radius: e.radius })),
     );
-    // 少しだけ表題を見せてから、試験用の場へ進む（起動の確認は、試験用の場の描画が終わった時点で行う）
+    // 少しだけ表題を見せてから、タイトル（キャラクターの選択）へ進む
     this.time.delayedCall(800, () => {
-      this.scene.start("arena");
+      this.scene.start("title");
     });
   }
 }

@@ -17,11 +17,14 @@ export const PANEL = {
   detail: { x: 340, y: 52, width: 284 },
   /** キャラクターの画面の能力値の一覧（左の列）。 */
   stats: { x: 16, y: 74, width: 300, row: 11 },
+  /** 倉庫の枠（右の列。12列×10行）。 */
+  stashGrid: { x: 340, y: 52, columns: 12, rows: 10, cell: 15 },
   /** キャラクターの画面の技の枠（右の列の下）。 */
   skillSlots: { x: 340, y: 246, width: 284, row: 11, count: 6 },
 } as const;
 
-export type PanelKind = "inventory" | "character" | "starBoard" | "smith";
+export type PanelKind =
+  "inventory" | "character" | "starBoard" | "smith" | "stash" | "merchant" | "teleport";
 
 export type PanelTarget =
   | { readonly kind: "slot"; readonly slot: MvpEquipSlot }
@@ -66,4 +69,19 @@ export function cellPosition(index: number): { x: number; y: number } {
     x: g.x + (index % g.columns) * g.cell,
     y: g.y + Math.floor(index / g.columns) * g.cell,
   };
+}
+
+/** 倉庫の枠の番号（画面の位置。枠の外なら undefined）。 */
+export function stashCellAt(x: number, y: number): number | undefined {
+  const g = PANEL.stashGrid;
+  const cx = Math.floor((x - g.x) / g.cell);
+  const cy = Math.floor((y - g.y) / g.cell);
+  if (x < g.x || y < g.y || cx >= g.columns || cy >= g.rows) return undefined;
+  return cy * g.columns + cx;
+}
+
+/** 倉庫の枠の左上。 */
+export function stashCellPosition(index: number): { x: number; y: number } {
+  const g = PANEL.stashGrid;
+  return { x: g.x + (index % g.columns) * g.cell, y: g.y + Math.floor(index / g.columns) * g.cell };
 }

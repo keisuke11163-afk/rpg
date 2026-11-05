@@ -7,8 +7,11 @@ import {
   CRAFT_MATERIALS,
   CRAFT_OPS,
   type CraftOp,
+  AWAKENING_DUST_PRICE,
   INSCRIPTIONS,
   MAX_LOADOUTS,
+  basePrice,
+  sellPrice,
   craftBlock,
   loadoutsUsing,
   damagePreview,
@@ -50,6 +53,8 @@ import {
   cellPosition,
   characterTarget,
   inventoryTarget,
+  stashCellAt,
+  stashCellPosition,
 } from "./panel-layout.ts";
 
 const DEPTH = 1000;
@@ -108,9 +113,16 @@ export class EquipmentPanel {
   /** 星辰盤をドラッグで動かしている（押した位置と、その時の視点）。 */
   private drag: { x: number; y: number; cam: BoardCamera; moved: boolean } | undefined;
 
-  constructor(scene: Phaser.Scene, sim: ArenaSimulation) {
+  private readonly onTravel: ((to: string) => void) | undefined;
+
+  constructor(
+    scene: Phaser.Scene,
+    sim: ArenaSimulation,
+    options: { readonly onTravel?: (to: string) => void } = {},
+  ) {
     this.scene = scene;
     this.sim = sim;
+    this.onTravel = options.onTravel;
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH);
     scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       const button = p.button === 2 ? "right" : "left";
@@ -167,13 +179,28 @@ export class EquipmentPanel {
 
   /** 画面を開く・閉じる（同じ画面のキーなら閉じる）。 */
   toggle(kind: PanelKind): void {
-    this.kind = this.kind === kind ? undefined : kind;
+    // 施設の画面（鍛冶屋・倉庫・商人・転移の石）を開いているときは、どのキーでも閉じる
+    const facility =
+      this.kind === "smith" ||
+      this.kind === "stash" ||
+      this.kind === "merchant" ||
+      this.kind === "teleport";
+    this.kind =
+      this.kind === kind || (facility && this.sim.region !== undefined) ? undefined : kind;
     this.hovered = undefined;
     if (this.kind === "starBoard") this.centerOn(this.sim.starRoot);
   }
 
   close(): void {
     this.kind = undefined;
+  }
+
+  /** 画面を開く（施設を使ったとき）。開いていれば何もしない。 */
+  show(kind: PanelKind): void {
+    if (this.kind === kind) return;
+    this.kind = kind;
+    this.hovered = undefined;
+    if (kind === "starBoard") this.centerOn(this.sim.starRoot);
   }
 
   snapshot(): PanelSnapshot {
@@ -185,7 +212,12 @@ export class EquipmentPanel {
     if (this.kind === "starBoard") {
       const n = nodeAt(this.sim.db, this.camera, x, y);
       this.hovered = n === undefined ? undefined : { kind: "starNode", id: n.id };
-    } else if (this.kind === "inventory" || this.kind === "smith")
+    } else if (
+      this.kind === "inventory" ||
+      this.kind === "smith" ||
+      this.kind === "stash" ||
+      this.kind === "merchant"
+    )
       this.hovered = inventoryTarget(x, y);
     else if (this.kind === "character")
       this.hovered = characterTarget(x, y, sheetRows(this.sim.db, this.sim.sheet).length);
@@ -194,6 +226,35 @@ export class EquipmentPanel {
 
   /** クリック。何かをしたら true。 */
   click(x: number, y: number, button: "left" | "right"): boolean {
+    if (this.kind === "teleport" || this.kind === "merchant") {
+      if (x >= PANEL.detail.x) {
+        const row = this.smithRows.find((r) => y >= r.y0 && y < r.y1);
+        if (row === undefined) return false;
+        row.run();
+        return true;
+      }
+      if (this.kind === "teleport") return false;
+      const t = inventoryTarget(x, y);
+      const item = t?.kind === "item" ? this.sim.inventory.items[t.index] : undefined;
+      if (item === undefined) return false;
+      const price = this.sim.sell(item.uid);
+      if (price !== undefined)
+        this.say(`${itemName(this.sim.db, item)}を ${String(price)} 金貨で売った`, TEXT_COLOR.good);
+      return true;
+    }
+    if (this.kind === "stash") {
+      const si = stashCellAt(x, y);
+      if (si !== undefined) {
+        const item = this.sim.stash.items[si];
+        if (item !== undefined && !this.sim.fromStash(item.uid)) this.say("インベントリがいっぱい");
+        return true;
+      }
+      const t = inventoryTarget(x, y);
+      const item = t?.kind === "item" ? this.sim.inventory.items[t.index] : undefined;
+      if (item === undefined) return false;
+      if (!this.sim.toStash(item.uid)) this.say("倉庫がいっぱい");
+      return true;
+    }
     if (this.kind === "smith") {
       if (x >= PANEL.detail.x) {
         const row = this.smithRows.find((r) => y >= r.y0 && y < r.y1);
@@ -311,6 +372,9 @@ export class EquipmentPanel {
       if (this.kind === "inventory") this.renderInventory();
       else if (this.kind === "character") this.renderCharacter();
       else if (this.kind === "smith") this.renderSmith();
+      else if (this.kind === "stash") this.renderStash();
+      else if (this.kind === "merchant") this.renderMerchant();
+      else if (this.kind === "teleport") this.renderTeleport();
       else this.renderStarBoard();
       if (this.message !== undefined && this.scene.time.now < this.message.until)
         this.line(
@@ -747,6 +811,167 @@ export class EquipmentPanel {
         d.width,
       );
       if (a.enabled) this.smithRows.push({ y0, y1: y, run: a.run });
+    }
+  }
+
+  /** インベントリの枠を描く（倉庫・商人・鍛冶屋で共通）。 */
+  private drawInventoryGrid(selected?: string): void {
+    const sim = this.sim;
+    const g = PANEL.grid;
+    for (let i = 0; i < sim.inventory.capacity; i++) {
+      const { x, y } = cellPosition(i);
+      const item = sim.inventory.items[i];
+      const hovered = this.hovered?.kind === "item" && this.hovered.index === i;
+      const isSel = item !== undefined && item.uid === selected;
+      this.g
+        .lineStyle(1, isSel ? 0x7bd389 : hovered ? 0xffe08a : 0x3a3846, 1)
+        .strokeRect(x, y, g.cell - 1, g.cell - 1);
+      if (item !== undefined)
+        this.g
+          .fillStyle(colorNumber(RARITY_COLOR[item.rarity]), 0.85)
+          .fillRect(x + 3, y + 3, g.cell - 7, g.cell - 7);
+    }
+  }
+
+  /** 指したインベントリの装備のツールチップを、左の列に出す。 */
+  private hoveredTooltip(): void {
+    const t = this.hovered;
+    const item = t?.kind === "item" ? this.sim.inventory.items[t.index] : undefined;
+    if (item !== undefined)
+      this.lines(
+        PANEL.slots.x,
+        PANEL.slots.y,
+        tooltipLines(this.sim.db, this.sim.tooltip(item)),
+        150,
+      );
+  }
+
+  /** 倉庫（補助仕様書13章：120枠。町だけ）。 */
+  private renderStash(): void {
+    const sim = this.sim;
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      {
+        text: `倉庫（I で閉じる）　インベントリの装備をクリックで倉庫へ／倉庫の装備をクリックでインベントリへ　倉庫 ${String(sim.stash.items.length)}／${String(sim.stash.capacity)}`,
+        color: TEXT_COLOR.dim,
+      },
+      0,
+    );
+    this.drawInventoryGrid();
+    const g = PANEL.stashGrid;
+    for (let i = 0; i < g.columns * g.rows; i++) {
+      const { x, y } = stashCellPosition(i);
+      const item = sim.stash.items[i];
+      this.g.lineStyle(1, 0x3a3846, 1).strokeRect(x, y, g.cell - 1, g.cell - 1);
+      if (item !== undefined)
+        this.g
+          .fillStyle(colorNumber(RARITY_COLOR[item.rarity]), 0.85)
+          .fillRect(x + 3, y + 3, g.cell - 7, g.cell - 7);
+    }
+    this.hoveredTooltip();
+  }
+
+  /** 商人（補助仕様書5章）：インベントリの装備をクリックで売る、品揃えをクリックで買う。 */
+  private renderMerchant(): void {
+    const sim = this.sim;
+    const db = sim.db;
+    this.smithRows = [];
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      {
+        text: `商人（I で閉じる）　インベントリの装備をクリックで売る／右の品をクリックで買う　金貨 ${String(sim.inventory.gold)}`,
+        color: TEXT_COLOR.dim,
+      },
+      0,
+    );
+    this.drawInventoryGrid();
+    this.hoveredTooltip();
+    const t = this.hovered;
+    const hoveredItem = t?.kind === "item" ? sim.inventory.items[t.index] : undefined;
+    if (hoveredItem !== undefined)
+      this.line(
+        PANEL.grid.x,
+        PANEL.grid.y + PANEL.grid.rows * PANEL.grid.cell + 30,
+        { text: `売値 ${String(sellPrice(hoveredItem))} 金貨`, color: TEXT_COLOR.highlight },
+        0,
+      );
+    const d = PANEL.detail;
+    const rows: { label: string; run: () => void; enabled: boolean }[] = sim.merchantStock.map(
+      (item) => {
+        const price = basePrice(item.itemLevel);
+        return {
+          label: `${itemName(db, item)}（アイテムLv${String(item.itemLevel)}）　${String(price)} 金貨`,
+          run: () => {
+            if (sim.buy(item.uid)) this.say(`${itemName(db, item)}を買った`, TEXT_COLOR.good);
+            else this.say("金貨が足りない・インベントリがいっぱい");
+          },
+          enabled: sim.inventory.gold >= price,
+        };
+      },
+    );
+    rows.push({
+      label: `目覚めの粉　${String(AWAKENING_DUST_PRICE)} 金貨`,
+      run: () => {
+        if (sim.buyDust()) this.say("目覚めの粉を買った", TEXT_COLOR.good);
+        else this.say("金貨が足りない");
+      },
+      enabled: sim.inventory.gold >= AWAKENING_DUST_PRICE,
+    });
+    let y: number = d.y;
+    this.line(d.x, y, { text: "― 品揃え（町に戻るたびに入れ替わる）―", color: TEXT_COLOR.dim }, 0);
+    y += LINE + 2;
+    for (const r of rows) {
+      const y0 = y;
+      y = this.lines(
+        d.x,
+        y,
+        [{ text: r.label, color: r.enabled ? TEXT_COLOR.good : TEXT_COLOR.dim }],
+        d.width,
+      );
+      this.smithRows.push({ y0, y1: y, run: r.run });
+    }
+  }
+
+  /** 転移の石（補助仕様書9.4）：解放した地域の入口へ移る。 */
+  private renderTeleport(): void {
+    const sim = this.sim;
+    const db = sim.db;
+    this.smithRows = [];
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      { text: "転移の石（I で閉じる）　行き先をクリック", color: TEXT_COLOR.dim },
+      0,
+    );
+    const dests: { id: string; name: string }[] = [];
+    for (const id of sim.unlockedRegions) {
+      const r = db.regions.get(id);
+      if (r !== undefined && r.kind === "dungeon")
+        dests.push({ id, name: text(r.text as TextKey) });
+    }
+    // 開発用の機能：開発用の試験用の場（開発版だけ）
+    if (import.meta.env.DEV) dests.push({ id: "DEV-ARENA", name: "試験用の場（開発用）" });
+    const d = PANEL.detail;
+    let y: number = d.y;
+    if (dests.length === 0)
+      this.line(
+        d.x,
+        y,
+        { text: "まだ解放した転移の石が無い（地域の入口の石に触れる）", color: TEXT_COLOR.dim },
+        d.width,
+      );
+    for (const dest of dests) {
+      const y0 = y;
+      y = this.lines(d.x, y, [{ text: `→ ${dest.name}`, color: TEXT_COLOR.good }], d.width);
+      this.smithRows.push({
+        y0,
+        y1: y,
+        run: () => {
+          this.onTravel?.(dest.id);
+        },
+      });
     }
   }
 }

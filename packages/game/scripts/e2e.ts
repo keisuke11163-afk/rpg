@@ -168,6 +168,12 @@ type DebugWindow = {
     ) => { rarity: string; affixes: number; enhance: number; forgeLoad: number } | null;
     starNodeScreen: (id: string) => { x: number; y: number } | null;
     saves: () => SavesInfo;
+    region: () => RegionInfo;
+    goRegion: (id: string) => boolean;
+    die: () => boolean;
+    teleportTo: (x: number, y: number) => { x: number; y: number };
+    title: () => { slots: { slot: number; state: string }[]; selected: number | null };
+    startSlot: (slot: number, how: string) => boolean;
   };
 };
 interface StarsInfo {
@@ -177,6 +183,21 @@ interface StarsInfo {
   points: number;
   attributes: { go: number; jin: number; ri: number; kon: number };
   lamps: number;
+}
+interface RegionInfo {
+  id: string;
+  kind: string;
+  near: string | null;
+  chests: { x: number; y: number; kind: string; opened: boolean }[];
+  packs: number;
+  unlocked: string[];
+  deaths: number;
+  lastCause: string | null;
+  facilities: { kind: string; x: number; y: number }[];
+  stone: { x: number; y: number } | null;
+  exits: { to: string; x: number; y: number; width: number; height: number }[];
+  hp: number;
+  maxHp: number;
 }
 interface SavesInfo {
   status: string;
@@ -216,6 +237,41 @@ try {
   });
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("http://localhost:5174/");
+  await page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
+    timeout: 20000,
+  });
+  // タイトル（U-18a）：3スロット。空きのスロット1に、開発用の初期の状態で始める
+  const title0 = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.title(),
+  );
+  check(
+    "タイトルに3つのスロットがあり、最初は全て空き（U-18a）",
+    title0.slots.length === 3 && title0.slots.every((x) => x.state === "empty"),
+    `スロット ${title0.slots.map((x) => `${String(x.slot)}:${x.state}`).join(",")}`,
+  );
+  await page.screenshot({ path: `${outDir}title.png` });
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.startSlot(1, "dev"),
+  );
+  await page.waitForFunction(
+    () =>
+      document.body.dataset["stellaReady"] === "true" &&
+      document.body.dataset["stellaScene"] === "arena",
+    undefined,
+    { timeout: 20000 },
+  );
+  // ゲームは町から始まる（U-18a）。操作の確認は、開発用の試験用の場で行う
+  const startRegion = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.region(),
+  );
+  check(
+    "ゲームは町（星見の村）から始まる（U-18a）",
+    startRegion.id === "REGION-TOWN" && startRegion.kind === "town" && startRegion.packs === 0,
+    `地域 ${startRegion.id}・敵 ${String(startRegion.packs)}`,
+  );
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.goRegion("DEV-ARENA"),
+  );
   await page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
     timeout: 20000,
   });
@@ -877,11 +933,28 @@ try {
   // セーブ・ロード（U-13）：保存してページを読み込み直すと、同じ状態から始まる
   const saves = (): Promise<SavesInfo> =>
     page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.saves());
-  const reload = async (): Promise<void> => {
+  /** ページを読み込み直し、タイトルでスロット1を選んで始める。 */
+  const reload = async (how = "continue"): Promise<void> => {
     await page.goto("http://localhost:5174/");
-    await page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
-      timeout: 20000,
-    });
+    await page.waitForFunction(
+      () =>
+        document.body.dataset["stellaReady"] === "true" &&
+        document.body.dataset["stellaScene"] === "title",
+      undefined,
+      { timeout: 20000 },
+    );
+    if (how === "") return;
+    await page.evaluate(
+      (h: string) => (window as unknown as DebugWindow).__STELLA_DEBUG__.startSlot(1, h),
+      how,
+    );
+    await page.waitForFunction(
+      () =>
+        document.body.dataset["stellaReady"] === "true" &&
+        document.body.dataset["stellaScene"] === "arena",
+      undefined,
+      { timeout: 20000 },
+    );
   };
   const saved = await page.evaluate(() =>
     (window as unknown as DebugWindow).__STELLA_DEBUG__.saveNow(),
@@ -921,26 +994,105 @@ try {
         JSON.stringify(beforeReload.stars.attributes),
     `Lv ${String(beforeReload.skills.level)} → ${String(afterReload.skills.level)}・ジョブ ${afterReload.skills.job}・武器 ${String(afterReload.skills.weapon)}・金貨 ${String(beforeReload.inv.gold)} → ${String(afterReload.inv.gold)}・持ち物 ${String(afterReload.inv.items.length)}・最大HP ${String(afterReload.hp)}`,
   );
-  // 壊れたデータ：読み込みでは上書きせず、新しく始める。保存するときに .corrupt に退避する
+  // 壊れたデータ：タイトルで壊れていると示し、上書きしない。新しく始めると .corrupt に退避してから保存する
   await page.evaluate(() => {
     window.localStorage.setItem("stella-sigil/slot1", "壊れたデータ");
   });
-  await reload();
-  const sv1 = await saves();
+  await reload("");
+  const titleCorrupt = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.title(),
+  );
+  const untouched = await page.evaluate(() => window.localStorage.getItem("stella-sigil/slot1"));
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.startSlot(1, "dev"),
+  );
+  await page.waitForFunction(
+    () =>
+      document.body.dataset["stellaReady"] === "true" &&
+      document.body.dataset["stellaScene"] === "arena",
+    undefined,
+    { timeout: 20000 },
+  );
   const started = await skills();
-  await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.saveNow());
   const sv2 = await saves();
   const corrupt = await page.evaluate(() =>
     window.localStorage.getItem("stella-sigil/slot1.corrupt"),
   );
   check(
-    "壊れたセーブデータは検出して新しく始め、元のデータは .corrupt に退避してから保存する（U-13）",
-    sv1.status.includes("壊れている") &&
-      sv1.slots[0]?.state === "corrupt" &&
+    "壊れたセーブデータはタイトルで検出して上書きせず、新しく始めると .corrupt に退避してから保存する（U-13）",
+    titleCorrupt.slots[0]?.state === "corrupt" &&
+      untouched === "壊れたデータ" &&
       started.level === 15 &&
       sv2.slots[0]?.state === "ok" &&
       corrupt === "壊れたデータ",
-    `${sv1.status}・保存の後 ${String(sv2.slots[0]?.state)}・退避 ${String(corrupt)}`,
+    `タイトル ${String(titleCorrupt.slots[0]?.state)}・保存の後 ${String(sv2.slots[0]?.state)}・退避 ${String(corrupt)}`,
+  );
+
+  // 町とダンジョン（U-18a）：町の施設を F で使う・出口で A1 へ・転移の石・倒れると町へ
+  const regionInfo = (): Promise<RegionInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.region());
+  const ready = (): Promise<unknown> =>
+    page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
+      timeout: 20000,
+    });
+  const tp = (x: number, y: number): Promise<unknown> =>
+    page.evaluate(
+      (a: { x: number; y: number }) =>
+        (window as unknown as DebugWindow).__STELLA_DEBUG__.teleportTo(a.x, a.y),
+      { x, y },
+    );
+  const townNow = await regionInfo();
+  const merchant = townNow.facilities.find((f) => f.kind === "merchant");
+  if (merchant !== undefined) await tp(merchant.x, merchant.y + 1.2);
+  await page.waitForTimeout(100);
+  await page.keyboard.press("KeyF");
+  await page.waitForTimeout(150);
+  const merchantPanel = await panel();
+  check(
+    "町で商人の前に立って F を押すと、商人の画面が開く（U-18a）",
+    townNow.kind === "town" &&
+      merchantPanel.open === "merchant" &&
+      merchantPanel.lines.some((l) => l.includes("品揃え")),
+    `地域 ${townNow.id}・画面 ${String(merchantPanel.open)}`,
+  );
+  await page.screenshot({ path: `${outDir}town-merchant.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  // 町の出口（右端）へ歩くと A1 に移る
+  const exit = townNow.exits.find((x) => x.to === "REGION-A1");
+  if (exit !== undefined) await tp(exit.x - 1, exit.y + exit.height / 2);
+  await page.keyboard.down("KeyD");
+  await page.waitForTimeout(600);
+  await page.keyboard.up("KeyD");
+  await ready();
+  const a1 = await regionInfo();
+  check(
+    "町の出口から歩くと、森の入口（A1）に移り、入るたびの配置で敵と宝箱がある（U-18a）",
+    a1.id === "REGION-A1" && a1.packs > 0 && a1.chests.length >= 3,
+    `地域 ${a1.id}・敵 ${String(a1.packs)}・宝箱 ${String(a1.chests.length)}`,
+  );
+  await page.screenshot({ path: `${outDir}a1.png` });
+  if (a1.stone !== null) await tp(a1.stone.x + 1, a1.stone.y);
+  await page.waitForTimeout(100);
+  await page.keyboard.press("KeyF");
+  await page.waitForTimeout(150);
+  const a1b = await regionInfo();
+  check(
+    "A1 の入口の転移の石に F で触れると、解放される（補助仕様書9.4）",
+    a1b.unlocked.includes("REGION-A1"),
+    `解放 ${a1b.unlocked.join(",")}`,
+  );
+  await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.die());
+  await page.waitForTimeout(300);
+  await ready();
+  const back = await regionInfo();
+  check(
+    "ダンジョンで倒れると、町に戻り全回復する。死亡の回数を記録し、転移の石の解放は残る（補助仕様書7章）",
+    back.id === "REGION-TOWN" &&
+      back.hp === back.maxHp &&
+      back.deaths === a1b.deaths + 1 &&
+      back.unlocked.includes("REGION-A1"),
+    `地域 ${back.id}・HP ${String(back.hp)}／${String(back.maxHp)}・死亡 ${String(back.deaths)}`,
   );
 } finally {
   await browser.close();

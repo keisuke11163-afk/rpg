@@ -21,8 +21,9 @@ import { INSCRIPTIONS, MAX_FORGE_LOAD } from "../items/crafting.ts";
  * - 版1：開発計画書6.9 の例の形
  * - 版2：金貨（gold）と、ジョブごとの技の枠（jobs[].skill_slots）を足した（U-13）
  * - 版3：装備の実体に、強化値・鍛造負荷・封詞・亀裂・銘を足した（U-17）
+ * - 版4：解放した転移の石（unlocked_regions）と、死亡の記録（death_log）を足した（U-18a）
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 /** 技の枠の数（補助仕様書1.1）。 */
 export const SAVE_SKILL_SLOTS = 6;
 
@@ -102,16 +103,30 @@ const characterSchema = z.strictObject({
   sub_job: id.nullable(),
 });
 
-/** 版3（今の版）のセーブデータ。 */
+const deathLogSchema = z.strictObject({ count, last_cause: z.string().nullable() });
+
+/** 版4（今の版）のセーブデータ。 */
 export const saveDataSchema = z.strictObject({
   save_version: z.literal(SAVE_VERSION),
   character: characterSchema,
   jobs: z.record(id, jobSchemaV2),
   gold: count,
   items: z.record(id, itemSchema),
+  unlocked_regions: z.array(id),
+  death_log: deathLogSchema,
   ...commonFields,
 });
 export type SaveData = z.infer<typeof saveDataSchema>;
+
+/** 版3。移行のためだけに使う。 */
+export const saveDataV3Schema = z.strictObject({
+  save_version: z.literal(3),
+  character: characterSchema,
+  jobs: z.record(id, jobSchemaV2),
+  gold: count,
+  items: z.record(id, itemSchema),
+  ...commonFields,
+});
 
 /** 版2。移行のためだけに使う。 */
 export const saveDataV2Schema = z.strictObject({
@@ -168,6 +183,16 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
           },
         ]),
       ),
+    };
+  },
+  /** 版3 → 版4：転移の石は未解放、死亡の記録は0。 */
+  3: (data) => {
+    const v3 = saveDataV3Schema.parse(data);
+    return {
+      ...v3,
+      save_version: 4,
+      unlocked_regions: [],
+      death_log: { count: 0, last_cause: null },
     };
   },
 };
@@ -241,6 +266,10 @@ export interface PlayerProfile {
    */
   readonly loadouts: readonly LoadoutRecord[];
   readonly activeLoadout: number;
+  /** 解放した転移の石の地域（補助仕様書9.4）。 */
+  readonly unlockedRegions: readonly string[];
+  /** 死亡の回数と原因（最後に受けた攻撃。補助仕様書7章）。 */
+  readonly deathLog: { readonly count: number; readonly lastCause: string | null };
   /** まだゲームで使っていない項目（職紋盤・討伐証など）。読み込んだ値をそのまま保存し直す。 */
   readonly kept: KeptSaveFields;
 }
@@ -345,6 +374,8 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
     stash,
     loadouts,
     active_loadout: profile.activeLoadout,
+    unlocked_regions: [...profile.unlockedRegions],
+    death_log: { count: profile.deathLog.count, last_cause: profile.deathLog.lastCause },
     gold: profile.inventory.gold,
     materials: Object.fromEntries(profile.inventory.materials),
     boss_tokens: { ...kept.bossTokens },
@@ -539,6 +570,12 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
     starAllocation,
     loadouts,
     activeLoadout: data.active_loadout,
+    unlockedRegions: (() => {
+      for (const r of data.unlocked_regions)
+        ref(db.regions.has(r), () => `解放した地域 ${r} がデータに無い`);
+      return [...data.unlocked_regions];
+    })(),
+    deathLog: { count: data.death_log.count, lastCause: data.death_log.last_cause },
     kept: {
       subJob: c.sub_job,
       boards: Object.fromEntries(

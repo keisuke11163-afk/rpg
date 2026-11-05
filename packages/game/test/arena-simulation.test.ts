@@ -171,14 +171,14 @@ describe("ArenaSimulation：技の枠の入力も刻みまで保持する（U-07
     const sim = new ArenaSimulation(undefined, { onHit: (r) => hits.push(r.backstab) });
     // 人形（20, 12）の左1.2mまで歩く。照準は右（人形の方）
     while (sim.motion.position.x < 18.8 - 1e-9) sim.frame(STEP, input({ move: { x: 1, y: 0 } }));
-    const before = sim.dummy.health.hp;
+    const before = sim.dummy?.health.hp ?? 0;
     sim.frame(STEP, input({ pressed: ["skill1"] }));
     // 当たるまで進める（予兆は 0.3/1.4 秒）
     let guard = 0;
     while (sim.hitCount === 0 && guard++ < 60) sim.frame(STEP, input());
     expect(sim.hitCount).toBe(1);
     expect(hits).toEqual([false]); // 正面からなので背面ではない
-    expect(sim.dummy.health.hp).toBeLessThan(before);
+    expect(sim.dummy?.health.hp).toBeLessThan(before);
     // ヒットの手応え（0.05秒）の最中に押した回避は、止まっている刻みでは使われず保持される
     const time = sim.time;
     sim.frame(STEP, input({ pressed: ["dodge"] }));
@@ -743,5 +743,131 @@ describe("ArenaSimulation：ロードアウト（U-20、仕様書v0.2 4.13）", 
     const back = new ArenaSimulation(undefined, { enemies: false, db: sim.db, profile: r.profile });
     expect(back.activeLoadout).toBe(3);
     expect(back.loadouts).toEqual(sim.loadouts);
+  });
+});
+
+describe("ArenaSimulation：町とダンジョン（U-18a、補助仕様書7〜9章）", () => {
+  const db = new ArenaSimulation(undefined, { enemies: false }).db;
+  const town = db.regions.get("REGION-TOWN");
+  const a1 = db.regions.get("REGION-A1");
+  if (town === undefined || a1 === undefined) throw new Error("地域が無い");
+  const walkTo = (sim: ArenaSimulation, x: number, y: number): void => {
+    const p = sim.motion.position;
+    sim.motion.displace({ x: x - p.x, y: y - p.y });
+  };
+
+  it("町：敵はいない・安全地帯・訓練用の人形・商人の品揃え。F で施設を使う", () => {
+    const used: string[] = [];
+    const sim = new ArenaSimulation(undefined, {
+      db,
+      region: town,
+      onFacility: (k) => used.push(k),
+    });
+    expect(sim.field).toBeUndefined();
+    expect(sim.inSafeZone).toBe(true);
+    expect(sim.dummy).toBeDefined();
+    expect(sim.merchantStock.length).toBeGreaterThan(0);
+    const smith = town.facilities?.find((f) => f.kind === "smith");
+    if (smith === undefined) throw new Error("鍛冶屋が無い");
+    walkTo(sim, smith.at.x, smith.at.y + 1);
+    expect(sim.nearbyInteractable()).toEqual({ kind: "facility", facility: "smith" });
+    sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(used).toEqual(["smith"]);
+  });
+
+  it("町：倉庫へ移して戻す・売る（ロードアウトの参照も空き）・買う", () => {
+    const sim = new ArenaSimulation(undefined, { db, region: town });
+    expect(sim.toStash("test-axe")).toBe(true);
+    expect(sim.stash.items.map((i) => i.uid)).toEqual(["test-axe"]);
+    expect(sim.fromStash("test-axe")).toBe(true);
+    const price = sim.sell("test-claw");
+    expect(price).toBeGreaterThan(0);
+    expect(sim.inventory.gold).toBe(price);
+    expect(sim.autosave.reason).toBe("trade");
+    sim.inventory.addGold(1000);
+    const stock = sim.merchantStock[0];
+    if (stock === undefined) throw new Error("品揃えが無い");
+    expect(sim.buy(stock.uid)).toBe(true);
+    expect(sim.inventory.items.some((i) => i.uid === stock.uid)).toBe(true);
+  });
+
+  it("ダンジョン（A1）：入るたびの配置で敵と宝箱を置く。シードが違えば配置が変わる", () => {
+    const a = new ArenaSimulation(undefined, { db, region: a1, layoutSeed: "x1" });
+    const b = new ArenaSimulation(undefined, { db, region: a1, layoutSeed: "x2" });
+    expect(a.field?.entries.length ?? 0).toBeGreaterThan(0);
+    expect(a.dummy).toBeUndefined();
+    expect(a.inSafeZone).toBe(false);
+    expect(a.chests.length).toBeGreaterThanOrEqual(3);
+    const pos = (s: ArenaSimulation): string =>
+      JSON.stringify(
+        s.field?.entries.map((e) => [Math.round(e.enemy.combatant.position.x), e.enemy.def.id]),
+      );
+    expect(pos(a)).not.toBe(pos(b));
+    expect(a.motion.position).toEqual(a1.entrance);
+  });
+
+  it("ダンジョン：宝箱を F で開けると中身が出る。転移の石に触れると解放する", () => {
+    const sim = new ArenaSimulation(undefined, { db, region: a1, layoutSeed: "chest" });
+    const chest = sim.chests[0];
+    if (chest === undefined) throw new Error("宝箱が無い");
+    walkTo(sim, chest.at.x, chest.at.y + 1);
+    sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(chest.opened).toBe(true);
+    const stone = a1.teleportStone;
+    if (stone === undefined) throw new Error("転移の石が無い");
+    walkTo(sim, stone.x + 1, stone.y);
+    sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(sim.unlockedRegions.has("REGION-A1")).toBe(true);
+    expect(sim.profile().unlockedRegions).toContain("REGION-A1");
+  });
+
+  it("ダンジョン：出口に入ると、行き先を知らせる（1回だけ）", () => {
+    const exits: string[] = [];
+    const sim = new ArenaSimulation(undefined, { db, region: a1, onExit: (to) => exits.push(to) });
+    walkTo(sim, 1, 24);
+    sim.frame(STEP, input());
+    sim.frame(STEP, input());
+    expect(exits).toEqual(["REGION-TOWN"]);
+  });
+
+  it("ダンジョンで倒れると、死亡の回数と原因を記録し、町に戻すことを知らせる（補助仕様書7章）", () => {
+    let died = 0;
+    const sim = new ArenaSimulation(undefined, { db, region: a1, onDeath: () => (died += 1) });
+    sim.player.health.takeDamage(sim.player.health.maxHp * 2);
+    sim.frame(STEP, input());
+    sim.frame(STEP, input());
+    expect(died).toBe(1);
+    expect(sim.deathLog.count).toBe(1);
+    expect(sim.profile().deathLog.count).toBe(1);
+  });
+
+  it("地域から地域へ移るときは、HP・MPの割合を引き継げる", () => {
+    const sim = new ArenaSimulation(undefined, { db, region: a1, carry: { hp: 0.5, mp: 0.25 } });
+    expect(sim.player.health.hp / sim.player.health.maxHp).toBeCloseTo(0.5, 9);
+    expect(sim.mp / sim.maxMp).toBeCloseTo(0.25, 9);
+  });
+});
+
+describe("新しいキャラクター（補助仕様書3.4）", () => {
+  it("キャラLv1・出自の武器（戦士は大剣・盗賊は短剣）・通常攻撃と、ジョブLv1で覚える技", async () => {
+    const { newCharacterProfile } = await import("../src/scenes/arena-simulation.ts");
+    const db = new ArenaSimulation(undefined, { enemies: false }).db;
+    for (const [job, base, skill] of [
+      ["JOB-WARRIOR", "BASE-WPN-GREATSWORD-T1", "SKL-WARRIOR-SWEEP"],
+      ["JOB-ROGUE", "BASE-WPN-DAGGER-T1", "SKL-ROGUE-FLURRY"],
+    ] as const) {
+      const sim = new ArenaSimulation(undefined, {
+        db,
+        enemies: false,
+        profile: newCharacterProfile(db, job, "テスト"),
+      });
+      expect(sim.character.level).toBe(1);
+      expect(sim.job.id).toBe(job);
+      expect(sim.weapon?.base).toBe(base);
+      expect(sim.inventory.items).toHaveLength(0);
+      expect(sim.blockOf("SKL-BASIC-ATTACK")).toBeUndefined();
+      expect(sim.blockOf(skill)).not.toBe("locked");
+      expect(sim.starPoints).toBe(0);
+    }
   });
 });

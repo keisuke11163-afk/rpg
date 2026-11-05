@@ -100,6 +100,8 @@ function sampleProfile(): PlayerProfile {
     starAllocation: ["STAR-JIN-0001", "STAR-JIN-0002", "STAR-JIN-0201"],
     loadouts: [emptyLoadout(1, "JOB-ROGUE")],
     activeLoadout: 1,
+    unlockedRegions: ["REGION-A1"],
+    deathLog: { count: 2, lastCause: "ENM-FOREST-WOLF" },
     kept: emptyKeptFields(),
   };
 }
@@ -194,6 +196,8 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
             starAllocation: [],
             loadouts: [emptyLoadout(1, "JOB-ROGUE")],
             activeLoadout: 1,
+            unlockedRegions: [],
+            deathLog: { count: 0, lastCause: null },
             kept: emptyKeptFields(),
           };
           const store = new SaveStore(db, new MemoryBackend());
@@ -211,9 +215,17 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
 });
 
 /** 版1（開発計画書6.9 の例の形）のデータ。 */
+/** 版3（転移の石・死亡の記録が無い）のデータ。 */
+function v3Sample(): Record<string, unknown> {
+  const v4 = { ...(toSaveData(db, sampleProfile()) as Record<string, unknown>) };
+  delete v4["unlocked_regions"];
+  delete v4["death_log"];
+  return { ...v4, save_version: 3 };
+}
+
 /** 版2（金貨・技の枠はあるが、装備に強化・クラフトの項目が無い）のデータ。 */
 function v2Sample(): Record<string, unknown> {
-  const v3 = toSaveData(db, sampleProfile()) as Record<string, unknown>;
+  const v3 = v3Sample();
   const items = Object.fromEntries(
     Object.entries(v3["items"] as SaveData["items"]).map(([k, i]) => {
       const old: Partial<typeof i> = { ...i };
@@ -255,7 +267,7 @@ const wrap = (data: unknown): string => {
 };
 
 describe("T11：1つ前の版のデータを移行できる", () => {
-  it("版1 → 版3：金貨は0、技の枠は空（初期の並び）。その他は同じ", () => {
+  it("版1 → 版4：金貨は0、技の枠は空（初期の並び）。その他は同じ", () => {
     const backend = new MemoryBackend();
     backend.write("stella-sigil/slot1", wrap(v1Sample()));
     const store = new SaveStore(db, backend);
@@ -270,7 +282,7 @@ describe("T11：1つ前の版のデータを移行できる", () => {
     expect(backend.read("stella-sigil/slot1")).toBe(wrap(v1Sample()));
   });
 
-  it("版2 → 版3：装備は強化+0・負荷0・封詞・亀裂・銘なし", () => {
+  it("版2 → 版4：装備は強化+0・負荷0・封詞・亀裂・銘なし", () => {
     const data = decodeSave(wrap(v2Sample()));
     expect(data.save_version).toBe(SAVE_VERSION);
     expect(Object.values(data.items).every((i) => i.enhance === 0 && i.forge_load === 0)).toBe(
@@ -279,7 +291,17 @@ describe("T11：1つ前の版のデータを移行できる", () => {
     expect(Object.values(data.items).every((i) => i.sealed === null && i.cracks.length === 0)).toBe(
       true,
     );
-    expect(data).toEqual(toSaveData(db, sampleProfile()));
+    expect({
+      ...data,
+      unlocked_regions: ["REGION-A1"],
+      death_log: { count: 2, last_cause: "ENM-FOREST-WOLF" },
+    }).toEqual(toSaveData(db, sampleProfile()));
+  });
+
+  it("版3 → 版4：転移の石は未解放・死亡の記録は0", () => {
+    const data = decodeSave(wrap(v3Sample()));
+    expect(data.unlocked_regions).toEqual([]);
+    expect(data.death_log).toEqual({ count: 0, last_cause: null });
   });
 
   it("このゲームより新しい版・移行の手順の無い版は、版の問題として検出する", () => {

@@ -1,4 +1,4 @@
-// 仮実装: U-18a feature/town-and-dungeon-base で、町とダンジョンの地図に置き換える（試験用の場の計算）
+// 場の計算：地域（町・ダンジョン。補助仕様書8・9章）と、開発用の試験用の場（地域を渡さないとき）
 import {
   type Affinity,
   Character,
@@ -27,7 +27,16 @@ import {
   Equipment,
   type ItemInstance,
   Inventory,
+  type Facility,
   type KeptSaveFields,
+  type RegionDef,
+  inRect,
+  rollMerchantStock,
+  rollRegionLayout,
+  buyAwakeningDust,
+  buyItem,
+  sellItem,
+  transferItem,
   type PlayerProfile,
   type SaveData,
   createStash,
@@ -100,7 +109,7 @@ export const HAZARD = {
 /** 訓練用の人形の位置（m）。 */
 export const DUMMY_POSITION = { x: 20, y: 12 } as const;
 
-// 仮実装: U-18a feature/town-and-dungeon-base で、新しいキャラクターの作成（補助仕様書3.4 の初期装備）に置き換える（セーブデータが無いときの試験用の持ち物：補助仕様書14章の MVP の下級の武器を1つずつ。通常のレアリティ・詞なし）
+// 開発用の機能：試験用の初期の状態の持ち物（補助仕様書14章の MVP の下級の武器を1つずつ。通常のレアリティ・詞なし）
 /** 試験用の武器（uid → ベース）。uid は表示の確認・テストで使う。 */
 export const TEST_WEAPONS: readonly { readonly uid: string; readonly base: string }[] = [
   { uid: "test-greatsword", base: "BASE-WPN-GREATSWORD-T1" },
@@ -144,7 +153,7 @@ export const DEFAULT_SKILL_SLOTS: Readonly<Record<string, readonly string[]>> = 
     "SKL-ROGUE-SMOKE",
   ],
 };
-// 仮実装: U-18a feature/town-and-dungeon-base で、新しいキャラクターの作成に置き換える（セーブデータが無いときは、試験用に戦士の出自・キャラLv15・戦士のジョブLv15から始める）
+// 開発用の機能：試験用の初期の状態（戦士の出自・キャラLv15・戦士のジョブLv15）
 const TEST_START = { level: 15, jobLevel: 15 } as const;
 
 /** ヒットの手応え：止まる時間（秒）と、白く光る時間。 */
@@ -230,7 +239,30 @@ export interface ArenaSimulationOptions {
   onText?: (label: string, at: Vec2, color: string) => void;
   /** セーブデータから戻したプレイヤー（省略すると試験用の初期の状態）。 */
   profile?: PlayerProfile;
+  /** 地域（省略すると開発用の試験用の場）。 */
+  region?: RegionDef;
+  /** 地域の配置の抽選のシード（入るたびに変える）。 */
+  layoutSeed?: string;
+  /** 出口に入った（行き先の地域）。 */
+  onExit?: (to: string) => void;
+  /** 地域で倒れた（町に戻す）。 */
+  onDeath?: () => void;
+  /** 町の施設を調べた（F）。 */
+  onFacility?: (kind: Facility) => void;
+  /** 入ったときのHP・MPの割合（地域から地域へ移るとき。省略すると満タン）。 */
+  carry?: { readonly hp: number; readonly mp: number };
 }
+
+/** 場に置いた宝箱（補助仕様書9.3。F で開ける）。 */
+export interface FieldChest {
+  readonly at: Vec2;
+  readonly kind: "woodChest" | "oldChest";
+  readonly level: number;
+  opened: boolean;
+}
+
+/** F で調べられる距離（m。施設・宝箱・転移の石）。仮値: 拾う距離（1.5m）より少し広くした（docs/progress D-U18a-3）。 */
+export const INTERACT_DISTANCE = 2;
 
 /** クラフトができない理由の表示。 */
 const CRAFT_BLOCK_TEXT: Readonly<Record<CraftBlock, string>> = {
@@ -248,7 +280,45 @@ export const SAFE_ZONE_RADIUS = 4;
 /** 還星の灯（星辰盤の1ノードを返す。仕様書v0.2 4.13）。 */
 export const RETURN_LAMP = "MAT-RETURN-LAMP";
 
-/** セーブデータが無いときの、試験用の初期の状態。 */
+/**
+ * 新しいキャラクター（補助仕様書3.4：キャラLv1・ジョブLv1。初期装備は出自の武器。技は通常攻撃と、ジョブLv1で覚える技）。
+ * 初期装備の胴（重装・軽装）は、防具のベースが無いので、まだ持たせない（docs/progress Q-U11-2）。
+ */
+export function newCharacterProfile(db: ContentDb, originId: string, name: string): PlayerProfile {
+  const origin = db.jobs.get(originId);
+  if (origin === undefined) throw new RangeError(`ジョブ ${originId} がない`);
+  const character = new Character({ origin, level: 1 });
+  const equipment = new Equipment(db);
+  const base = NEW_CHARACTER_WEAPON[originId];
+  if (base !== undefined)
+    equipment.equip(
+      { uid: "itm_000001", base, rarity: "normal", itemLevel: 1, affixes: [] },
+      "mainHand",
+      true,
+    );
+  return {
+    name,
+    character,
+    equipment,
+    inventory: new Inventory(),
+    stash: createStash(),
+    skillSlots: new Map(),
+    starAllocation: [],
+    loadouts: [emptyLoadout(1, origin.id)],
+    activeLoadout: 1,
+    unlockedRegions: [],
+    deathLog: { count: 0, lastCause: null },
+    kept: emptyKeptFields(),
+  };
+}
+
+/** 出自の初期装備の武器（補助仕様書3.4）。 */
+const NEW_CHARACTER_WEAPON: Readonly<Record<string, string>> = {
+  "JOB-WARRIOR": "BASE-WPN-GREATSWORD-T1",
+  "JOB-ROGUE": "BASE-WPN-DAGGER-T1",
+};
+
+/** 開発用の機能：試験用の初期の状態（キャラLv15・試験用の武器一式。タイトルの「開発用」から始める）。 */
 export function testStartProfile(db: ContentDb): PlayerProfile {
   const origin = db.jobs.get("JOB-WARRIOR");
   if (origin === undefined) throw new Error("戦士のデータがない");
@@ -276,6 +346,8 @@ export function testStartProfile(db: ContentDb): PlayerProfile {
     starAllocation: [],
     loadouts: [emptyLoadout(1, origin.id)],
     activeLoadout: 1,
+    unlockedRegions: [],
+    deathLog: { count: 0, lastCause: null },
     kept: emptyKeptFields(),
   };
 }
@@ -297,7 +369,23 @@ export class ArenaSimulation {
   readonly db: ContentDb;
   readonly tags: TagIndex;
   readonly character: Character;
-  readonly dummy: Combatant;
+  /** 訓練用の人形（開発用の試験用の場と、町。ダンジョンには無い）。 */
+  readonly dummy: Combatant | undefined;
+  /** 地域（開発用の試験用の場なら undefined）。 */
+  readonly region: RegionDef | undefined;
+  /** 場の広さ（m）。 */
+  readonly size: { readonly width: number; readonly height: number };
+  /** 置いた宝箱。 */
+  readonly chests: FieldChest[] = [];
+  /** 解放した転移の石の地域（補助仕様書9.4）。 */
+  readonly unlockedRegions: Set<string>;
+  /** 死亡の記録（補助仕様書7章）。 */
+  deathLog: { count: number; lastCause: string | null };
+  private lastHitBy: string | null = null;
+  private readonly onExit: ((to: string) => void) | undefined;
+  private readonly onDeath: (() => void) | undefined;
+  private readonly onFacility: ((kind: Facility) => void) | undefined;
+  private exited = false;
   /** 試験用の敵（出さない設定なら undefined）。 */
   readonly field: EnemyField | undefined;
   readonly cooldowns = new Cooldowns();
@@ -377,6 +465,13 @@ export class ArenaSimulation {
     this.inventory = profile.inventory;
     this.stash = profile.stash;
     this.kept = profile.kept;
+    this.region = options.region;
+    this.size = options.region?.size ?? ARENA;
+    this.onExit = options.onExit;
+    this.onDeath = options.onDeath;
+    this.onFacility = options.onFacility;
+    this.unlockedRegions = new Set(profile.unlockedRegions);
+    this.deathLog = { ...profile.deathLog };
     this.starsValue = new StarAllocation(this.db, profile.starAllocation);
     this.loadoutList = [...profile.loadouts];
     this.activeLoadoutId = profile.activeLoadout;
@@ -391,33 +486,163 @@ export class ArenaSimulation {
       if (m !== null) this.itemSerial = Math.max(this.itemSerial, Number(m[1]));
     }
     this.jobGaugeValue = this.newGauge();
-    this.motion = new PlayerMotion({ x: 12, y: 12 }, undefined, {
+    const region = options.region;
+    const start = region?.entrance ?? { x: 12, y: 12 };
+    this.motion = new PlayerMotion({ ...start }, undefined, {
       minX: 0.5,
       minY: 0.75,
-      maxX: ARENA.width - 0.5,
-      maxY: ARENA.height - 0.25,
+      maxX: this.size.width - 0.5,
+      maxY: this.size.height - 0.25,
     });
     this.refreshAttacker();
     this.playerValue = this.newPlayer();
     this.mpValue = this.maxMp;
-    this.field =
-      options.enemies === false
+    if (options.carry !== undefined) {
+      const lost = this.playerValue.health.maxHp * (1 - Math.min(1, Math.max(0, options.carry.hp)));
+      if (lost > 0 && options.carry.hp > 0) this.playerValue.health.takeDamage(lost);
+      this.mpValue = this.maxMp * Math.min(1, Math.max(0, options.carry.mp));
+    }
+    const bounds = {
+      minX: 0.5,
+      minY: 0.5,
+      maxX: this.size.width - 0.5,
+      maxY: this.size.height - 0.5,
+    };
+    if (region === undefined)
+      this.field =
+        options.enemies === false
+          ? undefined
+          : new EnemyField(this.db, this.rng.fork("enemies"), bounds);
+    else if (region.kind === "dungeon") {
+      // 入るたびの配置（補助仕様書9.3）
+      const layout = rollRegionLayout(
+        this.db,
+        region,
+        Rng.fromSeed(options.layoutSeed ?? `${region.id}-layout`),
+      );
+      this.field = new EnemyField(
+        this.db,
+        this.rng.fork("enemies"),
+        bounds,
+        layout.packs.map((p, i) => ({
+          id: `pack-${String(i)}`,
+          enemy: p.enemy,
+          level: p.level,
+          count: p.count,
+          at: p.at,
+          ranks: p.ranks,
+        })),
+        false,
+      );
+      for (const c of layout.chests) this.chests.push({ ...c, opened: false });
+    } else this.field = undefined;
+    if (region?.kind === "town")
+      this.merchantStock.push(
+        ...rollMerchantStock(this.db, Rng.fromSeed(options.layoutSeed ?? "merchant"), {
+          itemLevel: this.character.level,
+          nextUid: () => `itm_${String(++this.itemSerial).padStart(6, "0")}`,
+        }),
+      );
+    const dummyAt =
+      region === undefined
+        ? DUMMY_POSITION
+        : region.facilities?.find((f) => f.kind === "dummy")?.at;
+    this.dummy =
+      dummyAt === undefined
         ? undefined
-        : new EnemyField(this.db, this.rng.fork("enemies"), {
-            minX: 0.5,
-            minY: 0.5,
-            maxX: ARENA.width - 0.5,
-            maxY: ARENA.height - 0.5,
+        : new Combatant(this.db, {
+            id: "dummy",
+            team: "enemy",
+            position: { ...dummyAt },
+            radius: 0.5,
+            facing: Math.PI, // 左（プレイヤーの方）を向く
+            maxHp: 5000,
+            staggerProfile: staggerProfiles(this.db).enemy,
           });
-    this.dummy = new Combatant(this.db, {
-      id: "dummy",
-      team: "enemy",
-      position: { ...DUMMY_POSITION },
-      radius: 0.5,
-      facing: Math.PI, // 左（プレイヤーの方）を向く
-      maxHp: 5000,
-      staggerProfile: staggerProfiles(this.db).enemy,
-    });
+  }
+
+  /** 商人の品揃え（町に入るたびに入れ替わる。補助仕様書5章）。 */
+  readonly merchantStock: ItemInstance[] = [];
+
+  /** 倉庫へ移す（町だけ。補助仕様書13章）。 */
+  toStash(uid: string): boolean {
+    if (!this.inSafeZone || !this.inventory.items.some((i) => i.uid === uid)) return false;
+    return transferItem(this.inventory, this.stash, uid);
+  }
+
+  /** 倉庫から出す（町だけ）。 */
+  fromStash(uid: string): boolean {
+    if (!this.inSafeZone || !this.stash.items.some((i) => i.uid === uid)) return false;
+    return transferItem(this.stash, this.inventory, uid);
+  }
+
+  /** 商人に売る（町だけ）。売った装備を登録していたロードアウトは、その部位が空きになる（仕様書v0.2 4.13）。 */
+  sell(uid: string): number | undefined {
+    if (!this.inTown || !this.inventory.items.some((i) => i.uid === uid)) return undefined;
+    const price = sellItem(this.inventory, uid);
+    this.loadoutList = forgetItem(this.loadoutList, uid);
+    this.autosave.notify("trade");
+    return price;
+  }
+
+  /** 商人から買う（町だけ）。 */
+  buy(uid: string): boolean {
+    if (!this.inTown) return false;
+    if (!buyItem(this.inventory, this.merchantStock, uid)) return false;
+    this.autosave.notify("trade");
+    return true;
+  }
+
+  /** 商人から目覚めの粉を買う（町だけ）。 */
+  buyDust(): boolean {
+    if (!this.inTown || !buyAwakeningDust(this.inventory)) return false;
+    this.autosave.notify("trade");
+    return true;
+  }
+
+  /** 町か。 */
+  get inTown(): boolean {
+    return this.region?.kind === "town";
+  }
+
+  /** 近くの、F で調べられるもの（宝箱・転移の石・町の施設）。 */
+  nearbyInteractable():
+    | { readonly kind: "chest"; readonly chest: FieldChest }
+    | { readonly kind: "stone" }
+    | { readonly kind: "facility"; readonly facility: Facility }
+    | undefined {
+    const p = this.motion.position;
+    const near = (q: { x: number; y: number }): boolean =>
+      Math.hypot(q.x - p.x, q.y - p.y) <= INTERACT_DISTANCE;
+    const chest = this.chests.find((c) => !c.opened && near(c.at));
+    if (chest !== undefined) return { kind: "chest", chest };
+    const r = this.region;
+    if (r === undefined) return undefined;
+    if (r.kind === "dungeon" && r.teleportStone !== undefined && near(r.teleportStone))
+      return { kind: "stone" };
+    const f = r.facilities?.find((x) => x.kind !== "dummy" && near(x.at));
+    return f === undefined ? undefined : { kind: "facility", facility: f.kind };
+  }
+
+  /** F で調べる。宝箱を開ける・転移の石を解放する・施設を使う。何かをしたら true。 */
+  private interactWorld(): boolean {
+    const t = this.nearbyInteractable();
+    if (t === undefined) return false;
+    switch (t.kind) {
+      case "chest":
+        t.chest.opened = true;
+        this.dropLoot(t.chest.kind, t.chest.level, t.chest.at);
+        return true;
+      case "stone":
+        if (this.region !== undefined && !this.unlockedRegions.has(this.region.id)) {
+          this.unlockedRegions.add(this.region.id);
+          this.onText?.("転移の石を解放した", this.motion.position, "#7bd389");
+        }
+        return true;
+      case "facility":
+        this.onFacility?.(t.facility);
+        return true;
+    }
   }
 
   /** メインジョブ。 */
@@ -654,9 +879,10 @@ export class ArenaSimulation {
 
   /**
    * 安全地帯か（ロードアウトの切り替え・星辰盤の全体の振り直しは町でだけできる。補助仕様書8章）。
-   * 仮実装: U-18a feature/town-and-dungeon-base で、町の中かどうかに置き換える（試験用の場では、訓練用の人形の周り4m）
+   * 地域では町の中。開発用の試験用の場では、訓練用の人形の周り4m。
    */
   get inSafeZone(): boolean {
+    if (this.region !== undefined) return this.region.kind === "town";
     const p = this.motion.position;
     return Math.hypot(p.x - DUMMY_POSITION.x, p.y - DUMMY_POSITION.y) <= SAFE_ZONE_RADIUS;
   }
@@ -853,6 +1079,8 @@ export class ArenaSimulation {
       starAllocation: this.stars.nodes,
       loadouts: this.loadoutList,
       activeLoadout: this.activeLoadoutId,
+      unlockedRegions: [...this.unlockedRegions],
+      deathLog: { ...this.deathLog },
       kept: this.kept,
     };
   }
@@ -1112,7 +1340,7 @@ export class ArenaSimulation {
 
   /** プレイヤーの技の対象（訓練用の人形と、生きている敵）。 */
   private targets(): Combatant[] {
-    return [this.dummy, ...(this.field?.targets() ?? [])];
+    return [...(this.dummy === undefined ? [] : [this.dummy]), ...(this.field?.targets() ?? [])];
   }
 
   /** 効果（戦吼の強化など）・Lv・ジョブ・装備が変わったら、能力値を計算し直す（キャラクターの画面と同じ計算）。 */
@@ -1306,9 +1534,10 @@ export class ArenaSimulation {
 
     // 敵の行動と攻撃
     this.field?.update(dt, this.playerValue, this.motion.invulnerable, this.motion.facing, {
-      onPlayerHit: (report) => {
+      onPlayerHit: (report, enemy) => {
         if (report.hit.evaded) return;
         this.hitsTakenCount += 1;
+        this.lastHitBy = enemy.def.id;
         this.jobGaugeValue.onDamageTaken(
           report.applied.toHp + report.applied.toWard,
           this.playerValue.health.maxHp,
@@ -1328,22 +1557,37 @@ export class ArenaSimulation {
       },
     });
 
-    // 拾う（補助仕様書13章）：金貨・素材は近づくと自動で、装備は F で
+    // 拾う（補助仕様書13章）：金貨・素材は近づくと自動で、装備は F で。F は先に宝箱・転移の石・施設を調べる
     this.loot.autoPickup(this.motion.position, this.inventory);
-    if (interact) {
+    if (interact && !this.interactWorld()) {
       const r = this.loot.pickNearestItem(this.motion.position, this.inventory);
       if (r.kind === "full")
         this.onText?.("インベントリがいっぱい", this.motion.position, "#ff6b6b");
     }
+    // 出口（その範囲に入ると、別の地域へ移る）
+    if (!this.exited)
+      for (const x of this.region?.exits ?? [])
+        if (inRect(this.motion.position, x.rect)) {
+          this.exited = true;
+          this.autosave.notify("changeRegion");
+          this.onExit?.(x.to);
+          break;
+        }
 
-    const dot = this.dummy.update(dt);
+    const dot = this.dummy?.update(dt) ?? 0;
     if (dot > 0) this.recentDamage.push({ t: this.elapsed, amount: dot });
     const playerDot = this.playerValue.update(dt);
     if (playerDot > 0) this.jobGaugeValue.onDamageTaken(playerDot, this.playerValue.health.maxHp);
-    // 仮実装: U-18b feature/death-and-return で、死亡の扱い（町に戻る）に置き換える（試験用の場では、その場で全回復する）
-    if (this.playerValue.health.dead) {
+    // 死亡（補助仕様書7章）：回数と原因を記録する。地域では町に戻す（アイテム・経験値は失わない）。
+    // 開発用の試験用の場では、その場で全回復する
+    if (this.playerValue.health.dead && !this.exited) {
       this.deathCount += 1;
-      this.playerValue = this.newPlayer();
+      this.deathLog = { count: this.deathLog.count + 1, lastCause: this.lastHitBy };
+      if (this.region !== undefined) {
+        this.exited = true;
+        this.autosave.notify("enterTown");
+        this.onDeath?.();
+      } else this.playerValue = this.newPlayer();
     }
     this.mpValue = Math.min(this.maxMp, this.mpValue + this.maxMp * 0.06 * dt);
     this.cooldowns.update(dt);
@@ -1351,8 +1595,9 @@ export class ArenaSimulation {
     this.jobGaugeValue.update(dt);
     this.refreshAttacker();
     this.elapsed += dt;
-    this.updateHazard();
-    if (this.dummy.health.hp < this.dummy.health.maxHp * 0.2) this.dummy.health.restoreFull();
+    if (this.region === undefined) this.updateHazard();
+    if (this.dummy !== undefined && this.dummy.health.hp < this.dummy.health.maxHp * 0.2)
+      this.dummy.health.restoreFull();
   }
 
   /** 当たり判定を、形に入った敵に当てる。同じ group では、1体に1回だけ。 */

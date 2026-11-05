@@ -1,4 +1,3 @@
-// 仮実装: U-18a feature/town-and-dungeon-base で、地域の地面のアイテムの表示に置き換える（試験用の表示）
 import Phaser from "phaser";
 import type { ContentDb, Vec2 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
