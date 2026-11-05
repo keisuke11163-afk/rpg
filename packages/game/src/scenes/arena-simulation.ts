@@ -1,6 +1,5 @@
 // 仮実装: U-18a feature/town-and-dungeon-base で、町とダンジョンの地図に置き換える（試験用の場の計算）
 import {
-  AFFINITY_ATTACK_SPEED,
   type Affinity,
   Character,
   Combatant,
@@ -13,8 +12,12 @@ import {
   type Health,
   type HitReport,
   type HitShape,
+  type CharacterSheet,
+  Equipment,
+  type ItemInstance,
   Inventory,
   JobGauge,
+  type MvpEquipSlot,
   type JobDef,
   LingeringZone,
   PlayerMotion,
@@ -29,7 +32,6 @@ import {
   type Vec2,
   ZERO,
   enemyXp,
-  evaluateEffects,
   length,
   levelGapMultiplier,
   overlapsShape,
@@ -40,7 +42,11 @@ import {
   skillBlock,
   staggerProfiles,
   unlockedSkills,
-  weaponAffinity,
+  buildCharacterSheet,
+  dualWieldAffinity,
+  equipFromInventory,
+  slotsFor,
+  unequipToInventory,
 } from "@stella/core";
 import { loadGameContent } from "@stella/content";
 import type { Action } from "../input/actions.ts";
@@ -68,72 +74,16 @@ export const HAZARD = {
 /** 訓練用の人形の位置（m）。 */
 export const DUMMY_POSITION = { x: 20, y: 12 } as const;
 
-// 仮実装: U-11 feature/item-generation で、アイテムのベースのデータに置き換える（試験用の武器。仕様書v0.2 3.2 の下級の値。基本刻印はまだ付けない）
-export interface TestWeapon {
-  readonly uid: string;
-  readonly name: string;
-  readonly tags: readonly string[];
-  readonly base: { readonly physical: { readonly min: number; readonly max: number } };
-  readonly critChance: number;
-  readonly attackSpeed: number;
-}
-export const TEST_WEAPONS: readonly TestWeapon[] = [
-  {
-    uid: "test-greatsword",
-    name: "下級の大剣",
-    tags: ["TAG-WPN-GREATSWORD"],
-    base: { physical: { min: 14, max: 24 } },
-    critChance: 0.05,
-    attackSpeed: 1.05,
-  },
-  {
-    uid: "test-greataxe",
-    name: "下級の大斧",
-    tags: ["TAG-WPN-GREATAXE"],
-    base: { physical: { min: 16, max: 28 } },
-    critChance: 0.05,
-    attackSpeed: 0.95,
-  },
-  {
-    uid: "test-greatmace",
-    name: "下級の大槌",
-    tags: ["TAG-WPN-GREATMACE"],
-    base: { physical: { min: 18, max: 27 } },
-    critChance: 0.04,
-    attackSpeed: 0.9,
-  },
-  {
-    uid: "test-spear",
-    name: "下級の槍",
-    tags: ["TAG-WPN-SPEAR"],
-    base: { physical: { min: 11, max: 20 } },
-    critChance: 0.05,
-    attackSpeed: 1.15,
-  },
-  {
-    uid: "test-longsword",
-    name: "下級の長剣",
-    tags: ["TAG-WPN-SWORD"],
-    base: { physical: { min: 6, max: 11 } },
-    critChance: 0.05,
-    attackSpeed: 1.4,
-  },
-  {
-    uid: "test-dagger",
-    name: "下級の短剣",
-    tags: ["TAG-WPN-DAGGER"],
-    base: { physical: { min: 4, max: 9 } },
-    critChance: 0.08,
-    attackSpeed: 1.6,
-  },
-  {
-    uid: "test-claw",
-    name: "下級の爪",
-    tags: ["TAG-WPN-CLAW"],
-    base: { physical: { min: 5, max: 8 } },
-    critChance: 0.06,
-    attackSpeed: 1.7,
-  },
+// 仮実装: U-13 feature/save-load で、セーブデータの持ち物に置き換える（試験用の持ち物：補助仕様書14章の MVP の下級の武器を1つずつ。通常のレアリティ・詞なし）
+/** 試験用の武器（uid → ベース）。uid は表示の確認・テストで使う。 */
+export const TEST_WEAPONS: readonly { readonly uid: string; readonly base: string }[] = [
+  { uid: "test-greatsword", base: "BASE-WPN-GREATSWORD-T1" },
+  { uid: "test-greataxe", base: "BASE-WPN-GREATAXE-T1" },
+  { uid: "test-greatmace", base: "BASE-WPN-GREATMACE-T1" },
+  { uid: "test-axe", base: "BASE-WPN-AXE-T1" },
+  { uid: "test-longsword", base: "BASE-WPN-LONGSWORD-T1" },
+  { uid: "test-dagger", base: "BASE-WPN-DAGGER-T1" },
+  { uid: "test-claw", base: "BASE-WPN-CLAW-T1" },
 ];
 /** ジョブの初期装備の武器（補助仕様書3.4。転職したときに持ち替える）。 */
 const START_WEAPON: Readonly<Record<string, string>> = {
@@ -286,13 +236,15 @@ export class ArenaSimulation {
   private itemSerial = 0;
   /** 持ち物（補助仕様書13章）。 */
   readonly inventory = new Inventory();
+  /** 装備（補助仕様書16章。町でもダンジョンでも着替えられる）。 */
+  readonly equipment: Equipment;
+  private equipmentVersion = 0;
+  private sheetValue!: CharacterSheet;
   /** 地面に落ちている物。 */
   readonly loot = new LootField(Rng.fromSeed("arena-loot"));
   private readonly onHit: ((report: HitReport, at: Vec2) => void) | undefined;
   private readonly onText: ((label: string, at: Vec2, color: string) => void) | undefined;
   private jobGaugeValue: JobGauge;
-  private maxMpValue = 60;
-  private effectDuration = 1;
   private smokeList: SmokeZone[] = [];
   private trapList: Trap[] = [];
   private levelUpCount = 0;
@@ -304,10 +256,7 @@ export class ArenaSimulation {
   private avoidedAttacks = 0;
   private deathCount = 0;
   private enemyHitCount = 0;
-  private weaponIndex = 0;
-  private attackerValue!: DamageAttacker;
   private attackerVersion = "";
-  private attackSpeedValue = 1;
   private current: { slot: SkillSlot; run: Running } | undefined;
   private zoneRuns: Running[] = [];
   private readonly strikes: ShownStrike[] = [];
@@ -338,6 +287,16 @@ export class ArenaSimulation {
       jobLevels: { [origin.id]: TEST_START.jobLevel },
     });
     this.jobGaugeValue = this.newGauge();
+    this.equipment = new Equipment(this.db);
+    for (const w of TEST_WEAPONS)
+      this.inventory.addItem({
+        uid: w.uid,
+        base: w.base,
+        rarity: "normal",
+        itemLevel: 1,
+        affixes: [],
+      });
+    this.equipFromInventory(START_WEAPON[origin.id] ?? "test-greatsword", "mainHand");
     this.motion = new PlayerMotion({ x: 12, y: 12 }, undefined, {
       minX: 0.5,
       minY: 0.75,
@@ -346,7 +305,7 @@ export class ArenaSimulation {
     });
     this.refreshAttacker();
     this.playerValue = this.newPlayer();
-    this.mpValue = this.maxMpValue;
+    this.mpValue = this.maxMp;
     this.field =
       options.enemies === false
         ? undefined
@@ -382,7 +341,11 @@ export class ArenaSimulation {
     return this.jobGaugeValue;
   }
   get maxMp(): number {
-    return this.maxMpValue;
+    return this.sheetValue.maxMp;
+  }
+  /** キャラクターの能力値（戦闘の計算と、キャラクターの画面の表示の両方が使う）。 */
+  get sheet(): CharacterSheet {
+    return this.sheetValue;
   }
   get smokes(): readonly SmokeZone[] {
     return this.smokeList;
@@ -475,17 +438,66 @@ export class ArenaSimulation {
   get zones(): readonly LingeringZone[] {
     return this.zoneRuns.map((z) => z.exec as LingeringZone);
   }
-  get weapon(): TestWeapon {
-    return TEST_WEAPONS[this.weaponIndex] ?? (TEST_WEAPONS[0] as TestWeapon);
+  /** 主手の武器（素手なら undefined）。 */
+  get weapon(): ItemInstance | undefined {
+    return this.equipment.get("mainHand");
   }
   get affinity(): Affinity {
-    return weaponAffinity(this.tags, this.job, this.weapon.tags);
+    return this.sheetValue.affinity;
   }
   get attackSpeed(): number {
-    return this.attackSpeedValue;
+    return this.sheetValue.attackSpeed;
   }
   get attacker(): DamageAttacker {
-    return this.attackerValue;
+    return this.sheetValue.attacker;
+  }
+  /** 今のメインジョブが二刀流をできるか（片手武器を副手に持てる。仕様書v0.2 3.2）。 */
+  get canDualWield(): boolean {
+    return dualWieldAffinity(this.job) !== undefined;
+  }
+  /** 装備を替えられるか（技の実行中は替えない）。 */
+  get canChangeEquipment(): boolean {
+    return this.current === undefined;
+  }
+
+  /**
+   * インベントリの装備を装備する。部位を省略すると、武器は主手、ほかは空いている最初の部位（無ければ最初の部位）。
+   * 技の実行中・装備できない部位・外れた物が入りきらないときは、何も変えずに false。
+   */
+  equipFromInventory(uid: string, slot?: MvpEquipSlot): boolean {
+    if (!this.canChangeEquipment) return false;
+    const item = this.inventory.items.find((i) => i.uid === uid);
+    const base = item === undefined ? undefined : this.db.itemBases.get(item.base);
+    if (base === undefined) return false;
+    const slots = slotsFor(base, this.canDualWield);
+    // 部位の省略：武器は主手（副手には部位を指定して装備する）、指輪は空いている方（docs/progress D-U12-6）
+    const target =
+      slot ??
+      (base.category === "weapon"
+        ? "mainHand"
+        : (slots.find((s) => this.equipment.get(s) === undefined) ?? slots[0]));
+    if (target === undefined || !slots.includes(target)) return false;
+    if (!equipFromInventory(this.inventory, this.equipment, uid, target, this.canDualWield))
+      return false;
+    this.equipmentChanged();
+    return true;
+  }
+
+  /** 装備を外して、インベントリに戻す。技の実行中・インベントリがいっぱいなら false。 */
+  unequip(slot: MvpEquipSlot): boolean {
+    if (!this.canChangeEquipment || this.equipment.get(slot) === undefined) return false;
+    if (!unequipToInventory(this.inventory, this.equipment, slot)) return false;
+    this.equipmentChanged();
+    return true;
+  }
+
+  private equipmentChanged(): void {
+    this.equipmentVersion += 1;
+    // 構築の途中（最初の装備）は、能力値の計算を後でまとめて行う
+    if ((this.motion as PlayerMotion | undefined) === undefined) return;
+    this.refreshAttacker();
+    // 最大HPが変わったら、今のHPの割合はそのまま、最大HPを合わせる
+    this.syncPlayerMaxHp();
   }
   get mp(): number {
     return this.mpValue;
@@ -532,11 +544,13 @@ export class ArenaSimulation {
     return steps;
   }
 
-  /** 武器を次の試験用の武器に替える（技の実行中は替えない）。 */
+  /** 武器を、インベントリの次の武器に替える（技の実行中は替えない）。 */
   switchWeapon(): void {
-    if (this.current !== undefined) return;
-    this.weaponIndex = (this.weaponIndex + 1) % TEST_WEAPONS.length;
-    this.refreshAttacker();
+    if (!this.canChangeEquipment) return;
+    const next = this.inventory.items.find(
+      (i) => this.db.itemBases.get(i.base)?.category === "weapon",
+    );
+    if (next !== undefined) this.equipFromInventory(next.uid, "mainHand");
   }
 
   /** 転職する（戦士と盗賊を順に替える）。武器はジョブの初期装備に持ち替える。 */
@@ -545,11 +559,22 @@ export class ArenaSimulation {
     const jobs = [...this.db.jobs.keys()];
     const next = jobs[(jobs.indexOf(this.job.id) + 1) % jobs.length];
     if (next === undefined || !this.character.changeJob(next)) return;
-    const w = TEST_WEAPONS.findIndex((x) => x.uid === START_WEAPON[next]);
-    if (w >= 0) this.weaponIndex = w;
+    // 二刀流ができなくなったら、副手の片手武器を外す（入りきらなければ、そのまま残す）
+    const off = this.equipment.get("offHand");
+    if (
+      off !== undefined &&
+      !this.canDualWield &&
+      this.db.itemBases.get(off.base)?.category === "weapon"
+    )
+      unequipToInventory(this.inventory, this.equipment, "offHand");
+    const start = START_WEAPON[next];
+    if (start !== undefined && this.inventory.items.some((i) => i.uid === start))
+      equipFromInventory(this.inventory, this.equipment, start, "mainHand", this.canDualWield);
+    this.equipmentVersion += 1;
     this.jobGaugeValue = this.newGauge();
     this.attackerVersion = "";
     this.refreshAttacker();
+    this.syncPlayerMaxHp();
   }
 
   /** 経験値を得る。Lvが上がったら、HPを全回復する（最大HPが変わるため）。 */
@@ -638,7 +663,7 @@ export class ArenaSimulation {
       team: "player",
       position: this.motion.position,
       radius: 0.35,
-      maxHp: this.attackerValue.view.stat("STAT-HP-MAX").value,
+      maxHp: this.sheetValue.maxHp,
       staggerProfile: staggerProfiles(this.db).player,
     });
   }
@@ -655,38 +680,32 @@ export class ArenaSimulation {
     return [this.dummy, ...(this.field?.targets() ?? [])];
   }
 
-  /** 効果（戦吼の強化など）・Lv・ジョブ・武器が変わったら、攻撃する側の能力値を計算し直す。 */
+  /** 効果（戦吼の強化など）・Lv・ジョブ・装備が変わったら、能力値を計算し直す（キャラクターの画面と同じ計算）。 */
   private refreshAttacker(): void {
-    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${this.weapon.uid}`;
+    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}`;
     if (this.attackerVersion === version) return;
     this.attackerVersion = version;
-    const { view } = evaluateEffects(
-      this.db,
-      this.tags,
-      [...this.buffs.instances(), ...this.character.attributeEffects()],
-      {
-        baseStats: this.character.baseStats(),
-        equippedTags: { mainHand: this.weapon.tags },
-        mainJob: this.job.tag,
-      },
-    );
-    const w = this.weapon;
-    this.maxMpValue = view.stat("STAT-MP-MAX").value;
-    this.mpValue = Math.min(this.mpValue, this.maxMpValue);
-    this.effectDuration = 1 + view.stat("STAT-EFFECT-DURATION").increased;
-    this.attackerValue = {
-      db: this.db,
-      view,
-      characterLevel: this.character.level,
-      weapon: { uid: w.uid, tags: w.tags, base: w.base, critChance: w.critChance },
-    };
-    // 武器適性の攻撃速度（仕様書5.1）は、加算の増加として足す
-    this.attackSpeedValue =
-      w.attackSpeed *
-      Math.max(
-        0.1,
-        1 + view.stat("STAT-ATTACK-SPEED").increased + AFFINITY_ATTACK_SPEED[this.affinity],
-      );
+    this.sheetValue = buildCharacterSheet(this.db, this.tags, {
+      character: this.character,
+      job: this.job,
+      equipment: this.equipment,
+      extraEffects: this.buffs.instances(),
+    });
+    this.mpValue = Math.min(this.mpValue, this.sheetValue.maxMp);
+  }
+
+  /**
+   * 最大HPが変わったとき（装備・転職）、HPの割合を保って作り直す（着替えで全回復しないように）。
+   * 試験用の場では、状態異常・崩しは引き継がない（docs/progress D-U12-5）。
+   */
+  private syncPlayerMaxHp(): void {
+    // 構築の途中（最初の装備）は、まだプレイヤーがいない
+    const old = (this.playerValue as Combatant | undefined)?.health;
+    if (old === undefined || old.maxHp === this.sheetValue.maxHp) return;
+    const ratio = old.hp / old.maxHp;
+    this.playerValue = this.newPlayer();
+    const lost = this.sheetValue.maxHp * (1 - ratio);
+    if (lost > 0 && ratio > 0) this.playerValue.health.takeDamage(lost);
   }
 
   private startSkill(slot: SkillSlot, skillId: string): void {
@@ -697,7 +716,7 @@ export class ArenaSimulation {
     const spent = cost === "all" ? this.jobGaugeValue.value : (cost ?? 0);
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
       stages: this.jobGaugeValue.stages,
-      weaponTags: this.tags.closure(this.weapon.tags),
+      weaponTags: this.tags.closure(this.sheetValue.weaponTags),
       gaugeSpent: spent,
     });
     let teleportTo: Vec2 | undefined;
@@ -712,13 +731,13 @@ export class ArenaSimulation {
     if (def.gauge?.gainOnUse !== undefined) this.jobGaugeValue.add(def.gauge.gainOnUse);
     this.jobGaugeValue.markCombat();
     for (const e of def.selfEffects ?? [])
-      this.buffs.add(e.effect, e.duration * this.effectDuration, def.id);
+      this.buffs.add(e.effect, e.duration * this.sheetValue.effectDuration, def.id);
     this.lastSkillValue = { id: def.id, variants: resolved.variants };
     this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
     this.current = {
       slot,
       run: {
-        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeedValue, {
+        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeed, {
           aimPoint: this.aimPoint,
           ...(teleportTo === undefined ? {} : { teleportTo }),
         }),
@@ -780,7 +799,7 @@ export class ArenaSimulation {
       if (tick.warcry !== undefined) {
         const w = tick.warcry;
         for (const e of w.allyEffects)
-          this.buffs.add(e, w.duration * this.effectDuration, exec.skill.def.id);
+          this.buffs.add(e, w.duration * this.sheetValue.effectDuration, exec.skill.def.id);
         for (const t of this.targets()) {
           const dist = length({ x: t.position.x - w.origin.x, y: t.position.y - w.origin.y });
           if (dist > w.radius + t.radius) continue;
@@ -801,7 +820,11 @@ export class ArenaSimulation {
       for (const z of tick.zones) this.zoneRuns.push({ exec: z, hit: new Map() });
       if (tick.selfBuff !== undefined) {
         for (const e of tick.selfBuff.effects)
-          this.buffs.add(e, tick.selfBuff.duration * this.effectDuration, exec.skill.def.id);
+          this.buffs.add(
+            e,
+            tick.selfBuff.duration * this.sheetValue.effectDuration,
+            exec.skill.def.id,
+          );
       }
       if (tick.zone !== undefined) {
         const z = tick.zone;
@@ -885,7 +908,7 @@ export class ArenaSimulation {
       this.deathCount += 1;
       this.playerValue = this.newPlayer();
     }
-    this.mpValue = Math.min(this.maxMpValue, this.mpValue + this.maxMpValue * 0.06 * dt);
+    this.mpValue = Math.min(this.maxMp, this.mpValue + this.maxMp * 0.06 * dt);
     this.cooldowns.update(dt);
     this.buffs.update(dt);
     this.jobGaugeValue.update(dt);
@@ -936,7 +959,7 @@ export class ArenaSimulation {
     const bonus = this.job.backstabBonus;
     const report = resolveHit({
       db: this.db,
-      attacker: this.attackerValue,
+      attacker: this.sheetValue.attacker,
       attackerPosition: origin,
       skill: damage,
       skillChance: skill.ailmentChance,

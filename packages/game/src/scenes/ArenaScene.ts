@@ -2,6 +2,7 @@
 import Phaser from "phaser";
 import type { HitReport, HitShape, Vec2 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
+import { itemName } from "../ui/item-text.ts";
 import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import { InputSystem } from "../input/InputSystem.ts";
@@ -182,7 +183,7 @@ export class ArenaScene extends Phaser.Scene {
       // 確認用：プレイヤーの右3mに敵を出す（開発版だけ）
       spawnEnemy: (id?: number | string) => sim.spawnEnemy(String(id)),
       skills: () => ({
-        weapon: sim.weapon.uid,
+        weapon: sim.weapon?.uid ?? null,
         affinity: sim.affinity,
         attackSpeed: sim.attackSpeed,
         mp: sim.mp,
@@ -431,7 +432,7 @@ export class ArenaScene extends Phaser.Scene {
       "試験用の場（WASD移動・マウス照準・スペース回避・Tabで武器を替える・Gで転職）",
       `Lv${String(c.level)}（経験値 ${c.progress.xp.toFixed(0)}／${String(c.progress.toNext)}）・${text(sim.job.text as TextKey)} ジョブLv${String(c.jobLevel(sim.job.id))}（${c.jobTrack(sim.job.id).xp.toFixed(0)}／${String(c.jobTrack(sim.job.id).toNext)}）${c.catchingUp ? "・追いつき補正×2" : ""}`,
       slots,
-      `武器：${sim.weapon.name}（適性${sim.affinity}・攻撃速度 ${sim.attackSpeed.toFixed(2)}回/秒）${sim.buffs.active.length > 0 ? `・効果：${sim.buffs.active.map((b) => `${this.skillName(b.ref)}（${b.remaining.toFixed(1)}秒）`).join("・")}` : ""}`,
+      `武器：${itemName(sim.db, sim.weapon)}（適性${sim.affinity}・攻撃速度 ${sim.attackSpeed.toFixed(2)}回/秒）${sim.buffs.active.length > 0 ? `・効果：${sim.buffs.active.map((b) => `${this.skillName(b.ref)}（${b.remaining.toFixed(1)}秒）`).join("・")}` : ""}`,
       `人形：HP ${dummy.health.hp.toFixed(0)}／${dummy.health.maxHp.toFixed(0)}・DPS ${sim.dps().toFixed(1)}・ヒット ${String(sim.hitCount)}${dummy.stagger.broken ? "・崩れ" : ""}${dummy.statuses.active.length > 0 ? "・威圧" : ""}`,
       last === undefined
         ? "最後のヒット：なし"

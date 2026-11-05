@@ -156,13 +156,13 @@ describe("ArenaSimulation：技の枠の入力も刻みまで保持する（U-07
 
   it("Tab で武器を替える。技の実行中は替えない", () => {
     const sim = new ArenaSimulation();
-    expect(sim.weapon.uid).toBe("test-greatsword");
+    expect(sim.weapon?.uid).toBe("test-greatsword");
     sim.frame(STEP, input(), { switchWeapon: true });
-    expect(sim.weapon.uid).toBe("test-greataxe");
+    expect(sim.weapon?.uid).toBe("test-greataxe");
     sim.frame(STEP, input({ pressed: ["skill1"] }));
     expect(sim.executing).toBe("skill1");
     sim.frame(STEP, input(), { switchWeapon: true });
-    expect(sim.weapon.uid).toBe("test-greataxe");
+    expect(sim.weapon?.uid).toBe("test-greataxe");
   });
 
   it("人形の正面から通常攻撃が当たり、ヒットの手応えで止まる間も押した回避を保持する", () => {
@@ -299,7 +299,7 @@ describe("ArenaSimulation：転職・経験値（U-10）", () => {
     sim.frame(STEP, input(), { changeJob: true });
     expect(sim.job.id).toBe("JOB-ROGUE");
     expect(sim.loadout[1]?.skill).toBe("SKL-ROGUE-FLURRY");
-    expect(sim.weapon.uid).toBe("test-dagger");
+    expect(sim.weapon?.uid).toBe("test-dagger");
     expect(sim.jobGauge.def.id).not.toBe("GAU-FERVOR");
     expect(sim.character.jobLevel("JOB-WARRIOR")).toBe(15);
     // 盗賊の連刃（右クリック）は、刻みが0のフレームで押しても保持され、次の刻みで使う
@@ -336,26 +336,29 @@ describe("ArenaSimulation：地面の物と拾得（U-11、補助仕様書13章�
   it("金貨・素材は半径1.5m以内なら自動で拾い、装備は拾わない", () => {
     const sim = withLoot();
     const items = sim.loot.drops.filter((d) => d.kind === "item").length;
+    const owned = sim.inventory.items.length;
     expect(items).toBeGreaterThanOrEqual(2);
     sim.frame(STEP, input());
     expect(sim.inventory.gold).toBeGreaterThan(0);
     expect(sim.loot.drops.every((d) => d.kind === "item")).toBe(true);
     expect(sim.loot.drops).toHaveLength(items);
-    expect(sim.inventory.items).toHaveLength(0);
+    expect(sim.inventory.items).toHaveLength(owned);
   });
 
   it("F で、近くの装備を1回に1つ拾う（刻みが0のフレームで押しても保持する）", () => {
     const sim = withLoot();
     const items = sim.loot.drops.filter((d) => d.kind === "item").length;
+    // 試験用の持ち物（装備していない武器）を数に含める
+    const owned = sim.inventory.items.length;
     sim.frame(0, input({ pressed: ["interact"] }));
     expect(sim.pending("interact")).toBe(true);
     sim.frame(STEP, input());
     expect(sim.pending("interact")).toBe(false);
-    expect(sim.inventory.items).toHaveLength(1);
+    expect(sim.inventory.items).toHaveLength(owned + 1);
     for (let i = 0; i < 10; i++) sim.frame(STEP, input());
-    expect(sim.inventory.items).toHaveLength(1);
+    expect(sim.inventory.items).toHaveLength(owned + 1);
     for (let i = 1; i < items; i++) sim.frame(STEP, input({ pressed: ["interact"] }));
-    expect(sim.inventory.items).toHaveLength(items);
+    expect(sim.inventory.items).toHaveLength(owned + items);
     expect(sim.loot.drops).toHaveLength(0);
   });
 
@@ -403,5 +406,60 @@ describe("ArenaSimulation：地面の物と拾得（U-11、補助仕様書13章�
     const a = run();
     expect(a[0]).toBe(1);
     expect(run()).toEqual(a);
+  });
+});
+
+describe("ArenaSimulation：装備の着替え（U-12）", () => {
+  it("試験用の持ち物は、データのベースの武器。初期の武器を主手に装備している", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.weapon?.base).toBe("BASE-WPN-GREATSWORD-T1");
+    expect(sim.inventory.items.every((i) => sim.db.itemBases.has(i.base))).toBe(true);
+    expect(sim.inventory.items.some((i) => i.uid === "test-greatsword")).toBe(false);
+  });
+
+  it("インベントリの装備を装備・外すと、戦闘の能力値（攻撃する側・攻撃速度）が、表示と同じ計算で変わる", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    const before = sim.attackSpeed;
+    expect(sim.equipFromInventory("test-dagger")).toBe(true);
+    expect(sim.weapon?.uid).toBe("test-dagger");
+    // 大剣はインベントリに戻る
+    expect(sim.inventory.items.some((i) => i.uid === "test-greatsword")).toBe(true);
+    expect(sim.attackSpeed).not.toBe(before);
+    expect(sim.attacker).toBe(sim.sheet.attacker);
+    expect(sim.attackSpeed).toBe(sim.sheet.attackSpeed);
+    expect(sim.attacker.weapon?.uid).toBe("test-dagger");
+    // 戦士は二刀流ができる：片手斧を副手に
+    expect(sim.canDualWield).toBe(true);
+    expect(sim.equipFromInventory("test-axe", "offHand")).toBe(true);
+    expect(sim.equipment.get("offHand")?.uid).toBe("test-axe");
+    // 両手武器を主手に持つと、副手が外れる
+    expect(sim.equipFromInventory("test-greatsword", "mainHand")).toBe(true);
+    expect(sim.equipment.get("offHand")).toBeUndefined();
+    expect(sim.unequip("mainHand")).toBe(true);
+    expect(sim.weapon).toBeUndefined();
+    expect(sim.attacker.weapon).toBeUndefined();
+    expect(sim.affinity).toBe("A");
+  });
+
+  it("装備できない部位・技の実行中は、何も変えない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.equipFromInventory("test-greataxe", "offHand")).toBe(false);
+    expect(sim.equipFromInventory("no-such-item")).toBe(false);
+    sim.frame(STEP, input({ pressed: ["skill1"] }));
+    expect(sim.executing).toBe("skill1");
+    expect(sim.equipFromInventory("test-dagger")).toBe(false);
+    expect(sim.unequip("mainHand")).toBe(false);
+    expect(sim.weapon?.uid).toBe("test-greatsword");
+  });
+
+  it("着替えた武器で人形を叩くと、そのヒットはその武器で計算される", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.equipFromInventory("test-dagger");
+    // 人形（20, 12）の左1.2mまで歩く。照準は右（人形の方）
+    while (sim.motion.position.x < 18.8 - 1e-9) sim.frame(STEP, input({ move: { x: 1, y: 0 } }));
+    sim.frame(STEP, input({ pressed: ["skill1"] }));
+    for (let i = 0; i < 60 && sim.hitCount === 0; i++) sim.frame(STEP, input());
+    expect(sim.hitCount).toBe(1);
+    expect(sim.lastHit?.hit.weaponUid).toBe("test-dagger");
   });
 });

@@ -264,6 +264,22 @@ export {
   type CharacterInit,
   type XpGain,
 } from "./character/progression.ts";
+export {
+  MIN_ATTACK_SPEED_FACTOR,
+  SHEET_STATS,
+  UNARMED_ATTACK_SPEED,
+  UNARMED_WEAPON_TAG,
+  type CharacterSheet,
+  type CharacterSheetInput,
+  type DamagePreview,
+  damagePreview,
+  type SheetBreakdownLine,
+  type SheetRow,
+  type SheetStat,
+  type SheetWeapon,
+  buildCharacterSheet,
+  sheetRows,
+} from "./character/sheet.ts";
 
 export {
   AFFIX_SLOTS,
