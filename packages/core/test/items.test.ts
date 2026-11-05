@@ -14,12 +14,14 @@ import {
   affixTierValues,
   candidateAffixes,
   eligibleTiers,
+  evaluateEffects,
   formatContentError,
   generateItem,
   itemEffectInstances,
   loadContent,
   rarityWeights,
   rollAffixValue,
+  TagIndex,
   tierWeights,
 } from "../src/index.ts";
 import { effect, stat, tag } from "./helpers/content.ts";
@@ -569,5 +571,30 @@ describe("アイテムのデータの検証", () => {
     expect(e.some((x) => x.includes("DROP-2") && x.includes("2つ"))).toBe(true);
     expect(e.some((x) => x.includes("DROP-3") && x.includes("確定"))).toBe(true);
     expect(e.some((x) => x.includes("DROP-4"))).toBe(true);
+  });
+});
+
+describe("効果の値の差し替え（EffectInstance.values）", () => {
+  const d = db({});
+  const tags = new TagIndex(d.tags);
+  const src = { kind: "equipment", ref: "itm" };
+  it("差し替えた値で評価し、重ねた数も掛かる", () => {
+    const { view } = evaluateEffects(d, tags, [
+      { effectId: "EFF-A-FLAT", source: src, values: [7] },
+      { effectId: "EFF-A-RANGE", source: src, values: [{ min: 3, max: 6 }], stacks: 2 },
+    ]);
+    expect(view.stat("STAT-FLAT").added).toEqual({ min: 7, max: 7 });
+    expect(view.stat("STAT-RANGE").added).toEqual({ min: 6, max: 12 });
+  });
+  it("値の形が違う・範囲が逆・NaN・Infinity なら RangeError", () => {
+    const bad =
+      (values: (number | { min: number; max: number })[], effectId = "EFF-A-FLAT") =>
+      () =>
+        evaluateEffects(d, tags, [{ effectId, source: src, values }]);
+    expect(bad([{ min: 1, max: 2 }])).toThrow(RangeError);
+    expect(bad([3], "EFF-A-RANGE")).toThrow(RangeError);
+    expect(bad([{ min: 5, max: 2 }], "EFF-A-RANGE")).toThrow(RangeError);
+    expect(bad([Number.NaN])).toThrow(RangeError);
+    expect(bad([Infinity])).toThrow(RangeError);
   });
 });

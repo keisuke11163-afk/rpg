@@ -1,5 +1,4 @@
 // 仮実装: U-18a feature/town-and-dungeon-base で、地域の群れの出現地点（補助仕様書9.3）に置き換える（試験用の敵の配置）
-import Phaser from "phaser";
 import {
   type AilmentApplication,
   type Bounds,
@@ -12,7 +11,6 @@ import {
   type EnemyRank,
   type EnemyTarget,
   type HitReport,
-  type HitShape,
   ProjectilePool,
   type Rng,
   type Vec2,
@@ -21,9 +19,6 @@ import {
   resolveHit,
   separate,
 } from "@stella/core";
-import { text, type TextKey } from "@stella/content";
-import { enemyTexture, TEXTURES } from "./placeholders.ts";
-import { PIXELS_PER_METER, toPixels } from "./units.ts";
 
 /** 試験用の群れ。 */
 export interface SpawnGroup {
@@ -65,18 +60,8 @@ const RESPAWN_SECONDS = 8;
 /** 倒れた敵を消すまでの秒数。 */
 const CORPSE_SECONDS = 0.6;
 
-const RANK_COLOR: Readonly<Record<EnemyRank, string>> = {
-  normal: "#e8e6f0",
-  magic: "#6fa8ff",
-  elite: "#ffd166",
-};
-const RANK_OUTLINE: Readonly<Record<EnemyRank, number | undefined>> = {
-  normal: undefined,
-  magic: 0x6fa8ff,
-  elite: 0xffd166,
-};
-
-interface Cloud {
+/** 胞子の雲（中にいると、間隔ごとに状態異常を1つ受ける）。 */
+export interface Cloud {
   readonly center: Vec2;
   readonly radius: number;
   readonly interval: number;
@@ -85,12 +70,10 @@ interface Cloud {
   untilNext: number;
 }
 
-interface EnemyView {
+/** 場に出ている敵1体（倒れてから消えるまでを含む）。 */
+export interface FieldEnemy {
   readonly enemy: Enemy;
   readonly group: string;
-  readonly body: Phaser.GameObjects.Image;
-  readonly facing: Phaser.GameObjects.Image | undefined;
-  readonly label: Phaser.GameObjects.Text;
   deadFor: number;
   /** この攻撃で、すでに当たった group（突進）。 */
   readonly hitGroups: Set<string>;
@@ -104,32 +87,37 @@ export interface FieldHooks {
   onEnemyKilled(enemy: Enemy): void;
 }
 
-/** 試験用の場の敵：出現・行動・攻撃の処理・表示。 */
+/**
+ * 試験用の場の敵：出現・行動・攻撃の処理（Phaser に依存しない。表示は EnemyFieldView）。
+ */
 export class EnemyField {
-  private readonly scene: Phaser.Scene;
   private readonly db: ContentDb;
   private readonly rng: Rng;
   private readonly bounds: Bounds;
   private readonly attackers: EnemyAttackers;
-  private views: EnemyView[] = [];
-  private readonly clouds: Cloud[] = [];
+  private views: FieldEnemy[] = [];
+  private readonly cloudList: Cloud[] = [];
   private readonly respawn = new Map<string, number>();
-  private readonly projectiles = new ProjectilePool<{ enemy: Enemy; attack: EnemyAttackDef }>(64);
-  private readonly projectileImages: Phaser.GameObjects.Image[] = [];
+  readonly projectiles = new ProjectilePool<{ enemy: Enemy; attack: EnemyAttackDef }>(64);
   private serial = 0;
   kills = 0;
 
-  constructor(scene: Phaser.Scene, db: ContentDb, rng: Rng, bounds: Bounds) {
-    this.scene = scene;
+  constructor(db: ContentDb, rng: Rng, bounds: Bounds) {
     this.db = db;
     this.rng = rng;
     this.bounds = bounds;
     this.attackers = new EnemyAttackers(db);
-    for (let i = 0; i < this.projectiles.capacity; i++)
-      this.projectileImages.push(
-        scene.add.image(0, 0, TEXTURES.projectile).setVisible(false).setTint(0x9fdf6f),
-      );
     for (const g of TEST_GROUPS) this.spawnGroup(g);
+  }
+
+  /** 場に出ている敵（倒れてから消えるまでを含む）。 */
+  get entries(): readonly FieldEnemy[] {
+    return this.views;
+  }
+
+  /** 胞子の雲。 */
+  get clouds(): readonly Cloud[] {
+    return this.cloudList;
   }
 
   get enemies(): readonly Enemy[] {
@@ -146,7 +134,7 @@ export class EnemyField {
   }
 
   get cloudCount(): number {
-    return this.clouds.length;
+    return this.cloudList.length;
   }
 
   private spawnGroup(g: SpawnGroup): void {
@@ -191,23 +179,7 @@ export class EnemyField {
       packIndex: index,
       facing: Math.PI,
     });
-    const body = this.scene.add.image(0, 0, enemyTexture(enemyId)).setScale(rank.scale);
-    const facing =
-      def.turnRate === null
-        ? undefined
-        : this.scene.add
-            .image(0, 0, TEXTURES.facing)
-            .setOrigin(-0.4, 0.5)
-            .setScale(0.7)
-            .setTint(0xff6b6b);
-    const label = this.scene.add
-      .text(0, 0, `${text(def.text as TextKey)} Lv${String(level)}`, {
-        fontFamily: "sans-serif",
-        fontSize: "8px",
-        color: RANK_COLOR[rank.rank],
-      })
-      .setOrigin(0.5, 1);
-    this.views.push({ enemy, group, body, facing, label, deadFor: 0, hitGroups: new Set() });
+    this.views.push({ enemy, group, deadFor: 0, hitGroups: new Set() });
     return enemy;
   }
 
@@ -293,7 +265,7 @@ export class EnemyField {
             });
             break;
           case "cloud":
-            this.clouds.push({
+            this.cloudList.push({
               center: ev.center,
               radius: ev.radius,
               interval: ev.interval,
@@ -320,8 +292,8 @@ export class EnemyField {
     }
 
     // 胞子の雲：中にいると、間隔ごとに毒を1つ受ける（回避の無敵時間でも受ける。攻撃ではないため）
-    for (let i = this.clouds.length - 1; i >= 0; i--) {
-      const c = this.clouds[i];
+    for (let i = this.cloudList.length - 1; i >= 0; i--) {
+      const c = this.cloudList[i];
       if (c === undefined) continue;
       c.remaining -= dt;
       c.untilNext -= dt;
@@ -333,17 +305,11 @@ export class EnemyField {
         )
           player.ailments.apply(c.application);
       }
-      if (c.remaining <= 1e-9) this.clouds.splice(i, 1);
+      if (c.remaining <= 1e-9) this.cloudList.splice(i, 1);
     }
 
     // 倒れた敵を消し、群れが全て倒れたら、しばらくしてからもう一度出す（試験用）
-    const removed = this.views.filter((v) => v.deadFor >= CORPSE_SECONDS);
-    for (const v of removed) {
-      v.body.destroy();
-      v.facing?.destroy();
-      v.label.destroy();
-      this.kills += 1;
-    }
+    this.kills += this.views.filter((v) => v.deadFor >= CORPSE_SECONDS).length;
     this.views = this.views.filter((v) => v.deadFor < CORPSE_SECONDS);
     for (const g of TEST_GROUPS) {
       const alive = this.views.some((v) => v.group === g.id);
@@ -356,87 +322,6 @@ export class EnemyField {
         this.respawn.delete(g.id);
         this.spawnGroup(g);
       } else this.respawn.set(g.id, t);
-    }
-  }
-
-  /** 予兆（地面の範囲）・雲・投射物・体・HPを描く。 */
-  render(
-    g: Phaser.GameObjects.Graphics,
-    drawShape: (shape: HitShape, origin: Vec2, facing: number) => void,
-  ): void {
-    for (const c of this.clouds) {
-      g.fillStyle(0x7bd389, 0.18).fillCircle(
-        toPixels(c.center.x),
-        toPixels(c.center.y),
-        c.radius * PIXELS_PER_METER,
-      );
-    }
-    for (const v of this.views) {
-      const e = v.enemy;
-      const a = e.currentAttack;
-      // 予兆：地面に範囲を示す（溜めの間、だんだん濃くなる）
-      if (a !== undefined && e.state === "windup") {
-        const progress = Math.min(1, e.timeInState / Math.max(a.windup, 1e-6));
-        g.fillStyle(0xff6b6b, 0.12 + 0.25 * progress);
-        const d = a.delivery;
-        switch (d.type) {
-          case "strike":
-            drawShape(d.shape, e.position, e.facing);
-            break;
-          case "dash":
-            drawShape({ type: "line", length: d.distance, width: d.width }, e.position, e.facing);
-            break;
-          case "projectile":
-            drawShape({ type: "line", length: 2, width: 0.2 }, e.position, e.facing);
-            break;
-          case "cloud":
-            drawShape({ type: "circle", radius: d.radius }, e.targetPoint, 0);
-            break;
-        }
-      }
-    }
-    const pg = g;
-    for (const v of this.views) {
-      const e = v.enemy;
-      const x = Math.round(toPixels(e.position.x));
-      const y = Math.round(toPixels(e.position.y));
-      v.body.setPosition(x, y).setAlpha(e.state === "dead" ? 0.3 : 1);
-      if (e.combatant.stagger.broken) v.body.setTint(0xffd166);
-      else if (e.state === "windup") v.body.setTint(0xff9f9f);
-      else v.body.clearTint();
-      v.facing
-        ?.setPosition(x, y)
-        .setRotation(e.facing)
-        .setVisible(e.state !== "dead");
-      const half = (v.body.displayHeight / 2) | 0;
-      v.label.setPosition(x, y - half - 5);
-      const outline = RANK_OUTLINE[e.rank.rank];
-      if (outline !== undefined)
-        pg.lineStyle(1, outline, 1).strokeRect(
-          x - v.body.displayWidth / 2 - 1,
-          y - half - 1,
-          v.body.displayWidth + 2,
-          v.body.displayHeight + 2,
-        );
-      if (e.state !== "dead") {
-        const w = Math.max(12, Math.round(v.body.displayWidth));
-        pg.fillStyle(0x2a2934, 1)
-          .fillRect(x - w / 2, y - half - 4, w, 2)
-          .fillStyle(0xff6b6b, 1)
-          .fillRect(
-            x - w / 2,
-            y - half - 4,
-            Math.round((w * e.combatant.health.hp) / e.combatant.health.maxHp),
-            2,
-          );
-      }
-    }
-    this.projectileImages.forEach((img) => img.setVisible(false));
-    for (const pr of this.projectiles.positions()) {
-      this.projectileImages[pr.index]
-        ?.setVisible(true)
-        .setPosition(toPixels(pr.position.x), toPixels(pr.position.y))
-        .setRotation(Math.atan2(pr.direction.y, pr.direction.x));
     }
   }
 

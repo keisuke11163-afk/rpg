@@ -112,8 +112,12 @@ export class PlayerMotion {
 
   /** 1刻み進める。 */
   update(dt: number, input: MotionInput): void {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
-    if (length(input.aim) > 1e-9) this.facingAngle = Math.atan2(input.aim.y, input.aim.x);
+    // FixedStepClock.advance と同じく、NaN・負の数・無限大を受け付けない（無限大は位置を NaN にする）
+    if (!(dt >= 0) || !Number.isFinite(dt)) throw new RangeError("経過時間は0以上の有限の数");
+    // 回避の間は向きも固定する（回避を押した刻みの照準までは受け付ける。実装判断 D-U06-2）
+    if (!this.dodging && length(input.aim) > 1e-9) {
+      this.facingAngle = Math.atan2(input.aim.y, input.aim.x);
+    }
     const moveDir = normalize(input.move);
 
     // 回避を始める：移動の入力の方向へ。入力がなければ照準の方向へ（補助仕様書 1.1）

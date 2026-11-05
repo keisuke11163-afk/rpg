@@ -118,21 +118,51 @@ export class Combatant {
     return this.received;
   }
 
-  /** 時間を進める：持続ダメージを受け、崩しゲージ・魔障を更新する。受けた持続ダメージの合計を返す。 */
+  /**
+   * 時間を進める：持続ダメージを受け、崩しゲージ・魔障を更新する。受けた持続ダメージの合計を返す。
+   *
+   * 例外安全：全ての計算（状態異常の持続ダメージ・その合計・HPと魔障・崩しゲージ）を、
+   * 状態を変えない計画（planTick・planUpdate）として先に行って検証し、全て成功してから反映する。
+   * 反映（commitTick・commitUpdate）は検証済みの値の代入だけで、例外は起きない。
+   * そのため、次のどれで RangeError になっても、HP・魔障・状態異常・崩しゲージ・時間は何も変わらない。
+   * - 経過時間が0以上の有限の数でない
+   * - 持続ダメージの計算・属性ごとの合計が有限でない（AilmentState.planTick）
+   * - 属性ごとの持続ダメージの合計が有限でない（NaN・Infinity）
+   * - HP・魔障・被弾からの時間の計算の溢れ（Health.planUpdate）
+   * - 崩しゲージ・崩しを受けていない時間の計算の溢れ（StaggerGauge.planUpdate）
+   */
   update(dt: number): number {
-    const dot = this.ailments.tick(dt, {
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
+    const target = {
       resist: this.resist,
       takenMultiplier: this.takenMultiplier,
       moving: this.moving,
-    });
-    let total = 0;
-    for (const v of Object.values(dot)) total += v;
-    if (total > 0) this.health.takeDamage(total);
-    this.stagger.update(dt);
-    this.health.update(dt);
+    };
+    // 1. 計算と検証（状態は変えない）
+    const dot = this.ailments.planTick(dt, target);
+    // 各属性が有限でも、合計は溢れうる
+    const total = sumDot(dot.damage);
+    // 持続ダメージを受けてから時間を進める（従来の takeDamage(total) → update(dt) と同じ）
+    const health = this.health.planUpdate(dt, total);
+    const stagger = this.stagger.planUpdate(dt);
+    // 2. 反映（代入だけで、例外は起きない）
+    this.ailments.commitTick(dot);
+    this.health.commitUpdate(health);
+    this.stagger.commitUpdate(stagger);
+    // 一定時間の効果：dt は検証済みで、残りの時間を減らして切れたものを取り除くだけ（例外は起きない）
     this.statuses.update(dt);
     return total;
   }
+}
+
+/** 属性ごとの持続ダメージの合計。合計が有限でなければ RangeError。 */
+function sumDot(dot: Partial<Record<Element, number>>): number {
+  let total = 0;
+  for (const v of Object.values(dot)) total += v;
+  if (!Number.isFinite(total))
+    throw new RangeError(`持続ダメージの合計は有限の数（${String(total)}）`);
+  return total;
 }
 
 export interface HitInput {
