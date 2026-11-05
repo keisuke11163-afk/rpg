@@ -1,0 +1,82 @@
+[
+  {
+    "id": "EFF-STAR-GO-10",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-GO",
+        "value": 10
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-JIN-10",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-JIN",
+        "value": 10
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-GOJIN-5",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-GO",
+        "value": 5
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-JIN",
+        "value": 5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-BLEED-6",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 0.06,
+        "filter": {
+          "allOf": ["TAG-AIL-BLEED"]
+        }
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-DURATION",
+        "value": 0.3,
+        "filter": {
+          "allOf": ["TAG-AIL-BLEED"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  }
+]

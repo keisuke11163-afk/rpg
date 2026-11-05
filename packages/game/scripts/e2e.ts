@@ -156,9 +156,19 @@ type DebugWindow = {
     panel: () => PanelInfo;
     assignSkill: (index: number, skill: string) => boolean;
     saveNow: () => boolean;
+    stars: () => StarsInfo;
+    starNodeScreen: (id: string) => { x: number; y: number } | null;
     saves: () => SavesInfo;
   };
 };
+interface StarsInfo {
+  allocated: string[];
+  active: string[];
+  dormant: Record<string, string>;
+  points: number;
+  attributes: { go: number; jin: number; ri: number; kon: number };
+  lamps: number;
+}
 interface SavesInfo {
   status: string;
   slots: { slot: number; state: string; name: string | null; level: number | null }[];
@@ -761,6 +771,39 @@ try {
 
   await page.screenshot({ path: `${outDir}arena.png` });
 
+  // 星辰盤（U-14）：T で開き、始点の隣のノードをクリックで取る。能力値の小星で能力値が増える
+  const stars = (): Promise<StarsInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.stars());
+  const st0 = await stars();
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(150);
+  const target = st0.allocated.length === 0 ? "STAR-JIN-0001" : null;
+  const pos = await page.evaluate(
+    (id: string) => (window as unknown as DebugWindow).__STELLA_DEBUG__.starNodeScreen(id),
+    target ?? "STAR-JIN-0001",
+  );
+  if (pos !== null) {
+    await page.mouse.move(pos.x * 2, pos.y * 2);
+    await page.waitForTimeout(100);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+  }
+  const st1 = await stars();
+  const boardPanel = await panel();
+  check(
+    "T で星辰盤を開き、始点の隣のノードをクリックで取ると、能力値の小星で迅が増える（U-14）",
+    boardPanel.open === "starBoard" &&
+      st1.allocated.includes("STAR-JIN-0001") &&
+      st1.active.includes("STAR-JIN-0001") &&
+      st1.attributes.jin === st0.attributes.jin + 10 &&
+      boardPanel.lines.some((l) => l.startsWith("取得済み")),
+    `取得 ${st1.allocated.join(",")}・迅 ${String(st0.attributes.jin)} → ${String(st1.attributes.jin)}・ポイント ${String(st1.allocated.length)}／${String(st1.points)}`,
+  );
+  await page.screenshot({ path: `${outDir}star-board.png` });
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(100);
+
   // セーブ・ロード（U-13）：保存してページを読み込み直すと、同じ状態から始まる
   const saves = (): Promise<SavesInfo> =>
     page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.saves());
@@ -774,16 +817,26 @@ try {
     (window as unknown as DebugWindow).__STELLA_DEBUG__.saveNow(),
   );
   const sv0 = await saves();
-  const beforeReload = { skills: await skills(), inv: await inv(), hp: (await combat()).maxHp };
+  const beforeReload = {
+    skills: await skills(),
+    inv: await inv(),
+    hp: (await combat()).maxHp,
+    stars: await stars(),
+  };
   check(
     "セーブすると、スロット1に保存される（U-13）",
     saved && sv0.slots[0]?.state === "ok" && sv0.slots[1]?.state === "empty",
     `${sv0.status}・スロット ${sv0.slots.map((x) => `${String(x.slot)}:${x.state}`).join(",")}`,
   );
   await reload();
-  const afterReload = { skills: await skills(), inv: await inv(), hp: (await combat()).maxHp };
+  const afterReload = {
+    skills: await skills(),
+    inv: await inv(),
+    hp: (await combat()).maxHp,
+    stars: await stars(),
+  };
   check(
-    "ページを読み込み直すと、セーブデータから同じ状態で始まる（Lv・ジョブ・武器・持ち物・金貨・最大HP）（U-13）",
+    "ページを読み込み直すと、セーブデータから同じ状態で始まる（Lv・ジョブ・武器・持ち物・金貨・最大HP・星辰盤）（U-13）",
     afterReload.skills.level === beforeReload.skills.level &&
       afterReload.skills.job === beforeReload.skills.job &&
       afterReload.skills.weapon === beforeReload.skills.weapon &&
@@ -791,7 +844,11 @@ try {
         JSON.stringify(beforeReload.skills.jobLevels) &&
       afterReload.inv.gold === beforeReload.inv.gold &&
       afterReload.inv.items.length === beforeReload.inv.items.length &&
-      afterReload.hp === beforeReload.hp,
+      afterReload.hp === beforeReload.hp &&
+      JSON.stringify(afterReload.stars.allocated) ===
+        JSON.stringify(beforeReload.stars.allocated) &&
+      JSON.stringify(afterReload.stars.attributes) ===
+        JSON.stringify(beforeReload.stars.attributes),
     `Lv ${String(beforeReload.skills.level)} → ${String(afterReload.skills.level)}・ジョブ ${afterReload.skills.job}・武器 ${String(afterReload.skills.weapon)}・金貨 ${String(beforeReload.inv.gold)} → ${String(afterReload.inv.gold)}・持ち物 ${String(afterReload.inv.items.length)}・最大HP ${String(afterReload.hp)}`,
   );
   // 壊れたデータ：読み込みでは上書きせず、新しく始める。保存するときに .corrupt に退避する

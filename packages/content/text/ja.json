@@ -176,5 +176,13 @@
   "item.material.tuning-fork": "調律の音叉",
   "item.material.seal-wax": "封詞の蝋",
   "item.material.return-lamp": "還星の灯",
-  "item.material.beast-fang": "獣牙"
+  "item.material.beast-fang": "獣牙",
+  "stat.attr.go": "剛",
+  "stat.attr.jin": "迅",
+  "stat.attr.ri": "理",
+  "stat.attr.kon": "魂",
+  "star.start.gou": "剛域の始点（戦士）",
+  "star.start.jin": "迅域の始点（盗賊）",
+  "star.gate.blade": "刃の門",
+  "star.gate.beast": "獣の門"
 }

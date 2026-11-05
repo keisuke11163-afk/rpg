@@ -203,5 +203,29 @@
     "text": "stat.cooldown-reduction",
     "unit": "ratio",
     "min": 0
+  },
+  {
+    "id": "STAT-ATTR-GO",
+    "text": "stat.attr.go",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-ATTR-JIN",
+    "text": "stat.attr.jin",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-ATTR-RI",
+    "text": "stat.attr.ri",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-ATTR-KON",
+    "text": "stat.attr.kon",
+    "unit": "flat",
+    "min": 0
   }
 ]

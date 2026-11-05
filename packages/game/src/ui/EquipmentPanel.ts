@@ -22,6 +22,17 @@ import {
   tooltipLines,
 } from "./item-text.ts";
 import {
+  BOARD_AREA,
+  BOARD_DETAIL,
+  type BoardCamera,
+  ZOOM,
+  clampZoom,
+  nodeAt,
+  nodeLines,
+  nodeRadius,
+  toScreen,
+} from "./star-board-view.ts";
+import {
   PANEL,
   type PanelKind,
   type PanelTarget,
@@ -68,14 +79,62 @@ export class EquipmentPanel {
   private hovered: PanelTarget | undefined;
   private shown: string[] = [];
   private message: { text: string; until: number } | undefined;
+  /** 星辰盤の視点（始点を中心にして開く）。 */
+  private camera: BoardCamera = { cx: 0, cy: 0, zoom: ZOOM.initial };
+  /** 星辰盤をドラッグで動かしている（押した位置と、その時の視点）。 */
+  private drag: { x: number; y: number; cam: BoardCamera; moved: boolean } | undefined;
 
   constructor(scene: Phaser.Scene, sim: ArenaSimulation) {
     this.scene = scene;
     this.sim = sim;
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH);
     scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      this.click(p.x, p.y, p.button === 2 ? "right" : "left");
+      const button = p.button === 2 ? "right" : "left";
+      // 星辰盤の何も無い所を左ボタンで押すと、ドラッグで動かす（離したときに動いていなければ何もしない）
+      if (
+        this.kind === "starBoard" &&
+        button === "left" &&
+        nodeAt(sim.db, this.camera, p.x, p.y) === undefined
+      ) {
+        this.drag = { x: p.x, y: p.y, cam: this.camera, moved: false };
+        return;
+      }
+      this.click(p.x, p.y, button);
     });
+    scene.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+      const d = this.drag;
+      if (d === undefined || !p.isDown) return;
+      if (Math.hypot(p.x - d.x, p.y - d.y) > 2) d.moved = true;
+      this.camera = {
+        ...d.cam,
+        cx: d.cam.cx - (p.x - d.x) / d.cam.zoom,
+        cy: d.cam.cy - (p.y - d.y) / d.cam.zoom,
+      };
+    });
+    scene.input.on("pointerup", () => {
+      this.drag = undefined;
+    });
+    // ホイールで拡大・縮小（星辰盤だけ）
+    scene.input.on("wheel", (_p: unknown, _o: unknown, _dx: number, dy: number) => {
+      if (this.kind === "starBoard") this.zoomBy(dy > 0 ? 1 / 1.15 : 1.15);
+    });
+  }
+
+  /** 星辰盤の拡大率を変える（自動の確認でも使う）。 */
+  zoomBy(k: number): void {
+    this.camera = { ...this.camera, zoom: clampZoom(this.camera.zoom * k) };
+  }
+
+  /** 星辰盤の視点を、ノードの位置に合わせる（開いたときは始点）。 */
+  centerOn(id: string | undefined): void {
+    const n = id === undefined ? undefined : this.sim.db.starNodes.get(id);
+    if (n !== undefined) this.camera = { ...this.camera, cx: n.position.x, cy: n.position.y };
+  }
+
+  /** ノードの画面の位置（自動の確認で、クリックする位置を求めるため）。 */
+  nodeScreen(id: string): { x: number; y: number } | undefined {
+    const n = this.sim.db.starNodes.get(id);
+    return n === undefined ? undefined : toScreen(this.camera, n.position);
   }
 
   get open(): PanelKind | undefined {
@@ -86,6 +145,7 @@ export class EquipmentPanel {
   toggle(kind: PanelKind): void {
     this.kind = this.kind === kind ? undefined : kind;
     this.hovered = undefined;
+    if (this.kind === "starBoard") this.centerOn(this.sim.starRoot);
   }
 
   close(): void {
@@ -98,7 +158,10 @@ export class EquipmentPanel {
 
   /** 画面の位置を指す（マウスを動かしたとき。自動の確認でも使う）。 */
   hover(x: number, y: number): void {
-    if (this.kind === "inventory") this.hovered = inventoryTarget(x, y);
+    if (this.kind === "starBoard") {
+      const n = nodeAt(this.sim.db, this.camera, x, y);
+      this.hovered = n === undefined ? undefined : { kind: "starNode", id: n.id };
+    } else if (this.kind === "inventory") this.hovered = inventoryTarget(x, y);
     else if (this.kind === "character")
       this.hovered = characterTarget(x, y, sheetRows(this.sim.db, this.sim.sheet).length);
     else this.hovered = undefined;
@@ -106,6 +169,23 @@ export class EquipmentPanel {
 
   /** クリック。何かをしたら true。 */
   click(x: number, y: number, button: "left" | "right"): boolean {
+    if (this.kind === "starBoard") {
+      const n = nodeAt(this.sim.db, this.camera, x, y);
+      if (n === undefined) return false;
+      if (button === "left") {
+        if (!this.sim.allocateStar(n.id)) {
+          const block = this.sim.stars.allocateBlock(n.id, this.sim.starRoot, this.sim.starPoints);
+          if (block !== "taken" && block !== "start")
+            this.say(block === "points" ? "ポイントが足りない" : "取ったノードの隣だけ取れる");
+        }
+      } else {
+        const r = this.sim.refundStar(n.id);
+        if (r === "noLamp") this.say("還星の灯が無い");
+        else if (r === "blocked" && this.sim.stars.has(n.id))
+          this.say("返すと、始点からつながらなくなるノードがある");
+      }
+      return true;
+    }
     if (this.kind === "character") {
       const target = characterTarget(x, y, sheetRows(this.sim.db, this.sim.sheet).length);
       if (target?.kind !== "skillSlot") return false;
@@ -172,7 +252,8 @@ export class EquipmentPanel {
         .lineStyle(1, 0x4a4858, 1)
         .strokeRect(PANEL.x, PANEL.y, PANEL.width, PANEL.height);
       if (this.kind === "inventory") this.renderInventory();
-      else this.renderCharacter();
+      else if (this.kind === "character") this.renderCharacter();
+      else this.renderStarBoard();
       if (this.message !== undefined && this.scene.time.now < this.message.until)
         this.line(
           PANEL.x + 8,
@@ -350,5 +431,106 @@ export class EquipmentPanel {
       return;
     }
     this.lines(d.x, PANEL.stats.y, breakdownLines(db, row, this.findItem), d.width);
+  }
+
+  private renderStarBoard(): void {
+    const sim = this.sim;
+    const db = sim.db;
+    const board = sim.sheet.board;
+    const cam = this.camera;
+    const g = this.g;
+    const lamps = sim.inventory.material("MAT-RETURN-LAMP");
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      {
+        text: `星辰盤（T で閉じる）　ポイント ${String(sim.stars.spent)}／${String(sim.starPoints)}・還星の灯 ${String(lamps)}　左クリック：取る／右クリック：返す／ドラッグ：動かす／ホイール：拡大・縮小`,
+        color: TEXT_COLOR.dim,
+      },
+      0,
+    );
+    const a = BOARD_AREA;
+    g.lineStyle(1, 0x3a3846, 1).strokeRect(a.x, a.y, a.width, a.height);
+    const inside = (p: { x: number; y: number }): boolean =>
+      p.x >= a.x && p.y >= a.y && p.x <= a.x + a.width && p.y <= a.y + a.height;
+    const active = new Set(board?.active ?? []);
+    const allocated = new Set(sim.stars.nodes);
+    // つながり
+    for (const [id, near] of db.starLinks) {
+      const from = db.starNodes.get(id);
+      if (from === undefined) continue;
+      for (const other of near) {
+        if (other < id) continue;
+        const to = db.starNodes.get(other);
+        if (to === undefined) continue;
+        const p = toScreen(cam, from.position);
+        const q = toScreen(cam, to.position);
+        if (!inside(p) || !inside(q)) continue;
+        const lit =
+          (active.has(id) || id === board?.root) && (active.has(other) || other === board?.root);
+        g.lineStyle(lit ? 2 : 1, lit ? 0xffd166 : 0x4a4858, 1).lineBetween(p.x, p.y, q.x, q.y);
+      }
+    }
+    // ノード
+    for (const n of db.starNodes.values()) {
+      const p = toScreen(cam, n.position);
+      if (!inside(p)) continue;
+      const r = nodeRadius(n.kind, cam.zoom);
+      const isRoot = n.id === board?.root;
+      const isActive = active.has(n.id);
+      const dormant = allocated.has(n.id) && !isActive;
+      const can = sim.stars.allocateBlock(n.id, sim.starRoot, sim.starPoints) === undefined;
+      const fill = isRoot || isActive ? 0xffd166 : dormant ? 0x6a6878 : 0x2a2934;
+      g.fillStyle(fill, 1).fillCircle(p.x, p.y, r);
+      const stroke = n.kind === "gate" ? 0xc3a6ff : can ? 0x7bd389 : 0x8c88a0;
+      g.lineStyle(1, stroke, 1).strokeCircle(p.x, p.y, r);
+      if (n.kind === "start" && !isRoot) g.lineStyle(1, 0x8c88a0, 1).strokeCircle(p.x, p.y, r + 2);
+      if (this.hovered?.kind === "starNode" && this.hovered.id === n.id)
+        g.lineStyle(1, 0xffffff, 1).strokeCircle(p.x, p.y, r + 3);
+    }
+    // 説明
+    const d = BOARD_DETAIL;
+    const target = this.hovered;
+    const node = target?.kind === "starNode" ? db.starNodes.get(target.id) : undefined;
+    let y = d.y;
+    if (node === undefined)
+      y = this.lines(
+        d.x,
+        y,
+        [{ text: "ノードを指すと、効果と状態を出す", color: TEXT_COLOR.dim }],
+        d.width,
+      );
+    else
+      y = this.lines(
+        d.x,
+        y,
+        nodeLines(
+          db,
+          node,
+          board,
+          allocated.has(node.id),
+          sim.stars.allocateBlock(node.id, sim.starRoot, sim.starPoints),
+        ),
+        d.width,
+      );
+    const dormantCount = board?.dormant.size ?? 0;
+    this.lines(
+      d.x,
+      y + 6,
+      [
+        {
+          text: `有効 ${String(active.size)}・休眠 ${String(dormantCount)}`,
+          color: TEXT_COLOR.normal,
+        },
+        ...[...(board?.gates ?? new Map<string, boolean>())].map(([id, open]) => {
+          const gn = db.starNodes.get(id);
+          return {
+            text: `${gn?.text === undefined ? id : text(gn.text as TextKey)}：${open ? "開いている" : "閉じている"}`,
+            color: open ? TEXT_COLOR.good : TEXT_COLOR.bad,
+          };
+        }),
+      ],
+      d.width,
+    );
   }
 }

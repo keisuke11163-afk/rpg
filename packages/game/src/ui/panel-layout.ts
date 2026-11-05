@@ -21,13 +21,14 @@ export const PANEL = {
   skillSlots: { x: 340, y: 246, width: 284, row: 11, count: 6 },
 } as const;
 
-export type PanelKind = "inventory" | "character";
+export type PanelKind = "inventory" | "character" | "starBoard";
 
 export type PanelTarget =
   | { readonly kind: "slot"; readonly slot: MvpEquipSlot }
   | { readonly kind: "item"; readonly index: number }
   | { readonly kind: "stat"; readonly index: number }
-  | { readonly kind: "skillSlot"; readonly index: number };
+  | { readonly kind: "skillSlot"; readonly index: number }
+  | { readonly kind: "starNode"; readonly id: string };
 
 /** インベントリの画面で、画面の位置が指しているもの（何も指していなければ undefined）。 */
 export function inventoryTarget(x: number, y: number): PanelTarget | undefined {

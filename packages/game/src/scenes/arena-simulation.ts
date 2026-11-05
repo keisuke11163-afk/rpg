@@ -14,6 +14,9 @@ import {
   type HitShape,
   type CharacterSheet,
   AutoSaveTimer,
+  StarAllocation,
+  startNodeOf,
+  starPoints,
   Equipment,
   type ItemInstance,
   Inventory,
@@ -218,6 +221,9 @@ export interface ArenaSimulationOptions {
   profile?: PlayerProfile;
 }
 
+/** 還星の灯（星辰盤の1ノードを返す。仕様書v0.2 4.13）。 */
+export const RETURN_LAMP = "MAT-RETURN-LAMP";
+
 /** セーブデータが無いときの、試験用の初期の状態。 */
 export function testStartProfile(db: ContentDb): PlayerProfile {
   const origin = db.jobs.get("JOB-WARRIOR");
@@ -234,6 +240,8 @@ export function testStartProfile(db: ContentDb): PlayerProfile {
     if (w.uid === START_WEAPON[origin.id]) equipment.equip(item, "mainHand", true);
     else inventory.addItem(item);
   }
+  // 開発用：星辰盤の1ノードの返却を試せるように、還星の灯を持たせる
+  inventory.addMaterial(RETURN_LAMP, 5);
   return {
     name: "試験用の戦士",
     character,
@@ -241,6 +249,7 @@ export function testStartProfile(db: ContentDb): PlayerProfile {
     inventory,
     stash: createStash(),
     skillSlots: new Map(),
+    starAllocation: [],
     kept: emptyKeptFields(origin.id),
   };
 }
@@ -284,6 +293,9 @@ export class ArenaSimulation {
   private readonly kept: KeptSaveFields;
   /** 自動セーブの時期（試験用の場はダンジョンとして扱う：60秒ごと）。 */
   readonly autosave = new AutoSaveTimer();
+  /** 星辰盤の取得（仕様書v0.2 4章）。 */
+  readonly stars: StarAllocation;
+  private starVersion = 0;
   private equipmentVersion = 0;
   /** ジョブごとの技の枠。 */
   private readonly skillSlotsByJob = new Map<string, (string | undefined)[]>();
@@ -334,6 +346,7 @@ export class ArenaSimulation {
     this.inventory = profile.inventory;
     this.stash = profile.stash;
     this.kept = profile.kept;
+    this.stars = new StarAllocation(this.db, profile.starAllocation);
     for (const [job, slots] of profile.skillSlots) this.skillSlotsByJob.set(job, [...slots]);
     // 拾った物の uid が、持っている物と重ならないように続きの番号から始める
     for (const i of [
@@ -581,6 +594,42 @@ export class ArenaSimulation {
     return slots.find((s) => this.equipment.get(s) === undefined) ?? slots[0];
   }
 
+  /** 星辰盤のポイント（キャラLv−1＋クエスト＋探索。仕様書v0.2 4.12）。 */
+  get starPoints(): number {
+    return starPoints(this.character.level, this.kept.questPoints, this.kept.explorationPoints);
+  }
+
+  /** 星辰盤の始点（メインジョブ）。 */
+  get starRoot(): string | undefined {
+    return startNodeOf(this.db, this.job.id);
+  }
+
+  /** 星辰盤のノードを取る。取れなければ false（理由は stars.allocateBlock）。 */
+  allocateStar(id: string): boolean {
+    if (!this.stars.allocate(id, this.starRoot, this.starPoints)) return false;
+    this.starsChanged();
+    return true;
+  }
+
+  /**
+   * 星辰盤のノードを1つ返す（還星の灯を1つ使う。仕様書v0.2 4.13）。
+   * 灯が無い・返すと始点からつながらなくなるノードがあるときは、何も変えずに false。
+   */
+  refundStar(id: string): "ok" | "noLamp" | "blocked" {
+    if (!this.stars.canRefund(id, this.starRoot)) return "blocked";
+    if (this.inventory.material(RETURN_LAMP) < 1) return "noLamp";
+    this.inventory.spendMaterial(RETURN_LAMP, 1);
+    this.stars.refund(id, this.starRoot);
+    this.starsChanged();
+    return "ok";
+  }
+
+  private starsChanged(): void {
+    this.starVersion += 1;
+    this.refreshAttacker();
+    this.syncPlayerMaxHp();
+  }
+
   /** 今の状態（セーブデータにする元）。 */
   profile(): PlayerProfile {
     return {
@@ -590,6 +639,7 @@ export class ArenaSimulation {
       inventory: this.inventory,
       stash: this.stash,
       skillSlots: this.skillSlotsByJob,
+      starAllocation: this.stars.nodes,
       kept: this.kept,
     };
   }
@@ -854,7 +904,7 @@ export class ArenaSimulation {
 
   /** 効果（戦吼の強化など）・Lv・ジョブ・装備が変わったら、能力値を計算し直す（キャラクターの画面と同じ計算）。 */
   private refreshAttacker(): void {
-    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}`;
+    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}`;
     if (this.attackerVersion === version) return;
     this.attackerVersion = version;
     this.sheetValue = buildCharacterSheet(this.db, this.tags, {
@@ -862,6 +912,7 @@ export class ArenaSimulation {
       job: this.job,
       equipment: this.equipment,
       extraEffects: this.buffs.instances(),
+      starBoard: { allocation: this.stars.nodes, points: this.starPoints },
     });
     this.mpValue = Math.min(this.mpValue, this.sheetValue.maxMp);
   }

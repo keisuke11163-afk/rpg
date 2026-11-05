@@ -182,6 +182,8 @@ export interface PlayerProfile {
   readonly stash: Inventory;
   /** ジョブごとの技の枠（6つ。空きは undefined）。無いジョブは、初期の並びを使う。 */
   readonly skillSlots: ReadonlyMap<string, readonly (string | undefined)[]>;
+  /** 星辰盤の取得（使っているロードアウトの分。取った順）。 */
+  readonly starAllocation: readonly string[];
   /** まだゲームで使っていない項目（星辰盤・討伐証など）。読み込んだ値をそのまま保存し直す。 */
   readonly kept: KeptSaveFields;
 }
@@ -258,7 +260,9 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
   }
   // 今の装備とメインジョブは、使っているロードアウトに入れる（ロードアウトの切り替えは U-20）
   const loadouts = kept.loadouts.map((l) =>
-    l.id === kept.activeLoadout ? { ...l, main_job: c.mainJob, equipment } : l,
+    l.id === kept.activeLoadout
+      ? { ...l, main_job: c.mainJob, equipment, star_allocation: [...profile.starAllocation] }
+      : l,
   );
   return {
     save_version: SAVE_VERSION,
@@ -390,6 +394,16 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
     ref(db.materials.has(m), () => `素材 ${m} がデータに無い`);
     inventory.addMaterial(m, n);
   }
+  // 星辰盤の取得：データにあるノード・始点でない・重ならない（つながっていない分は休眠する）
+  const starAllocation = [...(active?.star_allocation ?? [])];
+  const seenNodes = new Set<string>();
+  for (const id of starAllocation) {
+    const node = db.starNodes.get(id);
+    ref(node !== undefined, () => `星辰盤のノード ${id} がデータに無い`);
+    ref(node?.kind !== "start", () => `始点 ${id} は取得しない`);
+    ref(!seenNodes.has(id), () => `星辰盤のノード ${id} が2回取得されている`);
+    seenNodes.add(id);
+  }
   const skillSlots = new Map<string, (string | undefined)[]>();
   for (const [jobId, j] of Object.entries(data.jobs)) {
     if (j.skill_slots.length === 0) continue;
@@ -413,6 +427,7 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
     inventory,
     stash,
     skillSlots,
+    starAllocation,
     kept: {
       subJob: c.sub_job,
       boards: Object.fromEntries(

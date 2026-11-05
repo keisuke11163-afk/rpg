@@ -65,6 +65,16 @@ export class Inventory {
     return true;
   }
 
+  /** 素材を使う。足りなければ、何も変えずに false。 */
+  spendMaterial(id: string, count: number): boolean {
+    requireCount(count, `素材 ${id} の数`);
+    const have = this.material(id);
+    if (have < count) return false;
+    if (have === count) this.materialCounts.delete(id);
+    else this.materialCounts.set(id, have - count);
+    return true;
+  }
+
   addMaterial(id: string, count: number): void {
     requireCount(count, `素材 ${id} の数`);
     this.materialCounts.set(id, requireSafeTotal(this.material(id) + count, `素材 ${id} の合計`));

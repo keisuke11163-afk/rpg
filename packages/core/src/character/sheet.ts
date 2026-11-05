@@ -8,17 +8,27 @@ import {
 } from "../combat/damage.ts";
 import type { Rng } from "../random/rng.ts";
 import { AFFINITY_ATTACK_SPEED, weaponAffinity } from "../combat/skills.ts";
+import { type StarBoardResult, evaluateStarBoard, starPoints } from "../board/star-board.ts";
 import {
   type EffectInstance,
   type EvaluatedEffects,
   type StatResult,
   evaluateEffects,
+  stageOneView,
 } from "../effects/evaluate.ts";
 import type { TagIndex } from "../effects/tag-index.ts";
 import type { Equipment } from "../items/equipment.ts";
 import { requirementMet } from "../items/equipment.ts";
 import type { ItemInstance } from "../items/generate.ts";
-import type { Attributes, Character } from "./progression.ts";
+import { ATTRIBUTE_EFFECTS, type Attributes, type Character } from "./progression.ts";
+
+/** 能力値の数値（能力値の小星・装備で増える。仕様書v0.2 2.2・4.3）。基礎の値は出自の初期能力値。 */
+export const ATTRIBUTE_STATS: Readonly<Record<keyof Attributes, string>> = {
+  go: "STAT-ATTR-GO",
+  jin: "STAT-ATTR-JIN",
+  ri: "STAT-ATTR-RI",
+  kon: "STAT-ATTR-KON",
+};
 
 /** 素手のタグ（仕様書v0.2 3.2：全ジョブの適性はA）。 */
 export const UNARMED_WEAPON_TAG = "TAG-WPN-UNARMED";
@@ -35,6 +45,12 @@ export interface CharacterSheetInput {
   readonly equipment?: Equipment;
   /** 一時的な効果（戦吼の強化など）。 */
   readonly extraEffects?: readonly EffectInstance[];
+  /** 星辰盤の取得（取った順）とポイント（省略すると星辰盤なし）。 */
+  readonly starBoard?: {
+    readonly allocation: readonly string[];
+    /** 省略すると {@link starPoints}（キャラLv−1）。 */
+    readonly points?: number;
+  };
 }
 
 /** 主手の武器の状態。 */
@@ -52,8 +68,10 @@ export interface SheetWeapon {
  */
 export interface CharacterSheet {
   readonly evaluated: EvaluatedEffects;
-  /** 能力値（出自の初期能力値。星辰盤・装備の分は U-14 以降）。 */
+  /** 能力値（出自の初期能力値＋星辰盤・装備の分。第1段階の値。仕様書v0.2 4.9.1）。 */
   readonly attributes: Attributes;
+  /** 星辰盤の評価（星辰盤を渡さなければ undefined）。 */
+  readonly board: StarBoardResult | undefined;
   /** ダメージの計算に渡す、攻撃する側。 */
   readonly attacker: DamageAttacker;
   /** 主手の武器（素手なら undefined）。 */
@@ -77,21 +95,48 @@ export function buildCharacterSheet(
   input: CharacterSheetInput,
 ): CharacterSheet {
   const { character, job, equipment } = input;
-  const attributes = character.attributes;
-  const evaluated = evaluateEffects(
-    db,
-    tags,
-    [
-      ...(input.extraEffects ?? []),
-      ...character.attributeEffects(),
-      ...(equipment?.effects() ?? []),
-    ],
-    {
-      baseStats: character.baseStats(),
-      equippedTags: equipment?.equippedTags() ?? {},
-      mainJob: job.tag,
-    },
-  );
+  const origin = character.attributes;
+  const baseStats: Record<string, number> = { ...character.baseStats() };
+  for (const k of Object.keys(ATTRIBUTE_STATS) as (keyof Attributes)[])
+    if (db.stats.has(ATTRIBUTE_STATS[k])) baseStats[ATTRIBUTE_STATS[k]] = origin[k];
+  const facts = {
+    baseStats,
+    equippedTags: equipment?.equippedTags() ?? {},
+    mainJob: job.tag,
+  };
+  const gear = [...(input.extraEffects ?? []), ...(equipment?.effects() ?? [])];
+  // 星辰盤：星門の条件は、第1段階の値（基礎・装備・星門を通らないノード）で判定する
+  const board =
+    input.starBoard === undefined
+      ? undefined
+      : evaluateStarBoard(db, tags, {
+          allocation: input.starBoard.allocation,
+          points: input.starBoard.points ?? starPoints(character.level),
+          rootJob: job.id,
+          baseInstances: gear,
+          facts,
+        });
+  const unconditional = [...gear, ...(board?.effects ?? [])];
+  // 能力値：出自＋能力値の小星・装備の分（第1段階の値。要求値の判定にもこの値を使う）
+  const stage1 = stageOneView(db, tags, unconditional, facts);
+  const attributes = Object.fromEntries(
+    (Object.keys(ATTRIBUTE_STATS) as (keyof Attributes)[]).map((k) => [
+      k,
+      db.stats.has(ATTRIBUTE_STATS[k])
+        ? Math.max(0, Math.floor(stage1.stat(ATTRIBUTE_STATS[k]).value))
+        : origin[k],
+    ]),
+  ) as unknown as Attributes;
+  const attributeEffects: EffectInstance[] = (
+    Object.keys(ATTRIBUTE_EFFECTS) as (keyof Attributes)[]
+  )
+    .filter((k) => attributes[k] > 0)
+    .map((k) => ({
+      effectId: ATTRIBUTE_EFFECTS[k],
+      source: { kind: "attribute", ref: k },
+      stacks: attributes[k],
+    }));
+  const evaluated = evaluateEffects(db, tags, [...unconditional, ...attributeEffects], facts);
   const view = evaluated.view;
   const main = equipment?.mainWeapon(attributes);
   const item = equipment?.get("mainHand");
@@ -115,6 +160,7 @@ export function buildCharacterSheet(
   return {
     evaluated,
     attributes,
+    board,
     attacker: {
       db,
       view,
@@ -140,6 +186,10 @@ export interface SheetStat {
 
 /** キャラクターの画面に並べる能力値（補助仕様書16章「能力値と、修正値の内訳」）。 */
 export const SHEET_STATS: readonly SheetStat[] = [
+  { stat: "STAT-ATTR-GO" },
+  { stat: "STAT-ATTR-JIN" },
+  { stat: "STAT-ATTR-RI" },
+  { stat: "STAT-ATTR-KON" },
   { stat: "STAT-HP-MAX" },
   { stat: "STAT-MP-MAX" },
   { stat: "STAT-ACCURACY" },

@@ -13,6 +13,9 @@ import attributeEffects from "../data/effects/attributes.json" with { type: "jso
 import rogueEffects from "../data/effects/rogue.json" with { type: "json" };
 import warriorEffects from "../data/effects/warrior.json" with { type: "json" };
 import affixEffects from "../data/effects/affixes.json" with { type: "json" };
+import starEffects from "../data/effects/star.json" with { type: "json" };
+import starNodes from "../data/boards/star.json" with { type: "json" };
+import constellations from "../data/boards/constellations.json" with { type: "json" };
 import implicitEffects from "../data/effects/implicits.json" with { type: "json" };
 import gauges from "../data/gauges/gauges.json" with { type: "json" };
 import affixes from "../data/items/affixes.json" with { type: "json" };
@@ -55,6 +58,7 @@ export const rawContent: RawContent = {
       { file: "data/effects/rogue.json", entries: rogueEffects },
       { file: "data/effects/implicits.json", entries: implicitEffects },
       { file: "data/effects/affixes.json", entries: affixEffects },
+      { file: "data/effects/star.json", entries: starEffects },
     ],
     ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
     skills: [
@@ -71,6 +75,8 @@ export const rawContent: RawContent = {
     affixes: [{ file: "data/items/affixes.json", entries: affixes }],
     materials: [{ file: "data/items/materials.json", entries: materials }],
     dropProfiles: [{ file: "data/items/drops.json", entries: dropProfiles }],
+    starNodes: [{ file: "data/boards/star.json", entries: starNodes }],
+    constellations: [{ file: "data/boards/constellations.json", entries: constellations }],
   },
 };
 
@@ -94,6 +100,8 @@ export function registeredDataFiles(): string[] {
       ...(c.affixes ?? []),
       ...(c.materials ?? []),
       ...(c.dropProfiles ?? []),
+      ...(c.starNodes ?? []),
+      ...(c.constellations ?? []),
     ].map((s) => s.file),
   ];
 }

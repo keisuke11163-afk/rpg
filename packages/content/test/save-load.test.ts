@@ -94,6 +94,7 @@ function sampleProfile(): PlayerProfile {
         ],
       ],
     ]),
+    starAllocation: ["STAR-JIN-0001", "STAR-JIN-0002", "STAR-JIN-0201"],
     kept: emptyKeptFields("JOB-ROGUE"),
   };
 }
@@ -105,6 +106,7 @@ function computed(p: PlayerProfile) {
     character: p.character,
     job: j,
     equipment: p.equipment,
+    starBoard: { allocation: p.starAllocation },
   });
   return {
     rows: sheetRows(db, sheet).map((r) => [
@@ -143,6 +145,7 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
     expect(r.profile.equipment.get("offHand")?.uid).toBe("itm_2");
     expect(r.profile.skillSlots.get("JOB-ROGUE")?.[1]).toBe("SKL-ROGUE-FLURRY");
     expect(r.profile.character.mainJob).toBe("JOB-ROGUE");
+    expect(r.profile.starAllocation).toEqual(["STAR-JIN-0001", "STAR-JIN-0002", "STAR-JIN-0201"]);
     // もう一度セーブデータにすると、同じ内容になる
     expect(toSaveData(db, r.profile)).toEqual(data);
     // 保存しない値（能力値・修正値の集計）は入っていない
@@ -183,6 +186,7 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
             inventory,
             stash: new Inventory(STASH_SLOTS),
             skillSlots: new Map(),
+            starAllocation: [],
             kept: emptyKeptFields("JOB-ROGUE"),
           };
           const store = new SaveStore(db, new MemoryBackend());
@@ -307,6 +311,14 @@ describe("T11：壊れたデータは検出し、元のデータを上書きし�
     ).toBe("reference");
     expect(load({ ...base, character: { ...base.character, xp: 1e9 } })).toBe("reference");
     expect(load({ ...base, materials: { "MAT-NONE": 1 } })).toBe("reference");
+    const withStars = (ids: string[]): SaveData => ({
+      ...base,
+      loadouts: [{ ...lo, star_allocation: ids }],
+    });
+    expect(load(withStars(["STAR-NONE"]))).toBe("reference");
+    expect(load(withStars(["STAR-GOU-START"]))).toBe("reference");
+    expect(load(withStars(["STAR-JIN-0001", "STAR-JIN-0001"]))).toBe("reference");
+    expect(load(withStars(["STAR-GOU-0101"]))).toBe("ok");
   });
 
   it("壊れたデータを読み込んでも、保存先は変わらない", () => {

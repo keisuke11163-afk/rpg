@@ -572,3 +572,74 @@ describe("ArenaSimulation：セーブ・ロード（U-13）", () => {
     expect(dropped.every((u) => !owned.has(u))).toBe(true);
   });
 });
+
+describe("ArenaSimulation：星辰盤（U-14）", () => {
+  const PATH = [
+    "STAR-GOU-0001",
+    "STAR-GOU-0002",
+    "STAR-GOU-0003",
+    "STAR-GOU-0004",
+    "STAR-GATE-BLADE",
+    "STAR-GOU-0101",
+  ];
+
+  it("始点（戦士）の隣から取れる。能力値の小星で剛が増え、能力値の計算に入る", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.starRoot).toBe("STAR-GOU-START");
+    expect(sim.starPoints).toBe(14); // キャラLv15
+    const go = sim.sheet.attributes.go;
+    const hp = sim.player.health.maxHp;
+    expect(sim.allocateStar("STAR-GOU-0002")).toBe(false);
+    expect(sim.allocateStar("STAR-GOU-0001")).toBe(true);
+    expect(sim.sheet.attributes.go).toBe(go + 10);
+    // 剛1につき最大HP+2
+    expect(sim.player.health.maxHp).toBe(hp + 20);
+  });
+
+  it("剣系から斧に持ち替えると、刃の門の先が休眠し、戻すと復帰する", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    for (const id of PATH) expect(sim.allocateStar(id)).toBe(true);
+    expect(sim.sheet.board?.active).toEqual(PATH);
+    sim.equipFromInventory("test-greataxe");
+    expect(sim.sheet.board?.active).toEqual(PATH.slice(0, 4));
+    expect(sim.sheet.board?.dormant.get("STAR-GOU-0101")?.type).toBe("gate");
+    sim.equipFromInventory("test-greatsword");
+    expect(sim.sheet.board?.active).toEqual(PATH);
+  });
+
+  it("返すと還星の灯を1つ使う。つながりを切るノードは返せない。灯が無ければ返せない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.allocateStar("STAR-GOU-0001");
+    sim.allocateStar("STAR-GOU-0002");
+    const lamps = sim.inventory.material("MAT-RETURN-LAMP");
+    expect(sim.refundStar("STAR-GOU-0001")).toBe("blocked");
+    expect(sim.refundStar("STAR-GOU-0002")).toBe("ok");
+    expect(sim.inventory.material("MAT-RETURN-LAMP")).toBe(lamps - 1);
+    sim.inventory.spendMaterial("MAT-RETURN-LAMP", lamps - 1);
+    expect(sim.refundStar("STAR-GOU-0001")).toBe("noLamp");
+    expect(sim.stars.nodes).toEqual(["STAR-GOU-0001"]);
+  });
+
+  it("盗賊に転職すると始点が変わり、戦士の始点からの取得は休眠する（ポイントは使ったまま）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.allocateStar("STAR-GOU-0001");
+    sim.changeJob();
+    expect(sim.starRoot).toBe("STAR-JIN-START");
+    expect(sim.sheet.board?.dormant.get("STAR-GOU-0001")?.type).toBe("disconnected");
+    expect(sim.stars.spent).toBe(1);
+  });
+
+  it("星辰盤の取得はセーブデータに入り、戻すと同じ能力値になる", async () => {
+    const { MemoryBackend, SaveStore } = await import("@stella/core");
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    for (const id of PATH) sim.allocateStar(id);
+    const store = new SaveStore(sim.db, new MemoryBackend());
+    store.save(1, sim.saveData());
+    const r = store.load(1);
+    if (!r.ok) throw new Error(r.error?.message ?? "空");
+    const back = new ArenaSimulation(undefined, { enemies: false, db: sim.db, profile: r.profile });
+    expect(back.stars.nodes).toEqual(PATH);
+    expect(back.sheet.attributes).toEqual(sim.sheet.attributes);
+    expect(back.player.health.maxHp).toBe(sim.player.health.maxHp);
+  });
+});

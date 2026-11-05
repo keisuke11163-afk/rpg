@@ -267,6 +267,7 @@ export {
   type XpGain,
 } from "./character/progression.ts";
 export {
+  ATTRIBUTE_STATS,
   MIN_ATTACK_SPEED_FACTOR,
   SHEET_STATS,
   UNARMED_ATTACK_SPEED,

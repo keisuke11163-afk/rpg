@@ -257,6 +257,18 @@ export class ArenaScene extends Phaser.Scene {
         })),
         keys: Object.keys(window.localStorage).filter((k) => k.startsWith("stella-sigil/")),
       }),
+      // 星辰盤（U-14）：取得・休眠・ノードの画面の位置
+      stars: () => ({
+        allocated: [...sim.stars.nodes],
+        active: [...(sim.sheet.board?.active ?? [])],
+        dormant: Object.fromEntries(
+          [...(sim.sheet.board?.dormant.entries() ?? [])].map(([k, v]) => [k, v.type]),
+        ),
+        points: sim.starPoints,
+        attributes: { ...sim.sheet.attributes },
+        lamps: sim.inventory.material("MAT-RETURN-LAMP"),
+      }),
+      starNodeScreen: (id?: number | string) => this.panel.nodeScreen(String(id)) ?? null,
       // 画面（U-12）：開いている画面・表示した行・戦闘の能力値
       panel: () => {
         const p = this.panel.snapshot();
@@ -309,6 +321,7 @@ export class ArenaScene extends Phaser.Scene {
     const raw = this.controls.read();
     if (raw.pressed.has("inventory")) this.panel.toggle("inventory");
     if (raw.pressed.has("character")) this.panel.toggle("character");
+    if (raw.pressed.has("starBoard")) this.panel.toggle("starBoard");
     if (raw.pressed.has("menu")) this.panel.close();
     const pointer = this.input.activePointer;
     this.panel.hover(pointer.x, pointer.y);
@@ -524,7 +537,7 @@ export class ArenaScene extends Phaser.Scene {
       .join(" ");
     const lastSkill = sim.lastSkill;
     this.hud.setText([
-      "試験用の場（WASD移動・マウス照準・スペース回避・I インベントリ・C キャラクター・Gで転職）",
+      "試験用の場（WASD移動・マウス照準・スペース回避・I インベントリ・C キャラクター・T 星辰盤・Gで転職）",
       `Lv${String(c.level)}（経験値 ${c.progress.xp.toFixed(0)}／${String(c.progress.toNext)}）・${text(sim.job.text as TextKey)} ジョブLv${String(c.jobLevel(sim.job.id))}（${c.jobTrack(sim.job.id).xp.toFixed(0)}／${String(c.jobTrack(sim.job.id).toNext)}）${c.catchingUp ? "・追いつき補正×2" : ""}`,
       slots,
       `武器：${itemName(sim.db, sim.weapon)}（適性${sim.affinity}・攻撃速度 ${sim.attackSpeed.toFixed(2)}回/秒）${sim.buffs.active.length > 0 ? `・効果：${sim.buffs.active.map((b) => `${this.skillName(b.ref)}（${b.remaining.toFixed(1)}秒）`).join("・")}` : ""}`,
