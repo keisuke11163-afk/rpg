@@ -51,6 +51,28 @@ interface Slot<P> {
   hitIds: Set<string>;
 }
 
+function requireFinite(value: number, name: string): void {
+  if (!Number.isFinite(value)) throw new RangeError(`${name}は有限の数：${String(value)}`);
+}
+
+function requireNonNegativeFinite(value: number, name: string): void {
+  if (!Number.isFinite(value) || value < 0)
+    throw new RangeError(`${name}は0以上の有限の数：${String(value)}`);
+}
+
+/** 投射物を出す情報を検証する（不正な値で入れ物の状態を壊さないため）。 */
+function validateSpawn(spec: ProjectileSpawn<unknown>): void {
+  requireFinite(spec.position.x, "位置のx");
+  requireFinite(spec.position.y, "位置のy");
+  requireFinite(spec.direction.x, "向きのx");
+  requireFinite(spec.direction.y, "向きのy");
+  requireNonNegativeFinite(spec.speed, "速さ");
+  requireNonNegativeFinite(spec.range, "射程");
+  requireNonNegativeFinite(spec.radius, "半径");
+  if (!Number.isInteger(spec.pierce) || spec.pierce < 0)
+    throw new RangeError(`貫通する数は0以上の整数：${String(spec.pierce)}`);
+}
+
 export class ProjectilePool<P> {
   private readonly slots: Slot<P>[];
   private activeCount = 0;
@@ -81,18 +103,27 @@ export class ProjectilePool<P> {
     return this.activeCount;
   }
 
-  /** 投射物を出す。空きがなければ出さずに -1 を返す。 */
+  /**
+   * 投射物を出す。空きがなければ出さずに -1 を返す。向きの長さが0の場合も出さずに -1 を返す。
+   * 位置・向きが有限の数でない、速さ・射程・半径が有限の0以上の数でない、
+   * 貫通する数が0以上の整数でない場合は RangeError（入れ物の状態は変えない）。
+   */
   spawn(spec: ProjectileSpawn<P>): number {
+    validateSpawn(spec);
     const index = this.slots.findIndex((s) => !s.active);
     const slot = this.slots[index];
     if (slot === undefined) return -1;
-    const len = Math.hypot(spec.direction.x, spec.direction.y);
-    if (!(len > 0)) return -1;
+    // 大きな成分でも長さが無限大に溢れないように、先に最大の成分で割ってから長さを求める
+    const scale = Math.max(Math.abs(spec.direction.x), Math.abs(spec.direction.y));
+    if (!(scale > 0)) return -1;
+    const sx = spec.direction.x / scale;
+    const sy = spec.direction.y / scale;
+    const len = Math.hypot(sx, sy);
     slot.active = true;
     slot.x = spec.position.x;
     slot.y = spec.position.y;
-    slot.dx = spec.direction.x / len;
-    slot.dy = spec.direction.y / len;
+    slot.dx = sx / len;
+    slot.dy = sy / len;
     slot.speed = spec.speed;
     slot.remaining = spec.range;
     slot.radius = spec.radius;
@@ -128,6 +159,8 @@ export class ProjectilePool<P> {
 
   /** 時間を進め、この間に当たったものを返す。同じ投射物は、同じ相手に1回だけ当たる。 */
   update(dt: number, targets: readonly ProjectileTarget[]): ProjectileHit<P>[] {
+    // 投射物の状態を変える前に検証する（NaN・負の数・無限大は位置や射程を壊すため）
+    if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
     const hits: ProjectileHit<P>[] = [];
     this.slots.forEach((slot, index) => {
       if (!slot.active) return;
