@@ -157,6 +157,10 @@ type DebugWindow = {
     assignSkill: (index: number, skill: string) => boolean;
     saveNow: () => boolean;
     stars: () => StarsInfo;
+    grantMaterial: (id: string, n: number) => number;
+    itemDetail: (
+      uid: string,
+    ) => { rarity: string; affixes: number; enhance: number; forgeLoad: number } | null;
     starNodeScreen: (id: string) => { x: number; y: number } | null;
     saves: () => SavesInfo;
   };
@@ -802,6 +806,39 @@ try {
   );
   await page.screenshot({ path: `${outDir}star-board.png` });
   await page.keyboard.press("KeyT");
+  await page.waitForTimeout(100);
+
+  // 鍛冶屋（U-17）：B で開き、装備を選んで強化する
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.grantMaterial("MAT-MAGIC-DUST", 10),
+  );
+  await page.keyboard.press("KeyB");
+  await page.waitForTimeout(100);
+  const invNow = await inv();
+  const pickIndex = invNow.items.findIndex((i) => i.uid === "test-axe");
+  const pickCell = cellCenter(pickIndex);
+  await page.mouse.move(pickCell.x * 2, pickCell.y * 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  // 操作の1行目（強化）をクリックする
+  await page.mouse.move((PANEL.detail.x + 20) * 2, (PANEL.detail.y + 5) * 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const axeAfter = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.itemDetail("test-axe"),
+  );
+  const smithPanel = await panel();
+  check(
+    "B で鍛冶屋を開き、装備を選んで強化すると +1 になる（U-17）",
+    smithPanel.open === "smith" &&
+      axeAfter?.enhance === 1 &&
+      smithPanel.lines.some((l) => l.startsWith("下級の片手斧 +1")),
+    `強化値 ${String(axeAfter?.enhance)}・${smithPanel.lines.find((l) => l.startsWith("下級の片手斧")) ?? "名前なし"}`,
+  );
+  await page.screenshot({ path: `${outDir}smith.png` });
+  await page.keyboard.press("KeyB");
   await page.waitForTimeout(100);
 
   // セーブ・ロード（U-13）：保存してページを読み込み直すと、同じ状態から始まる

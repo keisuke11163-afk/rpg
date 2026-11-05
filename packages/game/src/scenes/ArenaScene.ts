@@ -118,6 +118,10 @@ export class ArenaScene extends Phaser.Scene {
     this.controls = new InputSystem(this);
     const keyboard = this.input.keyboard;
     if (keyboard === null) throw new Error("キーボードの入力が使えない");
+    // 仮実装: U-18a feature/town-and-dungeon-base で、町の鍛冶屋に置き換える（B で鍛冶屋の画面）
+    keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B, true).on("down", () => {
+      this.panel.toggle("smith");
+    });
     // 仮実装: U-18a feature/town-and-dungeon-base で、町の転職神殿に置き換える（G で転職。キャラLv15から）
     this.keyJob = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G, true);
     this.keyJob.on("down", () => (this.jobPressed = true));
@@ -269,6 +273,22 @@ export class ArenaScene extends Phaser.Scene {
         lamps: sim.inventory.material("MAT-RETURN-LAMP"),
       }),
       starNodeScreen: (id?: number | string) => this.panel.nodeScreen(String(id)) ?? null,
+      // 確認用：素材を得る（開発版だけ）
+      grantMaterial: (id?: number | string, n?: number | string) => {
+        sim.inventory.addMaterial(String(id), Number(n ?? 1));
+        return sim.inventory.material(String(id));
+      },
+      itemDetail: (uid?: number | string) => {
+        const i = sim.inventory.items.find((x) => x.uid === String(uid));
+        return i === undefined
+          ? null
+          : {
+              rarity: i.rarity,
+              affixes: i.affixes.length,
+              enhance: i.enhance ?? 0,
+              forgeLoad: i.forgeLoad ?? 0,
+            };
+      },
       // 画面（U-12）：開いている画面・表示した行・戦闘の能力値
       panel: () => {
         const p = this.panel.snapshot();
@@ -537,7 +557,7 @@ export class ArenaScene extends Phaser.Scene {
       .join(" ");
     const lastSkill = sim.lastSkill;
     this.hud.setText([
-      "試験用の場（WASD移動・マウス照準・スペース回避・I インベントリ・C キャラクター・T 星辰盤・Gで転職）",
+      "試験用の場（WASD移動・マウス照準・スペース回避・I インベントリ・C キャラクター・T 星辰盤・B 鍛冶屋・Gで転職）",
       `Lv${String(c.level)}（経験値 ${c.progress.xp.toFixed(0)}／${String(c.progress.toNext)}）・${text(sim.job.text as TextKey)} ジョブLv${String(c.jobLevel(sim.job.id))}（${c.jobTrack(sim.job.id).xp.toFixed(0)}／${String(c.jobTrack(sim.job.id).toNext)}）${c.catchingUp ? "・追いつき補正×2" : ""}`,
       slots,
       `武器：${itemName(sim.db, sim.weapon)}（適性${sim.affinity}・攻撃速度 ${sim.attackSpeed.toFixed(2)}回/秒）${sim.buffs.active.length > 0 ? `・効果：${sim.buffs.active.map((b) => `${this.skillName(b.ref)}（${b.remaining.toFixed(1)}秒）`).join("・")}` : ""}`,

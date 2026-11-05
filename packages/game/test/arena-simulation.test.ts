@@ -643,3 +643,34 @@ describe("ArenaSimulation：星辰盤（U-14）", () => {
     expect(back.player.health.maxHp).toBe(sim.player.health.maxHp);
   });
 });
+
+describe("ArenaSimulation：鍛冶屋（U-17）", () => {
+  it("強化・クラフト・分解ができ、操作のたびに自動セーブのきっかけを知らせる", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.smith("test-axe", { kind: "enhance" })).toEqual({
+      ok: false,
+      message: "素材が足りない",
+    });
+    sim.inventory.addMaterial("MAT-MAGIC-DUST", 10);
+    expect(sim.smith("test-axe", { kind: "enhance" }).ok).toBe(true);
+    expect(sim.inventory.items.find((i) => i.uid === "test-axe")?.enhance).toBe(1);
+    expect(sim.autosave.reason).toBe("craft");
+    sim.inventory.addMaterial("MAT-AWAKENING-DUST", 1);
+    expect(sim.smith("test-axe", { kind: "awaken" }).ok).toBe(true);
+    expect(sim.inventory.items.find((i) => i.uid === "test-axe")?.rarity).toBe("magic");
+    expect(sim.smith("test-axe", { kind: "awaken" }).message).toBe("レアリティが合わない");
+    const r = sim.smith("test-claw", { kind: "disassemble" });
+    expect(r.ok).toBe(true);
+    expect(r.message).toContain("魔塵");
+    expect(sim.inventory.items.some((i) => i.uid === "test-claw")).toBe(false);
+  });
+
+  it("強化した武器を装備すると、基礎ダメージが上がる（戦闘の計算に入る）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.inventory.addMaterial("MAT-MAGIC-DUST", 1000);
+    sim.inventory.addMaterial("MAT-STAR-SAND", 1000);
+    for (let i = 0; i < 3; i++) sim.smith("test-dagger", { kind: "enhance" });
+    sim.equipFromInventory("test-dagger");
+    expect(sim.attacker.weapon?.base.physical?.min).toBeCloseTo(4 * 1.15 * 0.6, 12); // 迅の要求値の未達
+  });
+});

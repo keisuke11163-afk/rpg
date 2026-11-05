@@ -14,6 +14,13 @@ import {
   type HitShape,
   type CharacterSheet,
   AutoSaveTimer,
+  type CraftBlock,
+  type CraftOp,
+  craftWithInventory,
+  disassembleFromInventory,
+  enhanceCost,
+  enhanceWithInventory,
+  inscribe,
   StarAllocation,
   startNodeOf,
   starPoints,
@@ -63,7 +70,7 @@ import {
   slotsFor,
   unequipToInventory,
 } from "@stella/core";
-import { loadGameContent } from "@stella/content";
+import { type TextKey, loadGameContent, text } from "@stella/content";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
 import { EnemyField } from "../world/EnemyField.ts";
@@ -221,6 +228,16 @@ export interface ArenaSimulationOptions {
   profile?: PlayerProfile;
 }
 
+/** クラフトができない理由の表示。 */
+const CRAFT_BLOCK_TEXT: Readonly<Record<CraftBlock, string>> = {
+  settled: "鍛造負荷が100を超える（定着）",
+  rarity: "レアリティが合わない",
+  noAffix: "対象の詞が無い",
+  sealed: "封詞した詞は調律できない",
+  unique: "ユニークはクラフトできない",
+  material: "素材が足りない",
+};
+
 /** 還星の灯（星辰盤の1ノードを返す。仕様書v0.2 4.13）。 */
 export const RETURN_LAMP = "MAT-RETURN-LAMP";
 
@@ -295,6 +312,8 @@ export class ArenaSimulation {
   readonly autosave = new AutoSaveTimer();
   /** 星辰盤の取得（仕様書v0.2 4章）。 */
   readonly stars: StarAllocation;
+  /** クラフトの抽選（戦闘・ドロップの乱数の列を変えないように、別の列にする）。 */
+  private readonly craftRng = Rng.fromSeed("arena-craft");
   private starVersion = 0;
   private equipmentVersion = 0;
   /** ジョブごとの技の枠。 */
@@ -628,6 +647,66 @@ export class ArenaSimulation {
     this.starVersion += 1;
     this.refreshAttacker();
     this.syncPlayerMaxHp();
+  }
+
+  /**
+   * 鍛冶屋（インベントリの装備だけ。仕様書v0.2 3.9〜3.11）。操作のたびに自動セーブのきっかけを知らせる。
+   * 戻り値は、できたかと、表示する結果。
+   */
+  smith(
+    uid: string,
+    action:
+      | { readonly kind: "enhance" }
+      | { readonly kind: "inscribe"; readonly effect: string }
+      | { readonly kind: "disassemble" }
+      | CraftOp,
+  ): { readonly ok: boolean; readonly message: string } {
+    const item = this.inventory.items.find((i) => i.uid === uid);
+    if (item === undefined) return { ok: false, message: "インベントリに無い" };
+    let result: { ok: boolean; message: string };
+    switch (action.kind) {
+      case "enhance":
+        result = enhanceWithInventory(this.inventory, uid)
+          ? { ok: true, message: `+${String((item.enhance ?? 0) + 1)} に強化した` }
+          : {
+              ok: false,
+              message: enhanceCost(item) === undefined ? "強化値の上限" : "素材が足りない",
+            };
+        break;
+      case "inscribe":
+        try {
+          this.inventory.replaceItem(inscribe(item, action.effect));
+          result = { ok: true, message: "銘を刻んだ" };
+        } catch (e) {
+          result = { ok: false, message: e instanceof Error ? e.message : String(e) };
+        }
+        break;
+      case "disassemble": {
+        const got = disassembleFromInventory(this.inventory, uid);
+        result = {
+          ok: true,
+          message: `分解した（${Object.entries(got)
+            .map(([m, n]) => {
+              const def = this.db.materials.get(m);
+              return `${def === undefined ? m : text(def.text as TextKey)}×${String(n)}`;
+            })
+            .join("・")}）`,
+        };
+        break;
+      }
+      default: {
+        const r = craftWithInventory(this.db, this.craftRng, this.inventory, uid, action);
+        result =
+          typeof r === "string"
+            ? { ok: false, message: CRAFT_BLOCK_TEXT[r] }
+            : {
+                ok: true,
+                message: `完了${r.cracked === undefined ? "" : "・亀裂が付いた"}${r.inspired === undefined ? "" : "・霊感で詞のtierが上がった"}`,
+              };
+      }
+    }
+    if (result.ok) this.autosave.notify("craft");
+    return result;
   }
 
   /** 今の状態（セーブデータにする元）。 */

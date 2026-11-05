@@ -21,7 +21,7 @@ export const PANEL = {
   skillSlots: { x: 340, y: 246, width: 284, row: 11, count: 6 },
 } as const;
 
-export type PanelKind = "inventory" | "character" | "starBoard";
+export type PanelKind = "inventory" | "character" | "starBoard" | "smith";
 
 export type PanelTarget =
   | { readonly kind: "slot"; readonly slot: MvpEquipSlot }

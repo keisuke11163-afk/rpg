@@ -4,8 +4,15 @@ import {
   type ItemInstance,
   type MvpEquipSlot,
   type SheetRow,
+  CRAFT_MATERIALS,
+  CRAFT_OPS,
+  type CraftOp,
+  INSCRIPTIONS,
+  craftBlock,
   damagePreview,
   effectMatchesContexts,
+  enhanceCost,
+  opLoad,
   Rng,
   sheetRows,
 } from "@stella/core";
@@ -18,6 +25,7 @@ import {
   type TextLine,
   breakdownLines,
   comparisonLines,
+  effectText,
   itemName,
   sheetRowText,
   tooltipLines,
@@ -79,7 +87,11 @@ export class EquipmentPanel {
   private kind: PanelKind | undefined;
   private hovered: PanelTarget | undefined;
   private shown: string[] = [];
-  private message: { text: string; until: number } | undefined;
+  private message: { text: string; until: number; color: string } | undefined;
+  /** 鍛冶屋で選んだ装備の uid。 */
+  private smithSelected: string | undefined;
+  /** 鍛冶屋の操作の行（クリックの当たり判定。描くたびに作り直す）。 */
+  private smithRows: { y0: number; y1: number; run: () => void }[] = [];
   /** 星辰盤の視点（始点を中心にして開く）。 */
   private camera: BoardCamera = { cx: 0, cy: 0, zoom: ZOOM.initial };
   /** 星辰盤をドラッグで動かしている（押した位置と、その時の視点）。 */
@@ -162,7 +174,8 @@ export class EquipmentPanel {
     if (this.kind === "starBoard") {
       const n = nodeAt(this.sim.db, this.camera, x, y);
       this.hovered = n === undefined ? undefined : { kind: "starNode", id: n.id };
-    } else if (this.kind === "inventory") this.hovered = inventoryTarget(x, y);
+    } else if (this.kind === "inventory" || this.kind === "smith")
+      this.hovered = inventoryTarget(x, y);
     else if (this.kind === "character")
       this.hovered = characterTarget(x, y, sheetRows(this.sim.db, this.sim.sheet).length);
     else this.hovered = undefined;
@@ -170,6 +183,18 @@ export class EquipmentPanel {
 
   /** クリック。何かをしたら true。 */
   click(x: number, y: number, button: "left" | "right"): boolean {
+    if (this.kind === "smith") {
+      if (x >= PANEL.detail.x) {
+        const row = this.smithRows.find((r) => y >= r.y0 && y < r.y1);
+        if (row === undefined) return false;
+        row.run();
+        return true;
+      }
+      const t = inventoryTarget(x, y);
+      if (t?.kind !== "item") return false;
+      this.smithSelected = this.sim.inventory.items[t.index]?.uid;
+      return true;
+    }
     if (this.kind === "starBoard") {
       const n = nodeAt(this.sim.db, this.camera, x, y);
       if (n === undefined) return false;
@@ -212,8 +237,8 @@ export class EquipmentPanel {
     return true;
   }
 
-  private say(message: string): void {
-    this.message = { text: message, until: this.scene.time.now + 1500 };
+  private say(message: string, color: string = TEXT_COLOR.bad): void {
+    this.message = { text: message, until: this.scene.time.now + 1500, color };
   }
 
   private line(x: number, y: number, l: TextLine, width?: number): void {
@@ -254,12 +279,13 @@ export class EquipmentPanel {
         .strokeRect(PANEL.x, PANEL.y, PANEL.width, PANEL.height);
       if (this.kind === "inventory") this.renderInventory();
       else if (this.kind === "character") this.renderCharacter();
+      else if (this.kind === "smith") this.renderSmith();
       else this.renderStarBoard();
       if (this.message !== undefined && this.scene.time.now < this.message.until)
         this.line(
           PANEL.x + 8,
           PANEL.y + PANEL.height - 14,
-          { text: this.message.text, color: TEXT_COLOR.bad },
+          { text: this.message.text, color: this.message.color },
           0,
         );
     }
@@ -538,5 +564,130 @@ export class EquipmentPanel {
       ],
       d.width,
     );
+  }
+
+  /** 鍛冶屋の操作を行い、結果を出す。 */
+  private runSmith(uid: string, action: Parameters<ArenaSimulation["smith"]>[1]): void {
+    const r = this.sim.smith(uid, action);
+    this.say(r.message, r.ok ? TEXT_COLOR.good : TEXT_COLOR.bad);
+    if (action.kind === "disassemble" && r.ok) this.smithSelected = undefined;
+  }
+
+  /** 鍛冶屋（仕様書v0.2 3.9〜3.11、補助仕様書8章）：インベントリの装備を選び、強化・銘・クラフト・分解をする。 */
+  private renderSmith(): void {
+    const sim = this.sim;
+    const db = sim.db;
+    this.smithRows = [];
+    const mats = (Object.values(CRAFT_MATERIALS) as string[])
+      .map((m) => {
+        const def = db.materials.get(m);
+        return `${def === undefined ? m : text(def.text as TextKey)} ${String(sim.inventory.material(m))}`;
+      })
+      .join("・");
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      {
+        text: "鍛冶屋（B で閉じる）　装備をクリックで選び、右の操作をクリック",
+        color: TEXT_COLOR.dim,
+      },
+      0,
+    );
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + PANEL.height - 28,
+      { text: mats, color: TEXT_COLOR.normal },
+      0,
+    );
+    const g = PANEL.grid;
+    for (let i = 0; i < sim.inventory.capacity; i++) {
+      const { x, y } = cellPosition(i);
+      const item = sim.inventory.items[i];
+      const selected = item !== undefined && item.uid === this.smithSelected;
+      const hovered = this.hovered?.kind === "item" && this.hovered.index === i;
+      this.g
+        .lineStyle(1, selected ? 0x7bd389 : hovered ? 0xffe08a : 0x3a3846, 1)
+        .strokeRect(x, y, g.cell - 1, g.cell - 1);
+      if (item !== undefined)
+        this.g
+          .fillStyle(colorNumber(RARITY_COLOR[item.rarity]), 0.85)
+          .fillRect(x + 3, y + 3, g.cell - 7, g.cell - 7);
+    }
+    const d = PANEL.detail;
+    const item = sim.inventory.items.find((i) => i.uid === this.smithSelected);
+    if (item === undefined) {
+      this.line(d.x, d.y, { text: "装備を選ぶと、操作を出す", color: TEXT_COLOR.dim }, d.width);
+      return;
+    }
+    this.lines(PANEL.slots.x, PANEL.slots.y, tooltipLines(db, sim.tooltip(item)), 150);
+    const uid = item.uid;
+    const matName = (m: string): string => {
+      const def = db.materials.get(m);
+      return def === undefined ? m : text(def.text as TextKey);
+    };
+    const actions: { label: string; run: () => void; enabled: boolean }[] = [];
+    const cost = enhanceCost(item);
+    actions.push({
+      label:
+        cost === undefined
+          ? "強化：上限（+10）"
+          : `強化 +${String((item.enhance ?? 0) + 1)}（${Object.entries(cost)
+              .map(([m, n]) => `${matName(m)}${String(n)}`)
+              .join("・")}）`,
+      run: () => {
+        this.runSmith(uid, { kind: "enhance" });
+      },
+      enabled:
+        cost !== undefined &&
+        Object.entries(cost).every(([m, n]) => sim.inventory.material(m) >= n),
+    });
+    if ((item.enhance ?? 0) >= 10 && item.inscription === undefined)
+      for (const e of INSCRIPTIONS)
+        actions.push({
+          label: `銘：${effectText(db, e)}`,
+          run: () => {
+            this.runSmith(uid, { kind: "inscribe", effect: e });
+          },
+          enabled: true,
+        });
+    const op = (o: CraftOp, label: string): void => {
+      const block = craftBlock(item, o);
+      const m = CRAFT_OPS[o.kind].material;
+      actions.push({
+        label: `${label}（${matName(m)} ${String(sim.inventory.material(m))}・負荷+${String(opLoad(item, o))}）`,
+        run: () => {
+          this.runSmith(uid, o);
+        },
+        enabled: block === undefined && sim.inventory.material(m) > 0,
+      });
+    };
+    if (item.rarity === "normal") op({ kind: "awaken" }, "目覚めの粉：魔法にする");
+    if (item.rarity === "magic") op({ kind: "insight" }, "開眼の結晶：希少にする");
+    if (item.rarity === "rare") op({ kind: "transmute" }, "転詞の石：詞を全て抽選し直す");
+    if (item.affixes.length > 0) op({ kind: "erase" }, "削詞の刃：詞を1つ消す");
+    for (const a of item.affixes) {
+      const def = db.affixes.get(a.id);
+      const name = def === undefined ? a.id : text(def.text as TextKey);
+      op({ kind: "tune", affix: a.id }, `調律：${name}`);
+      if (item.sealed !== a.id) op({ kind: "seal", affix: a.id }, `封詞：${name}`);
+    }
+    actions.push({
+      label: "分解する（装備はなくなる）",
+      run: () => {
+        this.runSmith(uid, { kind: "disassemble" });
+      },
+      enabled: true,
+    });
+    let y: number = d.y;
+    for (const a of actions) {
+      const y0 = y;
+      y = this.lines(
+        d.x,
+        y,
+        [{ text: a.label, color: a.enabled ? TEXT_COLOR.good : TEXT_COLOR.dim }],
+        d.width,
+      );
+      if (a.enabled) this.smithRows.push({ y0, y1: y, run: a.run });
+    }
   }
 }

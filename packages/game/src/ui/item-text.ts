@@ -59,11 +59,12 @@ const ATTRIBUTE_NAME: Readonly<Record<string, string>> = {
 
 const t = (key: string): string => text(key as TextKey);
 
-/** 装備の名前（ベースの名前。詞による名前は、まだ作らない）。 */
+/** 装備の名前（ベースの名前＋強化値。詞による名前は、まだ作らない）。 */
 export function itemName(db: ContentDb, item: ItemInstance | undefined): string {
   if (item === undefined) return "素手";
   const base = db.itemBases.get(item.base);
-  return base === undefined ? item.base : t(base.text);
+  const name = base === undefined ? item.base : t(base.text);
+  return (item.enhance ?? 0) > 0 ? `${name} +${String(item.enhance)}` : name;
 }
 
 /** タグの名前（無ければID）。 */
@@ -178,12 +179,19 @@ export function tooltipLines(db: ContentDb, tip: ItemTooltip): TextLine[] {
     });
   if (!tip.levelMet)
     lines.push({ text: `必要Lv ${String(tip.base.requiredLevel)}`, color: TEXT_COLOR.bad });
+  const load = tip.item.forgeLoad ?? 0;
+  if (load > 0)
+    lines.push({
+      text: `鍛造負荷 ${String(load)}／100${load >= 60 ? "（亀裂・霊感が起きる）" : ""}`,
+      color: load >= 60 ? TEXT_COLOR.bad : TEXT_COLOR.dim,
+    });
   for (const e of tip.effects) {
     const values =
       e.affix !== undefined && e.rolled !== undefined
         ? affixValues(e.affix.roll, e.affix.scale, e.rolled.rolls)
         : undefined;
-    const label = `${e.kind === "implicit" ? "基本刻印：" : ""}${effectText(db, e.effectId, values)}${e.rolled === undefined ? "" : `（T${String(e.rolled.tier)}）`}${e.local ? "［この武器］" : ""}`;
+    const sealed = e.affix !== undefined && e.affix.id === tip.item.sealed;
+    const label = `${e.kind === "implicit" ? "基本刻印：" : ""}${effectText(db, e.effectId, values)}${e.rolled === undefined ? "" : `（T${String(e.rolled.tier)}）`}${e.local ? "［この武器］" : ""}${sealed ? "［封詞］" : ""}`;
     lines.push({
       text: `${e.matchesSkills ? "★ " : ""}${label}`,
       color: e.matchesSkills
@@ -193,6 +201,13 @@ export function tooltipLines(db: ContentDb, tip: ItemTooltip): TextLine[] {
           : TEXT_COLOR.normal,
     });
   }
+  for (const c of tip.item.cracks ?? [])
+    lines.push({ text: `亀裂：${effectText(db, c)}`, color: TEXT_COLOR.bad });
+  if (tip.item.inscription !== undefined)
+    lines.push({
+      text: `銘：${effectText(db, tip.item.inscription)}`,
+      color: TEXT_COLOR.highlight,
+    });
   return lines;
 }
 
