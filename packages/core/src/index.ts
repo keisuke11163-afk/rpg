@@ -365,3 +365,36 @@ export {
   slotsFor,
   unequipToInventory,
 } from "./items/equipment.ts";
+
+export {
+  MIGRATIONS,
+  SAVE_SKILL_SLOTS,
+  SAVE_VERSION,
+  type KeptSaveFields,
+  type Migration,
+  type PlayerProfile,
+  type SaveData,
+  SaveDataError,
+  type SaveDataV1,
+  emptyKeptFields,
+  fromSaveData,
+  migrateSaveData,
+  saveDataSchema,
+  saveDataV1Schema,
+  toSaveData,
+} from "./save/save-data.ts";
+export {
+  AutoSaveTimer,
+  type AutoSaveReason,
+  DUNGEON_AUTOSAVE_SECONDS,
+  type LoadResult as SaveLoadResult,
+  MemoryBackend,
+  SAVE_FORMAT,
+  SAVE_SLOTS,
+  type SaveBackend,
+  SaveStore,
+  type SlotSummary,
+  checksum,
+  decodeSave,
+  encodeSave,
+} from "./save/save-store.ts";
