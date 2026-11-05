@@ -18,7 +18,8 @@
     "report:provisional": "node tools/scripts/report-provisional.ts",
     "sim": "pnpm --filter @stella/sim start",
     "smoke": "pnpm build && pnpm --filter @stella/game smoke",
-    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm validate:data && pnpm build && pnpm report:provisional"
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm validate:data && pnpm build && pnpm report:provisional",
+    "e2e": "pnpm --filter @stella/game e2e"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

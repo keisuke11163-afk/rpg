@@ -10,6 +10,7 @@ export const CORE_API_VERSION = 1;
 
 export { Rng, type RngState } from "./random/rng.ts";
 export { FIXED_STEP_SECONDS, FixedStepClock, type AdvanceResult } from "./time/fixed-step.ts";
+export { StepInputBuffer } from "./time/step-input.ts";
 
 export { ID_PATTERN } from "./content/ids.ts";
 export { TAG_CATEGORIES, type TagDef } from "./content/tag.ts";
@@ -129,3 +130,12 @@ export {
   type AilmentRollInput,
   type AilmentTickTarget,
 } from "./combat/ailments.ts";
+
+export { ZERO, add, length, normalize, scale, toDirection8, type Vec2 } from "./actor/vector.ts";
+export {
+  DEFAULT_MOTION,
+  PlayerMotion,
+  type Bounds,
+  type MotionConfig,
+  type MotionInput,
+} from "./actor/player-motion.ts";
