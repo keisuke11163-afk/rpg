@@ -45,6 +45,13 @@ export class Inventory {
     return true;
   }
 
+  /** 装備を取り出す。無ければ undefined。 */
+  removeItem(uid: string): ItemInstance | undefined {
+    const i = this.itemList.findIndex((x) => x.uid === uid);
+    if (i < 0) return undefined;
+    return this.itemList.splice(i, 1)[0];
+  }
+
   addGold(amount: number): void {
     requireCount(amount, "金貨");
     this.goldValue = requireSafeTotal(this.goldValue + amount, "金貨の合計");
