@@ -2,7 +2,8 @@ import type { Element } from "../content/effect.ts";
 import { ELEMENTS } from "../content/effect.ts";
 import { CONVERSION_ORDER, ELEMENT_TAG } from "../content/elements.ts";
 import type { ContentDb } from "../content/load.ts";
-import type { ModifierView, Range, StatResult } from "../effects/evaluate.ts";
+import type { HitScope, ModifierView, Range, StatResult } from "../effects/evaluate.ts";
+import { requireFinite } from "../effects/evaluate.ts";
 import type { Rng } from "../random/rng.ts";
 import { armorReduction, hitChance } from "./defense.ts";
 import {
@@ -99,6 +100,11 @@ export interface HitResult {
    * 崩し値の元にする（仕様書v0.2 2.7「打撃値（全属性の合計・防御の前）」）。
    */
   readonly preMitigationTotal: number;
+  /**
+   * このヒットに使った武器の uid（呪文など、武器のヒットでなければ undefined）。
+   * 状態異常・崩しの計算で、局所の効果の範囲（HitScope）がこのヒットと食い違わないことを確かめるために使う。
+   */
+  readonly weaponUid: string | undefined;
   /** 属性ごとの基準値（状態異常の強さの元。会心・倍率・耐性・防御を含まない。仕様書v0.2 2.7）。 */
   readonly ailmentBase: Readonly<Partial<Record<Element, number>>>;
   readonly hitChance: number;
@@ -122,13 +128,11 @@ interface Parts {
   more: number;
 }
 
-/** 修正値の内訳から、計算の系統（打撃値か基準値か）と効く範囲（局所か）に合うものだけを集める。 */
-function collectParts(
-  db: ContentDb,
-  result: StatResult,
-  pipeline: Pipeline,
-  weaponUid: string | undefined,
-): Parts {
+/**
+ * 修正値の内訳から、計算の系統（打撃値か基準値か）に合うものだけを集める。
+ * 効く範囲（局所か）の絞り込みは、問い合わせのときに HitScope で済ませてある（仕様書v0.2 3.7 の原則5）。
+ */
+function collectParts(db: ContentDb, result: StatResult, pipeline: Pipeline): Parts {
   const parts: Parts = {
     added: { min: 0, max: 0 },
     fixed: { min: 0, max: 0 },
@@ -139,8 +143,6 @@ function collectParts(
     const effect = db.effects.get(c.effectId);
     if (effect === undefined) continue;
     if (pipeline === "hit" ? !effect.affects.hit : !effect.affects.ailmentBase) continue;
-    if (effect.locality === "local" && (weaponUid === undefined || c.source.ref !== weaponUid))
-      continue;
     const range = typeof c.value === "number" ? { min: c.value, max: c.value } : c.value;
     switch (c.kind) {
       case "added":
@@ -165,6 +167,15 @@ function collectParts(
 }
 
 const lerp = (r: Range, t: number): number => r.min + (r.max - r.min) * t;
+
+/**
+ * ダメージの計算の途中の値が有限であることを確かめる（NaN・Infinity は RangeError）。
+ * 有限の値どうしの積・和でも Infinity になることがあり（例：1e300 × 1e10、1e308 ＋ 1e308）、
+ * NaN は「> 0」などの比較で黙って捨てられてしまうので、比較・合計に使う前の段階の境目で検証する。
+ * 異常な値を 0 などに置き換えることはしない。
+ */
+const finite = (value: number, what: string): number =>
+  requireFinite(value, () => `ダメージの計算の${what}`);
 
 /**
  * 属性の変換（仕様書 2.5）。上流から順に処理し、変換された分は元と先の両方の属性を「通ってきた属性」に持つ。
@@ -218,49 +229,55 @@ export function computeHit(
 ): HitResult {
   const { db, view } = attacker;
   const weapon = skill.kind === "weapon" ? attacker.weapon : undefined;
-  const weaponUid = attacker.weapon?.uid;
+  // 局所の効果は、そのヒットに使う武器から来たものだけが効く（仕様書v0.2 3.7 の原則5）。
+  // 呪文は武器のヒットではないので、武器を持っていても局所の効果は効かない。
+  const scope: HitScope = { weaponUid: weapon?.uid };
   const contextTags = [...skill.tags, ...(weapon?.tags ?? [])];
   const rng = options.rng;
   const average = options.roll === "average";
 
   // 命中（呪文は回避されない。必中の印があれば回避を無視する）
-  const alwaysHit = view.flag("alwaysHit", undefined, contextTags).resolution === "force";
-  const accuracy = view.stat(COMBAT_STATS.accuracy, contextTags).value;
-  const chanceToHit =
-    skill.kind === "spell" || alwaysHit ? 1 : hitChance(defender.evasion ?? 0, accuracy);
+  const alwaysHit = view.flag("alwaysHit", undefined, contextTags, scope).resolution === "force";
+  const accuracy = view.stat(COMBAT_STATS.accuracy, contextTags, scope).value;
+  const chanceToHit = finite(
+    skill.kind === "spell" || alwaysHit ? 1 : hitChance(defender.evasion ?? 0, accuracy),
+    "命中率",
+  );
   const hitRoll = average ? 0 : rng.next();
 
   // 会心
-  const critParts = collectParts(
-    db,
-    view.stat(COMBAT_STATS.critChance, contextTags),
-    "hit",
-    weaponUid,
+  // 基本の会心率：武器の技は、そのヒットに使う武器の会心率（仕様書v0.2 2.4「基本の会心率は武器による」）。
+  // 呪文も、持っている武器（attacker.weapon）の会心率を使い、武器がなければ0にしている。
+  // 呪文の基本の会心率は仕様書に書かれていない未確定事項（D-U04a-7）で、これは仮の扱い。
+  // 決定が出るまで変えない（局所の効果の範囲 scope とは別で、呪文では scope の武器は undefined）。
+  const critParts = collectParts(db, view.stat(COMBAT_STATS.critChance, contextTags, scope), "hit");
+  // 基本の会心率・追加値・加算率の計算は、強制会心・会心禁止の印の有無にかかわらず検証する
+  // （印があると計算の結果は使われないが、NaN・Infinity の混入を印で見逃さないため）。
+  const critBase = finite(
+    (attacker.weapon?.critChance ?? 0) + (critParts.added.min + critParts.added.max) / 2,
+    "会心率（基本の会心率＋追加値）",
   );
-  const critBase =
-    (attacker.weapon?.critChance ?? 0) + (critParts.added.min + critParts.added.max) / 2;
-  const critFlag = view.flag("crit", undefined, contextTags).resolution;
+  const critIncreased = finite(critParts.increased, "会心率の加算");
+  const critRate = finite(critBase * (1 + critIncreased), "会心率");
+  const critFlag = view.flag("crit", undefined, contextTags, scope).resolution;
   const critChance =
-    critFlag === "forbid"
-      ? 0
-      : critFlag === "force"
-        ? 1
-        : Math.min(1, Math.max(0, critBase * (1 + critParts.increased)));
+    critFlag === "forbid" ? 0 : critFlag === "force" ? 1 : Math.min(1, Math.max(0, critRate));
   const critRoll = average ? 1 : rng.next();
   const multParts = collectParts(
     db,
-    view.stat(COMBAT_STATS.critMultiplier, contextTags),
+    view.stat(COMBAT_STATS.critMultiplier, contextTags, scope),
     "hit",
-    weaponUid,
   );
-  const critMultiplier =
-    BASE_CRIT_MULTIPLIER + (multParts.added.min + multParts.added.max) / 2 + multParts.increased;
+  const critMultiplier = finite(
+    BASE_CRIT_MULTIPLIER + (multParts.added.min + multParts.added.max) / 2 + multParts.increased,
+    "会心倍率",
+  );
 
   // 技レベル（基本の技レベルと、詞による上乗せ）
   const level = baseSkillLevel(attacker.characterLevel);
   const affixLevels = Math.max(
     0,
-    Math.floor(view.stat(COMBAT_STATS.skillLevel, contextTags).value),
+    Math.floor(view.stat(COMBAT_STATS.skillLevel, contextTags, scope).value),
   );
   const skillPct = skill.kind === "weapon" ? weaponSkillPct(skill.pct, level) : skill.pct;
   const spellMult = skill.kind === "spell" ? spellBaseMultiplier(level) : 1;
@@ -269,8 +286,8 @@ export function computeHit(
   const rollAt: Partial<Record<Element, number>> = {};
   for (const element of ELEMENTS) rollAt[element] = average ? 0.5 : rng.next();
 
-  const conversions = view.conversions(contextTags);
-  const retags = [...view.retagging(contextTags)].sort((a, b) =>
+  const conversions = view.conversions(contextTags, scope);
+  const retags = [...view.retagging(contextTags, scope)].sort((a, b) =>
     a.effectId < b.effectId ? -1 : a.effectId > b.effectId ? 1 : 0,
   );
 
@@ -286,16 +303,15 @@ export function computeHit(
     for (const element of ELEMENTS) {
       const parts = collectParts(
         db,
-        view.stat(COMBAT_STATS.added[element], [...contextTags, ELEMENT_TAG[element]]),
+        view.stat(COMBAT_STATS.added[element], [...contextTags, ELEMENT_TAG[element]], scope),
         pipeline,
-        weaponUid,
       );
       const baseRange = skill.kind === "weapon" ? weapon?.base[element] : skill.base?.[element];
       const base =
         baseRange === undefined ? 0 : lerp(baseRange, rollAt[element] ?? 0.5) * spellMult;
       const added = lerp(parts.added, rollAt[element] ?? 0.5);
       const fixed = lerp(parts.fixed, rollAt[element] ?? 0.5);
-      const amount = (base + added) * skillPct + fixed;
+      const amount = finite((base + added) * skillPct + fixed, `基礎値（${element}）`);
       if (amount > 0) before.push({ element, amount, lineage: [element] });
     }
     // 2. 変換 → 付け替え（付け替えた後は、その属性の補正だけを受ける）
@@ -304,13 +320,16 @@ export function computeHit(
       const rule = retags.find((r) => r.from.includes(p.element));
       return rule === undefined ? p : { element: rule.to, amount: p.amount, lineage: [rule.to] };
     });
-    // 3. ×（1＋加算）×乗算
+    // 3. ×（1＋加算）×乗算（変換・付け替えの後の値も、ここで合わせて検証する）
     const amounts: Partial<Record<Element, number>> = {};
     for (const p of after) {
       const tags = [...contextTags, ...p.lineage.map((e) => ELEMENT_TAG[e])];
-      const parts = collectParts(db, view.stat(COMBAT_STATS.damage, tags), pipeline, weaponUid);
+      const parts = collectParts(db, view.stat(COMBAT_STATS.damage, tags, scope), pipeline);
       const increased = parts.increased + AFFIX_SKILL_LEVEL_INCREASED * affixLevels;
-      amounts[p.element] = (amounts[p.element] ?? 0) + p.amount * (1 + increased) * parts.more;
+      amounts[p.element] = finite(
+        (amounts[p.element] ?? 0) + p.amount * (1 + increased) * parts.more,
+        `${pipeline === "hit" ? "打撃値" : "基準値"}（${p.element}・加算と乗算の後）`,
+      );
     }
     return { before, after, amounts };
   };
@@ -331,18 +350,22 @@ export function computeHit(
   if (!evaded) {
     const taken = defender.takenMultiplier ?? 1;
     const guard = Math.min(1, Math.max(0, defender.guard ?? 0));
+    const armor = defender.armor ?? 0;
     for (const element of ELEMENTS) {
       const amount = hit.amounts[element];
       if (amount === undefined || amount <= 0) continue;
       // 4. 会心 → 敵が受けるダメージの倍率 → 耐性 → 防御
+      // 崩し値の元（U-04b）。有限であることは、使う側（staggerValue）で検証する
       const afterCrit = amount * (crit ? critMultiplier : 1);
       preMitigationTotal += afterCrit;
       let value = afterCrit * taken * (1 - (defender.resist?.[element] ?? 0));
-      if (element === "physical") value *= 1 - armorReduction(defender.armor ?? 0, value);
+      // 防具値0では軽減しない（armorReduction も0を返す）。0でなければ（NaN・Infinity を含む）
+      // armorReduction が防具値と受けるダメージを検証する。
+      if (element === "physical" && armor !== 0) value *= 1 - armorReduction(armor, value);
       value *= 1 - guard;
-      value = Math.max(0, value);
+      value = Math.max(0, finite(value, `最終の打撃値（${element}）`));
       damage[element] = value;
-      total += value;
+      total = finite(total + value, "最終の打撃値の合計");
     }
   }
 
@@ -352,6 +375,7 @@ export function computeHit(
     damage,
     total,
     preMitigationTotal,
+    weaponUid: weapon?.uid,
     ailmentBase: evaded ? {} : ailmentBase,
     hitChance: chanceToHit,
     critChance,
@@ -377,5 +401,5 @@ export function expectedHitDamage(
 ): number {
   const r = computeHit(attacker, skill, defender, { rng, roll: "average" });
   const critFactor = 1 + r.critChance * (r.critMultiplier - 1);
-  return r.total * critFactor * r.hitChance;
+  return finite(r.total * critFactor * r.hitChance, "期待値");
 }
