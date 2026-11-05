@@ -13,6 +13,7 @@ import {
   type EffectInstance,
   type Element,
   type HitScope,
+  type AilmentTickTarget,
   AilmentState,
   EQUIPMENT_SOURCE_KIND,
   FIXED_STEP_SECONDS,
@@ -226,6 +227,48 @@ function toDamageSkill(skill: SimSkill): DamageSkill {
   };
 }
 
+/**
+ * 1つの時間刻み（幅 h のうち movingPart 秒が移動中）の持続ダメージを進め、その合計を返す。
+ *
+ * 移動と停止が混ざるときは、それぞれの時間で AilmentState.tick() を呼ぶ（tick の持続ダメージは経過時間に比例する）。
+ * ただし tick は各持続ダメージを残り時間までしか進めないので、移動・停止の順に呼ぶだけでは、刻みの途中で切れる
+ * 持続ダメージの有効な時間が、先に呼んだ側（移動）に偏る。そこで、持続ダメージが切れる時刻で刻みを区間に分け、
+ * 各区間に同じ割合（movingPart ÷ h）で移動と停止を割り振る。刻みの途中で切れるものがなければ、区間は1つで従来と同じ。
+ * 刻み全体が1つの状態（movingPart が 0 または h）なら、区間を分けずに1回だけ tick を呼ぶ（従来の結果を維持する）。
+ */
+export function tickDots(
+  ailments: AilmentState,
+  h: number,
+  movingPart: number,
+  target: Omit<AilmentTickTarget, "moving">,
+): number {
+  let total = 0;
+  const tickSpan = (span: number, moving: boolean): void => {
+    if (span <= 0) return;
+    const dot = ailments.tick(span, { ...target, moving });
+    for (const v of Object.values(dot)) total += v;
+  };
+  if (movingPart <= 0 || movingPart >= h) {
+    tickSpan(h, movingPart > 0);
+    return total;
+  }
+  const movingShare = movingPart / h;
+  let left = h;
+  let movingLeft = movingPart;
+  // 区間ごとに少なくとも1つの持続ダメージが切れて取り除かれるので、繰り返しは有限
+  for (;;) {
+    const span = Math.min(left, ailments.nextDotExpiry());
+    // 最後の区間は残りを全て使い、刻みの移動の時間の合計をちょうど movingPart にする
+    const last = span >= left;
+    const moving = last ? movingLeft : Math.min(movingLeft, span * movingShare);
+    tickSpan(moving, true);
+    tickSpan((last ? left : span) - moving, false);
+    if (last) return total;
+    movingLeft -= moving;
+    left -= span;
+  }
+}
+
 /** ビルドで的を攻撃し続けたときの結果を求める。同じ入力・同じシードなら、結果は同じ。 */
 export function simulate(
   db: ContentDb,
@@ -378,18 +421,10 @@ export function simulate(
     const movingPart =
       ratio <= 0 ? 0 : ratio >= 1 ? h : Math.min(h, Math.max(0, ratio * time - ratio * stepStart));
     movingSeconds += movingPart;
-    // 1つの刻みに移動と停止が混ざるときは、それぞれの時間で tick を呼ぶ。
-    // tick の持続ダメージは経過時間に比例するので、合計は時間の配分どおりになる
-    const tickTarget = { resist, takenMultiplier: stagger.takenMultiplier };
-    let dotThisStep = 0;
-    for (const [span, moving] of [
-      [movingPart, true],
-      [h - movingPart, false],
-    ] as const) {
-      if (span <= 0) continue;
-      const dot = ailments.tick(span, { ...tickTarget, moving });
-      for (const v of Object.values(dot)) dotThisStep += v;
-    }
+    const dotThisStep = tickDots(ailments, h, movingPart, {
+      resist,
+      takenMultiplier: stagger.takenMultiplier,
+    });
     // 持続ダメージも、的の残りHPを超えた分は集計しない
     dotDamage += dealDamage(dotThisStep);
     if (remainingHp <= 0) {

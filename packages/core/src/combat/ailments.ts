@@ -433,6 +433,17 @@ export class AilmentState {
     return countAilmentTypes(this.activeTags());
   }
 
+  /**
+   * 持続ダメージのうち、最も早く切れるものの残り時間（秒。なければ Infinity）。状態は変えない。
+   * 1回の時間刻みの途中で切れる持続ダメージの区間を分けるのに使う（DPSシミュレーターの移動の割合）。
+   */
+  nextDotExpiry(): number {
+    let next = Infinity;
+    for (const list of this.dots.values())
+      for (const inst of list) if (inst.remainingTime < next) next = inst.remainingTime;
+    return next;
+  }
+
   /** 持続ダメージの残りの総量（補正の前）。千変（K12）の計算に使う。 */
   remainingDotTotal(): number {
     let sum = 0;
