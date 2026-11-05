@@ -188,5 +188,7 @@
   "item.material.magic-dust": "魔塵",
   "item.material.star-sand": "星砂",
   "item.material.glow-stone": "輝石",
-  "item.material.boss-core-ch1": "章ボスの核（第1章）"
+  "item.material.boss-core-ch1": "章ボスの核（第1章）",
+  "region.town": "星見の村",
+  "region.a1": "森の入口"
 }

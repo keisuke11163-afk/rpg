@@ -159,7 +159,15 @@ export const materialSchema = z.strictObject({
 export type MaterialDef = z.infer<typeof materialSchema>;
 
 /** ドロップの出どころ（仕様書v0.2 3.5 の敵の格とドロップ数、補助仕様書12章）。 */
-export const DROP_SOURCES = ["normal", "magic", "elite", "miniBoss", "chapterBoss"] as const;
+export const DROP_SOURCES = [
+  "normal",
+  "magic",
+  "elite",
+  "miniBoss",
+  "chapterBoss",
+  "woodChest",
+  "oldChest",
+] as const;
 export type DropSource = (typeof DROP_SOURCES)[number];
 
 /** 素材のドロップ：確率で1個（chance）か、確定の数（count）。family は、その系統の敵だけ（獣牙）。 */

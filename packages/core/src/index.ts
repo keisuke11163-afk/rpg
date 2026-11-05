@@ -462,3 +462,23 @@ export {
   forgetItem,
   loadoutsUsing,
 } from "./character/loadouts.ts";
+
+export {
+  FACILITIES,
+  type Facility,
+  type Rect,
+  type RegionDef,
+  inRect,
+  regionSchema,
+} from "./content/region.ts";
+export {
+  ELITE_CHANCE,
+  type LayoutChest,
+  type LayoutPack,
+  MAGIC_PACK_CHANCE,
+  OLD_CHEST_CHANCE,
+  PACK_ACTIVE_CHANCE,
+  type RegionLayout,
+  WOOD_CHESTS,
+  rollRegionLayout,
+} from "./world/layout.ts";

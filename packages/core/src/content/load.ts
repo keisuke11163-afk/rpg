@@ -45,6 +45,7 @@ import {
   starNodeSchema,
 } from "./board.ts";
 import type { Condition } from "./effect.ts";
+import { type RegionDef, inRect, regionSchema } from "./region.ts";
 import { conversionAllowed } from "./elements.ts";
 import { FLAG_TARGET_CATEGORY } from "./registries.ts";
 import { type Manifest, SUPPORTED_SCHEMA_VERSION, manifestSchema } from "./manifest.ts";
@@ -84,6 +85,8 @@ export interface RawContent {
     /** 星辰盤のノードと星座（省略すると無し）。 */
     readonly starNodes?: readonly RawSource[];
     readonly constellations?: readonly RawSource[];
+    /** 地域（町・ダンジョン。省略すると無し）。 */
+    readonly regions?: readonly RawSource[];
   };
 }
 
@@ -146,6 +149,8 @@ export interface ContentDb {
   readonly starLinks: ReadonlyMap<string, ReadonlySet<string>>;
   /** 星座。 */
   readonly constellations: ReadonlyMap<string, ConstellationDef>;
+  /** 地域（町・ダンジョン）。 */
+  readonly regions: ReadonlyMap<string, RegionDef>;
 }
 
 export type LoadResult =
@@ -257,6 +262,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const dropProfiles = parseAll(raw.collections.dropProfiles ?? [], dropProfileSchema);
   const starNodes = parseAll(raw.collections.starNodes ?? [], starNodeSchema);
   const constellations = parseAll(raw.collections.constellations ?? [], constellationSchema);
+  const regions = parseAll(raw.collections.regions ?? [], regionSchema);
 
   // 3. IDの重複（全てのコレクションを通して）
   const seen = new Map<string, string>();
@@ -277,6 +283,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     ...dropProfiles,
     ...starNodes,
     ...constellations,
+    ...regions,
   ];
   for (const { value, file } of all) {
     const prev = seen.get(value.id);
@@ -1135,9 +1142,85 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     }
   }
 
+  // 12. 地域：敵・出口の参照、候補地点が区画と広さの中にあるか、町は区画を持たない
+  const regionMap = new Map(regions.map((r) => [r.value.id, r.value]));
+  const enemyMap = new Map(enemies.map((e) => [e.value.id, e.value]));
+  for (const { value: r, file } of regions) {
+    checkText(r.text, file, r.id);
+    const inside = (p: { x: number; y: number }): boolean =>
+      p.x >= 0 && p.y >= 0 && p.x <= r.size.width && p.y <= r.size.height;
+    const sections = r.sections ?? [];
+    if (r.kind === "town" && (sections.length > 0 || (r.packSpawns ?? []).length > 0))
+      err({
+        code: "schema",
+        file,
+        id: r.id,
+        path: "sections",
+        message: "町には敵の区画・群れを置かない",
+      });
+    if (r.kind === "dungeon" && sections.length === 0)
+      err({
+        code: "schema",
+        file,
+        id: r.id,
+        path: "sections",
+        message: "ダンジョンには区画が必要",
+      });
+    sections.forEach((sec, i) => {
+      if (sec.levels.min > sec.levels.max)
+        err({
+          code: "schema",
+          file,
+          id: r.id,
+          path: `sections.${String(i)}.levels`,
+          message: "最小が最大を超えている",
+        });
+      sec.enemies.forEach((e, j) => {
+        refCheck(enemyMap, "敵", e, file, r.id, `sections.${String(i)}.enemies.${String(j)}`);
+      });
+    });
+    const points: [string, { x: number; y: number }[]][] = [
+      ["packSpawns", r.packSpawns ?? []],
+      ["eliteSpawns", r.eliteSpawns ?? []],
+      ["woodChests", r.woodChests ?? []],
+      ["oldChests", r.oldChests ?? []],
+    ];
+    for (const [key, list] of points)
+      list.forEach((p, i) => {
+        if (!inside(p))
+          err({
+            code: "schema",
+            file,
+            id: r.id,
+            path: `${key}.${String(i)}`,
+            message: "地域の広さの外にある",
+          });
+        else if (!sections.some((sec) => inRect(p, sec.rect)))
+          err({
+            code: "schema",
+            file,
+            id: r.id,
+            path: `${key}.${String(i)}`,
+            message: "どの区画にも入っていない",
+          });
+      });
+    if (!inside(r.entrance))
+      err({ code: "schema", file, id: r.id, path: "entrance", message: "地域の広さの外にある" });
+    (r.exits ?? []).forEach((x, i) => {
+      if (!regionMap.has(x.to) && !invalidIds.has(x.to))
+        err({
+          code: "unknown-ref",
+          file,
+          id: r.id,
+          path: `exits.${String(i)}.to`,
+          message: `地域 ${x.to} がない`,
+        });
+    });
+  }
+
   if (errors.length > 0 || manifest === undefined) return { ok: false, errors };
 
-  // 12. 仮値の一覧
+  // 13. 仮値の一覧
   const provisional: ProvisionalEntry[] = [];
   const collect = (
     collection: string,
@@ -1174,6 +1257,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("dropProfiles", dropProfiles);
   collect("starNodes", starNodes);
   collect("constellations", constellations);
+  collect("regions", regions);
 
   return {
     ok: true,
@@ -1198,6 +1282,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       starNodes: starMap,
       starLinks,
       constellations: new Map(constellations.map((c) => [c.value.id, c.value])),
+      regions: regionMap,
     },
     provisional,
   };
