@@ -1553,7 +1553,12 @@ export class ArenaSimulation {
             levelGapMultiplier(this.character.level, enemy.level),
         );
         // ドロップ（仕様書v0.2 3.5、補助仕様書12章）。敵の格（通常・魔法・精鋭）がドロップの出どころ
-        this.dropLoot(enemy.rank.rank, enemy.level, enemy.position, enemy.def.family);
+        this.dropLoot(
+          enemy.def.dropSource ?? enemy.rank.rank,
+          enemy.level,
+          enemy.position,
+          enemy.def.family,
+        );
       },
     });
 

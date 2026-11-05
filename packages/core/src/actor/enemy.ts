@@ -90,6 +90,17 @@ export type EnemyEvent =
       /** 中にいる相手に、間隔ごとに付ける状態異常。 */
       readonly application: AilmentApplication;
     }
+  | {
+      readonly type: "summon";
+      readonly attack: EnemyAttackDef;
+      readonly enemy: string;
+      readonly count: number;
+      readonly origin: Vec2;
+      readonly radius: number;
+      readonly haste:
+        | { readonly increase: number; readonly duration: number; readonly radius: number }
+        | undefined;
+    }
   | { readonly type: "returned" };
 
 export interface EnemyInit {
@@ -142,6 +153,11 @@ export class Enemy {
   readonly cooldowns = new Cooldowns();
   private stateValue: EnemyState = "idle";
   private stateTime = 0;
+  /** 連続の当たり判定のうち、出した数（予兆の後の1回目を含む）。 */
+  private repeatsFired = 0;
+  /** 攻撃速度の強化（増加の割合と、残りの秒数）。 */
+  private hasteIncrease = 0;
+  private hasteLeft = 0;
   private attack: EnemyAttackDef | undefined;
   /** 雲を出す場所（予兆の始めに決める）。 */
   private attackPoint: Vec2 = ZERO;
@@ -258,6 +274,19 @@ export class Enemy {
     this.combatant.moving = length(velocity) > 1e-6;
   }
 
+  /** 攻撃速度を一定時間だけ上げる（重ねがけはせず、大きい方・長い方にする）。 */
+  hasten(increase: number, duration: number): void {
+    if (!(Number.isFinite(increase) && increase > 0 && Number.isFinite(duration) && duration > 0))
+      throw new RangeError("攻撃速度の強化は正の有限の数");
+    this.hasteIncrease = Math.max(this.hasteIncrease, increase);
+    this.hasteLeft = Math.max(this.hasteLeft, duration);
+  }
+
+  /** 攻撃速度の強化の割合（効いていなければ0）。 */
+  get haste(): number {
+    return this.hasteIncrease;
+  }
+
   private turnTo(angle: number, dt: number): void {
     if (this.def.turnRate === null) return;
     this.setFacing(turnTowards(this.facingAngle, angle, toRad(this.def.turnRate) * dt));
@@ -266,7 +295,14 @@ export class Enemy {
   /** 1刻み進める。 */
   update(dt: number, target: EnemyTarget, rng: Rng, bounds?: Bounds): EnemyEvent[] {
     if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
-    this.stateTime += dt;
+    // 攻撃の間（予兆・当たり判定・硬直）の時間は、攻撃速度の強化の分だけ速く進む
+    const attacking =
+      this.stateValue === "windup" ||
+      this.stateValue === "active" ||
+      this.stateValue === "recovery";
+    this.stateTime += attacking ? dt * (1 + this.hasteIncrease) : dt;
+    this.hasteLeft = Math.max(0, this.hasteLeft - dt);
+    if (this.hasteLeft === 0) this.hasteIncrease = 0;
     this.cooldowns.update(dt);
     // 持続ダメージ・崩しゲージ・魔障・一定時間の効果（移動していたかは、前の刻みの値を使う）
     this.dotTaken = this.combatant.update(dt);
@@ -429,9 +465,19 @@ export class Enemy {
     if (this.stateValue === "windup") {
       if (this.stateTime < attack.windup - 1e-9) return [];
       this.setState("active");
-      events.push(...this.fire(attack));
+      this.repeatsFired = 1;
+      events.push(...this.fire(attack, 0));
     }
     if (this.stateValue === "active") {
+      // 連続の当たり判定：間隔ごとに続けて出す（それぞれ別の group なので、1回ずつ当たる）
+      if (d.type === "strike" && d.repeat !== undefined)
+        while (
+          this.repeatsFired < d.repeat.count &&
+          this.stateTime >= d.repeat.interval * this.repeatsFired - 1e-9
+        ) {
+          events.push(...this.fire(attack, this.repeatsFired));
+          this.repeatsFired += 1;
+        }
       if (d.type === "dash") {
         const step = Math.min(d.speed * dt, d.distance - this.dashTravelled);
         if (step > 0) {
@@ -465,8 +511,8 @@ export class Enemy {
     return events;
   }
 
-  /** 当たり判定が出る瞬間の出来事。 */
-  private fire(attack: EnemyAttackDef): EnemyEvent[] {
+  /** 当たり判定が出る瞬間の出来事（index は連続の当たり判定の何回目か）。 */
+  private fire(attack: EnemyAttackDef, index: number): EnemyEvent[] {
     const d = attack.delivery;
     const dir = { x: Math.cos(this.facingAngle), y: Math.sin(this.facingAngle) };
     switch (d.type) {
@@ -478,6 +524,19 @@ export class Enemy {
             shape: d.shape,
             origin: this.position,
             facing: this.facingAngle,
+            ...(d.repeat === undefined ? {} : { group: `repeat-${String(index)}` }),
+          },
+        ];
+      case "summon":
+        return [
+          {
+            type: "summon",
+            attack,
+            enemy: d.enemy,
+            count: d.count,
+            origin: this.position,
+            radius: d.radius,
+            haste: d.haste,
           },
         ];
       case "dash":

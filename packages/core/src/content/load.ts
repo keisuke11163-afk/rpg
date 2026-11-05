@@ -840,6 +840,29 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
             message: `状態異常 ${tagId} の定義がない`,
           });
       }
+      if (attack.delivery.type === "summon") {
+        const summoned = attack.delivery.enemy;
+        if (!enemies.some((e) => e.value.id === summoned) && !invalidIds.has(summoned))
+          err({
+            code: "unknown-ref",
+            file,
+            id: enemy.id,
+            path: `${at}.delivery.enemy`,
+            message: `呼ぶ敵 ${summoned} がない`,
+          });
+      }
+      if (
+        attack.delivery.type === "strike" &&
+        attack.delivery.repeat !== undefined &&
+        attack.delivery.repeat.interval * (attack.delivery.repeat.count - 1) > attack.active + 1e-9
+      )
+        err({
+          code: "schema",
+          file,
+          id: enemy.id,
+          path: `${at}.delivery.repeat`,
+          message: "連続の当たり判定が、当たり判定の出ている時間に収まらない",
+        });
       if (attack.ratio > 0.25 && attack.windup < 0.6)
         err({
           code: "telegraph",

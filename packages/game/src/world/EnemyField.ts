@@ -148,11 +148,13 @@ export class EnemyField {
     return this.cloudList.length;
   }
 
-  private spawnGroup(g: SpawnGroup): void {
+  /** 群れを出す。出した敵の id を返す。 */
+  private spawnGroup(g: SpawnGroup): string[] {
+    const out: string[] = [];
     for (let i = 0; i < g.count; i++) {
       const a = (i / Math.max(1, g.count)) * 2 * Math.PI;
       const r = g.count > 1 ? 1.2 : 0;
-      this.spawn(
+      const e = this.spawn(
         g.enemy,
         g.ranks?.[i] ?? "normal",
         g.level,
@@ -163,7 +165,9 @@ export class EnemyField {
         g.id,
         i,
       );
+      out.push(e.id);
     }
+    return out;
   }
 
   /** 敵を1体出す（確認用にも使う）。 */
@@ -285,6 +289,31 @@ export class EnemyField {
               untilNext: 0,
             });
             break;
+          case "summon": {
+            // 仲間を呼ぶ（呼んだ敵と同じLv）。呼んだ仲間と、周りの同じ種類の敵の攻撃速度を上げる
+            const id = `summon-${String(++this.serial)}`;
+            const ids = this.spawnGroup({
+              id,
+              enemy: ev.enemy,
+              level: e.level,
+              count: ev.count,
+              at: {
+                x: ev.origin.x + Math.cos(e.facing) * ev.radius,
+                y: ev.origin.y + Math.sin(e.facing) * ev.radius,
+              },
+            });
+            const haste = ev.haste;
+            if (haste !== undefined)
+              for (const other of this.views) {
+                const o = other.enemy;
+                if (o.state === "dead" || o.def.id !== ev.enemy) continue;
+                const near =
+                  Math.hypot(o.position.x - ev.origin.x, o.position.y - ev.origin.y) <=
+                  haste.radius;
+                if (near || ids.includes(o.id)) o.hasten(haste.increase, haste.duration);
+              }
+            break;
+          }
           case "returned":
             break;
         }

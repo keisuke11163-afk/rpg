@@ -301,5 +301,95 @@
     },
     "provisional": true,
     "provisionalNote": "補助仕様書10.4。当たり判定の時間・硬直・間合い・CD・形・体の半径は記載がない（docs/progress D-U09-1）"
+  },
+  {
+    "id": "ENM-PACK-LEADER",
+    "text": "enemy.pack-leader",
+    "family": "TAG-FAMILY-BEAST",
+    "hpMultiplier": 18,
+    "moveSpeed": 5.5,
+    "turnRate": 240,
+    "radius": 0.8,
+    "defense": {
+      "evasionPerLevel": 3
+    },
+    "attacks": [
+      {
+        "id": "bite3",
+        "text": "enemy.attack.bite3",
+        "windup": 0.4,
+        "active": 0.6,
+        "recovery": 0.6,
+        "ratio": 0.1,
+        "staggerCoefficient": 0.2,
+        "element": "physical",
+        "range": 1.2,
+        "cooldown": 2,
+        "delivery": {
+          "type": "strike",
+          "shape": {
+            "type": "sector",
+            "radius": 1.6,
+            "angleDeg": 90
+          },
+          "repeat": {
+            "count": 3,
+            "interval": 0.25
+          }
+        }
+      },
+      {
+        "id": "leap",
+        "text": "enemy.attack.leap",
+        "windup": 0.7,
+        "active": 0,
+        "recovery": 0.8,
+        "ratio": 0.22,
+        "staggerCoefficient": 1.0,
+        "element": "physical",
+        "range": 7,
+        "minRange": 3,
+        "cooldown": 6,
+        "delivery": {
+          "type": "dash",
+          "distance": 6,
+          "speed": 15,
+          "width": 1.4
+        }
+      },
+      {
+        "id": "howl",
+        "text": "enemy.attack.howl",
+        "windup": 0.6,
+        "active": 0.1,
+        "recovery": 0.6,
+        "ratio": 0,
+        "staggerCoefficient": 0,
+        "element": "physical",
+        "range": 12,
+        "cooldown": 15,
+        "delivery": {
+          "type": "summon",
+          "enemy": "ENM-FOREST-WOLF",
+          "count": 2,
+          "radius": 2,
+          "haste": {
+            "increase": 0.2,
+            "duration": 8,
+            "radius": 12
+          }
+        }
+      }
+    ],
+    "behavior": {
+      "type": "chase"
+    },
+    "pack": {
+      "min": 1,
+      "max": 1
+    },
+    "dropSource": "miniBoss",
+    "provisional": true,
+    "provisionalNote": "補助仕様書10.5。移動の速さ・体の半径・当たり判定の時間・硬直・間合い・CD・形は記載がない（docs/progress Q-U18b-1）"
   }
 ]

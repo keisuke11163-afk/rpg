@@ -5,8 +5,15 @@ import { hitShapeSchema } from "./job.ts";
 
 /** 攻撃の届け方。 */
 export const enemyDeliverySchema = z.discriminatedUnion("type", [
-  // 自分の位置から、向きに合わせて当たり判定を出す（噛みつき・爪・叩きつけ）
-  z.strictObject({ type: z.literal("strike"), shape: hitShapeSchema }),
+  // 自分の位置から、向きに合わせて当たり判定を出す（噛みつき・爪・叩きつけ）。
+  // repeat があれば、当たり判定が出ている間に間隔ごとに続けて出す（群れ長の大牙の噛みつき3連。それぞれ1回当たる）
+  z.strictObject({
+    type: z.literal("strike"),
+    shape: hitShapeSchema,
+    repeat: z
+      .strictObject({ count: z.number().int().min(2), interval: z.number().positive() })
+      .optional(),
+  }),
   // 決まった距離を、決まった速さで、曲がらずに進む（牙猪の突進）。通り道の相手に1回だけ当たる
   z.strictObject({
     type: z.literal("dash"),
@@ -20,6 +27,22 @@ export const enemyDeliverySchema = z.discriminatedUnion("type", [
     speed: z.number().positive(),
     range: z.number().positive(),
     radius: z.number().positive(),
+  }),
+  // 仲間を呼ぶ（群れ長の大牙の遠吠え）。呼んだ仲間と周りの同じ種類の敵の攻撃速度を、一定時間だけ上げる
+  z.strictObject({
+    type: z.literal("summon"),
+    enemy: idSchema,
+    count: z.number().int().positive(),
+    /** 呼ぶ位置の、自分からの距離（m）。 */
+    radius: z.number().positive(),
+    /** 周りの敵の攻撃速度の強化（攻撃の予兆・当たり判定・硬直の時間が 1÷(1＋increase) になる）。 */
+    haste: z
+      .strictObject({
+        increase: z.number().positive(),
+        duration: z.number().positive(),
+        radius: z.number().positive(),
+      })
+      .optional(),
   }),
   // 予兆の始めの、相手の位置に雲を出す。中にいると、間隔ごとに状態異常を1つ受ける（腐根の苗の胞子）
   z.strictObject({
@@ -99,6 +122,8 @@ export const enemySchema = z.strictObject({
   behavior: enemyBehaviorSchema,
   /** 群れの数（単体は1〜1）。 */
   pack: z.strictObject({ min: z.number().int().positive(), max: z.number().int().positive() }),
+  /** 倒したときのドロップの出どころ（中ボスは miniBoss。省略すると格〔通常・魔法・精鋭〕）。 */
+  dropSource: z.enum(["miniBoss", "chapterBoss"]).optional(),
   ...provisionalFields,
 });
 export type EnemyDef = z.infer<typeof enemySchema>;
