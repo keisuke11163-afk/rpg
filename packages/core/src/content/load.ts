@@ -248,7 +248,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   for (const { value: stat, file } of stats) checkText(stat.text, file, stat.id);
 
   // 6. 効果：参照・乗算の出どころ・フック
-  const overrides = new Map<string, { effectId: string; file: string }>();
+  const overrides = new Map<string, { effectId: string; file: string; path: string }>();
   for (const { value: effect, file } of effects) {
     effect.modifiers.forEach((mod, index) => {
       const at = `modifiers.${String(index)}`;
@@ -359,16 +359,21 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       if (mod.kind === "override") {
         const key = `${mod.stat}@${String(mod.priority)}`;
         const prev = overrides.get(key);
-        if (prev !== undefined && prev.effectId !== effect.id) {
+        // 同じ効果の中の重複も、ほかの効果との重複と同じく誤りにする（どちらが勝つか決められない）
+        if (prev !== undefined) {
+          const where =
+            prev.effectId === effect.id
+              ? `同じ効果の ${prev.path}`
+              : `${prev.effectId} の ${prev.path}（${prev.file}）`;
           err({
             code: "override-conflict",
             file,
             id: effect.id,
             path: `${at}.priority`,
-            message: `能力値 ${mod.stat} を、同じ優先度 ${String(mod.priority)} で上書きする効果がほかにある（${prev.effectId}）。仕様書v0.2 2.4.1`,
+            message: `能力値 ${mod.stat} を、同じ優先度 ${String(mod.priority)} で上書きする修正値がほかにある（${where}）。仕様書v0.2 2.4.1`,
           });
         } else {
-          overrides.set(key, { effectId: effect.id, file });
+          overrides.set(key, { effectId: effect.id, file, path: at });
         }
       }
 
