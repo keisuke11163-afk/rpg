@@ -1,0 +1,42 @@
+[
+  {
+    "id": "GAU-FERVOR",
+    "text": "gauge.fervor",
+    "max": 100,
+    "gains": [
+      {
+        "on": "hitDealt",
+        "value": 2,
+        "tag": "TAG-FORM-HEAVY",
+        "tagValue": 6
+      },
+      {
+        "on": "damageTaken",
+        "valuePerPercentOfMaxHp": 1
+      }
+    ],
+    "decayOutOfCombat": 5,
+    "stages": [
+      {
+        "id": "empowered",
+        "min": 50,
+        "text": "gauge.fervor.empowered"
+      },
+      {
+        "id": "release",
+        "min": 100,
+        "text": "gauge.fervor.release"
+      }
+    ]
+  },
+  {
+    "id": "GAU-COMBO",
+    "text": "gauge.combo",
+    "max": 5,
+    "gains": [],
+    "decayOutOfCombat": 0,
+    "stages": [],
+    "provisional": true,
+    "provisionalNote": "戦闘外の減少は仕様書に記載がないため、減らさない（docs/progress D-U10-2）"
+  }
+]

@@ -1,62 +1,447 @@
 // 仮実装: U-18a feature/town-and-dungeon-base で、町とダンジョンの地図に置き換える（試験用の場の計算）
-import { FixedStepClock, PlayerMotion, StepInputBuffer, length } from "@stella/core";
+import {
+  AFFINITY_ATTACK_SPEED,
+  type Affinity,
+  Character,
+  Combatant,
+  type ContentDb,
+  Cooldowns,
+  type DamageAttacker,
+  type DamageSkill,
+  type DropSource,
+  FixedStepClock,
+  type Health,
+  type HitReport,
+  type HitShape,
+  Inventory,
+  JobGauge,
+  type JobDef,
+  LingeringZone,
+  PlayerMotion,
+  type ResolvedSkill,
+  Rng,
+  SkillExecution,
+  type SkillBlock,
+  StepInputBuffer,
+  type Strike,
+  TagIndex,
+  TimedEffects,
+  type Vec2,
+  ZERO,
+  enemyXp,
+  evaluateEffects,
+  length,
+  levelGapMultiplier,
+  overlapsShape,
+  pullTowards,
+  resolveHit,
+  resolveSkill,
+  rollDrops,
+  skillBlock,
+  staggerProfiles,
+  unlockedSkills,
+  weaponAffinity,
+} from "@stella/core";
+import { loadGameContent } from "@stella/content";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
+import { EnemyField } from "../world/EnemyField.ts";
+import { LootField } from "../world/LootField.ts";
 import { toMeters } from "../world/units.ts";
 
 /** 試験用の場の大きさ（m）。 */
-export const ARENA = { width: 40, height: 24 } as const;
+export const ARENA = { width: 80, height: 40 } as const;
 
 /**
  * 回避の無敵時間を確かめるための「試験用の危険地帯」。
  * 2秒ごとに0.6秒の予兆（枠だけ）を出し、その後0.2秒だけ当たり判定が出る。
  */
 export const HAZARD = {
-  x: 26,
-  y: 12,
+  x: 30,
+  y: 5,
   radius: 2.5,
   period: 2,
   telegraph: 0.6,
   active: 0.2,
 } as const;
 
+/** 訓練用の人形の位置（m）。 */
+export const DUMMY_POSITION = { x: 20, y: 12 } as const;
+
+// 仮実装: U-11 feature/item-generation で、アイテムのベースのデータに置き換える（試験用の武器。仕様書v0.2 3.2 の下級の値。基本刻印はまだ付けない）
+export interface TestWeapon {
+  readonly uid: string;
+  readonly name: string;
+  readonly tags: readonly string[];
+  readonly base: { readonly physical: { readonly min: number; readonly max: number } };
+  readonly critChance: number;
+  readonly attackSpeed: number;
+}
+export const TEST_WEAPONS: readonly TestWeapon[] = [
+  {
+    uid: "test-greatsword",
+    name: "下級の大剣",
+    tags: ["TAG-WPN-GREATSWORD"],
+    base: { physical: { min: 14, max: 24 } },
+    critChance: 0.05,
+    attackSpeed: 1.05,
+  },
+  {
+    uid: "test-greataxe",
+    name: "下級の大斧",
+    tags: ["TAG-WPN-GREATAXE"],
+    base: { physical: { min: 16, max: 28 } },
+    critChance: 0.05,
+    attackSpeed: 0.95,
+  },
+  {
+    uid: "test-greatmace",
+    name: "下級の大槌",
+    tags: ["TAG-WPN-GREATMACE"],
+    base: { physical: { min: 18, max: 27 } },
+    critChance: 0.04,
+    attackSpeed: 0.9,
+  },
+  {
+    uid: "test-spear",
+    name: "下級の槍",
+    tags: ["TAG-WPN-SPEAR"],
+    base: { physical: { min: 11, max: 20 } },
+    critChance: 0.05,
+    attackSpeed: 1.15,
+  },
+  {
+    uid: "test-longsword",
+    name: "下級の長剣",
+    tags: ["TAG-WPN-SWORD"],
+    base: { physical: { min: 6, max: 11 } },
+    critChance: 0.05,
+    attackSpeed: 1.4,
+  },
+  {
+    uid: "test-dagger",
+    name: "下級の短剣",
+    tags: ["TAG-WPN-DAGGER"],
+    base: { physical: { min: 4, max: 9 } },
+    critChance: 0.08,
+    attackSpeed: 1.6,
+  },
+  {
+    uid: "test-claw",
+    name: "下級の爪",
+    tags: ["TAG-WPN-CLAW"],
+    base: { physical: { min: 5, max: 8 } },
+    critChance: 0.06,
+    attackSpeed: 1.7,
+  },
+];
+/** ジョブの初期装備の武器（補助仕様書3.4。転職したときに持ち替える）。 */
+const START_WEAPON: Readonly<Record<string, string>> = {
+  "JOB-WARRIOR": "test-greatsword",
+  "JOB-ROGUE": "test-dagger",
+};
+
+/** 技の枠（行動か、試験用の R キー）。 */
+export type SkillSlot = Action | "rout";
+
+// 仮実装: U-12 feature/inventory-ui で、技の枠の設定に置き換える（試験用の技の並び。7つ目は R キー）
+export type Loadout = readonly { readonly action: SkillSlot; readonly skill: string }[];
+export const LOADOUTS: Readonly<Record<string, Loadout>> = {
+  "JOB-WARRIOR": [
+    { action: "skill1", skill: "SKL-BASIC-ATTACK" },
+    { action: "skill2", skill: "SKL-WARRIOR-SWEEP" },
+    { action: "skill3", skill: "SKL-WARRIOR-CHARGE" },
+    { action: "skill4", skill: "SKL-WARRIOR-WARCRY" },
+    { action: "skill5", skill: "SKL-WARRIOR-EARTHSPLITTER" },
+    { action: "skill6", skill: "SKL-WARRIOR-WHIRLWIND" },
+    { action: "rout", skill: "SKL-WARRIOR-ROUT" },
+  ],
+  "JOB-ROGUE": [
+    { action: "skill1", skill: "SKL-BASIC-ATTACK" },
+    { action: "skill2", skill: "SKL-ROGUE-FLURRY" },
+    { action: "skill3", skill: "SKL-ROGUE-PIERCE" },
+    { action: "skill4", skill: "SKL-ROGUE-SHADOWSTEP" },
+    { action: "skill5", skill: "SKL-ROGUE-POISON" },
+    { action: "skill6", skill: "SKL-ROGUE-SMOKE" },
+    { action: "rout", skill: "SKL-ROGUE-TRAP" },
+  ],
+};
+// 仮実装: U-13 feature/save-load で、セーブデータのキャラクターに置き換える（試験用に、戦士の出自・キャラLv15・戦士のジョブLv15から始める）
+const TEST_START = { level: 15, jobLevel: 15 } as const;
+
+/** ヒットの手応え：止まる時間（秒）と、白く光る時間。 */
+const HIT_STOP = 0.05;
+const FLASH = 0.08;
+/** 当たり判定を見せる時間（秒）。 */
+export const SHOW_STRIKE = 0.12;
+/** 吸い寄せたとき、これより近くには寄せない（m）。 */
+const PULL_MIN_DISTANCE = 1;
+/** 一定時間の効果を必ず付け直す間隔に、少しだけ余裕を持たせる（煙の中の敵の命中-30%）。 */
+const ZONE_REFRESH = 0.1;
+
 /**
  * 計算の刻みで使う「押した瞬間」の行動。これ以外の押した瞬間の入力は保持しない
  * （まだ使わない行動を保持し続けて、後で古い入力が発動するのを防ぐ）。
+ * 回避（U-06）と、技の枠（U-07 の通常攻撃を、U-08 で全ての技の枠に広げた。破軍の R を含む）、
+ * 装備を拾う F（U-11）。
  */
-const STEP_ACTIONS = ["dodge"] as const satisfies readonly Action[];
+const STEP_ACTIONS = [
+  "dodge",
+  "interact",
+  "skill1",
+  "skill2",
+  "skill3",
+  "skill4",
+  "skill5",
+  "skill6",
+  "rout",
+] as const satisfies readonly SkillSlot[];
 type StepAction = (typeof STEP_ACTIONS)[number];
+
+/** 技の実行と、当たった敵の記録（group ごと）。 */
+interface Running {
+  readonly exec: SkillExecution | LingeringZone;
+  readonly hit: Map<string, Set<string>>;
+  /** 1回の使用で1体以上に当たったときのゲージ（コンボ点）を、もう得たか。 */
+  gained?: boolean;
+}
+
+/** 置いた煙玉。 */
+export interface SmokeZone {
+  readonly skill: string;
+  readonly center: Vec2;
+  readonly radius: number;
+  readonly interval: number;
+  readonly enemyEffects: readonly string[];
+  readonly ailment: string | undefined;
+  remaining: number;
+  untilNext: number;
+}
+
+/** 置いた罠。起爆したときの能力値で計算する（仕様書v0.2 5.6）。 */
+export interface Trap {
+  readonly skill: ResolvedSkill;
+  readonly center: Vec2;
+  readonly radius: number;
+  remaining: number;
+}
+
+/** 表示用：出た当たり判定（出た時刻つき）。 */
+export interface ShownStrike {
+  readonly shape: HitShape;
+  readonly origin: Vec2;
+  readonly facing: number;
+  readonly t: number;
+}
+
+/** 行動に無い、試験用のキー（R で7つ目の技・Tab で武器を替える・G で転職）の入力。 */
+export interface ArenaExtraInput {
+  /** R を押した瞬間か（このフレームで）。 */
+  readonly routPressed?: boolean;
+  /** R を押しているか。 */
+  readonly routHeld?: boolean;
+  /** Tab を押した瞬間か（武器を替える。技の実行中は替えない）。 */
+  readonly switchWeapon?: boolean;
+  /** G を押した瞬間か（転職。キャラLv15から。技の実行中は替えない）。 */
+  readonly changeJob?: boolean;
+}
+
+export interface ArenaSimulationOptions {
+  /** ゲームのデータ（既定は loadGameContent()）。 */
+  db?: ContentDb;
+  /** 人形・敵へのヒットを解決したときに呼ぶ（表示の手応え用。回避されたヒットは呼ばない）。 */
+  onHit?: (report: HitReport, at: Vec2) => void;
+  /** 試験用の敵を出すか（既定は出す。入力の処理だけを確かめるテストでは出さない）。 */
+  enemies?: boolean;
+  /** 文字を出す（Lvアップなど。表示用）。 */
+  onText?: (label: string, at: Vec2, color: string) => void;
+}
 
 /**
  * 試験用の場の計算（Phaser に依存しない。ArenaScene が描画のフレームごとに呼ぶ）。
  *
  * 入力の流れ：
  * 1. 取得：ArenaScene が InputSystem でフレームの入力を読み、{@link frame} に渡す
- * 2. 保持：押した瞬間の入力（回避）は {@link StepInputBuffer} に入れ、刻みで使われるまで残す
- * 3. 消費：各刻みが取り出す。刻みが0のフレームでは取り出されず、次のフレームに持ち越す
+ * 2. 保持：押した瞬間の入力（回避・技の枠）は {@link StepInputBuffer} に入れ、刻みで使われるまで残す
+ * 3. 消費：各刻みが取り出す。刻みが0のフレームやヒットの手応えで止まっている刻みでは取り出されず、
+ *    次に進む刻みに持ち越す
  *
- * 押し続けの入力（移動・照準）は、そのフレームの値を、そのフレームの全ての刻みに渡す。
+ * 押し続けの入力（移動・照準・技の押し続け）は、そのフレームの値を、そのフレームの全ての刻みに渡す。
  */
 export class ArenaSimulation {
   readonly motion: PlayerMotion;
   readonly clock: FixedStepClock;
+  readonly db: ContentDb;
+  readonly tags: TagIndex;
+  readonly character: Character;
+  readonly dummy: Combatant;
+  /** 試験用の敵（出さない設定なら undefined）。 */
+  readonly field: EnemyField | undefined;
+  readonly cooldowns = new Cooldowns();
+  readonly buffs = new TimedEffects();
   private readonly stepInput = new StepInputBuffer<StepAction>();
+  private readonly rng = Rng.fromSeed("arena");
+  /** ドロップの抽選（戦闘の乱数の列を変えないように、別の列にする）。 */
+  private readonly dropRng = Rng.fromSeed("arena-drops");
+  private itemSerial = 0;
+  /** 持ち物（補助仕様書13章）。 */
+  readonly inventory = new Inventory();
+  /** 地面に落ちている物。 */
+  readonly loot = new LootField(Rng.fromSeed("arena-loot"));
+  private readonly onHit: ((report: HitReport, at: Vec2) => void) | undefined;
+  private readonly onText: ((label: string, at: Vec2, color: string) => void) | undefined;
+  private jobGaugeValue: JobGauge;
+  private maxMpValue = 60;
+  private effectDuration = 1;
+  private smokeList: SmokeZone[] = [];
+  private trapList: Trap[] = [];
+  private levelUpCount = 0;
+  /** 照準の位置（m。影走りの対象・置く技の位置）。 */
+  private aimPoint: Vec2 = { x: 0, y: 0 };
+  /** プレイヤーの戦う者（HP・状態異常・崩し。敵の攻撃を受ける）。 */
+  private playerValue!: Combatant;
+  private hitsTakenCount = 0;
+  private avoidedAttacks = 0;
+  private deathCount = 0;
+  private enemyHitCount = 0;
+  private weaponIndex = 0;
+  private attackerValue!: DamageAttacker;
+  private attackerVersion = "";
+  private attackSpeedValue = 1;
+  private current: { slot: SkillSlot; run: Running } | undefined;
+  private zoneRuns: Running[] = [];
+  private readonly strikes: ShownStrike[] = [];
+  private mpValue = 60;
+  private hitStopLeft = 0;
+  private flashLeft = 0;
   private elapsed = 0;
   private hits = 0;
   private avoided = 0;
   private resolvedCycle = -1;
+  private lastReport: HitReport | undefined;
+  private lastSkillValue: { id: string; variants: readonly string[] } | undefined;
+  private dummyHits = 0;
+  private readonly useCounts = new Map<string, number>();
+  private readonly recentDamage: { t: number; amount: number }[] = [];
 
-  constructor(clock: FixedStepClock = new FixedStepClock()) {
+  constructor(clock: FixedStepClock = new FixedStepClock(), options: ArenaSimulationOptions = {}) {
     this.clock = clock;
+    this.db = options.db ?? loadGameContent();
+    this.onHit = options.onHit;
+    this.onText = options.onText;
+    this.tags = new TagIndex(this.db.tags);
+    const origin = this.db.jobs.get("JOB-WARRIOR");
+    if (origin === undefined) throw new Error("戦士のデータがない");
+    this.character = new Character({
+      origin,
+      level: TEST_START.level,
+      jobLevels: { [origin.id]: TEST_START.jobLevel },
+    });
+    this.jobGaugeValue = this.newGauge();
     this.motion = new PlayerMotion({ x: 12, y: 12 }, undefined, {
       minX: 0.5,
       minY: 0.75,
       maxX: ARENA.width - 0.5,
       maxY: ARENA.height - 0.25,
     });
+    this.refreshAttacker();
+    this.playerValue = this.newPlayer();
+    this.mpValue = this.maxMpValue;
+    this.field =
+      options.enemies === false
+        ? undefined
+        : new EnemyField(this.db, this.rng.fork("enemies"), {
+            minX: 0.5,
+            minY: 0.5,
+            maxX: ARENA.width - 0.5,
+            maxY: ARENA.height - 0.5,
+          });
+    this.dummy = new Combatant(this.db, {
+      id: "dummy",
+      team: "enemy",
+      position: { ...DUMMY_POSITION },
+      radius: 0.5,
+      facing: Math.PI, // 左（プレイヤーの方）を向く
+      maxHp: 5000,
+      staggerProfile: staggerProfiles(this.db).enemy,
+    });
   }
 
-  /** 計算を進めた時間の合計（秒）。 */
+  /** メインジョブ。 */
+  get job(): JobDef {
+    const j = this.db.jobs.get(this.character.mainJob);
+    if (j === undefined) throw new Error(`ジョブ ${this.character.mainJob} がない`);
+    return j;
+  }
+  /** メインジョブの技の並び。 */
+  get loadout(): Loadout {
+    return LOADOUTS[this.job.id] ?? [];
+  }
+  /** メインジョブの職能ゲージ（戦士は闘志・盗賊はコンボ点）。 */
+  get jobGauge(): JobGauge {
+    return this.jobGaugeValue;
+  }
+  get maxMp(): number {
+    return this.maxMpValue;
+  }
+  get smokes(): readonly SmokeZone[] {
+    return this.smokeList;
+  }
+  get traps(): readonly Trap[] {
+    return this.trapList;
+  }
+  /** Lv・ジョブLvが上がった回数。 */
+  get levelUps(): number {
+    return this.levelUpCount;
+  }
+
+  /** プレイヤーの戦う者（倒れると、作り直す）。 */
+  get player(): Combatant {
+    return this.playerValue;
+  }
+  get playerHealth(): Health {
+    return this.playerValue.health;
+  }
+  /** 敵の攻撃を受けた回数（回避されたヒットを除く）。 */
+  get hitsTaken(): number {
+    return this.hitsTakenCount;
+  }
+  /** 敵の攻撃を回避の無敵時間で無効にした回数。 */
+  get attacksAvoided(): number {
+    return this.avoidedAttacks;
+  }
+  get deaths(): number {
+    return this.deathCount;
+  }
+  /** プレイヤーの技が敵に当たった回数。 */
+  get enemyHits(): number {
+    return this.enemyHitCount;
+  }
+
+  /**
+   * ドロップを抽選して、地面に置く（敵が倒れたとき。確認用にも使う）。
+   * ジョブに合わせたドロップは、今のメインジョブ（仕様書v0.2 3.5）。
+   */
+  dropLoot(source: DropSource, enemyLevel: number, at: Vec2, enemyFamily?: string): void {
+    const result = rollDrops(this.db, this.dropRng, {
+      source,
+      enemyLevel,
+      ...(enemyFamily === undefined ? {} : { enemyFamily }),
+      mainJob: this.job,
+      tags: this.tags,
+      nextUid: () => `itm_${String(++this.itemSerial).padStart(6, "0")}`,
+    });
+    this.loot.place(result, at);
+  }
+
+  /** 確認用：プレイヤーの右3mに敵を出す（開発版の確認用）。 */
+  spawnEnemy(id: string): string {
+    if (this.field === undefined) throw new Error("試験用の敵を出さない設定");
+    const p = this.motion.position;
+    return this.field.spawn(id, "normal", 5, { x: p.x + 3, y: p.y }, `debug-${id}`).id;
+  }
+
+  /** 計算を進めた時間の合計（秒）。ヒットの手応えで止まっている間は進まない。 */
   get time(): number {
     return this.elapsed;
   }
@@ -70,34 +455,560 @@ export class ArenaSimulation {
   get dodgePending(): boolean {
     return this.stepInput.has("dodge");
   }
+  /** 通常攻撃（skill1）の押した瞬間の入力を保持していて、まだどの刻みにも渡していないか。 */
+  get attackPending(): boolean {
+    return this.stepInput.has("skill1");
+  }
+  /** その技の枠の押した瞬間の入力を保持していて、まだどの刻みにも渡していないか。 */
+  pending(slot: StepAction): boolean {
+    return this.stepInput.has(slot);
+  }
+  /** 実行中の技の枠（なければ undefined）。 */
+  get executing(): SkillSlot | undefined {
+    return this.current?.slot;
+  }
+  /** 実行中の技（なければ undefined）。 */
+  get execution(): SkillExecution | undefined {
+    return this.current?.run.exec as SkillExecution | undefined;
+  }
+  /** 残っている置く範囲（地割りの亀裂など）。 */
+  get zones(): readonly LingeringZone[] {
+    return this.zoneRuns.map((z) => z.exec as LingeringZone);
+  }
+  get weapon(): TestWeapon {
+    return TEST_WEAPONS[this.weaponIndex] ?? (TEST_WEAPONS[0] as TestWeapon);
+  }
+  get affinity(): Affinity {
+    return weaponAffinity(this.tags, this.job, this.weapon.tags);
+  }
+  get attackSpeed(): number {
+    return this.attackSpeedValue;
+  }
+  get attacker(): DamageAttacker {
+    return this.attackerValue;
+  }
+  get mp(): number {
+    return this.mpValue;
+  }
+  /** 白く光らせる残りの時間（秒）。 */
+  get flash(): number {
+    return this.flashLeft;
+  }
+  get lastHit(): HitReport | undefined {
+    return this.lastReport;
+  }
+  get lastSkill(): { id: string; variants: readonly string[] } | undefined {
+    return this.lastSkillValue;
+  }
+  /** 人形に当たったヒットの数（回避されたものを除く）。 */
+  get hitCount(): number {
+    return this.dummyHits;
+  }
+  /** 技ごとの使った回数。 */
+  get uses(): ReadonlyMap<string, number> {
+    return this.useCounts;
+  }
+  /** 直近に出た当たり判定（表示用。SHOW_STRIKE 秒より古いものは除く）。 */
+  visibleStrikes(): readonly ShownStrike[] {
+    while ((this.strikes[0]?.t ?? Infinity) < this.elapsed - SHOW_STRIKE) this.strikes.shift();
+    return this.strikes;
+  }
 
   /**
    * 描画の1フレーム分を進める。
    * @param deltaSeconds 前のフレームからの経過時間（秒）
    * @returns この呼び出しで進めた刻みの数
    */
-  frame(deltaSeconds: number, input: InputFrame): number {
+  frame(deltaSeconds: number, input: InputFrame, extra: ArenaExtraInput = {}): number {
     // 時間の検証を先に行う（例外のときに入力だけが残らないように）
     const { steps } = this.clock.advance(deltaSeconds);
-    this.stepInput.press(STEP_ACTIONS.filter((a) => input.pressed.has(a)));
-    for (let i = 0; i < steps; i++) this.step(input);
+    if (extra.switchWeapon === true) this.switchWeapon();
+    if (extra.changeJob === true) this.changeJob();
+    this.aimPoint = { x: toMeters(input.pointerWorld.x), y: toMeters(input.pointerWorld.y) };
+    const pressed: StepAction[] = STEP_ACTIONS.filter((a) => a !== "rout" && input.pressed.has(a));
+    if (extra.routPressed === true) pressed.push("rout");
+    this.stepInput.press(pressed);
+    for (let i = 0; i < steps; i++) this.step(input, extra.routHeld === true);
     return steps;
   }
 
-  private step(input: InputFrame): void {
+  /** 武器を次の試験用の武器に替える（技の実行中は替えない）。 */
+  switchWeapon(): void {
+    if (this.current !== undefined) return;
+    this.weaponIndex = (this.weaponIndex + 1) % TEST_WEAPONS.length;
+    this.refreshAttacker();
+  }
+
+  /** 転職する（戦士と盗賊を順に替える）。武器はジョブの初期装備に持ち替える。 */
+  changeJob(): void {
+    if (this.current !== undefined || !this.character.canChangeJob) return;
+    const jobs = [...this.db.jobs.keys()];
+    const next = jobs[(jobs.indexOf(this.job.id) + 1) % jobs.length];
+    if (next === undefined || !this.character.changeJob(next)) return;
+    const w = TEST_WEAPONS.findIndex((x) => x.uid === START_WEAPON[next]);
+    if (w >= 0) this.weaponIndex = w;
+    this.jobGaugeValue = this.newGauge();
+    this.attackerVersion = "";
+    this.refreshAttacker();
+  }
+
+  /** 経験値を得る。Lvが上がったら、HPを全回復する（最大HPが変わるため）。 */
+  gainXp(amount: number): void {
+    const before = this.character.level;
+    const r = this.character.gainXp(amount);
+    if (r.characterLevels > 0 || r.jobLevels > 0) {
+      this.levelUpCount += r.characterLevels + r.jobLevels;
+      this.attackerVersion = "";
+      this.refreshAttacker();
+      if (this.character.level !== before) this.playerValue = this.newPlayer();
+      this.onText?.(
+        `${r.characterLevels > 0 ? `Lv${String(this.character.level)}` : ""}${r.jobLevels > 0 ? ` ジョブLv${String(this.character.jobLevel(this.job.id))}` : ""}`,
+        this.motion.position,
+        "#7bd389",
+      );
+    }
+  }
+
+  /** 確認用：職能ゲージの量を決める（開発版の確認・テストで、激化・解放を短い時間で試すため）。 */
+  setFervor(value: number): number {
+    this.jobGaugeValue.spend("all");
+    this.jobGaugeValue.add(value);
+    this.jobGaugeValue.markCombat();
+    return this.jobGaugeValue.value;
+  }
+
+  /** 技が使えない理由（使えるなら undefined）。 */
+  blockOf(skillId: string): SkillBlock | "locked" | "target" | undefined {
+    if (
+      skillId !== "SKL-BASIC-ATTACK" &&
+      !unlockedSkills(this.job, this.character.jobLevel(this.job.id)).includes(skillId)
+    )
+      return "locked";
+    const def = this.db.skills.get(skillId);
+    if (def === undefined) return "locked";
+    // 影走りは、対象（照準の近くの敵）がいなければ使えない（補助仕様書3.6）
+    if (def.action.type === "teleport" && this.stepTarget(def.action.range) === undefined)
+      return "target";
+    return skillBlock(def, {
+      cooldown: this.cooldowns.remaining(skillId),
+      mp: this.mpValue,
+      gauge: this.jobGaugeValue.value,
+      affinity: this.affinity,
+    });
+  }
+
+  /** 影走りの対象：自分から range 以内の敵のうち、照準の位置に最も近いもの。 */
+  private stepTarget(range: number): Combatant | undefined {
+    const p = this.motion.position;
+    const aim = this.aimPoint;
+    let best: Combatant | undefined;
+    let bestD = Infinity;
+    for (const t of this.targets()) {
+      if (length({ x: t.position.x - p.x, y: t.position.y - p.y }) > range + t.radius) continue;
+      const d = length({ x: t.position.x - aim.x, y: t.position.y - aim.y });
+      if (d < bestD) {
+        bestD = d;
+        best = t;
+      }
+    }
+    return best;
+  }
+
+  /** 敵の背後の位置（向きを持たない敵は、自分から見て反対側）。 */
+  private behind(t: Combatant, gap: number): Vec2 {
+    const p = this.motion.position;
+    const away =
+      t.facing === undefined
+        ? Math.atan2(t.position.y - p.y, t.position.x - p.x)
+        : t.facing + Math.PI;
+    const d = t.radius + this.playerValue.radius + gap;
+    return { x: t.position.x + Math.cos(away) * d, y: t.position.y + Math.sin(away) * d };
+  }
+
+  /** 直近5秒のDPS（表示用）。 */
+  dps(): number {
+    while ((this.recentDamage[0]?.t ?? Infinity) < this.elapsed - 5) this.recentDamage.shift();
+    return this.recentDamage.reduce((s, d) => s + d.amount, 0) / 5;
+  }
+
+  /** プレイヤーの戦う者（最大HPは、能力値の評価の値）。 */
+  private newPlayer(): Combatant {
+    return new Combatant(this.db, {
+      id: "player",
+      team: "player",
+      position: this.motion.position,
+      radius: 0.35,
+      maxHp: this.attackerValue.view.stat("STAT-HP-MAX").value,
+      staggerProfile: staggerProfiles(this.db).player,
+    });
+  }
+
+  /** メインジョブの職能ゲージ（メインジョブのものだけが有効。仕様書5章）。 */
+  private newGauge(): JobGauge {
+    const g = this.db.gauges.get(this.job.gauge ?? "");
+    if (g === undefined) throw new Error(`ジョブ ${this.job.id} の職能ゲージがない`);
+    return new JobGauge(g);
+  }
+
+  /** プレイヤーの技の対象（訓練用の人形と、生きている敵）。 */
+  private targets(): Combatant[] {
+    return [this.dummy, ...(this.field?.targets() ?? [])];
+  }
+
+  /** 効果（戦吼の強化など）・Lv・ジョブ・武器が変わったら、攻撃する側の能力値を計算し直す。 */
+  private refreshAttacker(): void {
+    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${this.weapon.uid}`;
+    if (this.attackerVersion === version) return;
+    this.attackerVersion = version;
+    const { view } = evaluateEffects(
+      this.db,
+      this.tags,
+      [...this.buffs.instances(), ...this.character.attributeEffects()],
+      {
+        baseStats: this.character.baseStats(),
+        equippedTags: { mainHand: this.weapon.tags },
+        mainJob: this.job.tag,
+      },
+    );
+    const w = this.weapon;
+    this.maxMpValue = view.stat("STAT-MP-MAX").value;
+    this.mpValue = Math.min(this.mpValue, this.maxMpValue);
+    this.effectDuration = 1 + view.stat("STAT-EFFECT-DURATION").increased;
+    this.attackerValue = {
+      db: this.db,
+      view,
+      characterLevel: this.character.level,
+      weapon: { uid: w.uid, tags: w.tags, base: w.base, critChance: w.critChance },
+    };
+    // 武器適性の攻撃速度（仕様書5.1）は、加算の増加として足す
+    this.attackSpeedValue =
+      w.attackSpeed *
+      Math.max(
+        0.1,
+        1 + view.stat("STAT-ATTACK-SPEED").increased + AFFINITY_ATTACK_SPEED[this.affinity],
+      );
+  }
+
+  private startSkill(slot: SkillSlot, skillId: string): void {
+    const def = this.db.skills.get(skillId);
+    if (def === undefined) return;
+    // 終結技は、使う前のゲージの量で強さが決まる
+    const cost = def.gauge?.cost;
+    const spent = cost === "all" ? this.jobGaugeValue.value : (cost ?? 0);
+    const resolved: ResolvedSkill = resolveSkill(this.db, def, {
+      stages: this.jobGaugeValue.stages,
+      weaponTags: this.tags.closure(this.weapon.tags),
+      gaugeSpent: spent,
+    });
+    let teleportTo: Vec2 | undefined;
+    if (def.action.type === "teleport") {
+      const t = this.stepTarget(def.action.range);
+      if (t === undefined) return;
+      teleportTo = this.behind(t, def.action.behind);
+    }
+    this.mpValue -= def.mpCost;
+    this.cooldowns.start(def.id, def.cooldown);
+    if (def.gauge?.cost !== undefined) this.jobGaugeValue.spend(def.gauge.cost);
+    if (def.gauge?.gainOnUse !== undefined) this.jobGaugeValue.add(def.gauge.gainOnUse);
+    this.jobGaugeValue.markCombat();
+    for (const e of def.selfEffects ?? [])
+      this.buffs.add(e.effect, e.duration * this.effectDuration, def.id);
+    this.lastSkillValue = { id: def.id, variants: resolved.variants };
+    this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
+    this.current = {
+      slot,
+      run: {
+        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeedValue, {
+          aimPoint: this.aimPoint,
+          ...(teleportTo === undefined ? {} : { teleportTo }),
+        }),
+        hit: new Map(),
+      },
+    };
+  }
+
+  private step(input: InputFrame, routHeld: boolean): void {
+    const dt = this.clock.stepSeconds;
+    this.flashLeft = Math.max(0, this.flashLeft - dt);
+    // ヒットの手応え：ヒットの瞬間に、ほんの少しだけ止める（押した瞬間の入力は保持したまま）
+    if (this.hitStopLeft > 0) {
+      this.hitStopLeft -= dt;
+      return;
+    }
     const pos = this.motion.position;
     const aim = {
       x: toMeters(input.pointerWorld.x) - pos.x,
       y: toMeters(input.pointerWorld.y) - pos.y,
     };
-    this.motion.update(this.clock.stepSeconds, {
-      move: input.move,
-      aim,
-      // 保持している回避の入力は、最初の刻みで取り出され、以降の刻みには渡らない
-      dodge: this.stepInput.take("dodge"),
+    // 保持している押した瞬間の入力は、最初に進んだ刻みで取り出され、以降の刻みには渡らない
+    const dodgePressed = this.stepInput.take("dodge");
+    const interact = this.stepInput.take("interact");
+    const pressed = new Set<SkillSlot>();
+    for (const a of STEP_ACTIONS)
+      if (a !== "dodge" && a !== "interact" && this.stepInput.take(a)) pressed.add(a);
+    const held = (slot: SkillSlot): boolean => (slot === "rout" ? routHeld : input.held.has(slot));
+    // よろめいている間は、移動・技・回避ができない（補助仕様書3.3）。押した回避は使われずに消える
+    const staggered = this.playerValue.stagger.broken;
+    if (staggered) this.current = undefined;
+    const dodge = dodgePressed && !staggered;
+    if (dodge) this.current = undefined; // 回避で技を取り消せる
+
+    // 技を使い始める（照準の方向へ）。枠の順に、使えるものを1つ。押し続けている間は繰り返し使う（補助仕様書1.1）
+    if (this.current === undefined && !this.motion.dodging && !dodge && !staggered) {
+      const use = this.loadout.find(
+        (l) => (held(l.action) || pressed.has(l.action)) && this.blockOf(l.skill) === undefined,
+      );
+      if (use !== undefined) {
+        this.motion.update(0, { move: ZERO, aim, dodge: false }); // 向きだけ照準に合わせる
+        this.startSkill(use.action, use.skill);
+      }
+    }
+
+    // 技の実行
+    let moveMultiplier = 1;
+    if (this.current !== undefined) {
+      const run = this.current.run;
+      const exec = run.exec as SkillExecution;
+      const tick = exec.update(dt, {
+        position: this.motion.position,
+        held: held(this.current.slot),
+        mp: this.mpValue,
+      });
+      this.mpValue = Math.max(0, this.mpValue - tick.mpCost);
+      this.resolveStrikes(run, tick.strikes);
+      this.motion.displace(tick.displacement);
+      if (tick.warcry !== undefined) {
+        const w = tick.warcry;
+        for (const e of w.allyEffects)
+          this.buffs.add(e, w.duration * this.effectDuration, exec.skill.def.id);
+        for (const t of this.targets()) {
+          const dist = length({ x: t.position.x - w.origin.x, y: t.position.y - w.origin.y });
+          if (dist > w.radius + t.radius) continue;
+          for (const e of w.enemyEffects) t.statuses.add(e, w.duration, exec.skill.def.id);
+        }
+        this.showShape({ type: "circle", radius: w.radius }, w.origin, 0);
+      }
+      if (tick.pull !== undefined) {
+        const p = tick.pull;
+        for (const t of this.targets()) {
+          const d = t.position;
+          const movable = this.field?.byCombatant(t)?.def.moveSpeed !== 0;
+          const inside = length({ x: d.x - p.origin.x, y: d.y - p.origin.y }) <= p.radius;
+          if (!t.isBoss && movable && inside)
+            t.position = pullTowards(d, p.origin, p.speed * dt, PULL_MIN_DISTANCE);
+        }
+      }
+      for (const z of tick.zones) this.zoneRuns.push({ exec: z, hit: new Map() });
+      if (tick.selfBuff !== undefined) {
+        for (const e of tick.selfBuff.effects)
+          this.buffs.add(e, tick.selfBuff.duration * this.effectDuration, exec.skill.def.id);
+      }
+      if (tick.zone !== undefined) {
+        const z = tick.zone;
+        this.smokeList.push({
+          skill: exec.skill.def.id,
+          center: z.center,
+          radius: z.radius,
+          interval: z.interval,
+          enemyEffects: z.enemyEffects,
+          ailment: z.ailment,
+          remaining: z.duration,
+          untilNext: 0,
+        });
+      }
+      if (tick.trap !== undefined) {
+        const t = tick.trap;
+        this.trapList.push({
+          skill: exec.skill,
+          center: t.center,
+          radius: t.radius,
+          remaining: t.duration,
+        });
+        // 同時に置ける数を超えたら、古いものから消える
+        while (this.trapList.length > t.max) this.trapList.shift();
+      }
+      moveMultiplier = tick.moveMultiplier;
+      if (tick.finished) this.current = undefined;
+    }
+    for (const z of this.zoneRuns) this.resolveStrikes(z, (z.exec as LingeringZone).update(dt));
+    this.updateSmokes(dt);
+    this.updateTraps(dt);
+    this.zoneRuns = this.zoneRuns.filter((z) => !(z.exec as LingeringZone).done);
+
+    this.motion.update(dt, {
+      move: staggered ? ZERO : input.move,
+      aim: this.current === undefined && !staggered ? aim : ZERO,
+      dodge,
+      speedMultiplier: moveMultiplier,
     });
-    this.elapsed += this.clock.stepSeconds;
+    this.playerValue.position = this.motion.position;
+    this.playerValue.moving = length(input.move) > 0 && !staggered;
+
+    // 敵の行動と攻撃
+    this.field?.update(dt, this.playerValue, this.motion.invulnerable, this.motion.facing, {
+      onPlayerHit: (report) => {
+        if (report.hit.evaded) return;
+        this.hitsTakenCount += 1;
+        this.jobGaugeValue.onDamageTaken(
+          report.applied.toHp + report.applied.toWard,
+          this.playerValue.health.maxHp,
+        );
+      },
+      onAvoided: () => {
+        this.avoidedAttacks += 1;
+      },
+      onEnemyKilled: (enemy) => {
+        // 経験値（補助仕様書4.2）：5＋2×敵のLv、格の倍率、Lvの差の補正
+        this.gainXp(
+          enemyXp(enemy.level, enemy.rank.xpMultiplier) *
+            levelGapMultiplier(this.character.level, enemy.level),
+        );
+        // ドロップ（仕様書v0.2 3.5、補助仕様書12章）。敵の格（通常・魔法・精鋭）がドロップの出どころ
+        this.dropLoot(enemy.rank.rank, enemy.level, enemy.position, enemy.def.family);
+      },
+    });
+
+    // 拾う（補助仕様書13章）：金貨・素材は近づくと自動で、装備は F で
+    this.loot.autoPickup(this.motion.position, this.inventory);
+    if (interact) {
+      const r = this.loot.pickNearestItem(this.motion.position, this.inventory);
+      if (r.kind === "full")
+        this.onText?.("インベントリがいっぱい", this.motion.position, "#ff6b6b");
+    }
+
+    const dot = this.dummy.update(dt);
+    if (dot > 0) this.recentDamage.push({ t: this.elapsed, amount: dot });
+    const playerDot = this.playerValue.update(dt);
+    if (playerDot > 0) this.jobGaugeValue.onDamageTaken(playerDot, this.playerValue.health.maxHp);
+    // 仮実装: U-18b feature/death-and-return で、死亡の扱い（町に戻る）に置き換える（試験用の場では、その場で全回復する）
+    if (this.playerValue.health.dead) {
+      this.deathCount += 1;
+      this.playerValue = this.newPlayer();
+    }
+    this.mpValue = Math.min(this.maxMpValue, this.mpValue + this.maxMpValue * 0.06 * dt);
+    this.cooldowns.update(dt);
+    this.buffs.update(dt);
+    this.jobGaugeValue.update(dt);
+    this.refreshAttacker();
+    this.elapsed += dt;
     this.updateHazard();
+    if (this.dummy.health.hp < this.dummy.health.maxHp * 0.2) this.dummy.health.restoreFull();
+  }
+
+  /** 当たり判定を、形に入った敵に当てる。同じ group では、1体に1回だけ。 */
+  private resolveStrikes(run: Running, strikes: readonly Strike[]): void {
+    let landed = false;
+    for (const s of strikes) {
+      this.showShape(s.shape, s.origin, s.facing);
+      for (const t of this.targets()) {
+        if (!overlapsShape(s.shape, s.origin, s.facing, t.position, t.radius)) continue;
+        if (s.group !== undefined) {
+          const set = run.hit.get(s.group) ?? new Set<string>();
+          if (set.has(t.id)) continue;
+          set.add(t.id);
+          run.hit.set(s.group, set);
+        }
+        if (this.hitTarget(t, s.skill, s.damage, s.origin, s.fullStagger, s.forceCrit === true))
+          landed = true;
+      }
+    }
+    const first = strikes[0];
+    if (!landed || first === undefined) return;
+    // 闘志：1回の当たり判定の発生で、当たれば1回増える（docs/progress D-U08-3）
+    this.jobGaugeValue.onHitDealt(this.tags.closure(first.skill.damage.tags));
+    // コンボ点：1回の使用で、1体以上に当たれば1回だけ増える（docs/progress D-U10-1）
+    const gain = first.skill.def.gauge?.gainOnHit;
+    if (gain !== undefined && run.gained !== true) {
+      run.gained = true;
+      this.jobGaugeValue.add(gain);
+    }
+  }
+
+  /** 1体にヒットを解決する。当たれば true。 */
+  private hitTarget(
+    t: Combatant,
+    skill: ResolvedSkill,
+    damage: DamageSkill,
+    origin: Vec2,
+    fullStagger: boolean,
+    forceCrit: boolean,
+  ): boolean {
+    const bonus = this.job.backstabBonus;
+    const report = resolveHit({
+      db: this.db,
+      attacker: this.attackerValue,
+      attackerPosition: origin,
+      skill: damage,
+      skillChance: skill.ailmentChance,
+      staggerCoefficient: skill.staggerCoefficient,
+      target: t,
+      rng: this.rng,
+      fullStagger,
+      forceCrit,
+      ...(bonus === undefined ? {} : { backstabBonus: bonus }),
+    });
+    if (t !== this.dummy) this.field?.onEnemyHit(t);
+    if (t === this.dummy) this.lastReport = report;
+    if (report.hit.evaded) return false;
+    this.hitStopLeft = HIT_STOP;
+    if (t === this.dummy) {
+      this.dummyHits += 1;
+      this.recentDamage.push({ t: this.elapsed, amount: report.hit.total });
+      this.flashLeft = FLASH;
+    } else this.enemyHitCount += 1;
+    this.onHit?.(report, t.position);
+    return true;
+  }
+
+  /** 煙玉：中の敵に命中-30%をかけ続け、間隔ごとに衰弱を必ず付ける（仕様書v0.2 5.6）。 */
+  private updateSmokes(dt: number): void {
+    for (const z of this.smokeList) {
+      z.remaining -= dt;
+      z.untilNext -= dt;
+      const pulse = z.untilNext <= 1e-9;
+      if (pulse) z.untilNext += z.interval;
+      const def = z.ailment === undefined ? undefined : this.db.ailmentsByTag.get(z.ailment);
+      for (const t of this.targets()) {
+        const dist = length({ x: t.position.x - z.center.x, y: t.position.y - z.center.y });
+        if (dist > z.radius + t.radius) continue;
+        for (const e of z.enemyEffects) t.statuses.add(e, dt + ZONE_REFRESH, z.skill);
+        if (pulse && def !== undefined && (def.kind === "debuff" || def.kind === "dot")) {
+          t.ailments.apply({
+            ailmentId: def.id,
+            tag: def.tag,
+            total: 0,
+            duration: def.duration,
+            maxStacks: 1,
+          });
+          if (t !== this.dummy) this.field?.onEnemyHit(t);
+        }
+      }
+    }
+    this.smokeList = this.smokeList.filter((z) => z.remaining > 1e-9);
+  }
+
+  /** 罠：敵が踏むと起爆する（起爆したときの能力値で計算する。主手の武器のヒット）。 */
+  private updateTraps(dt: number): void {
+    const left: Trap[] = [];
+    for (const trap of this.trapList) {
+      trap.remaining -= dt;
+      const victim = this.targets().find(
+        (t) =>
+          length({ x: t.position.x - trap.center.x, y: t.position.y - trap.center.y }) <=
+          trap.radius + t.radius,
+      );
+      if (victim !== undefined) {
+        this.showShape({ type: "circle", radius: trap.radius }, trap.center, 0);
+        this.hitTarget(victim, trap.skill, trap.skill.damage, trap.center, false, false);
+        continue;
+      }
+      if (trap.remaining > 1e-9) left.push(trap);
+    }
+    this.trapList = left;
+  }
+
+  private showShape(shape: HitShape, origin: Vec2, facing: number): void {
+    this.strikes.push({ shape, origin, facing, t: this.elapsed });
   }
 
   private updateHazard(): void {
@@ -111,6 +1022,10 @@ export class ArenaSimulation {
     // 当たり判定が出ている間に1回だけ判定する。回避の無敵時間なら無効
     this.resolvedCycle = cycle;
     if (this.motion.invulnerable) this.avoided += 1;
-    else this.hits += 1;
+    else {
+      this.hits += 1;
+      const taken = this.playerValue.health.takeDamage(5);
+      this.jobGaugeValue.onDamageTaken(taken.toHp + taken.toWard, this.playerValue.health.maxHp);
+    }
   }
 }

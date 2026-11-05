@@ -1,0 +1,153 @@
+import {
+  AFFIX_SLOTS,
+  type AffixDef,
+  type AffixTier,
+  type ItemBaseDef,
+  type ItemRarity,
+} from "../content/item.ts";
+import type { ContentDb } from "../content/load.ts";
+import type { EffectInstance } from "../effects/evaluate.ts";
+import type { Rng } from "../random/rng.ts";
+import { affixTierValues, eligibleTiers, tierWeights } from "./tiers.ts";
+
+/** 装備の効果の出どころの種類（局所の効果は、ref が武器の uid のときだけ効く）。 */
+export const EQUIPMENT_SOURCE = "equipment";
+
+/** アイテムに付いた詞（開発計画書6.5 の装備の実体の affixes）。 */
+export interface RolledAffix {
+  readonly id: string;
+  readonly tier: AffixTier;
+  /**
+   * 抽選した値（表示の単位）。range・fixed は [値]、added は [最小, 最大]。
+   */
+  readonly rolls: readonly number[];
+}
+
+/** 装備の実体（開発計画書6.5。セーブデータに保存する形の、生成で決まる部分）。 */
+export interface ItemInstance {
+  readonly uid: string;
+  readonly base: string;
+  readonly rarity: ItemRarity;
+  readonly itemLevel: number;
+  readonly affixes: readonly RolledAffix[];
+}
+
+export interface GenerateItemInput {
+  readonly uid: string;
+  readonly base: ItemBaseDef;
+  /** 通常・魔法・希少だけ（固有・星座は固定の効果なので、ここでは作らない）。 */
+  readonly rarity: ItemRarity;
+  readonly itemLevel: number;
+  /** 極T0を出せるか（回廊の第12階層以上）。MVPでは false。 */
+  readonly allowT0?: boolean;
+}
+
+function requireItemLevel(itemLevel: number): void {
+  if (!(Number.isInteger(itemLevel) && itemLevel >= 1))
+    throw new RangeError(`アイテムLvは1以上の整数（${String(itemLevel)}）`);
+}
+
+/** このベースに、このアイテムLvで付けられる詞と、出現できるtier。 */
+export function candidateAffixes(
+  db: ContentDb,
+  base: ItemBaseDef,
+  itemLevel: number,
+  options: { readonly allowT0?: boolean } = {},
+): { affix: AffixDef; tiers: AffixTier[] }[] {
+  requireItemLevel(itemLevel);
+  const out: { affix: AffixDef; tiers: AffixTier[] }[] = [];
+  for (const affix of db.affixes.values()) {
+    if (!affix.categories.includes(base.category)) continue;
+    const tiers = eligibleTiers(affix, itemLevel, options);
+    if (tiers.length > 0) out.push({ affix, tiers });
+  }
+  return out;
+}
+
+/**
+ * 詞の値を抽選する（仕様書v0.2 3.6）。
+ * - range：tierの範囲で、表示の単位の整数を1つ等しい確率で（docs/progress D-U11-6）
+ * - added：最小・最大の追加ダメージ。抽選しない
+ * - fixed：tierの値
+ */
+export function rollAffixValue(rng: Rng, affix: AffixDef, tier: AffixTier): number[] {
+  const value = affixTierValues(affix).get(tier);
+  if (value === undefined) throw new RangeError(`詞 ${affix.id} に T${String(tier)} が無い`);
+  switch (affix.roll) {
+    case "added":
+      return [value.min, value.max];
+    case "fixed":
+      return [value.min];
+    case "range": {
+      const lo = Math.ceil(value.min);
+      const hi = Math.floor(value.max);
+      if (hi < lo) throw new RangeError(`詞 ${affix.id} の T${String(tier)} の範囲に整数が無い`);
+      return [rng.int(lo, hi)];
+    }
+  }
+}
+
+/**
+ * アイテムを1つ作る（通常・魔法・希少）。
+ * - 詞の数：レアリティの範囲から等しい確率で（docs/progress D-U11-5）。部位の枠（前詞・後詞）を超えない。
+ *   付けられる詞が足りないときは、付けられる数まで
+ * - 詞：前詞・後詞の空いている枠の詞から、出現の重みで抽選する。同じ詞は1つのアイテムに1つまで
+ *   （docs/progress D-U11-7）
+ * - tier：出現できるtierのうち最も高いものを40、残りを60として等分（仕様書v0.2 3.6）
+ */
+export function generateItem(db: ContentDb, rng: Rng, input: GenerateItemInput): ItemInstance {
+  const { base, rarity, itemLevel, uid } = input;
+  requireItemLevel(itemLevel);
+  const rarityDef = db.rarities.get(rarity);
+  if (rarityDef === undefined) throw new RangeError(`レアリティ ${rarity} の定義が無い`);
+  if (rarity === "unique" || rarity === "set")
+    throw new RangeError(`${rarity} は固定の効果を持つので、generateItem では作らない`);
+  const slots = AFFIX_SLOTS[base.category];
+  const capacity = slots.prefix + slots.suffix;
+  const wanted = rng.int(rarityDef.affixes.min, rarityDef.affixes.max);
+  const pool = candidateAffixes(db, base, itemLevel, {
+    ...(input.allowT0 === undefined ? {} : { allowT0: input.allowT0 }),
+  });
+  const used = { prefix: 0, suffix: 0 };
+  const taken = new Set<string>();
+  const affixes: RolledAffix[] = [];
+  while (affixes.length < Math.min(wanted, capacity)) {
+    const open = pool.filter(
+      (c) => !taken.has(c.affix.id) && used[c.affix.position] < slots[c.affix.position],
+    );
+    if (open.length === 0) break;
+    const chosen = rng.weighted(open.map((c) => ({ item: c, weight: c.affix.weight })));
+    const tier = rng.weighted(
+      tierWeights(chosen.tiers).map((t) => ({ item: t.tier, weight: t.weight })),
+    );
+    affixes.push({ id: chosen.affix.id, tier, rolls: rollAffixValue(rng, chosen.affix, tier) });
+    taken.add(chosen.affix.id);
+    used[chosen.affix.position] += 1;
+  }
+  return { uid, base: base.id, rarity, itemLevel, affixes };
+}
+
+/**
+ * 装備の効果（効果の評価に渡す形）：ベースの基本刻印と、詞（値を詞の値で差し替える）。
+ * 出どころは { kind: "equipment", ref: uid }（局所の効果は、この武器のヒットだけに効く）。
+ */
+export function itemEffectInstances(db: ContentDb, item: ItemInstance): EffectInstance[] {
+  const base = db.itemBases.get(item.base);
+  if (base === undefined) throw new RangeError(`ベース ${item.base} が無い`);
+  const source = { kind: EQUIPMENT_SOURCE, ref: item.uid };
+  const out: EffectInstance[] = (base.implicitEffects ?? []).map((effectId) => ({
+    effectId,
+    source,
+  }));
+  for (const rolled of item.affixes) {
+    const affix = db.affixes.get(rolled.id);
+    if (affix === undefined) throw new RangeError(`詞 ${rolled.id} が無い`);
+    const s = affix.scale;
+    const value =
+      affix.roll === "added"
+        ? { min: (rolled.rolls[0] ?? 0) * s, max: (rolled.rolls[1] ?? 0) * s }
+        : (rolled.rolls[0] ?? 0) * s;
+    out.push({ effectId: affix.effect, source, values: [value] });
+  }
+  return out;
+}

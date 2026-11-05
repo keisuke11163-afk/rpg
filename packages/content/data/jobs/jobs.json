@@ -1,0 +1,106 @@
+[
+  {
+    "id": "JOB-WARRIOR",
+    "tag": "TAG-JOB-WARRIOR",
+    "text": "job.warrior",
+    "gauge": "GAU-FERVOR",
+    "skills": [
+      {
+        "skill": "SKL-WARRIOR-SWEEP",
+        "level": 1
+      },
+      {
+        "skill": "SKL-WARRIOR-CHARGE",
+        "level": 3
+      },
+      {
+        "skill": "SKL-WARRIOR-WARCRY",
+        "level": 5
+      },
+      {
+        "skill": "SKL-WARRIOR-EARTHSPLITTER",
+        "level": 7
+      },
+      {
+        "skill": "SKL-WARRIOR-WHIRLWIND",
+        "level": 10
+      },
+      {
+        "skill": "SKL-WARRIOR-ROUT",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-GREATSWORD": "S",
+      "TAG-WPN-GREATAXE": "S",
+      "TAG-WPN-GREATMACE": "A",
+      "TAG-WPN-AXE": "A",
+      "TAG-WPN-SPEAR": "A",
+      "TAG-WPN-SWORD": "A",
+      "TAG-WPN-SHIELD": "B",
+      "TAG-WPN-BOW": "C",
+      "TAG-WPN-STAFF": "C"
+    },
+    "dualWield": "B",
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLvは仮値（補助仕様書3.5）",
+    "originAttributes": {
+      "go": 20,
+      "jin": 10,
+      "ri": 5,
+      "kon": 5
+    }
+  },
+  {
+    "id": "JOB-ROGUE",
+    "tag": "TAG-JOB-ROGUE",
+    "text": "job.rogue",
+    "gauge": "GAU-COMBO",
+    "skills": [
+      {
+        "skill": "SKL-ROGUE-FLURRY",
+        "level": 1
+      },
+      {
+        "skill": "SKL-ROGUE-SHADOWSTEP",
+        "level": 3
+      },
+      {
+        "skill": "SKL-ROGUE-PIERCE",
+        "level": 5
+      },
+      {
+        "skill": "SKL-ROGUE-POISON",
+        "level": 7
+      },
+      {
+        "skill": "SKL-ROGUE-SMOKE",
+        "level": 10
+      },
+      {
+        "skill": "SKL-ROGUE-TRAP",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-DAGGER": "S",
+      "TAG-WPN-CLAW": "S",
+      "TAG-WPN-SWORD": "B",
+      "TAG-WPN-BOW": "B",
+      "TAG-WPN-STAFF": "C"
+    },
+    "dualWield": "A",
+    "originAttributes": {
+      "go": 10,
+      "jin": 20,
+      "ri": 5,
+      "kon": 5
+    },
+    "backstabBonus": {
+      "critChance": 0.1,
+      "ailmentChance": 0.25
+    },
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5）"
+  }
+]

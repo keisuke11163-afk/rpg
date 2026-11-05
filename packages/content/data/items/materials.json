@@ -1,0 +1,34 @@
+[
+  {
+    "id": "MAT-AWAKENING-DUST",
+    "text": "item.material.awakening-dust"
+  },
+  {
+    "id": "MAT-INSIGHT-CRYSTAL",
+    "text": "item.material.insight-crystal"
+  },
+  {
+    "id": "MAT-TRANSMUTE-STONE",
+    "text": "item.material.transmute-stone"
+  },
+  {
+    "id": "MAT-ERASE-BLADE",
+    "text": "item.material.erase-blade"
+  },
+  {
+    "id": "MAT-TUNING-FORK",
+    "text": "item.material.tuning-fork"
+  },
+  {
+    "id": "MAT-SEAL-WAX",
+    "text": "item.material.seal-wax"
+  },
+  {
+    "id": "MAT-RETURN-LAMP",
+    "text": "item.material.return-lamp"
+  },
+  {
+    "id": "MAT-BEAST-FANG",
+    "text": "item.material.beast-fang"
+  }
+]

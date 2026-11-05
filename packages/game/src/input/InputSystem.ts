@@ -37,9 +37,10 @@ export class InputSystem {
     }
     // 右クリックはスキルの枠なので、ブラウザのメニューを出さない
     scene.input.mouse?.disableContextMenu();
+    // 押したボタンは pointer.button で見る（0＝左、2＝右）。押した瞬間には、ボタンの状態がまだ更新されていないことがあるため
     scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (pointer.leftButtonDown()) this.latched.add("mouse:left");
-      if (pointer.rightButtonDown()) this.latched.add("mouse:right");
+      if (pointer.button === 0) this.latched.add("mouse:left");
+      if (pointer.button === 2) this.latched.add("mouse:right");
     });
   }
 
