@@ -4,7 +4,7 @@ import { ELEMENT_TAG } from "../content/elements.ts";
 import type { AffixDef, ItemBaseDef, ItemRarity } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
 import { TagIndex } from "../effects/tag-index.ts";
-import { UNMET_REQUIREMENT_MULTIPLIER, requirementMet } from "./equipment.ts";
+import { UNMET_REQUIREMENT_MULTIPLIER, enhanceMultiplier, requirementMet } from "./equipment.ts";
 import type { ItemInstance, RolledAffix } from "./generate.ts";
 
 /** ツールチップの効果の行1つ（基本刻印か詞）。 */
@@ -104,7 +104,7 @@ export function itemTooltip(
   const base = db.itemBases.get(item.base);
   if (base === undefined) throw new RangeError(`ベース ${item.base} が無い`);
   const met = requirementMet(base, context.attributes);
-  const m = met ? 1 : UNMET_REQUIREMENT_MULTIPLIER;
+  const m = (met ? 1 : UNMET_REQUIREMENT_MULTIPLIER) * enhanceMultiplier(item);
   const contexts = context.contexts ?? [];
   const line = (
     kind: TooltipEffectLine["kind"],

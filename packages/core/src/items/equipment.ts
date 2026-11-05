@@ -22,6 +22,16 @@ export const MVP_EQUIP_SLOTS = [
 ] as const satisfies readonly EquipSlot[];
 export type MvpEquipSlot = (typeof MVP_EQUIP_SLOTS)[number];
 
+/** 強化1段階ごとの基礎性能（仕様書v0.2 3.9：+5%。+10で+50%）。 */
+export const ENHANCE_STEP = 0.05;
+/** 強化値の上限（仕様書v0.2 3.9）。 */
+export const MAX_ENHANCE = 10;
+
+/** 強化による基礎性能の倍率（1 ＋ 0.05 × 強化値）。 */
+export function enhanceMultiplier(item: { readonly enhance?: number }): number {
+  return 1 + ENHANCE_STEP * (item.enhance ?? 0);
+}
+
 /** 要求値を満たさないときの基礎性能の倍率（仕様書v0.2 2.2：基礎性能が-40%）。 */
 export const UNMET_REQUIREMENT_MULTIPLIER = 0.6;
 
@@ -149,7 +159,8 @@ export class Equipment {
 
   /**
    * 主手の武器（ダメージの計算に渡す形）と攻撃速度（回/秒。武器の基礎の値）。主手が空なら undefined。
-   * 要求値を満たさなければ、基礎ダメージ（基礎性能）だけ -40%。会心率・攻撃速度は変わらない（仕様書v0.2 3.9）。
+   * 基礎ダメージ（基礎性能）だけに、強化（+5%／段階）と要求値の未達（-40%）を掛ける。会心率・攻撃速度は変わらない
+   * （仕様書v0.2 3.9）。
    */
   mainWeapon(
     attributes: Attributes,
@@ -159,7 +170,7 @@ export class Equipment {
     const base = this.baseOf(item);
     const w = base.weapon;
     if (w === undefined) return undefined;
-    const m = basePerformanceMultiplier(base, attributes);
+    const m = basePerformanceMultiplier(base, attributes) * enhanceMultiplier(item);
     return {
       weapon: {
         uid: item.uid,

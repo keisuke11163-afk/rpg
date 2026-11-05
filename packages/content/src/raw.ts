@@ -14,6 +14,7 @@ import rogueEffects from "../data/effects/rogue.json" with { type: "json" };
 import warriorEffects from "../data/effects/warrior.json" with { type: "json" };
 import affixEffects from "../data/effects/affixes.json" with { type: "json" };
 import starEffects from "../data/effects/star.json" with { type: "json" };
+import craftingEffects from "../data/effects/crafting.json" with { type: "json" };
 import starNodes from "../data/boards/star.json" with { type: "json" };
 import constellations from "../data/boards/constellations.json" with { type: "json" };
 import implicitEffects from "../data/effects/implicits.json" with { type: "json" };
@@ -59,6 +60,7 @@ export const rawContent: RawContent = {
       { file: "data/effects/implicits.json", entries: implicitEffects },
       { file: "data/effects/affixes.json", entries: affixEffects },
       { file: "data/effects/star.json", entries: starEffects },
+      { file: "data/effects/crafting.json", entries: craftingEffects },
     ],
     ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
     skills: [

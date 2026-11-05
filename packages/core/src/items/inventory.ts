@@ -45,6 +45,13 @@ export class Inventory {
     return true;
   }
 
+  /** 同じ uid の装備を入れ替える（並びの位置は同じ。強化・クラフトの結果）。無ければ RangeError。 */
+  replaceItem(item: ItemInstance): void {
+    const i = this.itemList.findIndex((x) => x.uid === item.uid);
+    if (i < 0) throw new RangeError(`${item.uid} が無い`);
+    this.itemList[i] = item;
+  }
+
   /** 装備を取り出す。無ければ undefined。 */
   removeItem(uid: string): ItemInstance | undefined {
     const i = this.itemList.findIndex((x) => x.uid === uid);

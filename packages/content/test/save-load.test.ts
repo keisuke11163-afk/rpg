@@ -204,8 +204,27 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
 });
 
 /** 版1（開発計画書6.9 の例の形）のデータ。 */
+/** 版2（金貨・技の枠はあるが、装備に強化・クラフトの項目が無い）のデータ。 */
+function v2Sample(): Record<string, unknown> {
+  const v3 = toSaveData(db, sampleProfile()) as Record<string, unknown>;
+  const items = Object.fromEntries(
+    Object.entries(v3["items"] as SaveData["items"]).map(([k, i]) => {
+      const old: Partial<typeof i> = { ...i };
+      delete old.enhance;
+      delete old.forge_load;
+      delete old.sealed;
+      delete old.seals_used;
+      delete old.cracks;
+      delete old.inscription;
+      return [k, old];
+    }),
+  );
+  return { ...v3, save_version: 2, items };
+}
+
+/** 版1（開発計画書6.9 の例の形）のデータ。 */
 function v1Sample(): Record<string, unknown> {
-  const v2 = toSaveData(db, sampleProfile()) as Record<string, unknown>;
+  const v2 = v2Sample();
   const rest = { ...v2 };
   delete rest["gold"];
   const jobs = Object.fromEntries(
@@ -229,7 +248,7 @@ const wrap = (data: unknown): string => {
 };
 
 describe("T11：1つ前の版のデータを移行できる", () => {
-  it("版1 → 版2：金貨は0、技の枠は空（初期の並び）。その他は同じ", () => {
+  it("版1 → 版3：金貨は0、技の枠は空（初期の並び）。その他は同じ", () => {
     const backend = new MemoryBackend();
     backend.write("stella-sigil/slot1", wrap(v1Sample()));
     const store = new SaveStore(db, backend);
@@ -242,6 +261,18 @@ describe("T11：1つ前の版のデータを移行できる", () => {
     expect(computed(r.profile)).toEqual(computed(sampleProfile()));
     // 読み込みでは、保存先を変えない（版1のまま）
     expect(backend.read("stella-sigil/slot1")).toBe(wrap(v1Sample()));
+  });
+
+  it("版2 → 版3：装備は強化+0・負荷0・封詞・亀裂・銘なし", () => {
+    const data = decodeSave(wrap(v2Sample()));
+    expect(data.save_version).toBe(SAVE_VERSION);
+    expect(Object.values(data.items).every((i) => i.enhance === 0 && i.forge_load === 0)).toBe(
+      true,
+    );
+    expect(Object.values(data.items).every((i) => i.sealed === null && i.cracks.length === 0)).toBe(
+      true,
+    );
+    expect(data).toEqual(toSaveData(db, sampleProfile()));
   });
 
   it("このゲームより新しい版・移行の手順の無い版は、版の問題として検出する", () => {

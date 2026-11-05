@@ -23,13 +23,25 @@ export interface RolledAffix {
   readonly rolls: readonly number[];
 }
 
-/** 装備の実体（開発計画書6.5。セーブデータに保存する形の、生成で決まる部分）。 */
+/** 装備の実体（開発計画書6.5。セーブデータに保存する形）。強化・クラフトの項目は省略すると初期の値。 */
 export interface ItemInstance {
   readonly uid: string;
   readonly base: string;
   readonly rarity: ItemRarity;
   readonly itemLevel: number;
   readonly affixes: readonly RolledAffix[];
+  /** 強化値 0〜10（仕様書v0.2 3.9。省略で0）。 */
+  readonly enhance?: number;
+  /** 鍛造負荷 0〜100（仕様書v0.2 3.11.1。省略で0）。 */
+  readonly forgeLoad?: number;
+  /** 封詞した詞の ID（次の1回の操作から守る。省略で無し）。 */
+  readonly sealed?: string;
+  /** これまでに封詞した回数（2個目以降は負荷が重い。省略で0）。 */
+  readonly sealsUsed?: number;
+  /** 亀裂（小さなマイナスの効果の ID。省略で無し）。 */
+  readonly cracks?: readonly string[];
+  /** 銘（+10 で刻む効果の ID。省略で無し）。 */
+  readonly inscription?: string;
 }
 
 export interface GenerateItemInput {
@@ -102,15 +114,37 @@ export function generateItem(db: ContentDb, rng: Rng, input: GenerateItemInput):
   if (rarityDef === undefined) throw new RangeError(`レアリティ ${rarity} の定義が無い`);
   if (rarity === "unique" || rarity === "set")
     throw new RangeError(`${rarity} は固定の効果を持つので、generateItem では作らない`);
-  const slots = AFFIX_SLOTS[base.category];
-  const capacity = slots.prefix + slots.suffix;
   const wanted = rng.int(rarityDef.affixes.min, rarityDef.affixes.max);
-  const pool = candidateAffixes(db, base, itemLevel, {
+  const affixes = addAffixes(db, rng, base, itemLevel, [], wanted, {
     ...(input.allowT0 === undefined ? {} : { allowT0: input.allowT0 }),
   });
+  return { uid, base: base.id, rarity, itemLevel, affixes };
+}
+
+/**
+ * 詞を足す（生成とクラフトで共通）。今ある詞（existing）は残し、合計が wanted になるまで、
+ * 前詞・後詞の空いている枠の詞から出現の重みで抽選する。同じ詞は1つまで。付けられる詞が無くなったら、そこまで。
+ */
+export function addAffixes(
+  db: ContentDb,
+  rng: Rng,
+  base: ItemBaseDef,
+  itemLevel: number,
+  existing: readonly RolledAffix[],
+  wanted: number,
+  options: { readonly allowT0?: boolean } = {},
+): RolledAffix[] {
+  const slots = AFFIX_SLOTS[base.category];
+  const capacity = slots.prefix + slots.suffix;
+  const pool = candidateAffixes(db, base, itemLevel, options);
   const used = { prefix: 0, suffix: 0 };
   const taken = new Set<string>();
-  const affixes: RolledAffix[] = [];
+  const affixes: RolledAffix[] = [...existing];
+  for (const a of existing) {
+    const def = db.affixes.get(a.id);
+    if (def !== undefined) used[def.position] += 1;
+    taken.add(a.id);
+  }
   while (affixes.length < Math.min(wanted, capacity)) {
     const open = pool.filter(
       (c) => !taken.has(c.affix.id) && used[c.affix.position] < slots[c.affix.position],
@@ -124,7 +158,7 @@ export function generateItem(db: ContentDb, rng: Rng, input: GenerateItemInput):
     taken.add(chosen.affix.id);
     used[chosen.affix.position] += 1;
   }
-  return { uid, base: base.id, rarity, itemLevel, affixes };
+  return affixes;
 }
 
 /**
@@ -149,5 +183,8 @@ export function itemEffectInstances(db: ContentDb, item: ItemInstance): EffectIn
         : (rolled.rolls[0] ?? 0) * s;
     out.push({ effectId: affix.effect, source, values: [value] });
   }
+  // 亀裂（マイナスの効果）と銘（仕様書v0.2 3.9・3.11.1）
+  for (const effectId of item.cracks ?? []) out.push({ effectId, source });
+  if (item.inscription !== undefined) out.push({ effectId: item.inscription, source });
   return out;
 }

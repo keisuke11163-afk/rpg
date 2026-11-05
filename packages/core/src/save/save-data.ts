@@ -3,17 +3,25 @@ import { Character } from "../character/progression.ts";
 import { ITEM_RARITIES, AFFIX_TIERS } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
 import { dualWieldAffinity } from "../combat/skills.ts";
-import { Equipment, MVP_EQUIP_SLOTS, type MvpEquipSlot, slotsFor } from "../items/equipment.ts";
+import {
+  Equipment,
+  MAX_ENHANCE,
+  MVP_EQUIP_SLOTS,
+  type MvpEquipSlot,
+  slotsFor,
+} from "../items/equipment.ts";
 import type { ItemInstance } from "../items/generate.ts";
 import { INVENTORY_SLOTS, Inventory } from "../items/inventory.ts";
 import { STASH_SLOTS } from "../items/merchant.ts";
+import { INSCRIPTIONS, MAX_FORGE_LOAD } from "../items/crafting.ts";
 
 /**
  * セーブデータの版（開発計画書6.9）。
  * - 版1：開発計画書6.9 の例の形
  * - 版2：金貨（gold）と、ジョブごとの技の枠（jobs[].skill_slots）を足した（U-13）
+ * - 版3：装備の実体に、強化値・鍛造負荷・封詞・亀裂・銘を足した（U-17）
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 /** 技の枠の数（補助仕様書1.1）。 */
 export const SAVE_SKILL_SLOTS = 6;
 
@@ -29,13 +37,22 @@ const affixSchema = z.strictObject({
   rolls: z.array(z.number()).max(2),
 });
 
-/** 装備の実体（開発計画書6.5。セーブデータの形）。 */
-const itemSchema = z.strictObject({
+/** 装備の実体（版1・版2の形）。 */
+const itemSchemaV2 = z.strictObject({
   uid: id,
   base: id,
   rarity: z.enum(ITEM_RARITIES),
   item_level: z.number().int().min(1),
   affixes: z.array(affixSchema),
+});
+/** 装備の実体（開発計画書6.5。今の版の形）。 */
+const itemSchema = itemSchemaV2.extend({
+  enhance: z.number().int().min(0).max(MAX_ENHANCE),
+  forge_load: z.number().int().min(0).max(MAX_FORGE_LOAD),
+  sealed: id.nullable(),
+  seals_used: count,
+  cracks: z.array(id),
+  inscription: id.nullable(),
 });
 
 const jobSchemaV2 = z.strictObject({
@@ -59,7 +76,6 @@ const loadoutSchema = z.strictObject({
 
 const commonFields = {
   content_version: z.string(),
-  items: z.record(id, itemSchema),
   inventory: z.array(id),
   stash: z.array(id),
   loadouts: z.array(loadoutSchema).min(1).max(3),
@@ -85,21 +101,33 @@ const characterSchema = z.strictObject({
   sub_job: id.nullable(),
 });
 
-/** 版2（今の版）のセーブデータ。 */
+/** 版3（今の版）のセーブデータ。 */
 export const saveDataSchema = z.strictObject({
   save_version: z.literal(SAVE_VERSION),
   character: characterSchema,
   jobs: z.record(id, jobSchemaV2),
   gold: count,
+  items: z.record(id, itemSchema),
   ...commonFields,
 });
 export type SaveData = z.infer<typeof saveDataSchema>;
+
+/** 版2。移行のためだけに使う。 */
+export const saveDataV2Schema = z.strictObject({
+  save_version: z.literal(2),
+  character: characterSchema,
+  jobs: z.record(id, jobSchemaV2),
+  gold: count,
+  items: z.record(id, itemSchemaV2),
+  ...commonFields,
+});
 
 /** 版1（開発計画書6.9 の例の形）。移行のためだけに使う。 */
 export const saveDataV1Schema = z.strictObject({
   save_version: z.literal(1),
   character: characterSchema,
   jobs: z.record(id, jobSchemaV2.omit({ skill_slots: true })),
+  items: z.record(id, itemSchemaV2),
   ...commonFields,
 });
 export type SaveDataV1 = z.infer<typeof saveDataV1Schema>;
@@ -116,6 +144,28 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
       gold: 0,
       jobs: Object.fromEntries(
         Object.entries(v1.jobs).map(([k, j]) => [k, { ...j, skill_slots: [] }]),
+      ),
+    };
+  },
+  /** 版2 → 版3：装備は強化+0・負荷0・封詞なし・亀裂なし・銘なし。 */
+  2: (data) => {
+    const v2 = saveDataV2Schema.parse(data);
+    return {
+      ...v2,
+      save_version: 3,
+      items: Object.fromEntries(
+        Object.entries(v2.items).map(([k, i]) => [
+          k,
+          {
+            ...i,
+            enhance: 0,
+            forge_load: 0,
+            sealed: null,
+            seals_used: 0,
+            cracks: [],
+            inscription: null,
+          },
+        ]),
       ),
     };
   },
@@ -231,6 +281,12 @@ const toSaveItem = (i: ItemInstance): SaveData["items"][string] => ({
   rarity: i.rarity,
   item_level: i.itemLevel,
   affixes: i.affixes.map((a) => ({ id: a.id, tier: a.tier, rolls: [...a.rolls] })),
+  enhance: i.enhance ?? 0,
+  forge_load: i.forgeLoad ?? 0,
+  sealed: i.sealed ?? null,
+  seals_used: i.sealsUsed ?? 0,
+  cracks: [...(i.cracks ?? [])],
+  inscription: i.inscription ?? null,
 });
 
 /** プレイヤーの状態を、セーブデータにする（今の版）。保存しない値（能力値など）は入れない。 */
@@ -321,6 +377,18 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
         () => `装備 ${key} の詞 ${a.id} の値の数が正しくない`,
       );
     }
+    ref(
+      raw.sealed === null || raw.affixes.some((a) => a.id === raw.sealed),
+      () => `装備 ${key} の封詞した詞 ${String(raw.sealed)} が、その装備に無い`,
+    );
+    for (const c of raw.cracks)
+      ref(db.effects.has(c), () => `装備 ${key} の亀裂 ${c} がデータに無い`);
+    ref(
+      raw.inscription === null ||
+        ((INSCRIPTIONS as readonly string[]).includes(raw.inscription) &&
+          raw.enhance === MAX_ENHANCE),
+      () => `装備 ${key} の銘 ${String(raw.inscription)} が正しくない（候補に無い・+10でない）`,
+    );
     items.set(key, {
       uid: raw.uid,
       base: raw.base,
@@ -331,6 +399,12 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
         tier: a.tier as ItemInstance["affixes"][number]["tier"],
         rolls: [...a.rolls],
       })),
+      ...(raw.enhance === 0 ? {} : { enhance: raw.enhance }),
+      ...(raw.forge_load === 0 ? {} : { forgeLoad: raw.forge_load }),
+      ...(raw.sealed === null ? {} : { sealed: raw.sealed }),
+      ...(raw.seals_used === 0 ? {} : { sealsUsed: raw.seals_used }),
+      ...(raw.cracks.length === 0 ? {} : { cracks: [...raw.cracks] }),
+      ...(raw.inscription === null ? {} : { inscription: raw.inscription }),
     });
   }
   const used = new Set<string>();
