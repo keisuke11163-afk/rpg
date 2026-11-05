@@ -122,6 +122,7 @@ export {
   rollAilments,
   staggerProfiles,
   staggerValue,
+  resolveMaxStacks,
   validateAilmentApplication,
   type AilmentApplication,
   type AilmentCandidate,

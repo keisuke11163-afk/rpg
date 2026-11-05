@@ -92,8 +92,17 @@ export interface AilmentApplication {
   readonly total: number;
   /** 持続（秒）。 */
   readonly duration: number;
-  /** 重ねられる上限（重ねる状態異常のみ。undefined は上限なし）。 */
+  /**
+   * 定義データの最大スタック（ailments.json の stacking.maxStacks と同じ値でなければならない）。
+   * 定義に上限がない状態異常（毒・燃焼・衰弱など）では undefined。
+   * 定義に上限がある状態異常で undefined にすると、無制限とは扱わずに例外にする。
+   */
   readonly maxStacks: number | undefined;
+  /**
+   * 最大スタックの補正（STAT-AILMENT-MAX-STACKS の合計。例：千の小傷で +4 → 出血 8 → 12）。
+   * 整数。定義に上限がある状態異常のみ指定でき、省略は 0。実際の上限 ＝ maxStacks ＋ extraStacks（1以上）。
+   */
+  readonly extraStacks?: number;
 }
 
 /**
@@ -111,6 +120,53 @@ export function validateAilmentApplication(app: AilmentApplication): void {
     throw new RangeError(`${where}の持続は有限かつ正の数（${String(app.duration)}）`);
   if (app.maxStacks !== undefined && !(Number.isSafeInteger(app.maxStacks) && app.maxStacks > 0))
     throw new RangeError(`${where}の最大スタックは正の安全な整数（${String(app.maxStacks)}）`);
+  if (app.extraStacks !== undefined && !Number.isSafeInteger(app.extraStacks))
+    throw new RangeError(`${where}の最大スタックの補正は安全な整数（${String(app.extraStacks)}）`);
+}
+
+/**
+ * 付与する状態異常を、状態異常の定義データと突き合わせ、実際の最大スタックを返す（AilmentState.apply の入口）。
+ * - ailmentId・tag は定義と一致しなければならない
+ * - 定義の最大スタックを正とし、app.maxStacks が定義と異なれば例外（定義に上限があるのに未指定も例外。無制限にしない）
+ * - 定義に上限がない（または重ねない）状態異常に、最大スタック・補正を指定すると例外
+ * - 実際の上限 ＝ 定義の最大スタック ＋ 補正。1以上の安全な整数でなければ例外
+ * 戻り値：実際の最大スタック。上限がないときは undefined（定義が上限なしの場合だけ）。
+ */
+export function resolveMaxStacks(def: AilmentDef, app: AilmentApplication): number | undefined {
+  validateAilmentApplication(app);
+  const where = `状態異常 ${app.ailmentId} の付与`;
+  if (app.ailmentId !== def.id)
+    throw new RangeError(`${where}の ID が定義（${def.id}）と一致しない`);
+  if (app.tag !== def.tag)
+    throw new RangeError(`${where}のタグ（${app.tag}）が定義（${def.tag}）と一致しない`);
+  const defined =
+    def.kind === "dot" && def.stacking.mode === "stack" ? def.stacking.maxStacks : undefined;
+  const extra = app.extraStacks ?? 0;
+  if (defined === undefined) {
+    if (app.maxStacks !== undefined)
+      throw new RangeError(
+        `${where}の最大スタック（${String(app.maxStacks)}）は、定義に上限がないので指定できない`,
+      );
+    if (extra !== 0)
+      throw new RangeError(
+        `${where}の最大スタックの補正（${String(extra)}）は、定義に上限がないので指定できない`,
+      );
+    return undefined;
+  }
+  if (app.maxStacks === undefined)
+    throw new RangeError(
+      `${where}の最大スタックが未指定（定義は ${String(defined)}。無制限としては扱わない）`,
+    );
+  if (app.maxStacks !== defined)
+    throw new RangeError(
+      `${where}の最大スタック（${String(app.maxStacks)}）が定義（${String(defined)}）と一致しない`,
+    );
+  const max = defined + extra;
+  if (!(Number.isSafeInteger(max) && max > 0))
+    throw new RangeError(
+      `${where}の実際の最大スタック（${String(defined)} ＋ ${String(extra)}）は正の安全な整数でなければならない`,
+    );
+  return max;
 }
 
 export interface AilmentRollInput {
@@ -186,6 +242,7 @@ export function ailmentCandidates(input: Omit<AilmentRollInput, "rng">): Ailment
     );
     let total = 0;
     let maxStacks: number | undefined;
+    let extraStacks: number | undefined;
     if (def.kind === "dot") {
       const dmg = sums(view.stat(AILMENT_STATS.damage, context, scope), `${def.id} のダメージ`);
       total = finite(
@@ -197,10 +254,14 @@ export function ailmentCandidates(input: Omit<AilmentRollInput, "rng">): Ailment
           view.stat(AILMENT_STATS.maxStacks, context, scope),
           `${def.id} の最大スタック`,
         ).added;
-        maxStacks = Math.max(
-          1,
-          Math.floor(finite(def.stacking.maxStacks + extra, `${def.id} の最大スタック`)),
-        );
+        // 実際の上限は従来どおり（補正の後に小数を切り捨て、1未満は1。Q-U04b-2）。
+        // 定義の値は maxStacks に、補正は extraStacks に分けて渡し、apply() で定義と突き合わせる。
+        maxStacks = def.stacking.maxStacks;
+        extraStacks =
+          Math.max(
+            1,
+            Math.floor(finite(def.stacking.maxStacks + extra, `${def.id} の最大スタック`)),
+          ) - def.stacking.maxStacks;
       }
     }
     const application: AilmentApplication = {
@@ -209,8 +270,9 @@ export function ailmentCandidates(input: Omit<AilmentRollInput, "rng">): Ailment
       total,
       duration,
       maxStacks,
+      ...(extraStacks === undefined ? {} : { extraStacks }),
     };
-    validateAilmentApplication(application);
+    resolveMaxStacks(def, application);
     out.push({ application, chance });
   }
   return out;
@@ -257,11 +319,14 @@ export class AilmentState {
     this.defs = db.ailments;
   }
 
-  /** 状態異常を付与する。重ね掛けの規則は、状態異常の定義に従う。 */
+  /**
+   * 状態異常を付与する。重ね掛けの規則・最大スタックは、状態異常の定義データに従う。
+   * 入力は resolveMaxStacks で定義と突き合わせ、不正なら状態を変えずに例外にする。
+   */
   apply(app: AilmentApplication): void {
     const def = this.defs.get(app.ailmentId);
     if (def === undefined) throw new Error(`状態異常 ${app.ailmentId} はデータにない`);
-    validateAilmentApplication(app);
+    const max = resolveMaxStacks(def, app);
     if (def.kind === "debuff") {
       // 重ね掛けはせず、持続を新しくする
       const current = this.debuffs.get(def.id);
@@ -286,7 +351,6 @@ export class AilmentState {
         this.dots.set(def.id, [instance]);
       return;
     }
-    const max = app.maxStacks;
     if (max !== undefined && list.length >= max) {
       // 上限に達しているときは、残り時間が最も短いものと入れ替える
       let shortest = 0;
@@ -296,7 +360,7 @@ export class AilmentState {
       }
       list.splice(shortest, 1);
       // 上限が前の付与より小さい場合は、さらに古いものから取り除き、新しいものの分を空ける。
-      // max は1以上（validateAilmentApplication で検証済み）なので、取り除く数は有限で、繰り返しはない。
+      // max は1以上（resolveMaxStacks で検証済み）なので、取り除く数は有限で、繰り返しはない。
       const excess = list.length - (max - 1);
       if (excess > 0) list.splice(0, excess);
     }
@@ -398,11 +462,18 @@ export class AilmentState {
     return out;
   }
 
-  /** この敵が与えるダメージの倍率（衰弱など。仕様書v0.2 2.7）。 */
+  /**
+   * この敵が与えるダメージの倍率（衰弱など。仕様書v0.2 2.7）。
+   * 各倍率と、掛け合わせた途中の積・結果が有限であることを確かめる（NaN・Infinity は RangeError。0 などに丸めない）。
+   */
   dealtMultiplier(isBoss: boolean): number {
     let m = 1;
-    for (const d of this.debuffs.values())
-      m *= isBoss ? d.def.bossDealtMultiplier : d.def.dealtMultiplier;
+    for (const d of this.debuffs.values()) {
+      const factor = isBoss
+        ? finite(d.def.bossDealtMultiplier, `${d.def.id} の与えるダメージの倍率（ボス）`)
+        : finite(d.def.dealtMultiplier, `${d.def.id} の与えるダメージの倍率`);
+      m = finite(m * factor, `与えるダメージの倍率の積${isBoss ? "（ボス）" : ""}`);
+    }
     return m;
   }
 }

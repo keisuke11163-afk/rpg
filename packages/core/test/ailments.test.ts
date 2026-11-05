@@ -14,6 +14,7 @@ import {
   computeHit,
   countAilmentTypes,
   evaluateEffects,
+  resolveMaxStacks,
   rollAilments,
   staggerProfiles,
   staggerValue,
@@ -269,7 +270,8 @@ describe("付与率（開発計画書 T5・仕様書v0.2 2.7）", () => {
   it("持続と最大スタックの補正", () => {
     const c = candidates(["EFF-BLEED-DUR", "EFF-BLEED-STACKS"]);
     expect(c["TAG-AIL-BLEED"]?.application.duration).toBe(6);
-    expect(c["TAG-AIL-BLEED"]?.application.maxStacks).toBe(12);
+    expect(c["TAG-AIL-BLEED"]?.application.maxStacks).toBe(8); // 定義の値
+    expect(c["TAG-AIL-BLEED"]?.application.extraStacks).toBe(4); // 千の小傷の補正
   });
 
   it("回避されたヒットは何も付与しない", () => {
@@ -304,13 +306,18 @@ const app = (
   total: number,
   duration: number,
   maxStacks?: number,
+  extraStacks?: number,
 ): AilmentApplication => ({
   ailmentId: id,
   tag: tagId,
   total,
   duration,
   maxStacks,
+  ...(extraStacks === undefined ? {} : { extraStacks }),
 });
+/** 出血の付与（定義の最大スタック8 ＋ 補正）。 */
+const bleedApp = (total: number, duration: number, extraStacks?: number) =>
+  app("AIL-BLEED", "TAG-AIL-BLEED", total, duration, 8, extraStacks);
 
 describe("持続ダメージ（仕様書v0.2 2.7）", () => {
   const { db } = setup([]);
@@ -336,7 +343,7 @@ describe("持続ダメージ（仕様書v0.2 2.7）", () => {
     }
     expect(state.stacks("AIL-BLEED")).toBe(8);
     const more = new AilmentState(db);
-    for (let i = 0; i < 15; i++) more.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5, 12));
+    for (let i = 0; i < 15; i++) more.apply(bleedApp(1, 5, 4));
     expect(more.stacks("AIL-BLEED")).toBe(12);
   });
 
@@ -592,7 +599,8 @@ describe("局所の効果の出どころの判定（U-04a と同じ HitScope：�
     expect(bleed?.chance).toBeCloseTo(0.4);
     expect(bleed?.application.total).toBeCloseTo(10 * 1.5 * 2);
     expect(bleed?.application.duration).toBe(7);
-    expect(bleed?.application.maxStacks).toBe(12);
+    expect(bleed?.application.maxStacks).toBe(8);
+    expect(bleed?.application.extraStacks).toBe(4);
     expect(stagger).toBeCloseTo(10 * 0.3 * 2);
     expect(evaluate(onA(["EFF-LOCAL-FORCE-BLEED"]), WEAPON_A, MELEE).bleed?.chance).toBe(1);
   });
@@ -711,21 +719,22 @@ describe("付与の入力の検証と最大スタック", () => {
 
   it("正常な上限では従来どおり：上限に達したら残り時間の最も短いものと入れ替える", () => {
     const state = new AilmentState(db);
-    state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5, 2)); // 残り 5 → 4
+    // 補正 -6 で上限 2
+    state.apply(bleedApp(1, 5, -6)); // 残り 5 → 4
     state.tick(1);
-    state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 2, 5, 2)); // 残り 5
-    state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 4, 5, 2)); // 最も短い（総量1）と入れ替え
+    state.apply(bleedApp(2, 5, -6)); // 残り 5
+    state.apply(bleedApp(4, 5, -6)); // 最も短い（総量1）と入れ替え
     expect(state.stacks("AIL-BLEED")).toBe(2);
     expect(state.remainingDotTotal()).toBeCloseTo(2 + 4);
     const one = new AilmentState(db);
-    for (let i = 0; i < 5; i++) one.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5, 1));
+    for (let i = 0; i < 5; i++) one.apply(bleedApp(1, 5, -7));
     expect(one.stacks("AIL-BLEED")).toBe(1);
   });
 
   it("上限が前の付与より小さくなったときは、古いものから取り除いて上限に収める（従来どおり）", () => {
     const state = new AilmentState(db);
-    for (let i = 0; i < 12; i++) state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5, 12));
-    state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5, 8));
+    for (let i = 0; i < 12; i++) state.apply(bleedApp(1, 5, 4));
+    state.apply(bleedApp(1, 5));
     expect(state.stacks("AIL-BLEED")).toBe(8);
   });
 });
@@ -885,6 +894,7 @@ describe("非有限値（NaN・Infinity）とオーバーフローの検出", ()
       total: 10 * 1.5 * (1 + 0) * 1,
       duration: Math.max(0.1, (5 + 0) * (1 + 0)),
       maxStacks: 8,
+      extraStacks: 0,
     });
     expect(poison?.total).toBe((10 + 4) * 0.6 * (1 + 0) * 1);
     const state = new AilmentState(db);
@@ -897,5 +907,193 @@ describe("非有限値（NaN・Infinity）とオーバーフローの検出", ()
     g.add(10);
     g.update(4);
     expect(g.current).toBe(Math.max(0, 10 - 100 * 0.2 * 0.1 * 1));
+  });
+});
+
+describe("dealtMultiplier の非有限値（NaN・Infinity・オーバーフロー）", () => {
+  const { db } = setup([]);
+  const weaken = db.ailments.get("AIL-WEAKEN");
+  if (weaken?.kind !== "debuff") throw new Error("衰弱の定義がない");
+  /** スキーマを通らない不正な定義を、データの読み込みの後に差し込む（呼び出し側の防御の確認）。 */
+  const withDebuffs = (...defs: (typeof weaken)[]): ContentDb => {
+    const ailments = new Map(db.ailments);
+    for (const d of defs) ailments.set(d.id, d);
+    return { ...db, ailments };
+  };
+  const debuff = (id: string, dealt: number, boss: number): typeof weaken => ({
+    ...weaken,
+    id,
+    dealtMultiplier: dealt,
+    bossDealtMultiplier: boss,
+  });
+  const applyAll = (d: ContentDb, ids: string[]) => {
+    const state = new AilmentState(d);
+    for (const id of ids) state.apply(app(id, "TAG-AIL-WEAKEN", 0, 4));
+    return state;
+  };
+
+  it("通常の倍率は従来どおり（衰弱なし 1・衰弱 0.85・ボス 0.92）", () => {
+    const state = new AilmentState(db);
+    expect(state.dealtMultiplier(false)).toBe(1);
+    expect(state.dealtMultiplier(true)).toBe(1);
+    state.apply(app("AIL-WEAKEN", "TAG-AIL-WEAKEN", 0, 4));
+    expect(state.dealtMultiplier(false)).toBe(1 * 0.85);
+    expect(state.dealtMultiplier(true)).toBe(1 * 0.92);
+  });
+
+  it("複数の倍率の積は有限で、従来と同じ値（通常・ボスの両方）", () => {
+    const d = withDebuffs(debuff("AIL-TEST-A", 0.5, 0.75), debuff("AIL-TEST-B", 1e150, 1e150));
+    const state = applyAll(d, ["AIL-WEAKEN", "AIL-TEST-A", "AIL-TEST-B"]);
+    const normal = state.dealtMultiplier(false);
+    const boss = state.dealtMultiplier(true);
+    expect(Number.isFinite(normal)).toBe(true);
+    expect(Number.isFinite(boss)).toBe(true);
+    expect(normal).toBe(1 * 0.85 * 0.5 * 1e150);
+    expect(boss).toBe(1 * 0.92 * 0.75 * 1e150);
+  });
+
+  it("入力の倍率が NaN なら例外（通常・ボスのそれぞれ）", () => {
+    const normalBad = applyAll(withDebuffs(debuff("AIL-WEAKEN", NaN, 0.92)), ["AIL-WEAKEN"]);
+    expect(() => normalBad.dealtMultiplier(false)).toThrow(RangeError);
+    expect(() => normalBad.dealtMultiplier(false)).toThrow(/与えるダメージの倍率/);
+    expect(normalBad.dealtMultiplier(true)).toBe(0.92); // ボスの倍率は正常
+    const bossBad = applyAll(withDebuffs(debuff("AIL-WEAKEN", 0.85, NaN)), ["AIL-WEAKEN"]);
+    expect(() => bossBad.dealtMultiplier(true)).toThrow(/与えるダメージの倍率（ボス）/);
+    expect(bossBad.dealtMultiplier(false)).toBe(0.85);
+  });
+
+  it("入力の倍率が Infinity・-Infinity なら例外（通常・ボスのそれぞれ）", () => {
+    for (const bad of [Infinity, -Infinity]) {
+      const n = applyAll(withDebuffs(debuff("AIL-WEAKEN", bad, 0.92)), ["AIL-WEAKEN"]);
+      expect(() => n.dealtMultiplier(false)).toThrow(/有限の値にならない/);
+      const b = applyAll(withDebuffs(debuff("AIL-WEAKEN", 0.85, bad)), ["AIL-WEAKEN"]);
+      expect(() => b.dealtMultiplier(true)).toThrow(/有限の値にならない/);
+    }
+  });
+
+  it("有限の倍率どうしの積がオーバーフローしたら例外（0 などに丸めない。通常・ボスのそれぞれ）", () => {
+    const d = withDebuffs(debuff("AIL-TEST-A", 1e200, 1), debuff("AIL-TEST-B", 1e200, 1));
+    const state = applyAll(d, ["AIL-TEST-A", "AIL-TEST-B"]);
+    expect(() => state.dealtMultiplier(false)).toThrow(/与えるダメージの倍率の積/);
+    expect(state.dealtMultiplier(true)).toBe(1);
+    const db2 = withDebuffs(debuff("AIL-TEST-A", 1, 1e200), debuff("AIL-TEST-B", 1, -1e200));
+    const s2 = applyAll(db2, ["AIL-TEST-A", "AIL-TEST-B"]);
+    expect(() => s2.dealtMultiplier(true)).toThrow(/与えるダメージの倍率の積（ボス）/); // -Infinity
+    expect(s2.dealtMultiplier(false)).toBe(1);
+  });
+});
+
+describe("AilmentState.apply の最大スタックと定義データの整合性", () => {
+  const { db } = setup([]);
+  const filled = (n: number) => {
+    const state = new AilmentState(db);
+    for (let i = 0; i < n; i++) state.apply(bleedApp(1 + i, 5));
+    return state;
+  };
+
+  it("定義データどおりの最大スタック（出血 8）で付与でき、8 で止まる", () => {
+    const state = filled(20);
+    expect(state.stacks("AIL-BLEED")).toBe(8);
+    const def = (id: string) => {
+      const d = db.ailments.get(id);
+      if (d === undefined) throw new Error(`${id} の定義がない`);
+      return d;
+    };
+    expect(resolveMaxStacks(def("AIL-BLEED"), bleedApp(1, 5))).toBe(8);
+    expect(resolveMaxStacks(def("AIL-BLEED"), bleedApp(1, 5, 4))).toBe(12);
+    // 上限のない毒・重ならない燃焼・衰弱は、maxStacks を指定しない
+    expect(
+      resolveMaxStacks(def("AIL-POISON"), app("AIL-POISON", "TAG-AIL-POISON", 1, 3)),
+    ).toBeUndefined();
+  });
+
+  it("定義に上限があるのに maxStacks 未指定なら、無制限にせず例外。状態は変えない", () => {
+    const state = filled(8);
+    expect(() => {
+      state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 100, 5));
+    }).toThrow(/未指定/);
+    expect(state.stacks("AIL-BLEED")).toBe(8);
+    expect(state.remainingDotTotal()).toBe(1 + 2 + 3 + 4 + 5 + 6 + 7 + 8);
+  });
+
+  it("定義データと異なる最大スタックは例外（大きい値・小さい値とも）。状態は変えない", () => {
+    for (const other of [1, 7, 9, 12, 1000]) {
+      const state = filled(3);
+      expect(() => {
+        state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5, other));
+      }).toThrow(/定義（8）と一致しない/);
+      expect(state.stacks("AIL-BLEED")).toBe(3);
+    }
+    // 定義に上限のない状態異常に最大スタック・補正を指定するのも例外
+    for (const bad of [
+      app("AIL-POISON", "TAG-AIL-POISON", 1, 3, 8),
+      app("AIL-POISON", "TAG-AIL-POISON", 1, 3, undefined, 2),
+      app("AIL-BURN", "TAG-AIL-BURN", 1, 4, 1),
+      app("AIL-WEAKEN", "TAG-AIL-WEAKEN", 0, 4, 1),
+    ]) {
+      const state = new AilmentState(db);
+      expect(() => {
+        state.apply(bad);
+      }).toThrow(/定義に上限がない/);
+      expect(state.activeTags()).toEqual([]);
+    }
+    // 定義とタグが食い違うのも例外
+    expect(() => {
+      new AilmentState(db).apply(app("AIL-BLEED", "TAG-AIL-POISON", 1, 5, 8));
+    }).toThrow(/タグ/);
+  });
+
+  it("最大スタック・補正の 0・負の数・小数・NaN・Infinity は例外。状態は変えない", () => {
+    for (const bad of [0, -1, -8, 1.5, 8.5, NaN, Infinity, -Infinity]) {
+      const state = filled(2);
+      expect(() => {
+        state.apply(app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5, bad));
+      }).toThrow(/最大スタック/);
+      expect(state.stacks("AIL-BLEED")).toBe(2);
+    }
+    for (const bad of [0.5, -0.5, NaN, Infinity, -Infinity, -8, -9, Number.MAX_SAFE_INTEGER]) {
+      const state = filled(2);
+      expect(() => {
+        state.apply(bleedApp(1, 5, bad));
+      }).toThrow(/最大スタック/);
+      expect(state.stacks("AIL-BLEED")).toBe(2);
+      expect(state.remainingDotTotal()).toBe(1 + 2);
+    }
+  });
+
+  it("上限に達したら従来どおり、残り時間の最も短いものと入れ替える（上限を超えない）", () => {
+    const state = new AilmentState(db);
+    for (let i = 0; i < 8; i++) {
+      state.apply(bleedApp(1, 5));
+      state.tick(0.1);
+    }
+    // 残り時間：最も古いものが 4.2 秒、最も新しいものが 4.9 秒。最も古いもの（残り 4.2/5）を入れ替える
+    const before = state.remainingDotTotal();
+    state.apply(bleedApp(100, 5));
+    expect(state.stacks("AIL-BLEED")).toBe(8);
+    expect(state.remainingDotTotal()).toBeCloseTo(before - 4.2 / 5 + 100);
+    const exact = new AilmentState(db);
+    for (let i = 0; i < 8; i++) exact.apply(bleedApp(1, 5));
+    exact.apply(bleedApp(100, 5));
+    expect(exact.stacks("AIL-BLEED")).toBe(8);
+    expect(exact.remainingDotTotal()).toBe(7 + 100);
+  });
+
+  it("不正な付与の後も、既存の状態はそのまま使える", () => {
+    const state = filled(8);
+    for (const bad of [
+      app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5),
+      app("AIL-BLEED", "TAG-AIL-BLEED", 1, 5, 12),
+      bleedApp(1, 5, NaN),
+      bleedApp(NaN, 5),
+    ])
+      expect(() => {
+        state.apply(bad);
+      }).toThrow(RangeError);
+    expect(state.stacks("AIL-BLEED")).toBe(8);
+    expect(state.tick(5).physical).toBeCloseTo(1 + 2 + 3 + 4 + 5 + 6 + 7 + 8);
+    expect(state.stacks("AIL-BLEED")).toBe(0);
+    state.apply(bleedApp(3, 5));
+    expect(state.stacks("AIL-BLEED")).toBe(1);
   });
 });
