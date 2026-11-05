@@ -24,7 +24,10 @@ export type EquipSlot = (typeof EQUIP_SLOTS)[number];
  * - crit：会心（例：急所穿ち「5点なら必ず会心」、盲目の賢者の目隠し「会心しない」）
  * - ailmentApply：状態異常の付与（対象の状態異常のタグが必要。例：千の小傷「必ず出血を付与」）
  * - beStaggered：崩される（例：重荷の誇り「崩されなくなる」）
- * - spawnMinion：召喚物を生む（例：一騎当千「召喚物を維持できない」）
+ * - spawnMinion：召喚物を生む（例：一騎当千「召喚物を維持できない」）。
+ *   U-03 が持つのは印の評価と問い合わせ（`ModifierView.flag("spawnMinion", …)`）まで。
+ *   召喚物を実際に生む処理はまだなく、それを実装する単位が、生む前にこの印を問い合わせ、
+ *   `forbid` なら生まないようにする（規則3。docs/progress/開発進捗.md の U-03 を参照）。
  */
 export const FLAGS = ["crit", "ailmentApply", "beStaggered", "spawnMinion"] as const;
 export type FlagId = (typeof FLAGS)[number];

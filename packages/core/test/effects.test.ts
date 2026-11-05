@@ -648,6 +648,41 @@ describe("重ねた数（stacks）の検証と、0のときの扱い", () => {
     ).toBeCloseTo(3);
   });
 
+  it("安全な整数の範囲外は RangeError、Number.MAX_SAFE_INTEGER までは受け付ける", () => {
+    for (const bad of [
+      Number.MAX_SAFE_INTEGER + 1, // 2^53：Number.isInteger では true になってしまう値
+      Number.MAX_SAFE_INTEGER + 2,
+      2 ** 60,
+      Number.MAX_VALUE,
+      -Number.MAX_SAFE_INTEGER,
+      -(Number.MAX_SAFE_INTEGER + 1),
+    ]) {
+      expect(() => evaluateEffects(db, index, [inst("EFF-Z-INC", bad)]), String(bad)).toThrow(
+        RangeError,
+      );
+      expect(
+        () =>
+          evaluateEffects(db, index, [inst("EFF-Z-COND", bad)], {
+            ...facts,
+            mainJob: "TAG-JOB-ROGUE",
+          }),
+        `条件付き ${String(bad)}`,
+      ).toThrow(RangeError);
+      expect(
+        () => new ModifierView(db, index, [inst("EFF-Z-INC", bad)], {}),
+        `ModifierView ${String(bad)}`,
+      ).toThrow(RangeError);
+    }
+    // 境界：Number.MAX_SAFE_INTEGER ちょうどは受け付ける
+    const max = Number.MAX_SAFE_INTEGER;
+    expect(
+      evaluateEffects(db, index, [inst("EFF-Z-INC", max)]).active.map((i) => i.stacks),
+    ).toEqual([max]);
+    expect(
+      new ModifierView(db, index, [inst("EFF-Z-INC", max)], {}).stat("STAT-DAMAGE").increased,
+    ).toBe(0.3 * max);
+  });
+
   it("stacks の省略は1として働く（プロパティなし・実行時の undefined のどちらも）", () => {
     const omitted = evaluateEffects(
       db,
