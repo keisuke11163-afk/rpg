@@ -3,6 +3,7 @@ import { ELEMENTS } from "../content/effect.ts";
 import { CONVERSION_ORDER, ELEMENT_TAG } from "../content/elements.ts";
 import type { ContentDb } from "../content/load.ts";
 import type { HitScope, ModifierView, Range, StatResult } from "../effects/evaluate.ts";
+import { requireFinite } from "../effects/evaluate.ts";
 import type { Rng } from "../random/rng.ts";
 import { armorReduction, hitChance } from "./defense.ts";
 import {
@@ -158,6 +159,15 @@ function collectParts(db: ContentDb, result: StatResult, pipeline: Pipeline): Pa
 const lerp = (r: Range, t: number): number => r.min + (r.max - r.min) * t;
 
 /**
+ * ダメージの計算の途中の値が有限であることを確かめる（NaN・Infinity は RangeError）。
+ * 有限の値どうしの積・和でも Infinity になることがあり（例：1e300 × 1e10、1e308 ＋ 1e308）、
+ * NaN は「> 0」などの比較で黙って捨てられてしまうので、比較・合計に使う前の段階の境目で検証する。
+ * 異常な値を 0 などに置き換えることはしない。
+ */
+const finite = (value: number, what: string): number =>
+  requireFinite(value, () => `ダメージの計算の${what}`);
+
+/**
  * 属性の変換（仕様書 2.5）。上流から順に処理し、変換された分は元と先の両方の属性を「通ってきた属性」に持つ。
  * 1つの属性からの変換の合計が100%を超える場合は、比例して100%に縮める。
  */
@@ -219,11 +229,17 @@ export function computeHit(
   // 命中（呪文は回避されない。必中の印があれば回避を無視する）
   const alwaysHit = view.flag("alwaysHit", undefined, contextTags, scope).resolution === "force";
   const accuracy = view.stat(COMBAT_STATS.accuracy, contextTags, scope).value;
-  const chanceToHit =
-    skill.kind === "spell" || alwaysHit ? 1 : hitChance(defender.evasion ?? 0, accuracy);
+  const chanceToHit = finite(
+    skill.kind === "spell" || alwaysHit ? 1 : hitChance(defender.evasion ?? 0, accuracy),
+    "命中率",
+  );
   const hitRoll = average ? 0 : rng.next();
 
   // 会心
+  // 基本の会心率：武器の技は、そのヒットに使う武器の会心率（仕様書v0.2 2.4「基本の会心率は武器による」）。
+  // 呪文も、持っている武器（attacker.weapon）の会心率を使い、武器がなければ0にしている。
+  // 呪文の基本の会心率は仕様書に書かれていない未確定事項（D-U04a-7）で、これは仮の扱い。
+  // 決定が出るまで変えない（局所の効果の範囲 scope とは別で、呪文では scope の武器は undefined）。
   const critParts = collectParts(db, view.stat(COMBAT_STATS.critChance, contextTags, scope), "hit");
   const critBase =
     (attacker.weapon?.critChance ?? 0) + (critParts.added.min + critParts.added.max) / 2;
@@ -233,15 +249,17 @@ export function computeHit(
       ? 0
       : critFlag === "force"
         ? 1
-        : Math.min(1, Math.max(0, critBase * (1 + critParts.increased)));
+        : Math.min(1, Math.max(0, finite(critBase * (1 + critParts.increased), "会心率")));
   const critRoll = average ? 1 : rng.next();
   const multParts = collectParts(
     db,
     view.stat(COMBAT_STATS.critMultiplier, contextTags, scope),
     "hit",
   );
-  const critMultiplier =
-    BASE_CRIT_MULTIPLIER + (multParts.added.min + multParts.added.max) / 2 + multParts.increased;
+  const critMultiplier = finite(
+    BASE_CRIT_MULTIPLIER + (multParts.added.min + multParts.added.max) / 2 + multParts.increased,
+    "会心倍率",
+  );
 
   // 技レベル（基本の技レベルと、詞による上乗せ）
   const level = baseSkillLevel(attacker.characterLevel);
@@ -281,7 +299,7 @@ export function computeHit(
         baseRange === undefined ? 0 : lerp(baseRange, rollAt[element] ?? 0.5) * spellMult;
       const added = lerp(parts.added, rollAt[element] ?? 0.5);
       const fixed = lerp(parts.fixed, rollAt[element] ?? 0.5);
-      const amount = (base + added) * skillPct + fixed;
+      const amount = finite((base + added) * skillPct + fixed, `基礎値（${element}）`);
       if (amount > 0) before.push({ element, amount, lineage: [element] });
     }
     // 2. 変換 → 付け替え（付け替えた後は、その属性の補正だけを受ける）
@@ -290,13 +308,16 @@ export function computeHit(
       const rule = retags.find((r) => r.from.includes(p.element));
       return rule === undefined ? p : { element: rule.to, amount: p.amount, lineage: [rule.to] };
     });
-    // 3. ×（1＋加算）×乗算
+    // 3. ×（1＋加算）×乗算（変換・付け替えの後の値も、ここで合わせて検証する）
     const amounts: Partial<Record<Element, number>> = {};
     for (const p of after) {
       const tags = [...contextTags, ...p.lineage.map((e) => ELEMENT_TAG[e])];
       const parts = collectParts(db, view.stat(COMBAT_STATS.damage, tags, scope), pipeline);
       const increased = parts.increased + AFFIX_SKILL_LEVEL_INCREASED * affixLevels;
-      amounts[p.element] = (amounts[p.element] ?? 0) + p.amount * (1 + increased) * parts.more;
+      amounts[p.element] = finite(
+        (amounts[p.element] ?? 0) + p.amount * (1 + increased) * parts.more,
+        `${pipeline === "hit" ? "打撃値" : "基準値"}（${p.element}・加算と乗算の後）`,
+      );
     }
     return { before, after, amounts };
   };
@@ -324,9 +345,9 @@ export function computeHit(
         amount * (crit ? critMultiplier : 1) * taken * (1 - (defender.resist?.[element] ?? 0));
       if (element === "physical") value *= 1 - armorReduction(defender.armor ?? 0, value);
       value *= 1 - guard;
-      value = Math.max(0, value);
+      value = Math.max(0, finite(value, `最終の打撃値（${element}）`));
       damage[element] = value;
-      total += value;
+      total = finite(total + value, "最終の打撃値の合計");
     }
   }
 
@@ -360,5 +381,5 @@ export function expectedHitDamage(
 ): number {
   const r = computeHit(attacker, skill, defender, { rng, roll: "average" });
   const critFactor = 1 + r.critChance * (r.critMultiplier - 1);
-  return r.total * critFactor * r.hitChance;
+  return finite(r.total * critFactor * r.hitChance, "期待値");
 }

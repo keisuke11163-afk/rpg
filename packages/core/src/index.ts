@@ -53,6 +53,7 @@ export {
 export { type Condition } from "./content/effect.ts";
 export { TagIndex } from "./effects/tag-index.ts";
 export {
+  EQUIPMENT_SOURCE_KIND,
   ModifierView,
   evaluateEffects,
   type ActiveBehavior,

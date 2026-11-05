@@ -7,6 +7,7 @@ import {
   type DamageSkill,
   type EffectInstance,
   CONVERSION_ORDER,
+  EQUIPMENT_SOURCE_KIND,
   Rng,
   TagIndex,
   applyConversions,
@@ -688,5 +689,204 @@ describe("局所の効果の適用範囲（仕様書v0.2 3.7 の原則5・H-08�
     const a = attackerFrom(onSword("EFF-LOCAL-SKILL-LV2", "EFF-LOCAL-TO-FIRE"));
     expect(a.view.stat("STAT-SKILL-LEVEL").value).toBe(2);
     expect(a.view.conversions()).toHaveLength(1);
+  });
+});
+
+describe("ダメージの計算の非有限値（NaN・Infinity）の検出", () => {
+  const db = buildDb({
+    ...fixture,
+    effects: [
+      effect("EFF-MORE-10", "unique", [{ kind: "more", stat: "STAT-DAMAGE", value: 10 }]),
+      effect("EFF-RETAG-COLD", "keystone", [
+        { kind: "retag", from: ["physical", "fire"], to: "cold" },
+      ]),
+      effect("EFF-CRIT-INC", "affix", [{ kind: "increased", stat: "STAT-CRIT-CHANCE", value: 10 }]),
+    ],
+  });
+  const HUGE = 1e308;
+
+  it("有限の値どうしの乗算で Infinity になる（基礎値 1e300 × 乗算 1e10）と RangeError", () => {
+    // 乗算×10 を10重ねて、乗算の積 1e10（有限。効果の評価の検証は通る）にする
+    const { view } = evaluateEffects(db, new TagIndex(db.tags), [
+      { effectId: "EFF-MORE-10", source: { kind: "test", ref: "x" }, stacks: 10 },
+    ]);
+    expect(view.stat("STAT-DAMAGE").more).toBeCloseTo(1e10);
+    const a: DamageAttacker = {
+      db,
+      view,
+      characterLevel: 1,
+      weapon: { ...LONGSWORD, base: { physical: { min: 1e300, max: 1e300 } } },
+    };
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(RangeError);
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/打撃値（physical・加算と乗算の後）/);
+  });
+
+  it("有限の値どうしの乗算で Infinity になる（基礎値 1.5e308 × 技倍率 1.3）と RangeError", () => {
+    const a = attackerWith(db, [], {
+      weapon: { ...LONGSWORD, base: { physical: { min: 1.5e308, max: 1.5e308 } } },
+    });
+    // 技倍率1.0なら有限
+    expect(Number.isFinite(computeHit(a, BASIC, {}, avg).total)).toBe(true);
+    expect(() => computeHit(a, SWEEP, {}, avg)).toThrow(/基礎値（physical）/);
+  });
+
+  it("同じ属性への合算（付け替えで物理と火が冷気に集まる）の加算で Infinity になると RangeError", () => {
+    const a = attackerWith(db, ["EFF-RETAG-COLD"], {
+      weapon: {
+        ...LONGSWORD,
+        base: { physical: { min: HUGE, max: HUGE }, fire: { min: HUGE, max: HUGE } },
+      },
+    });
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/打撃値（cold・加算と乗算の後）/);
+  });
+
+  it("属性ごとの値は有限でも、最終の打撃値の合計の加算が Infinity になると RangeError", () => {
+    const a = attackerWith(db, [], {
+      weapon: {
+        ...LONGSWORD,
+        base: { physical: { min: HUGE, max: HUGE }, fire: { min: HUGE, max: HUGE } },
+      },
+    });
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/最終の打撃値の合計/);
+  });
+
+  it("敵が受けるダメージの倍率をかけた最終の打撃値が Infinity になると RangeError", () => {
+    const a = attackerWith(db, [], {
+      weapon: { ...LONGSWORD, base: { physical: { min: HUGE, max: HUGE } } },
+    });
+    expect(() => computeHit(a, BASIC, { takenMultiplier: 2 }, avg)).toThrow(
+      /最終の打撃値（physical）/,
+    );
+  });
+
+  it("会心率の計算が Infinity になると RangeError（上限100%に丸めて隠さない）", () => {
+    const a = attackerWith(db, ["EFF-CRIT-INC"], {
+      weapon: { ...LONGSWORD, critChance: HUGE },
+    });
+    expect(() => computeHit(a, BASIC, {}, avg)).toThrow(/会心率/);
+  });
+
+  it("NaN が混入する（武器の基礎値・耐性・防具値・ガード・回避値・敵が受けるダメージの倍率・会心率）と RangeError", () => {
+    const nanBase = attackerWith(db, [], {
+      weapon: { ...LONGSWORD, base: { physical: { min: NaN, max: 10 } } },
+    });
+    expect(() => computeHit(nanBase, BASIC, {}, avg)).toThrow(RangeError);
+    const a = attackerWith(db, []);
+    for (const defender of [
+      { resist: { physical: NaN } },
+      { armor: NaN },
+      { guard: NaN },
+      { evasion: NaN },
+      { takenMultiplier: NaN },
+    ]) {
+      expect(() => computeHit(a, BASIC, defender, avg)).toThrow(RangeError);
+    }
+    const nanCrit = attackerWith(db, [], { weapon: { ...LONGSWORD, critChance: NaN } });
+    expect(() => computeHit(nanCrit, BASIC, {}, avg)).toThrow(/会心率/);
+  });
+
+  it("期待値の計算で Infinity になる（打撃値は有限、会心の期待値をかけると溢れる）と RangeError", () => {
+    const a = attackerWith(db, [], {
+      weapon: { ...LONGSWORD, critChance: 0.5, base: { physical: { min: 1.5e308, max: 1.5e308 } } },
+    });
+    // 1回のヒットの打撃値そのものは有限
+    expect(Number.isFinite(computeHit(a, BASIC, {}, avg).total)).toBe(true);
+    expect(() => expectedHitDamage(a, BASIC, {}, Rng.fromSeed(1))).toThrow(/期待値/);
+  });
+
+  it("通常のダメージの計算は従来どおり（有限の値では結果が変わらない）", () => {
+    const a = attackerWith(db, []);
+    const r = computeHit(a, BASIC, { resist: { physical: 0.2 }, guard: 0.1 }, avg);
+    expect(r.damage.physical).toBeCloseTo(8.5 * 0.8 * 0.9);
+    expect(r.total).toBeCloseTo(8.5 * 0.8 * 0.9);
+    expect(r.ailmentBase.physical).toBeCloseTo(8.5);
+    expect(expectedHitDamage(a, BASIC, {}, Rng.fromSeed(1))).toBeCloseTo(
+      8.5 * (1 + LONGSWORD.critChance * 0.5),
+    );
+  });
+});
+
+describe("局所の効果の出どころの判定（種類と uid の両方）", () => {
+  const db = buildDb({
+    ...fixture,
+    effects: [
+      effect("EFF-LOCAL-MORE", "unique", [{ kind: "more", stat: "STAT-DAMAGE", value: 1.5 }], {
+        locality: "local",
+      }),
+      effect("EFF-GLOBAL-INC-30", "minorStar", [
+        { kind: "increased", stat: "STAT-DAMAGE", value: 0.3 },
+      ]),
+    ],
+  });
+  const FLAT_SWORD = { ...LONGSWORD, base: { physical: { min: 10, max: 10 } } };
+  const FLAT_SCYTHE = { ...SCYTHE, base: { physical: { min: 10, max: 10 } } };
+  const FLAT_FIREBALL: DamageSkill = { ...FIREBALL, base: { fire: { min: 10, max: 10 } } };
+  const attacker = (
+    sources: readonly { id: string; kind: string; ref: string }[],
+    weapon: DamageAttacker["weapon"] = FLAT_SWORD,
+  ): DamageAttacker => {
+    const { view } = evaluateEffects(
+      db,
+      new TagIndex(db.tags),
+      sources.map(({ id, kind, ref }) => ({ effectId: id, source: { kind, ref } })),
+    );
+    return { db, view, characterLevel: 1, weapon };
+  };
+  const onSword = { id: "EFF-LOCAL-MORE", kind: EQUIPMENT_SOURCE_KIND, ref: LONGSWORD.uid };
+
+  it("出どころの種類が装備で、uid がそのヒットの武器と一致すれば効く", () => {
+    const a = attacker([onSword]);
+    expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(15);
+    expect(a.view.stat("STAT-DAMAGE", [], { weaponUid: LONGSWORD.uid }).more).toBeCloseTo(1.5);
+  });
+
+  it("uid だけが一致し、出どころの種類が装備でなければ効かない", () => {
+    for (const kind of ["starNode", "jobNode", "buff", "test"]) {
+      const a = attacker([{ ...onSword, kind }]);
+      expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(10);
+      expect(a.view.stat("STAT-DAMAGE", [], { weaponUid: LONGSWORD.uid }).more).toBe(1);
+    }
+  });
+
+  it("別の武器の出どころの局所の効果は、このヒットに効かない", () => {
+    const a = attacker([onSword], FLAT_SCYTHE);
+    expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(10);
+  });
+
+  it("呪文には、武器の局所の効果が効かない", () => {
+    const a = attacker([onSword]);
+    expect(computeHit(a, FLAT_FIREBALL, {}, avg).damage).toEqual({ fire: 10 });
+  });
+
+  it("グローバルの効果は、出どころの種類に関係なく、武器と呪文の両方に引き続き効く", () => {
+    for (const kind of [EQUIPMENT_SOURCE_KIND, "starNode"]) {
+      const a = attacker([{ id: "EFF-GLOBAL-INC-30", kind, ref: LONGSWORD.uid }]);
+      expect(computeHit(a, BASIC, {}, avg).damage.physical).toBeCloseTo(13);
+      expect(computeHit({ ...a, weapon: FLAT_SCYTHE }, BASIC, {}, avg).damage.physical).toBeCloseTo(
+        13,
+      );
+      expect(computeHit(a, FLAT_FIREBALL, {}, avg).damage.fire).toBeCloseTo(13);
+    }
+  });
+});
+
+describe("会心率の計算経路：武器の技と呪文（現行実装の動作確認。呪文の基本の会心率は未確定 D-U04a-7）", () => {
+  const db = buildDb({ ...fixture, effects: [] });
+
+  it("武器の技は、そのヒットに使う武器の基本の会心率を使う（仕様書v0.2 2.4）", () => {
+    expect(computeHit(attackerWith(db, []), BASIC, {}, avg).critChance).toBeCloseTo(
+      LONGSWORD.critChance,
+    );
+    expect(
+      computeHit(attackerWith(db, [], { weapon: SCYTHE }), BASIC, {}, avg).critChance,
+    ).toBeCloseTo(SCYTHE.critChance);
+  });
+
+  it("現行実装では、呪文は持っている武器の基本の会心率を使い、武器がなければ0になる（D-U04a-7：未確定の仮の扱い）", () => {
+    expect(computeHit(attackerWith(db, []), FIREBALL, {}, avg).critChance).toBeCloseTo(
+      LONGSWORD.critChance,
+    );
+    const { view } = evaluateEffects(db, new TagIndex(db.tags), []);
+    expect(computeHit({ db, view, characterLevel: 1 }, FIREBALL, {}, avg).critChance).toBe(0);
   });
 });
