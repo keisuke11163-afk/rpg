@@ -192,5 +192,16 @@
     "id": "STAT-EFFECT-DURATION",
     "text": "stat.effect-duration",
     "unit": "ratio"
+  },
+  {
+    "id": "STAT-MOVE-SPEED",
+    "text": "stat.move-speed",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-COOLDOWN-REDUCTION",
+    "text": "stat.cooldown-reduction",
+    "unit": "ratio",
+    "min": 0
   }
 ]

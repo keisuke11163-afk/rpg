@@ -1,0 +1,342 @@
+[
+  {
+    "id": "AFX-PRE-ADDED-PHYSICAL-WPN",
+    "text": "item.affix.added-physical",
+    "position": "prefix",
+    "categories": ["weapon"],
+    "effect": "EFF-AFX-ADDED-PHYSICAL",
+    "roll": "added",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 3
+      },
+      {
+        "tier": 4,
+        "min": 6,
+        "max": 11
+      },
+      {
+        "tier": 1,
+        "min": 18,
+        "max": 32
+      },
+      {
+        "tier": 0,
+        "min": 24,
+        "max": 40
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-PRE-ADDED-FIRE-WPN",
+    "text": "item.affix.added-fire",
+    "position": "prefix",
+    "categories": ["weapon"],
+    "effect": "EFF-AFX-ADDED-FIRE",
+    "roll": "added",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 4
+      },
+      {
+        "tier": 4,
+        "min": 7,
+        "max": 13
+      },
+      {
+        "tier": 1,
+        "min": 20,
+        "max": 38
+      },
+      {
+        "tier": 0,
+        "min": 26,
+        "max": 46
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-PRE-INC-PHYSICAL-WPN",
+    "text": "item.affix.increased-physical",
+    "position": "prefix",
+    "categories": ["weapon"],
+    "effect": "EFF-AFX-INC-PHYSICAL-LOCAL",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 10,
+        "max": 19
+      },
+      {
+        "tier": 4,
+        "min": 40,
+        "max": 54
+      },
+      {
+        "tier": 1,
+        "min": 80,
+        "max": 99
+      },
+      {
+        "tier": 0,
+        "min": 100,
+        "max": 115
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-PRE-HP-MAX",
+    "text": "item.affix.hp-max",
+    "position": "prefix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-AFX-HP-MAX",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 10,
+        "max": 19
+      },
+      {
+        "tier": 4,
+        "min": 50,
+        "max": 69
+      },
+      {
+        "tier": 1,
+        "min": 120,
+        "max": 139
+      },
+      {
+        "tier": 0,
+        "min": 150,
+        "max": 170
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-SUF-ATTACK-SPEED",
+    "text": "item.affix.attack-speed",
+    "position": "suffix",
+    "categories": ["weapon", "hands", "ring"],
+    "effect": "EFF-AFX-ATTACK-SPEED",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 50,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 3,
+        "max": 4
+      },
+      {
+        "tier": 4,
+        "min": 7,
+        "max": 9
+      },
+      {
+        "tier": 1,
+        "min": 14,
+        "max": 16
+      },
+      {
+        "tier": 0,
+        "min": 17,
+        "max": 19
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-SUF-CRIT-CHANCE",
+    "text": "item.affix.crit-chance",
+    "position": "suffix",
+    "categories": ["weapon", "neck"],
+    "effect": "EFF-AFX-CRIT-CHANCE",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 50,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 10,
+        "max": 14
+      },
+      {
+        "tier": 4,
+        "min": 20,
+        "max": 24
+      },
+      {
+        "tier": 1,
+        "min": 35,
+        "max": 38
+      },
+      {
+        "tier": 0,
+        "min": 40,
+        "max": 44
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-SUF-RESIST-FIRE",
+    "text": "item.affix.resist-fire",
+    "position": "suffix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-AFX-RESIST-FIRE",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 6,
+        "max": 11
+      },
+      {
+        "tier": 4,
+        "min": 24,
+        "max": 29
+      },
+      {
+        "tier": 1,
+        "min": 41,
+        "max": 45
+      },
+      {
+        "tier": 0,
+        "min": 46,
+        "max": 48
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-SUF-AILMENT-CHANCE",
+    "text": "item.affix.ailment-chance",
+    "position": "suffix",
+    "categories": ["weapon", "hands", "neck"],
+    "effect": "EFF-AFX-AILMENT-CHANCE",
+    "roll": "fixed",
+    "scale": 0.01,
+    "weight": 50,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 3,
+        "max": 3
+      },
+      {
+        "tier": 4,
+        "min": 8,
+        "max": 8
+      },
+      {
+        "tier": 1,
+        "min": 15,
+        "max": 15
+      },
+      {
+        "tier": 0,
+        "min": 18,
+        "max": 18
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-SUF-MOVE-SPEED",
+    "text": "item.affix.move-speed",
+    "position": "suffix",
+    "categories": ["feet"],
+    "effect": "EFF-AFX-MOVE-SPEED",
+    "roll": "fixed",
+    "scale": 0.01,
+    "weight": 50,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 10,
+        "max": 10
+      },
+      {
+        "tier": 4,
+        "min": 15,
+        "max": 15
+      },
+      {
+        "tier": 1,
+        "min": 25,
+        "max": 25
+      },
+      {
+        "tier": 0,
+        "min": 28,
+        "max": 28
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-SUF-COOLDOWN-REDUCTION",
+    "text": "item.affix.cooldown-reduction",
+    "position": "suffix",
+    "categories": ["head", "neck"],
+    "effect": "EFF-AFX-COOLDOWN-REDUCTION",
+    "roll": "fixed",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 3,
+        "max": 3
+      },
+      {
+        "tier": 4,
+        "min": 6,
+        "max": 6
+      },
+      {
+        "tier": 1,
+        "min": 10,
+        "max": 10
+      },
+      {
+        "tier": 0,
+        "min": 12,
+        "max": 12
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  }
+]

@@ -252,3 +252,46 @@ export {
   type CharacterInit,
   type XpGain,
 } from "./character/progression.ts";
+
+export {
+  AFFIX_SLOTS,
+  AFFIX_TIERS,
+  ATTRIBUTES,
+  BASE_CATEGORIES,
+  DROP_SOURCES,
+  ITEM_RARITIES,
+  RARE_OR_BETTER,
+  TIER_MIN_ILVL,
+  type AffixDef,
+  type AffixTier,
+  type Attribute,
+  type BaseCategory,
+  type DropProfileDef,
+  type DropSource,
+  type ItemBaseDef,
+  type ItemRarity,
+  type MaterialDef,
+  type MaterialDropDef,
+  type RarityDef,
+} from "./content/item.ts";
+export { type TierValue, affixTierValues, eligibleTiers, tierWeights } from "./items/tiers.ts";
+export { type RarityRollInput, rarityWeights, rollRarity } from "./items/rarity.ts";
+export {
+  EQUIPMENT_SOURCE,
+  type GenerateItemInput,
+  type ItemInstance,
+  type RolledAffix,
+  candidateAffixes,
+  generateItem,
+  itemEffectInstances,
+  rollAffixValue,
+} from "./items/generate.ts";
+export {
+  JOB_TARGETED_SHARE,
+  type DropInput,
+  type DropResult,
+  dropItemLevel,
+  droppableBases,
+  jobTargetedBases,
+  rollDrops,
+} from "./items/drops.ts";

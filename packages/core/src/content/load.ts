@@ -15,6 +15,20 @@ import {
 } from "./enemy.ts";
 import { KNOWN_HOOKS, SKILL_HOOK_PARAMS } from "./hooks.ts";
 import {
+  type AffixDef,
+  type DropProfileDef,
+  type DropSource,
+  type ItemBaseDef,
+  type ItemRarity,
+  type MaterialDef,
+  type RarityDef,
+  affixSchema,
+  dropProfileSchema,
+  itemBaseSchema,
+  materialSchema,
+  raritySchema,
+} from "./item.ts";
+import {
   type GaugeDef,
   type JobDef,
   type SkillDef,
@@ -53,6 +67,12 @@ export interface RawContent {
     /** 敵の種類と格の定義（省略すると無し）。 */
     readonly enemies?: readonly RawSource[];
     readonly enemyRanks?: readonly RawSource[];
+    /** アイテム：レアリティ・ベース・詞・素材・ドロップ（省略すると無し）。 */
+    readonly rarities?: readonly RawSource[];
+    readonly itemBases?: readonly RawSource[];
+    readonly affixes?: readonly RawSource[];
+    readonly materials?: readonly RawSource[];
+    readonly dropProfiles?: readonly RawSource[];
   };
 }
 
@@ -102,6 +122,13 @@ export interface ContentDb {
   readonly enemies: ReadonlyMap<string, EnemyDef>;
   /** 格 → 定義。 */
   readonly enemyRanks: ReadonlyMap<EnemyRank, EnemyRankDef>;
+  /** レアリティ → 定義。 */
+  readonly rarities: ReadonlyMap<ItemRarity, RarityDef>;
+  readonly itemBases: ReadonlyMap<string, ItemBaseDef>;
+  readonly affixes: ReadonlyMap<string, AffixDef>;
+  readonly materials: ReadonlyMap<string, MaterialDef>;
+  /** ドロップの出どころ → 定義。 */
+  readonly dropProfiles: ReadonlyMap<DropSource, DropProfileDef>;
 }
 
 export type LoadResult =
@@ -206,6 +233,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const jobs = parseAll(raw.collections.jobs ?? [], jobSchema);
   const enemies = parseAll(raw.collections.enemies ?? [], enemySchema);
   const enemyRanks = parseAll(raw.collections.enemyRanks ?? [], enemyRankSchema);
+  const rarities = parseAll(raw.collections.rarities ?? [], raritySchema);
+  const itemBases = parseAll(raw.collections.itemBases ?? [], itemBaseSchema);
+  const affixes = parseAll(raw.collections.affixes ?? [], affixSchema);
+  const materials = parseAll(raw.collections.materials ?? [], materialSchema);
+  const dropProfiles = parseAll(raw.collections.dropProfiles ?? [], dropProfileSchema);
 
   // 3. IDの重複（全てのコレクションを通して）
   const seen = new Map<string, string>();
@@ -219,6 +251,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     ...jobs,
     ...enemies,
     ...enemyRanks,
+    ...rarities,
+    ...itemBases,
+    ...affixes,
+    ...materials,
+    ...dropProfiles,
   ];
   for (const { value, file } of all) {
     const prev = seen.get(value.id);
@@ -794,9 +831,163 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     else rankMap.set(rank.rank, rank);
   }
 
+  // 10. アイテム：レアリティ・ベース・詞・素材・ドロップ
+  const rarityMap = new Map<ItemRarity, RarityDef>();
+  for (const { value: r, file } of rarities) {
+    checkText(r.text, file, r.id);
+    if (r.affixes.min > r.affixes.max)
+      err({
+        code: "schema",
+        file,
+        id: r.id,
+        path: "affixes",
+        message: "詞の数の最小が最大を超えている",
+      });
+    if (rarityMap.has(r.rarity))
+      err({
+        code: "duplicate-id",
+        file,
+        id: r.id,
+        path: "rarity",
+        message: `レアリティ ${r.rarity} の定義が2つある`,
+      });
+    else rarityMap.set(r.rarity, r);
+  }
+  for (const { value: b, file } of itemBases) {
+    checkText(b.text, file, b.id);
+    b.tags.forEach((t, i) => {
+      tagOf(t, undefined, file, b.id, `tags.${String(i)}`);
+    });
+    if ((b.category === "weapon") !== (b.weapon !== undefined))
+      err({
+        code: "schema",
+        file,
+        id: b.id,
+        path: "weapon",
+        message: "武器の基礎性能は、分類が weapon のベースだけが持つ（weapon のベースには必須）",
+      });
+    if (b.weapon !== undefined && b.weapon.damage.physical.min > b.weapon.damage.physical.max)
+      err({
+        code: "schema",
+        file,
+        id: b.id,
+        path: "weapon.damage",
+        message: "最小が最大を超えている",
+      });
+    (b.implicitEffects ?? []).forEach((e, i) => {
+      const at = `implicitEffects.${String(i)}`;
+      if (!refCheck(effectMap, "効果", e, file, b.id, at)) return;
+      const def = effectMap.get(e);
+      if (def !== undefined && def.origin !== "implicit")
+        err({
+          code: "schema",
+          file,
+          id: b.id,
+          path: at,
+          message: `基本刻印の効果 ${e} の出どころが implicit ではない（${def.origin}）`,
+        });
+    });
+  }
+  for (const { value: a, file } of affixes) {
+    checkText(a.text, file, a.id);
+    if (refCheck(effectMap, "効果", a.effect, file, a.id, "effect")) {
+      const def = effectMap.get(a.effect);
+      const mod = def?.modifiers[0];
+      if (def !== undefined && def.origin !== "affix")
+        err({
+          code: "schema",
+          file,
+          id: a.id,
+          path: "effect",
+          message: `詞の効果 ${a.effect} の出どころが affix ではない（${def.origin}）`,
+        });
+      else if (
+        def !== undefined &&
+        (def.modifiers.length !== 1 || mod === undefined || !("value" in mod))
+      )
+        err({
+          code: "schema",
+          file,
+          id: a.id,
+          path: "effect",
+          message: `詞の効果 ${a.effect} は、値を持つ修正値を1つだけ持つ（詞の値で差し替えるため）`,
+        });
+      else if (
+        mod !== undefined &&
+        "value" in mod &&
+        (a.roll === "added") !== (typeof mod.value === "object")
+      )
+        err({
+          code: "schema",
+          file,
+          id: a.id,
+          path: "roll",
+          message:
+            a.roll === "added"
+              ? "最小・最大の追加ダメージ（roll: added）の効果は、最小・最大の値を持つ修正値にする"
+              : "1つの値の詞（roll: range・fixed）の効果は、1つの数の値を持つ修正値にする",
+        });
+    }
+    const seenTiers = new Set<number>();
+    a.tiers.forEach((t, i) => {
+      const at = `tiers.${String(i)}`;
+      if (seenTiers.has(t.tier))
+        err({
+          code: "duplicate-id",
+          file,
+          id: a.id,
+          path: at,
+          message: `T${String(t.tier)} が重複している`,
+        });
+      seenTiers.add(t.tier);
+      if (!(Number.isFinite(t.min) && Number.isFinite(t.max)) || t.min > t.max)
+        err({ code: "schema", file, id: a.id, path: at, message: "最小が最大を超えている" });
+      if (a.roll === "fixed" && t.min !== t.max)
+        err({
+          code: "schema",
+          file,
+          id: a.id,
+          path: at,
+          message: "tierごとに1つの値（roll: fixed）なら、最小と最大は同じ",
+        });
+      const prev = a.tiers[i - 1];
+      if (prev !== undefined && !(prev.tier > t.tier))
+        err({ code: "schema", file, id: a.id, path: at, message: "tierは低い順（7 → 0）に並べる" });
+    });
+  }
+  for (const { value: m, file } of materials) checkText(m.text, file, m.id);
+  const materialMap = new Map(materials.map((m) => [m.value.id, m.value]));
+  const dropMap = new Map<DropSource, DropProfileDef>();
+  for (const { value: d, file } of dropProfiles) {
+    if (d.count.min > d.count.max)
+      err({ code: "schema", file, id: d.id, path: "count", message: "数の最小が最大を超えている" });
+    if (d.guaranteedRareOrBetter > d.count.min)
+      err({
+        code: "schema",
+        file,
+        id: d.id,
+        path: "guaranteedRareOrBetter",
+        message: "希少以上の確定の数が、ドロップの数の最小を超えている",
+      });
+    d.materials.forEach((m, i) => {
+      const at = `materials.${String(i)}`;
+      refCheck(materialMap, "素材", m.material, file, d.id, `${at}.material`);
+      if (m.family !== undefined) tagOf(m.family, ["enemyFamily"], file, d.id, `${at}.family`);
+    });
+    if (dropMap.has(d.source))
+      err({
+        code: "duplicate-id",
+        file,
+        id: d.id,
+        path: "source",
+        message: `ドロップの出どころ ${d.source} の定義が2つある`,
+      });
+    else dropMap.set(d.source, d);
+  }
+
   if (errors.length > 0 || manifest === undefined) return { ok: false, errors };
 
-  // 10. 仮値の一覧
+  // 11. 仮値の一覧
   const provisional: ProvisionalEntry[] = [];
   const collect = (
     collection: string,
@@ -826,6 +1017,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("jobs", jobs);
   collect("enemies", enemies);
   collect("enemyRanks", enemyRanks);
+  collect("rarities", rarities);
+  collect("itemBases", itemBases);
+  collect("affixes", affixes);
+  collect("materials", materials);
+  collect("dropProfiles", dropProfiles);
 
   return {
     ok: true,
@@ -842,6 +1038,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       jobs: jobMap,
       enemies: new Map(enemies.map((e) => [e.value.id, e.value])),
       enemyRanks: rankMap,
+      rarities: rarityMap,
+      itemBases: new Map(itemBases.map((b) => [b.value.id, b.value])),
+      affixes: new Map(affixes.map((a) => [a.value.id, a.value])),
+      materials: materialMap,
+      dropProfiles: dropMap,
     },
     provisional,
   };

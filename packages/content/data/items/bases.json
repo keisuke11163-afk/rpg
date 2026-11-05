@@ -1,0 +1,182 @@
+[
+  {
+    "id": "BASE-WPN-LONGSWORD-T1",
+    "text": "item.base.longsword-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-SWORD"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 6,
+          "max": 11
+        }
+      },
+      "attackSpeed": 1.4,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-ACCURACY-40"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-GREATSWORD-T1",
+    "text": "item.base.greatsword-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-GREATSWORD"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 14,
+          "max": 24
+        }
+      },
+      "attackSpeed": 1.05,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-STAGGER-15"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-AXE-T1",
+    "text": "item.base.axe-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-AXE"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 7,
+          "max": 13
+        }
+      },
+      "attackSpeed": 1.3,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-BLEED-CHANCE-10"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-GREATAXE-T1",
+    "text": "item.base.greataxe-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-GREATAXE"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 16,
+          "max": 28
+        }
+      },
+      "attackSpeed": 0.95,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-BLEED-DAMAGE-15"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-GREATMACE-T1",
+    "text": "item.base.greatmace-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-GREATMACE"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 18,
+          "max": 27
+        }
+      },
+      "attackSpeed": 0.9,
+      "critChance": 0.04
+    },
+    "implicitEffects": ["EFF-IMP-STAGGER-30"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-DAGGER-T1",
+    "text": "item.base.dagger-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-DAGGER"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 4,
+          "max": 9
+        }
+      },
+      "attackSpeed": 1.6,
+      "critChance": 0.08
+    },
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値。基本刻印（短剣：背面からの会心率+5%・爪：ヒットでHP吸収0.5%）は、必要な仕組みが無いのでまだ付けない（docs/progress Q-U11-3）"
+  },
+  {
+    "id": "BASE-WPN-CLAW-T1",
+    "text": "item.base.claw-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-CLAW"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 5,
+          "max": 8
+        }
+      },
+      "attackSpeed": 1.7,
+      "critChance": 0.06
+    },
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値。基本刻印（短剣：背面からの会心率+5%・爪：ヒットでHP吸収0.5%）は、必要な仕組みが無いのでまだ付けない（docs/progress Q-U11-3）"
+  }
+]
