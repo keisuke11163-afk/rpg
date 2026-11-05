@@ -18,6 +18,8 @@ export interface EffectInstance {
   /**
    * 重ねた数（省略すると1）。加算・追加・上限は値×数、乗算は値の数乗になる。
    * 例：重荷の誇りの「重装の防具1部位につき」は、重装の部位の数を入れる。
+   * 0以上の整数だけを受け付ける（小数・負の数・NaN・Infinity は RangeError）。
+   * 0のときは、その効果は何も効かない（全ての種類の修正値を無視し、有効な効果の一覧にも入れない）。
    */
   readonly stacks?: number;
 }
@@ -154,6 +156,18 @@ interface Entry {
   readonly stacks: number;
 }
 
+/** 重ねた数を検証して返す（省略は1）。有限の0以上の整数だけを受け付ける。 */
+function stacksOf(instance: EffectInstance): number {
+  const stacks = instance.stacks ?? 1;
+  // Number.isInteger は、小数・NaN・Infinity・-Infinity を全て false にする
+  if (!Number.isInteger(stacks) || stacks < 0) {
+    throw new RangeError(
+      `重ねた数は0以上の整数（効果 ${instance.effectId}：${String(instance.stacks)}）`,
+    );
+  }
+  return stacks;
+}
+
 function compareInstances(a: EffectInstance, b: EffectInstance): number {
   const key = (i: EffectInstance): string =>
     `${i.effectId}\u0000${i.source.kind}\u0000${i.source.ref}`;
@@ -190,9 +204,10 @@ export class ModifierView {
     for (const instance of instances) {
       const effect = db.effects.get(instance.effectId);
       if (effect === undefined) throw new Error(`効果 ${instance.effectId} はデータにない`);
-      const stacks = instance.stacks ?? 1;
-      if (!(stacks >= 0) || !Number.isFinite(stacks))
-        throw new RangeError(`重ねた数が正しくない：${String(stacks)}`);
+      const stacks = stacksOf(instance);
+      // 重ねた数が0の効果は、どの種類の修正値も登録しない（印・置き換え・上書き・挙動・付け替え・上限も含めて、
+      // 何も効かない。上限が0になるなどの副作用も起きない）
+      if (stacks === 0) continue;
       for (const mod of effect.modifiers) {
         const entry: Entry = { mod, effect, instance, stacks };
         switch (mod.kind) {
@@ -452,9 +467,13 @@ export function evaluateEffects(
   for (const instance of sorted) {
     const effect = db.effects.get(instance.effectId);
     if (effect === undefined) throw new Error(`効果 ${instance.effectId} はデータにない`);
+    // 条件付きの効果も含めて、全ての効果の重ねた数を先に検証する
+    const zero = stacksOf(instance) === 0;
     const conditions = effect.conditions ?? [];
-    if (conditions.length === 0) unconditional.push(instance);
-    else conditional.push({ instance, conditions });
+    if (conditions.length === 0) {
+      // 重ねた数が0の効果は、有効な効果にしない（第1段階の値にも入れない）
+      if (!zero) unconditional.push(instance);
+    } else conditional.push({ instance, conditions });
   }
 
   const stage1 = new ModifierView(db, tags, unconditional, baseStats);
@@ -462,8 +481,10 @@ export function evaluateEffects(
   const dormant: DormantEffect[] = [];
   for (const { instance, conditions } of conditional) {
     const unmet = conditions.filter((c) => !conditionMet(c, stage1, facts, tags));
-    if (unmet.length === 0) active.push(instance);
-    else dormant.push({ instance, unmet });
+    // 休眠は「条件を満たしていない」ことを表す（仕様書v0.2 4.9.1）。重ねた数が0でも、条件を満たしていなければ
+    // 休眠として理由を返す。条件を満たしていても、重ねた数が0なら有効な効果にはしない
+    if (unmet.length > 0) dormant.push({ instance, unmet });
+    else if (stacksOf(instance) > 0) active.push(instance);
   }
   active.sort(compareInstances);
   return { view: new ModifierView(db, tags, active, baseStats), active, dormant };
