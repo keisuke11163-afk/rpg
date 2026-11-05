@@ -2,15 +2,36 @@
 import Phaser from "phaser";
 import type { HitReport, HitShape, Vec2 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
+import { EquipmentPanel } from "../ui/EquipmentPanel.ts";
 import { itemName } from "../ui/item-text.ts";
 import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
-import { InputSystem } from "../input/InputSystem.ts";
+import type { Action } from "../input/actions.ts";
+import { type InputFrame, InputSystem } from "../input/InputSystem.ts";
 import { EnemyFieldView } from "../world/EnemyFieldView.ts";
 import { LootView } from "../world/LootView.ts";
 import { TEXTURES } from "../world/placeholders.ts";
 import { PIXELS_PER_METER, toPixels } from "../world/units.ts";
 import { ARENA, ArenaSimulation, DUMMY_POSITION, HAZARD } from "./arena-simulation.ts";
+
+/** 画面を開いている間は渡さない行動（クリックを画面の操作に使うため）。 */
+const PANEL_BLOCKED: ReadonlySet<Action> = new Set<Action>([
+  "skill1",
+  "skill2",
+  "skill3",
+  "skill4",
+  "skill5",
+  "skill6",
+  "interact",
+]);
+
+function withoutPanelBlocked(frame: InputFrame): InputFrame {
+  return {
+    ...frame,
+    held: new Set([...frame.held].filter((a) => !PANEL_BLOCKED.has(a))),
+    pressed: new Set([...frame.pressed].filter((a) => !PANEL_BLOCKED.has(a))),
+  };
+}
 
 const SLOT_LABEL: Readonly<Record<string, string>> = {
   skill1: "左",
@@ -29,11 +50,9 @@ export class ArenaScene extends Phaser.Scene {
   private lootView!: LootView;
   private showLoot = false;
   private controls!: InputSystem;
-  private keyTab!: Phaser.Input.Keyboard.Key;
   private keyRout!: Phaser.Input.Keyboard.Key;
   private keyJob!: Phaser.Input.Keyboard.Key;
   private routPressed = false;
-  private tabPressed = false;
   private jobPressed = false;
   private body!: Phaser.GameObjects.Image;
   private facing!: Phaser.GameObjects.Image;
@@ -42,6 +61,8 @@ export class ArenaScene extends Phaser.Scene {
   private fx!: Phaser.GameObjects.Graphics;
   private hud!: Phaser.GameObjects.Text;
   private bars!: Phaser.GameObjects.Graphics;
+  /** インベントリ・装備（I）とキャラクター（C）の画面。 */
+  private panel!: EquipmentPanel;
   /** 開発用：描画のフレームの経過時間を固定する（ミリ秒）。null なら実際の経過時間を使う。 */
   private debugFrameDeltaMs: number | null = null;
 
@@ -77,12 +98,10 @@ export class ArenaScene extends Phaser.Scene {
     this.body = this.add.image(0, 0, TEXTURES.player).setOrigin(0.5, 0.5);
     this.facing = this.add.image(0, 0, TEXTURES.facing).setOrigin(-0.6, 0.5);
     this.controls = new InputSystem(this);
-    // 仮実装: U-12 feature/inventory-ui で、装備の画面・技の枠の設定に置き換える（Tab で武器を替える・R で破軍）
+    // 仮実装: U-15 feature/job-board で、技の枠の設定に置き換える（R で7つ目の技〔破軍・罠〕）
     const keyboard = this.input.keyboard;
     if (keyboard === null) throw new Error("キーボードの入力が使えない");
-    this.keyTab = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TAB, true);
     this.keyRout = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R, true);
-    this.keyTab.on("down", () => (this.tabPressed = true));
     this.keyRout.on("down", () => (this.routPressed = true));
     // 仮実装: U-18a feature/town-and-dungeon-base で、町の転職神殿に置き換える（G で転職。キャラLv15から）
     this.keyJob = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G, true);
@@ -102,6 +121,7 @@ export class ArenaScene extends Phaser.Scene {
         lineSpacing: 2,
       })
       .setScrollFactor(0);
+    this.panel = new EquipmentPanel(this, this.sim);
 
     const sim = this.sim;
     exposeDebug({
@@ -207,6 +227,15 @@ export class ArenaScene extends Phaser.Scene {
         traps: sim.traps.length,
         smokes: sim.smokes.length,
       }),
+      // 画面（U-12）：開いている画面・表示した行・戦闘の能力値
+      panel: () => {
+        const p = this.panel.snapshot();
+        return {
+          open: p.open ?? null,
+          lines: [...p.lines],
+          sheet: { hp: sim.sheet.maxHp, mp: sim.sheet.maxMp, attackSpeed: sim.sheet.attackSpeed },
+        };
+      },
       // 刻みが0のフレームを再現するため（pnpm e2e）。null で元に戻す
       setFrameDeltaMs: (ms: number | null) => {
         this.debugFrameDeltaMs = ms;
@@ -217,18 +246,26 @@ export class ArenaScene extends Phaser.Scene {
 
   override update(_time: number, deltaMs: number): void {
     // 入力の取得はフレームごと。保持と刻みへの受け渡しは ArenaSimulation が行う
-    const frame = this.controls.read();
+    const raw = this.controls.read();
+    if (raw.pressed.has("inventory")) this.panel.toggle("inventory");
+    if (raw.pressed.has("character")) this.panel.toggle("character");
+    if (raw.pressed.has("menu")) this.panel.close();
+    const pointer = this.input.activePointer;
+    this.panel.hover(pointer.x, pointer.y);
+    // 画面を開いている間も、ゲームは止めない（移動・回避はできる）。クリックは画面の操作に使うので、
+    // 技の枠・拾う・7つ目の技の入力は渡さない（docs/progress D-U12-8）
+    const open = this.panel.open !== undefined;
+    const frame = open ? withoutPanelBlocked(raw) : raw;
     this.showLoot = frame.held.has("showLoot");
     this.sim.frame((this.debugFrameDeltaMs ?? deltaMs) / 1000, frame, {
-      routPressed: this.routPressed,
-      routHeld: this.keyRout.isDown,
-      switchWeapon: this.tabPressed,
+      routPressed: !open && this.routPressed,
+      routHeld: !open && this.keyRout.isDown,
       changeJob: this.jobPressed,
     });
     this.routPressed = false;
-    this.tabPressed = false;
     this.jobPressed = false;
     this.render();
+    this.panel.render();
   }
 
   private skillName(id: string): string {
@@ -429,7 +466,7 @@ export class ArenaScene extends Phaser.Scene {
       .join(" ");
     const lastSkill = sim.lastSkill;
     this.hud.setText([
-      "試験用の場（WASD移動・マウス照準・スペース回避・Tabで武器を替える・Gで転職）",
+      "試験用の場（WASD移動・マウス照準・スペース回避・I インベントリ・C キャラクター・Gで転職）",
       `Lv${String(c.level)}（経験値 ${c.progress.xp.toFixed(0)}／${String(c.progress.toNext)}）・${text(sim.job.text as TextKey)} ジョブLv${String(c.jobLevel(sim.job.id))}（${c.jobTrack(sim.job.id).xp.toFixed(0)}／${String(c.jobTrack(sim.job.id).toNext)}）${c.catchingUp ? "・追いつき補正×2" : ""}`,
       slots,
       `武器：${itemName(sim.db, sim.weapon)}（適性${sim.affinity}・攻撃速度 ${sim.attackSpeed.toFixed(2)}回/秒）${sim.buffs.active.length > 0 ? `・効果：${sim.buffs.active.map((b) => `${this.skillName(b.ref)}（${b.remaining.toFixed(1)}秒）`).join("・")}` : ""}`,

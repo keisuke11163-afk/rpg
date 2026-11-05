@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
+import { PANEL, cellPosition } from "../src/ui/panel-layout.ts";
 
 interface Mouse {
   move(x: number, y: number): Promise<void>;
@@ -81,7 +82,7 @@ interface DummyState {
   screenY: number;
 }
 interface SkillState {
-  weapon: string;
+  weapon: string | null;
   affinity: string;
   attackSpeed: number;
   mp: number;
@@ -152,8 +153,14 @@ type DebugWindow = {
     inventory: () => InventoryInfo;
     dropLoot: () => number;
     setFrameDeltaMs: (ms: number | null) => void;
+    panel: () => PanelInfo;
   };
 };
+interface PanelInfo {
+  open: string | null;
+  lines: string[];
+  sheet: { hp: number; mp: number; attackSpeed: number };
+}
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright") as { chromium: { launch(): Promise<Browser> } };
@@ -420,9 +427,46 @@ try {
     `効果 ${s2.buffs.join(",")}・人形 ${d5.statuses.join(",")}・闘志 ${s1.fervor.toFixed(0)} → ${s2.fervor.toFixed(0)}`,
   );
 
-  // T6：Tab で大斧に替えると、薙ぎ払いが斧の変化（出血の付与率+30%）になる
-  await page.keyboard.press("Tab");
+  // T6：インベントリの画面（I）で大斧をクリックして持ち替えると、薙ぎ払いが斧の変化（出血の付与率+30%）になる
+  const panel = (): Promise<PanelInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.panel());
+  /** インベントリの枠の中央（ゲームの画面のピクセル）。 */
+  const cellCenter = (index: number): { x: number; y: number } => {
+    const c = cellPosition(index);
+    return { x: c.x + PANEL.grid.cell / 2, y: c.y + PANEL.grid.cell / 2 };
+  };
+  await waitIdle();
+  await page.keyboard.press("KeyI");
   await page.waitForTimeout(100);
+  const axeIndex = (
+    await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.inventory())
+  ).items.findIndex((i) => i.uid === "test-greataxe");
+  const axeCell = cellCenter(axeIndex);
+  await page.mouse.move(axeCell.x * 2, axeCell.y * 2);
+  await page.waitForTimeout(100);
+  const tip = await panel();
+  check(
+    "I でインベントリの画面を開き、装備を指すとツールチップと比較が出る（U-12）",
+    tip.open === "inventory" &&
+      tip.lines.includes("下級の大斧") &&
+      tip.lines.some((l) => l.includes("装備したときの変化")) &&
+      tip.lines.some((l) => l.startsWith("通常攻撃の毎秒ダメージ")),
+    `画面 ${String(tip.open)}・行 ${String(tip.lines.length)}・${tip.lines.filter((l) => l.includes("大斧") || l.startsWith("通常攻撃")).join("／")}`,
+  );
+  const hitsBeforeClick = (await dummy()).hits;
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const swapped = await skills();
+  check(
+    "画面のクリックで大斧に持ち替え、クリックで技は出ない（U-12）",
+    swapped.weapon === "test-greataxe" && (await dummy()).hits === hitsBeforeClick,
+    `武器 ${String(swapped.weapon)}`,
+  );
+  await page.keyboard.press("KeyI");
+  await page.waitForTimeout(100);
+  const closed = await panel();
+  check("I でインベントリの画面を閉じる", closed.open === null, `画面 ${String(closed.open)}`);
   await setFervor(0);
   await waitIdle();
   await clickDummy("right");
@@ -430,7 +474,7 @@ try {
   check(
     "大斧の薙ぎ払いは、斧の変化になる（T6）",
     s3.weapon === "test-greataxe" && s3.lastVariants.includes("weapon:TAG-WPNGRP-AXE"),
-    `武器 ${s3.weapon}・変化 ${s3.lastVariants.join(",")}`,
+    `武器 ${String(s3.weapon)}・変化 ${s3.lastVariants.join(",")}`,
   );
 
   // T7：闘志50以上で激化、100で破軍
@@ -482,7 +526,7 @@ try {
       sr.jobLevel === 1 &&
       sr.jobLevels["JOB-WARRIOR"] === sw.jobLevel &&
       sr.weapon === "test-dagger",
-    `ジョブ ${sw.job} → ${sr.job}・ジョブLv ${JSON.stringify(sr.jobLevels)}・武器 ${sr.weapon}`,
+    `ジョブ ${sw.job} → ${sr.job}・ジョブLv ${JSON.stringify(sr.jobLevels)}・武器 ${String(sr.weapon)}`,
   );
   await page.evaluate(
     (v: number) => (window as unknown as DebugWindow).__STELLA_DEBUG__.grantXp(v),
@@ -656,6 +700,35 @@ try {
     inv2.items.length - inv0.items.length >= 1 &&
       inv2.items.length - inv0.items.length <= near.length,
     `インベントリ ${String(inv0.items.length)} → ${String(inv2.items.length)}（近くの装備 ${String(near.length)}）`,
+  );
+
+  // キャラクターの画面（C）：表示の数値と、戦闘の数値が一致する（U-12 の完了の条件）
+  await page.keyboard.press("KeyC");
+  await page.waitForTimeout(100);
+  // 最大HPの行（能力値の一覧の1行目）を指す
+  await page.mouse.move((PANEL.stats.x + 20) * 2, (PANEL.stats.y + 4) * 2);
+  await page.waitForTimeout(100);
+  const ch = await panel();
+  const ps2 = await combat();
+  const hpLine = ch.lines.find((l) => l.startsWith("最大HP"));
+  check(
+    "C でキャラクターの画面を開き、最大HPの表示が戦闘の最大HPと一致し、内訳が出る（U-12）",
+    ch.open === "character" &&
+      hpLine === `最大HP  ${String(ps2.maxHp)}` &&
+      ch.sheet.hp === ps2.maxHp &&
+      ch.lines.some((l) => l.startsWith("基礎 ")),
+    `${String(hpLine)}・戦闘の最大HP ${String(ps2.maxHp)}`,
+  );
+  await page.screenshot({ path: `${outDir}character.png` });
+  await page.keyboard.press("KeyI");
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${outDir}inventory.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  check(
+    "Esc で画面を閉じる",
+    (await panel()).open === null,
+    `画面 ${String((await panel()).open)}`,
   );
 
   await page.screenshot({ path: `${outDir}arena.png` });

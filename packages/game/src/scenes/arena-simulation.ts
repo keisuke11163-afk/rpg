@@ -43,7 +43,12 @@ import {
   staggerProfiles,
   unlockedSkills,
   buildCharacterSheet,
+  compareEquip,
   dualWieldAffinity,
+  type EquipComparison,
+  itemTooltip,
+  type ItemTooltip,
+  skillContexts,
   equipFromInventory,
   slotsFor,
   unequipToInventory,
@@ -467,20 +472,85 @@ export class ArenaSimulation {
   equipFromInventory(uid: string, slot?: MvpEquipSlot): boolean {
     if (!this.canChangeEquipment) return false;
     const item = this.inventory.items.find((i) => i.uid === uid);
-    const base = item === undefined ? undefined : this.db.itemBases.get(item.base);
-    if (base === undefined) return false;
-    const slots = slotsFor(base, this.canDualWield);
-    // 部位の省略：武器は主手（副手には部位を指定して装備する）、指輪は空いている方（docs/progress D-U12-6）
-    const target =
-      slot ??
-      (base.category === "weapon"
-        ? "mainHand"
-        : (slots.find((s) => this.equipment.get(s) === undefined) ?? slots[0]));
-    if (target === undefined || !slots.includes(target)) return false;
+    if (item === undefined) return false;
+    const target = slot ?? this.defaultSlot(item);
+    const base = this.db.itemBases.get(item.base);
+    if (target === undefined || base === undefined) return false;
+    if (!slotsFor(base, this.canDualWield).includes(target)) return false;
     if (!equipFromInventory(this.inventory, this.equipment, uid, target, this.canDualWield))
       return false;
     this.equipmentChanged();
     return true;
+  }
+
+  /**
+   * 部位を省略したときに装備する部位：武器は主手（副手には部位を指定して装備する）、
+   * ほかは空いている最初の部位（無ければ最初の部位）。装備できなければ undefined（docs/progress D-U12-6）。
+   */
+  defaultSlot(item: ItemInstance): MvpEquipSlot | undefined {
+    const base = this.db.itemBases.get(item.base);
+    if (base === undefined) return undefined;
+    const slots = slotsFor(base, this.canDualWield);
+    if (base.category === "weapon") return "mainHand";
+    return slots.find((s) => this.equipment.get(s) === undefined) ?? slots[0];
+  }
+
+  /** 今の技の並びのタグ（ツールチップの「タグが一致すると光る」の文脈）。 */
+  private loadoutSkillTags(): string[][] {
+    return this.loadout.flatMap((l) => {
+      const def = this.db.skills.get(l.skill);
+      return def === undefined ? [] : [[...def.tags]];
+    });
+  }
+
+  /** 装備のツールチップの中身（今の能力値・キャラLv・技の並びで判定する）。 */
+  tooltip(item: ItemInstance): ItemTooltip {
+    return itemTooltip(this.db, item, {
+      attributes: this.sheetValue.attributes,
+      characterLevel: this.character.level,
+      contexts: skillContexts(
+        this.db,
+        this.tags,
+        this.loadoutSkillTags(),
+        this.sheetValue.weaponTags,
+      ),
+    });
+  }
+
+  /** 通常攻撃のダメージの計算に渡す形（今の武器で変化を当てはめる。表示・比較の見積もり用）。 */
+  basicAttackDamage(): DamageSkill | undefined {
+    const basic = this.db.skills.get("SKL-BASIC-ATTACK");
+    return basic === undefined
+      ? undefined
+      : resolveSkill(this.db, basic, {
+          stages: [],
+          weaponTags: this.tags.closure(this.sheetValue.weaponTags),
+          gaugeSpent: 0,
+        }).damage;
+  }
+
+  /** インベントリの装備を装備したときの比較（装備できなければ undefined）。通常攻撃のダメージの見積もりを含む。 */
+  compare(uid: string, slot?: MvpEquipSlot): EquipComparison | undefined {
+    const item = this.inventory.items.find((i) => i.uid === uid);
+    if (item === undefined) return undefined;
+    const target = slot ?? this.defaultSlot(item);
+    const base = this.db.itemBases.get(item.base);
+    if (target === undefined || base === undefined) return undefined;
+    if (!slotsFor(base, this.canDualWield).includes(target)) return undefined;
+    const skill = this.basicAttackDamage();
+    return compareEquip(
+      this.db,
+      this.tags,
+      {
+        character: this.character,
+        job: this.job,
+        equipment: this.equipment,
+        extraEffects: this.buffs.instances(),
+      },
+      item,
+      target,
+      { canDualWield: this.canDualWield, ...(skill === undefined ? {} : { skill }) },
+    );
   }
 
   /** 装備を外して、インベントリに戻す。技の実行中・インベントリがいっぱいなら false。 */
