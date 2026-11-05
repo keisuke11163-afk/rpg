@@ -1,0 +1,39 @@
+[
+  {
+    "id": "EFF-ROGUE-POISON-COATING",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-CHANCE",
+        "value": 0.4,
+        "filter": {
+          "allOf": ["TAG-AIL-POISON"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-ROGUE-SMOKE",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ACCURACY",
+        "value": -0.3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "enemies",
+    "provisional": true,
+    "provisionalNote": "「敵の命中-30%」を命中の加算（-30%）として扱う（docs/progress D-U10-4）"
+  }
+]

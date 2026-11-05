@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FIXED_STEP_SECONDS, FixedStepClock, type MotionInput, PlayerMotion } from "@stella/core";
 import type { Action } from "../src/input/actions.ts";
 import type { InputFrame } from "../src/input/frame.ts";
-import { ArenaSimulation } from "../src/scenes/arena-simulation.ts";
+import { ARENA, ArenaSimulation } from "../src/scenes/arena-simulation.ts";
 import { toMeters, toPixels } from "../src/world/units.ts";
 
 const STEP = FIXED_STEP_SECONDS;
@@ -102,12 +102,92 @@ describe("ArenaSimulation：回避の入力を刻みまで保持する", () => {
     expect(sim.dodgePending).toBe(false);
   });
 
-  it("回避以外の押した瞬間の入力は保持しない（まだ使わない行動が後で発動しないように）", () => {
+  it("試験用の場で使わない行動の押した瞬間の入力は保持しない（後で発動しないように）", () => {
     const sim = new ArenaSimulation();
-    sim.frame(0, input({ pressed: ["skill1", "flaskHp"] }));
+    // U-08 で skill3〜6 は戦士の技の枠に、U-11 で interact（F）は装備を拾う操作になったので、使わない行動は薬瓶・インベントリ
+    sim.frame(0, input({ pressed: ["flaskHp", "flaskMp", "inventory"] }));
     expect(sim.dodgePending).toBe(false);
+    expect(sim.attackPending).toBe(false);
+    expect(sim.pending("skill2")).toBe(false);
     sim.frame(STEP, input());
     expect(sim.motion.dodging).toBe(false);
+    expect(sim.executing).toBeUndefined();
+  });
+});
+
+describe("ArenaSimulation：技の枠の入力も刻みまで保持する（U-07 の通常攻撃・U-08 の技）", () => {
+  it("刻みが0のフレームで押した通常攻撃は、次の刻みで1回だけ始まる", () => {
+    const sim = new ArenaSimulation();
+    expect(sim.frame(0, input({ pressed: ["skill1"] }))).toBe(0);
+    expect(sim.attackPending).toBe(true);
+    expect(sim.executing).toBeUndefined();
+    sim.frame(STEP, input());
+    expect(sim.attackPending).toBe(false);
+    expect(sim.executing).toBe("skill1");
+    // 攻撃（下級の大剣：1秒未満）が終わった後に、再び始まらない
+    for (let i = 0; i < 120; i++) sim.frame(STEP, input());
+    expect(sim.executing).toBeUndefined();
+    expect(sim.uses.get("SKL-BASIC-ATTACK")).toBe(1);
+  });
+
+  it("刻みが0のフレームで押した右クリック（薙ぎ払い）は、次の刻みで1回だけ使う", () => {
+    // U-07 の試験用の投射物（右クリック）は、U-08 で戦士の薙ぎ払いに置き換えた
+    const sim = new ArenaSimulation();
+    sim.frame(0, input({ pressed: ["skill2"] }));
+    expect(sim.pending("skill2")).toBe(true);
+    expect(sim.uses.get("SKL-WARRIOR-SWEEP")).toBeUndefined();
+    sim.frame(3 * STEP, input());
+    expect(sim.pending("skill2")).toBe(false);
+    expect(sim.uses.get("SKL-WARRIOR-SWEEP")).toBe(1);
+    for (let i = 0; i < 120; i++) sim.frame(STEP, input());
+    expect(sim.uses.get("SKL-WARRIOR-SWEEP")).toBe(1);
+  });
+
+  it("R（破軍）の押した瞬間も、刻みが0のフレームで保持し、闘志100で次の刻みに使う", () => {
+    const sim = new ArenaSimulation();
+    sim.setFervor(100);
+    sim.frame(0, input(), { routPressed: true });
+    expect(sim.pending("rout")).toBe(true);
+    sim.frame(STEP, input());
+    expect(sim.pending("rout")).toBe(false);
+    expect(sim.executing).toBe("rout");
+    expect(sim.uses.get("SKL-WARRIOR-ROUT")).toBe(1);
+  });
+
+  it("Tab で武器を替える。技の実行中は替えない", () => {
+    const sim = new ArenaSimulation();
+    expect(sim.weapon.uid).toBe("test-greatsword");
+    sim.frame(STEP, input(), { switchWeapon: true });
+    expect(sim.weapon.uid).toBe("test-greataxe");
+    sim.frame(STEP, input({ pressed: ["skill1"] }));
+    expect(sim.executing).toBe("skill1");
+    sim.frame(STEP, input(), { switchWeapon: true });
+    expect(sim.weapon.uid).toBe("test-greataxe");
+  });
+
+  it("人形の正面から通常攻撃が当たり、ヒットの手応えで止まる間も押した回避を保持する", () => {
+    const hits: boolean[] = [];
+    const sim = new ArenaSimulation(undefined, { onHit: (r) => hits.push(r.backstab) });
+    // 人形（20, 12）の左1.2mまで歩く。照準は右（人形の方）
+    while (sim.motion.position.x < 18.8 - 1e-9) sim.frame(STEP, input({ move: { x: 1, y: 0 } }));
+    const before = sim.dummy.health.hp;
+    sim.frame(STEP, input({ pressed: ["skill1"] }));
+    // 当たるまで進める（予兆は 0.3/1.4 秒）
+    let guard = 0;
+    while (sim.hitCount === 0 && guard++ < 60) sim.frame(STEP, input());
+    expect(sim.hitCount).toBe(1);
+    expect(hits).toEqual([false]); // 正面からなので背面ではない
+    expect(sim.dummy.health.hp).toBeLessThan(before);
+    // ヒットの手応え（0.05秒）の最中に押した回避は、止まっている刻みでは使われず保持される
+    const time = sim.time;
+    sim.frame(STEP, input({ pressed: ["dodge"] }));
+    expect(sim.time).toBe(time);
+    expect(sim.dodgePending).toBe(true);
+    for (let i = 0; i < 5; i++) sim.frame(STEP, input());
+    expect(sim.dodgePending).toBe(false);
+    expect(sim.motion.dodging).toBe(true);
+    // 回避で攻撃を取り消す
+    expect(sim.executing).toBeUndefined();
   });
 });
 
@@ -143,12 +223,13 @@ describe("ArenaSimulation：回避の入力がない場合は従来どおり", (
     });
     fc.assert(
       fc.property(fc.array(frameArb, { maxLength: 80 }), (frames) => {
-        const sim = new ArenaSimulation(new FixedStepClock(STEP, 5));
+        // 入力の処理の比較なので、試験用の敵は出さない（U-09。敵の攻撃でよろめくと移動が変わるため）
+        const sim = new ArenaSimulation(new FixedStepClock(STEP, 5), { enemies: false });
         const ref = new PlayerMotion({ ...START }, undefined, {
           minX: 0.5,
           minY: 0.75,
-          maxX: 39.5,
-          maxY: 23.75,
+          maxX: ARENA.width - 0.5,
+          maxY: ARENA.height - 0.25,
         });
         for (const f of frames) {
           const frame = input({
@@ -175,5 +256,152 @@ describe("ArenaSimulation：回避の入力がない場合は従来どおり", (
       }),
       { numRuns: 200 },
     );
+  });
+});
+
+describe("ArenaSimulation：試験用の敵（U-09）", () => {
+  it("第1章の敵6種類の群れが出て、技の対象になる", () => {
+    const sim = new ArenaSimulation();
+    const groups = new Set(sim.field?.entries.map((e) => e.group));
+    expect([...groups].sort()).toEqual(["bear", "boar", "lizards", "rats", "saplings", "wolves"]);
+    expect(sim.field?.targets().length).toBeGreaterThan(0);
+  });
+
+  it("近くに出した敵に通常攻撃が当たり、敵のヒットとして数える（人形のヒットには数えない）", () => {
+    const at: { x: number; y: number }[] = [];
+    const sim = new ArenaSimulation(undefined, { onHit: (_r, p) => at.push({ ...p }) });
+    const id = sim.spawnEnemy("ENM-THORN-RAT");
+    const rat = sim.field?.enemies.find((e) => e.id === id);
+    expect(rat).toBeDefined();
+    // 照準は右（敵は右3m）。近づいてくる敵に、押し続けで通常攻撃を繰り返す
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    for (let i = 0; i < 240 && sim.enemyHits === 0; i++) sim.frame(STEP, held);
+    expect(sim.enemyHits).toBeGreaterThan(0);
+    expect(sim.hitCount).toBe(0);
+    expect(at.length).toBeGreaterThan(0);
+  });
+
+  it("よろめいている間は、技も回避も使えない（押した回避は保持されずに消える）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.player.stagger.breakNow()).toBe(true);
+    sim.frame(STEP, input({ pressed: ["dodge", "skill1"] }));
+    expect(sim.motion.dodging).toBe(false);
+    expect(sim.executing).toBeUndefined();
+    expect(sim.dodgePending).toBe(false);
+  });
+});
+
+describe("ArenaSimulation：転職・経験値（U-10）", () => {
+  it("G で転職すると、技の並び・職能ゲージ・武器が盗賊のものになり、ジョブLvは混ざらない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.job.id).toBe("JOB-WARRIOR");
+    expect(sim.character.jobLevel("JOB-WARRIOR")).toBe(15);
+    sim.frame(STEP, input(), { changeJob: true });
+    expect(sim.job.id).toBe("JOB-ROGUE");
+    expect(sim.loadout[1]?.skill).toBe("SKL-ROGUE-FLURRY");
+    expect(sim.weapon.uid).toBe("test-dagger");
+    expect(sim.jobGauge.def.id).not.toBe("GAU-FERVOR");
+    expect(sim.character.jobLevel("JOB-WARRIOR")).toBe(15);
+    // 盗賊の連刃（右クリック）は、刻みが0のフレームで押しても保持され、次の刻みで使う
+    sim.frame(0, input({ pressed: ["skill2"] }));
+    expect(sim.pending("skill2")).toBe(true);
+    sim.frame(STEP, input());
+    expect(sim.uses.get("SKL-ROGUE-FLURRY")).toBe(1);
+  });
+
+  it("経験値でLvが上がると、HPを全回復する", () => {
+    const texts: string[] = [];
+    const sim = new ArenaSimulation(undefined, {
+      enemies: false,
+      onText: (label) => texts.push(label),
+    });
+    const before = sim.character.level;
+    sim.player.health.takeDamage(10);
+    sim.gainXp(1e6);
+    expect(sim.character.level).toBeGreaterThan(before);
+    expect(sim.player.health.hp).toBe(sim.player.health.maxHp);
+    expect(sim.levelUps).toBeGreaterThan(0);
+    expect(texts.length).toBe(1);
+  });
+});
+
+describe("ArenaSimulation：地面の物と拾得（U-11、補助仕様書13章）", () => {
+  /** プレイヤーの位置にドロップを置く（精鋭 Lv5：アイテム2〜4個・金貨は必ず）。 */
+  function withLoot(): ArenaSimulation {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.dropLoot("elite", 5, sim.motion.position);
+    return sim;
+  }
+
+  it("金貨・素材は半径1.5m以内なら自動で拾い、装備は拾わない", () => {
+    const sim = withLoot();
+    const items = sim.loot.drops.filter((d) => d.kind === "item").length;
+    expect(items).toBeGreaterThanOrEqual(2);
+    sim.frame(STEP, input());
+    expect(sim.inventory.gold).toBeGreaterThan(0);
+    expect(sim.loot.drops.every((d) => d.kind === "item")).toBe(true);
+    expect(sim.loot.drops).toHaveLength(items);
+    expect(sim.inventory.items).toHaveLength(0);
+  });
+
+  it("F で、近くの装備を1回に1つ拾う（刻みが0のフレームで押しても保持する）", () => {
+    const sim = withLoot();
+    const items = sim.loot.drops.filter((d) => d.kind === "item").length;
+    sim.frame(0, input({ pressed: ["interact"] }));
+    expect(sim.pending("interact")).toBe(true);
+    sim.frame(STEP, input());
+    expect(sim.pending("interact")).toBe(false);
+    expect(sim.inventory.items).toHaveLength(1);
+    for (let i = 0; i < 10; i++) sim.frame(STEP, input());
+    expect(sim.inventory.items).toHaveLength(1);
+    for (let i = 1; i < items; i++) sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(sim.inventory.items).toHaveLength(items);
+    expect(sim.loot.drops).toHaveLength(0);
+  });
+
+  it("1.5mより遠い物は拾わない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    const p = sim.motion.position;
+    sim.dropLoot("elite", 5, { x: p.x + 6, y: p.y });
+    const before = sim.loot.drops.length;
+    sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(sim.loot.drops).toHaveLength(before);
+    expect(sim.inventory.gold).toBe(0);
+  });
+
+  it("インベントリがいっぱいなら、装備は拾えず地面に残る", () => {
+    const texts: string[] = [];
+    const sim = new ArenaSimulation(undefined, { enemies: false, onText: (t) => texts.push(t) });
+    for (let i = 0; i < sim.inventory.capacity; i++)
+      sim.inventory.addItem({
+        uid: `fill-${String(i)}`,
+        base: "BASE-WPN-LONGSWORD-T1",
+        rarity: "normal",
+        itemLevel: 1,
+        affixes: [],
+      });
+    sim.dropLoot("elite", 5, sim.motion.position);
+    const items = sim.loot.drops.filter((d) => d.kind === "item").length;
+    sim.frame(STEP, input({ pressed: ["interact"] }));
+    expect(sim.inventory.items).toHaveLength(sim.inventory.capacity);
+    expect(sim.loot.drops.filter((d) => d.kind === "item")).toHaveLength(items);
+    expect(texts).toContain("インベントリがいっぱい");
+  });
+
+  it("敵を倒すとドロップを抽選する（同じ操作なら同じ結果）", () => {
+    const run = (): number[] => {
+      const sim = new ArenaSimulation();
+      const id = sim.spawnEnemy("ENM-THORN-RAT");
+      const rat = sim.field?.enemies.find((e) => e.id === id);
+      // 確実に倒すため、HPを1にしてから通常攻撃を押し続ける
+      rat?.combatant.health.takeDamage(rat.combatant.health.hp - 1);
+      const held = { ...input(), held: new Set<Action>(["skill1"]) };
+      for (let i = 0; i < 240 && (sim.field?.kills ?? 0) === 0; i++) sim.frame(STEP, held);
+      for (let i = 0; i < 60; i++) sim.frame(STEP, input());
+      return [sim.field?.kills ?? 0, sim.loot.drops.length, sim.inventory.gold];
+    };
+    const a = run();
+    expect(a[0]).toBe(1);
+    expect(run()).toEqual(a);
   });
 });
