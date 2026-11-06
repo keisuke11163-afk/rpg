@@ -23,13 +23,37 @@ export interface RolledAffix {
   readonly rolls: readonly number[];
 }
 
-/** 装備の実体（開発計画書6.5。セーブデータに保存する形の、生成で決まる部分）。 */
+/** 装備の実体（開発計画書6.5。セーブデータに保存する形）。強化・クラフトの項目は省略すると初期の値。 */
 export interface ItemInstance {
   readonly uid: string;
   readonly base: string;
   readonly rarity: ItemRarity;
   readonly itemLevel: number;
   readonly affixes: readonly RolledAffix[];
+  /** 強化値 0〜10（仕様書v0.2 3.9。省略で0）。 */
+  readonly enhance?: number;
+  /** 鍛造負荷 0〜100（仕様書v0.2 3.11.1。省略で0）。 */
+  readonly forgeLoad?: number;
+  /** 封詞した詞の ID（次の1回の操作から守る。省略で無し）。 */
+  readonly sealed?: string;
+  /** これまでに封詞した回数（2個目以降は負荷が重い。省略で0）。 */
+  readonly sealsUsed?: number;
+  /** 亀裂（小さなマイナスの効果の ID。省略で無し）。 */
+  readonly cracks?: readonly string[];
+  /** 銘（+10 で刻む効果の ID。省略で無し）。 */
+  readonly inscription?: string;
+}
+
+/** 職詞の重みの倍率（ジョブに合わせたドロップのとき、そのジョブの職詞。docs/progress D-U11-23）。 */
+export const JOB_AFFIX_BOOST = 4;
+
+/** 詞の抽選の文脈（ドロップの元の敵の系統・ジョブに合わせたドロップ）。 */
+export interface AffixContext {
+  readonly allowT0?: boolean;
+  /** ドロップの元の敵の系統のタグ（親タグを含む）。系統詞は、ここに含まれる系統だけ付く。 */
+  readonly families?: ReadonlySet<string>;
+  /** ジョブに合わせたドロップのジョブのタグ。そのジョブの職詞の重みを JOB_AFFIX_BOOST 倍にする。 */
+  readonly targetJob?: string;
 }
 
 export interface GenerateItemInput {
@@ -40,6 +64,10 @@ export interface GenerateItemInput {
   readonly itemLevel: number;
   /** 極T0を出せるか（回廊の第12階層以上）。MVPでは false。 */
   readonly allowT0?: boolean;
+  /** ドロップの元の敵の系統（系統詞）。 */
+  readonly families?: ReadonlySet<string>;
+  /** ジョブに合わせたドロップのジョブのタグ（職詞が出やすい）。 */
+  readonly targetJob?: string;
 }
 
 function requireItemLevel(itemLevel: number): void {
@@ -52,14 +80,20 @@ export function candidateAffixes(
   db: ContentDb,
   base: ItemBaseDef,
   itemLevel: number,
-  options: { readonly allowT0?: boolean } = {},
-): { affix: AffixDef; tiers: AffixTier[] }[] {
+  options: AffixContext = {},
+): { affix: AffixDef; tiers: AffixTier[]; weight: number }[] {
   requireItemLevel(itemLevel);
-  const out: { affix: AffixDef; tiers: AffixTier[] }[] = [];
+  const out: { affix: AffixDef; tiers: AffixTier[]; weight: number }[] = [];
   for (const affix of db.affixes.values()) {
     if (!affix.categories.includes(base.category)) continue;
+    if (affix.family !== undefined && options.families?.has(affix.family) !== true) continue;
     const tiers = eligibleTiers(affix, itemLevel, options);
-    if (tiers.length > 0) out.push({ affix, tiers });
+    if (tiers.length === 0) continue;
+    const weight =
+      affix.weight *
+      (affix.categoryWeights?.[base.category] ?? 1) *
+      (affix.job !== undefined && affix.job === options.targetJob ? JOB_AFFIX_BOOST : 1);
+    out.push({ affix, tiers, weight });
   }
   return out;
 }
@@ -102,21 +136,45 @@ export function generateItem(db: ContentDb, rng: Rng, input: GenerateItemInput):
   if (rarityDef === undefined) throw new RangeError(`レアリティ ${rarity} の定義が無い`);
   if (rarity === "unique" || rarity === "set")
     throw new RangeError(`${rarity} は固定の効果を持つので、generateItem では作らない`);
+  const wanted = rng.int(rarityDef.affixes.min, rarityDef.affixes.max);
+  const affixes = addAffixes(db, rng, base, itemLevel, [], wanted, {
+    ...(input.allowT0 === undefined ? {} : { allowT0: input.allowT0 }),
+    ...(input.families === undefined ? {} : { families: input.families }),
+    ...(input.targetJob === undefined ? {} : { targetJob: input.targetJob }),
+  });
+  return { uid, base: base.id, rarity, itemLevel, affixes };
+}
+
+/**
+ * 詞を足す（生成とクラフトで共通）。今ある詞（existing）は残し、合計が wanted になるまで、
+ * 前詞・後詞の空いている枠の詞から出現の重みで抽選する。同じ詞は1つまで。付けられる詞が無くなったら、そこまで。
+ */
+export function addAffixes(
+  db: ContentDb,
+  rng: Rng,
+  base: ItemBaseDef,
+  itemLevel: number,
+  existing: readonly RolledAffix[],
+  wanted: number,
+  options: AffixContext = {},
+): RolledAffix[] {
   const slots = AFFIX_SLOTS[base.category];
   const capacity = slots.prefix + slots.suffix;
-  const wanted = rng.int(rarityDef.affixes.min, rarityDef.affixes.max);
-  const pool = candidateAffixes(db, base, itemLevel, {
-    ...(input.allowT0 === undefined ? {} : { allowT0: input.allowT0 }),
-  });
+  const pool = candidateAffixes(db, base, itemLevel, options);
   const used = { prefix: 0, suffix: 0 };
   const taken = new Set<string>();
-  const affixes: RolledAffix[] = [];
+  const affixes: RolledAffix[] = [...existing];
+  for (const a of existing) {
+    const def = db.affixes.get(a.id);
+    if (def !== undefined) used[def.position] += 1;
+    taken.add(a.id);
+  }
   while (affixes.length < Math.min(wanted, capacity)) {
     const open = pool.filter(
       (c) => !taken.has(c.affix.id) && used[c.affix.position] < slots[c.affix.position],
     );
     if (open.length === 0) break;
-    const chosen = rng.weighted(open.map((c) => ({ item: c, weight: c.affix.weight })));
+    const chosen = rng.weighted(open.map((c) => ({ item: c, weight: c.weight })));
     const tier = rng.weighted(
       tierWeights(chosen.tiers).map((t) => ({ item: t.tier, weight: t.weight })),
     );
@@ -124,7 +182,7 @@ export function generateItem(db: ContentDb, rng: Rng, input: GenerateItemInput):
     taken.add(chosen.affix.id);
     used[chosen.affix.position] += 1;
   }
-  return { uid, base: base.id, rarity, itemLevel, affixes };
+  return affixes;
 }
 
 /**
@@ -135,10 +193,10 @@ export function itemEffectInstances(db: ContentDb, item: ItemInstance): EffectIn
   const base = db.itemBases.get(item.base);
   if (base === undefined) throw new RangeError(`ベース ${item.base} が無い`);
   const source = { kind: EQUIPMENT_SOURCE, ref: item.uid };
-  const out: EffectInstance[] = (base.implicitEffects ?? []).map((effectId) => ({
-    effectId,
-    source,
-  }));
+  const out: EffectInstance[] = [
+    ...(base.implicitEffects ?? []),
+    ...(base.unique?.effects ?? []),
+  ].map((effectId) => ({ effectId, source }));
   for (const rolled of item.affixes) {
     const affix = db.affixes.get(rolled.id);
     if (affix === undefined) throw new RangeError(`詞 ${rolled.id} が無い`);
@@ -149,5 +207,8 @@ export function itemEffectInstances(db: ContentDb, item: ItemInstance): EffectIn
         : (rolled.rolls[0] ?? 0) * s;
     out.push({ effectId: affix.effect, source, values: [value] });
   }
+  // 亀裂（マイナスの効果）と銘（仕様書v0.2 3.9・3.11.1）
+  for (const effectId of item.cracks ?? []) out.push({ effectId, source });
+  if (item.inscription !== undefined) out.push({ effectId: item.inscription, source });
   return out;
 }

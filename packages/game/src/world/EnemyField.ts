@@ -1,4 +1,3 @@
-// 仮実装: U-18a feature/town-and-dungeon-base で、地域の群れの出現地点（補助仕様書9.3）に置き換える（試験用の敵の配置）
 import {
   type AilmentApplication,
   type Bounds,
@@ -20,7 +19,7 @@ import {
   separate,
 } from "@stella/core";
 
-/** 試験用の群れ。 */
+/** 群れ（地域の配置〔補助仕様書9.3〕か、開発用の試験用の場の群れ）。 */
 export interface SpawnGroup {
   readonly id: string;
   readonly enemy: string;
@@ -29,9 +28,11 @@ export interface SpawnGroup {
   readonly at: Vec2;
   /** 群れの中で、魔法・精鋭にする体（先頭から）。 */
   readonly ranks?: readonly EnemyRank[];
+  /** 根渡りで現れる地点（ボス）。 */
+  readonly anchors?: readonly Vec2[];
 }
 
-/** 試験用の場に置く群れ（補助仕様書9.2のA1〜A4の敵を、1種類ずつ）。 */
+/** 開発用の試験用の場に置く群れ（補助仕様書9.2のA1〜A4の敵を、1種類ずつ）。 */
 export const TEST_GROUPS: readonly SpawnGroup[] = [
   {
     id: "wolves",
@@ -55,7 +56,7 @@ export const TEST_GROUPS: readonly SpawnGroup[] = [
   { id: "saplings", enemy: "ENM-ROT-SAPLING", level: 3, count: 2, at: { x: 44, y: 33 } },
 ];
 
-/** 群れが全て倒れてから、もう一度出るまでの秒数（試験用）。 */
+/** 群れが全て倒れてから、もう一度出るまでの秒数（開発用の試験用の場だけ。地域では、入り直すまで出ない）。 */
 const RESPAWN_SECONDS = 8;
 /** 倒れた敵を消すまでの秒数。 */
 const CORPSE_SECONDS = 0.6;
@@ -85,10 +86,14 @@ export interface FieldHooks {
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
   /** 敵が倒れた（経験値を得る）。 */
   onEnemyKilled(enemy: Enemy): void;
+  /** このヒットの、プレイヤーが受けるダメージの倍率（背向けの外套。省略で1）。 */
+  playerTakenMultiplier?(enemy: Enemy): number;
+  /** ボスの段階が変わった・根渡りで潜った・現れた（表示用。省略できる）。 */
+  onBossEvent?(enemy: Enemy, event: "phase" | "burrow" | "surface", phase: number): void;
 }
 
 /**
- * 試験用の場の敵：出現・行動・攻撃の処理（Phaser に依存しない。表示は EnemyFieldView）。
+ * 場の敵：出現・行動・攻撃の処理（Phaser に依存しない。表示は EnemyFieldView）。
  */
 export class EnemyField {
   private readonly db: ContentDb;
@@ -100,14 +105,26 @@ export class EnemyField {
   private readonly respawn = new Map<string, number>();
   readonly projectiles = new ProjectilePool<{ enemy: Enemy; attack: EnemyAttackDef }>(64);
   private serial = 0;
+  private readonly respawns: boolean;
   kills = 0;
 
-  constructor(db: ContentDb, rng: Rng, bounds: Bounds) {
+  /**
+   * @param groups 出す群れ（省略すると開発用の試験用の場の群れ）
+   * @param respawns 群れが全て倒れたら、しばらくして出し直すか（開発用の試験用の場だけ）
+   */
+  constructor(
+    db: ContentDb,
+    rng: Rng,
+    bounds: Bounds,
+    groups: readonly SpawnGroup[] = TEST_GROUPS,
+    respawns = true,
+  ) {
     this.db = db;
     this.rng = rng;
     this.bounds = bounds;
+    this.respawns = respawns;
     this.attackers = new EnemyAttackers(db);
-    for (const g of TEST_GROUPS) this.spawnGroup(g);
+    for (const g of groups) this.spawnGroup(g);
   }
 
   /** 場に出ている敵（倒れてから消えるまでを含む）。 */
@@ -124,9 +141,25 @@ export class EnemyField {
     return this.views.map((v) => v.enemy);
   }
 
-  /** 生きている敵の、戦う者（プレイヤーの技の対象）。 */
+  /** 生きている敵の、戦う者（プレイヤーの技の対象。根渡りで地中にいるボスは除く）。 */
   targets(): Combatant[] {
-    return this.views.filter((v) => v.enemy.state !== "dead").map((v) => v.enemy.combatant);
+    return this.views.filter((v) => v.enemy.targetable).map((v) => v.enemy.combatant);
+  }
+
+  /** 位置に最も近い、生きている敵（except を除く）。 */
+  nearestEnemy(at: Vec2, except?: Enemy): Enemy | undefined {
+    let best: Enemy | undefined;
+    let dist = Infinity;
+    for (const v of this.views) {
+      const e = v.enemy;
+      if (e === except || e.state === "dead" || !e.targetable) continue;
+      const d = Math.hypot(e.position.x - at.x, e.position.y - at.y);
+      if (d < dist) {
+        dist = d;
+        best = e;
+      }
+    }
+    return best;
   }
 
   byCombatant(c: Combatant): Enemy | undefined {
@@ -137,11 +170,13 @@ export class EnemyField {
     return this.cloudList.length;
   }
 
-  private spawnGroup(g: SpawnGroup): void {
+  /** 群れを出す。出した敵の id を返す。 */
+  private spawnGroup(g: SpawnGroup): string[] {
+    const out: string[] = [];
     for (let i = 0; i < g.count; i++) {
       const a = (i / Math.max(1, g.count)) * 2 * Math.PI;
       const r = g.count > 1 ? 1.2 : 0;
-      this.spawn(
+      const e = this.spawn(
         g.enemy,
         g.ranks?.[i] ?? "normal",
         g.level,
@@ -151,8 +186,11 @@ export class EnemyField {
         },
         g.id,
         i,
+        g.anchors,
       );
+      out.push(e.id);
     }
+    return out;
   }
 
   /** 敵を1体出す（確認用にも使う）。 */
@@ -163,6 +201,7 @@ export class EnemyField {
     at: Vec2,
     group: string,
     index = 0,
+    anchors?: readonly Vec2[],
   ): Enemy {
     const def = this.db.enemies.get(enemyId);
     const rank = this.db.enemyRanks.get(rankKey);
@@ -178,6 +217,7 @@ export class EnemyField {
       packId: group,
       packIndex: index,
       facing: Math.PI,
+      ...(anchors === undefined ? {} : { anchors }),
     });
     this.views.push({ enemy, group, deadFor: 0, hitGroups: new Set() });
     return enemy;
@@ -230,6 +270,7 @@ export class EnemyField {
         staggerCoefficient: attack.staggerCoefficient,
         target: player,
         rng: this.rng,
+        extraTakenMultiplier: hooks.playerTakenMultiplier?.(enemy) ?? 1,
       });
       hooks.onPlayerHit(report, enemy, attack);
     };
@@ -274,7 +315,41 @@ export class EnemyField {
               untilNext: 0,
             });
             break;
+          case "summon": {
+            // 仲間を呼ぶ（呼んだ敵と同じLv）。呼んだ仲間と、周りの同じ種類の敵の攻撃速度を上げる
+            const id = `summon-${String(++this.serial)}`;
+            const ids = this.spawnGroup({
+              id,
+              enemy: ev.enemy,
+              level: e.level,
+              count: ev.count,
+              at: {
+                x: ev.origin.x + Math.cos(e.facing) * ev.radius,
+                y: ev.origin.y + Math.sin(e.facing) * ev.radius,
+              },
+            });
+            // 呼ばれた仲間は、すぐに気づいている
+            for (const v2 of this.views) if (ids.includes(v2.enemy.id)) v2.enemy.notice();
+            const haste = ev.haste;
+            if (haste !== undefined)
+              for (const other of this.views) {
+                const o = other.enemy;
+                if (o.state === "dead" || o.def.id !== ev.enemy) continue;
+                const near =
+                  Math.hypot(o.position.x - ev.origin.x, o.position.y - ev.origin.y) <=
+                  haste.radius;
+                if (near || ids.includes(o.id)) o.hasten(haste.increase, haste.duration);
+              }
+            break;
+          }
           case "returned":
+            break;
+          case "phase":
+            hooks.onBossEvent?.(e, "phase", ev.phase);
+            break;
+          case "burrow":
+          case "surface":
+            hooks.onBossEvent?.(e, ev.type, e.phase);
             break;
         }
       }
@@ -308,9 +383,10 @@ export class EnemyField {
       if (c.remaining <= 1e-9) this.cloudList.splice(i, 1);
     }
 
-    // 倒れた敵を消し、群れが全て倒れたら、しばらくしてからもう一度出す（試験用）
+    // 倒れた敵を消し、群れが全て倒れたら、しばらくしてからもう一度出す（開発用の試験用の場だけ）
     this.kills += this.views.filter((v) => v.deadFor >= CORPSE_SECONDS).length;
     this.views = this.views.filter((v) => v.deadFor < CORPSE_SECONDS);
+    if (!this.respawns) return;
     for (const g of TEST_GROUPS) {
       const alive = this.views.some((v) => v.group === g.id);
       if (alive) {

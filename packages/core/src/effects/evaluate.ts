@@ -606,7 +606,8 @@ export interface EvaluatedEffects {
   readonly dormant: readonly DormantEffect[];
 }
 
-function conditionMet(
+/** 条件を、第1段階の値と事実で判定する（星門の判定にも使う。仕様書v0.2 4.9.1）。 */
+export function conditionMet(
   cond: Condition,
   stage1: ModifierView,
   facts: EvaluationFacts,
@@ -627,6 +628,21 @@ function conditionMet(
     case "mainJob":
       return facts.mainJob === cond.job;
   }
+}
+
+/**
+ * 第1段階の値（条件のない効果だけ。重ねた数が0の効果は除く）。星門などの条件の判定に使う（仕様書v0.2 4.9.1）。
+ */
+export function stageOneView(
+  db: ContentDb,
+  tags: TagIndex,
+  instances: readonly EffectInstance[],
+  facts: EvaluationFacts = {},
+): ModifierView {
+  const unconditional = [...instances]
+    .filter((i) => (db.effects.get(i.effectId)?.conditions ?? []).length === 0 && stacksOf(i) > 0)
+    .sort(compareInstances);
+  return new ModifierView(db, tags, unconditional, facts.baseStats ?? {});
 }
 
 /**

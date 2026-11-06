@@ -9,6 +9,7 @@
 export const CORE_API_VERSION = 1;
 
 export { Rng, type RngState } from "./random/rng.ts";
+export { FLASK_FILL, FLASK_RULES, Flask, type FlaskState } from "./character/flasks.ts";
 export { FIXED_STEP_SECONDS, FixedStepClock, type AdvanceResult } from "./time/fixed-step.ts";
 export { StepInputBuffer } from "./time/step-input.ts";
 
@@ -56,7 +57,9 @@ export { TagIndex } from "./effects/tag-index.ts";
 export {
   EQUIPMENT_SOURCE_KIND,
   ModifierView,
+  conditionMet,
   evaluateEffects,
+  stageOneView,
   type ActiveBehavior,
   type Contribution,
   type ConversionEntry,
@@ -264,12 +267,35 @@ export {
   type CharacterInit,
   type XpGain,
 } from "./character/progression.ts";
+export {
+  ATTRIBUTE_STATS,
+  MIN_ATTACK_SPEED_FACTOR,
+  SHEET_STATS,
+  UNARMED_ATTACK_SPEED,
+  UNARMED_WEAPON_TAG,
+  type CharacterSheet,
+  type CharacterSheetInput,
+  type DamagePreview,
+  damagePreview,
+  type SheetBreakdownLine,
+  type SheetRow,
+  type SheetStat,
+  type SheetWeapon,
+  buildCharacterSheet,
+  BASE_WARD_DELAY,
+  latentConditionMet,
+  sheetRows,
+} from "./character/sheet.ts";
 
 export {
   AFFIX_SLOTS,
   AFFIX_TIERS,
   ATTRIBUTES,
   BASE_CATEGORIES,
+  ARMOR_TYPES,
+  type ArmorType,
+  type LatentCondition,
+  type UniqueDef,
   DROP_SOURCES,
   ITEM_RARITIES,
   RARE_OR_BETTER,
@@ -293,7 +319,10 @@ export {
   type GenerateItemInput,
   type ItemInstance,
   type RolledAffix,
+  addAffixes,
   candidateAffixes,
+  JOB_AFFIX_BOOST,
+  type AffixContext,
   generateItem,
   itemEffectInstances,
   rollAffixValue,
@@ -304,13 +333,53 @@ export {
   type DropResult,
   dropItemLevel,
   droppableBases,
+  droppableUniques,
   jobTargetedBases,
   rollDrops,
+  uniqueItem,
+  ALTAR_TOKEN_COST,
 } from "./items/drops.ts";
 export { INVENTORY_SLOTS, Inventory } from "./items/inventory.ts";
 export {
+  type ItemTooltip,
+  type TooltipContext,
+  type TooltipEffectLine,
+  effectMatchesContexts,
+  itemTooltip,
+  skillContexts,
+} from "./items/tooltip.ts";
+export {
+  type CompareOptions,
+  type EquipComparison,
+  type StatChange,
+  compareEquip,
+} from "./items/compare.ts";
+export {
+  AWAKENING_DUST,
+  AWAKENING_DUST_PRICE,
+  MERCHANT_STOCK_SIZE,
+  SELL_MULTIPLIER,
+  STASH_SLOTS,
+  type StockInput,
+  basePrice,
+  buyAwakeningDust,
+  buyItem,
+  createStash,
+  rollMerchantStock,
+  sellItem,
+  sellPrice,
+  transferItem,
+} from "./items/merchant.ts";
+export {
+  ENHANCE_STEP,
   Equipment,
+  MAX_ENHANCE,
   MVP_EQUIP_SLOTS,
+  ARMOR_SLOTS,
+  DEFENSE_EFFECTS,
+  UNIFORM_EFFECTS,
+  UNIFORM_PIECES,
+  enhanceMultiplier,
   type MvpEquipSlot,
   UNMET_REQUIREMENT_MULTIPLIER,
   basePerformanceMultiplier,
@@ -319,3 +388,115 @@ export {
   slotsFor,
   unequipToInventory,
 } from "./items/equipment.ts";
+
+export {
+  MIGRATIONS,
+  SAVE_SKILL_SLOTS,
+  SAVE_VERSION,
+  type KeptSaveFields,
+  type Migration,
+  type PlayerProfile,
+  type SaveData,
+  SaveDataError,
+  type SaveDataV1,
+  emptyKeptFields,
+  fromSaveData,
+  migrateSaveData,
+  saveDataSchema,
+  saveDataV1Schema,
+  toSaveData,
+} from "./save/save-data.ts";
+export {
+  AutoSaveTimer,
+  type AutoSaveReason,
+  DUNGEON_AUTOSAVE_SECONDS,
+  type LoadResult as SaveLoadResult,
+  MemoryBackend,
+  SAVE_FORMAT,
+  SAVE_SLOTS,
+  type SaveBackend,
+  SaveStore,
+  type SlotSummary,
+  checksum,
+  decodeSave,
+  encodeSave,
+} from "./save/save-store.ts";
+
+export {
+  NODE_EFFECT_ORIGIN,
+  STAR_NODE_KINDS,
+  STAR_REGIONS,
+  type ConstellationDef,
+  type StarNodeDef,
+  type StarNodeKind,
+  type StarRegion,
+  constellationSchema,
+  starNodeSchema,
+} from "./content/board.ts";
+export {
+  CONSTELLATION_SOURCE,
+  type DormantReason,
+  STAR_NODE_SOURCE,
+  StarAllocation,
+  type StarBoardInput,
+  type StarBoardResult,
+  evaluateStarBoard,
+  startNodeOf,
+  starPoints,
+} from "./board/star-board.ts";
+
+export {
+  CRACKS,
+  CRACK_CHANCE,
+  CRAFT_MATERIALS,
+  CRAFT_OPS,
+  type CraftBlock,
+  type CraftOp,
+  type CraftResult,
+  ENHANCE_COSTS,
+  INSCRIPTIONS,
+  INSPIRATION_CHANCE,
+  MAX_FORGE_LOAD,
+  SEAL_LOAD_AFTER_FIRST,
+  UNSTABLE_LOAD,
+  craft,
+  craftBlock,
+  craftWithInventory,
+  disassembleFromInventory,
+  disassemblyYield,
+  enhance,
+  enhanceCost,
+  enhanceWithInventory,
+  inscribe,
+  opLoad,
+} from "./items/crafting.ts";
+
+export {
+  type LoadoutRecord,
+  MAX_LOADOUTS,
+  emptyLoadout,
+  forgetItem,
+  loadoutsUsing,
+} from "./character/loadouts.ts";
+
+export {
+  FACILITIES,
+  type Facility,
+  type Rect,
+  type QuestDef,
+  type RegionDef,
+  inRect,
+  questSchema,
+  regionSchema,
+} from "./content/region.ts";
+export {
+  ELITE_CHANCE,
+  type LayoutChest,
+  type LayoutPack,
+  MAGIC_PACK_CHANCE,
+  OLD_CHEST_CHANCE,
+  PACK_ACTIVE_CHANCE,
+  type RegionLayout,
+  WOOD_CHESTS,
+  rollRegionLayout,
+} from "./world/layout.ts";

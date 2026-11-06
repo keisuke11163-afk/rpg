@@ -145,5 +145,125 @@
     ],
     "provisional": true,
     "provisionalNote": "仕様書v0.2 3.5・3.6、補助仕様書5章・12.2（仮値）。中ボスの希少以上の率の補正・金貨は記載が無い（docs/progress Q-U11-4）"
+  },
+  {
+    "id": "DROP-CHAPTER-BOSS",
+    "source": "chapterBoss",
+    "chance": 1,
+    "count": {
+      "min": 6,
+      "max": 10
+    },
+    "rareMultiplier": 1,
+    "guaranteedRareOrBetter": 1,
+    "itemLevelBonus": 4,
+    "materials": [
+      {
+        "material": "MAT-BOSS-CORE-CH1",
+        "count": 1
+      },
+      {
+        "material": "MAT-INSIGHT-CRYSTAL",
+        "count": 2
+      },
+      {
+        "material": "MAT-SEAL-WAX",
+        "chance": 0.5
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "補助仕様書11.1（6〜10個・母樹の樹液1・開眼の結晶2・封詞の蝋50%）。希少以上の確定・補正は中ボスに合わせた（docs/progress D-U19-3）。討伐証は敵のデータ、専用ユニークは U-16"
+  },
+  {
+    "id": "DROP-ABYSS-BOSS",
+    "source": "abyssBoss",
+    "chance": 1,
+    "count": {
+      "min": 8,
+      "max": 12
+    },
+    "rareMultiplier": 1,
+    "guaranteedRareOrBetter": 1,
+    "itemLevelBonus": 4,
+    "materials": [
+      {
+        "material": "MAT-BOSS-CORE-CH1",
+        "count": 1
+      },
+      {
+        "material": "MAT-INSIGHT-CRYSTAL",
+        "count": 2
+      },
+      {
+        "material": "MAT-SEAL-WAX",
+        "chance": 0.5
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "補助仕様書11.2（8〜12個・iLv25〔Lv21＋4〕・他は腐根の母樹と同じ）。討伐証2個は敵のデータ、専用ユニークは U-16"
+  },
+  {
+    "id": "DROP-WOOD-CHEST",
+    "source": "woodChest",
+    "chance": 0.3,
+    "count": {
+      "min": 1,
+      "max": 1
+    },
+    "rareMultiplier": 1,
+    "guaranteedRareOrBetter": 0,
+    "itemLevelBonus": 0,
+    "gold": {
+      "chance": 0.3,
+      "multiplier": 3
+    },
+    "materials": [
+      {
+        "material": "MAT-AWAKENING-DUST",
+        "chance": 0.05
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "木箱・古びた宝箱：金貨と素材は補助仕様書5章・12.2。アイテムを落とす確率・数・希少以上の補正は記載が無い（docs/progress Q-U18-2）"
+  },
+  {
+    "id": "DROP-OLD-CHEST",
+    "source": "oldChest",
+    "chance": 1,
+    "count": {
+      "min": 1,
+      "max": 2
+    },
+    "rareMultiplier": 1.5,
+    "guaranteedRareOrBetter": 0,
+    "itemLevelBonus": 0,
+    "gold": {
+      "chance": 1,
+      "multiplier": 8
+    },
+    "materials": [
+      {
+        "material": "MAT-AWAKENING-DUST",
+        "chance": 0.2
+      },
+      {
+        "material": "MAT-INSIGHT-CRYSTAL",
+        "chance": 0.1
+      },
+      {
+        "material": "MAT-TRANSMUTE-STONE",
+        "chance": 0.1
+      },
+      {
+        "material": "MAT-ERASE-BLADE",
+        "chance": 0.05
+      },
+      {
+        "material": "MAT-RETURN-LAMP",
+        "chance": 0.05
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "木箱・古びた宝箱：金貨と素材は補助仕様書5章・12.2。アイテムを落とす確率・数・希少以上の補正は記載が無い（docs/progress Q-U18-2）"
   }
 ]

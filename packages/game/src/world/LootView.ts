@@ -1,18 +1,12 @@
-// 仮実装: U-18a feature/town-and-dungeon-base で、地域の地面のアイテムの表示に置き換える（試験用の表示）
 import Phaser from "phaser";
-import type { ContentDb, ItemRarity, Vec2 } from "@stella/core";
+import type { ContentDb, Vec2 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
+import { RARITY_COLOR } from "../ui/item-text.ts";
 import type { GroundLoot, LootField } from "./LootField.ts";
+
+export { RARITY_COLOR };
 import { toPixels } from "./units.ts";
 
-/** レアリティの色（仕様書v0.2 3.5：通常は白・魔法は青・希少は黄・固有は橙・星座は緑）。 */
-export const RARITY_COLOR: Readonly<Record<ItemRarity, string>> = {
-  normal: "#e8e6f0",
-  magic: "#6fa8ff",
-  rare: "#ffd166",
-  unique: "#ff9f43",
-  set: "#7bd389",
-};
 const GOLD_COLOR = "#ffd166";
 const MATERIAL_COLOR = "#c3a6ff";
 /** 名前を出す距離（m。仮値：Alt を押していないときは、近くの物だけ。docs/progress D-U11-13）。 */

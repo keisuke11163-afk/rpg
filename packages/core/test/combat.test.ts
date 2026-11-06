@@ -231,6 +231,66 @@ describe("ヒットの解決（開発計画書 工程BT-2）", () => {
     expect(r.applied.toHp).toBeCloseTo(expected);
   });
 
+  it("ダメージを受けない間（ボスの段階の切り替え・根渡り）のヒットは、ダメージ・状態異常・崩しを与えない", () => {
+    const d = dummy(0);
+    d.health.invulnerable = true;
+    const r = resolveHit({
+      db,
+      attacker: attacker(["EFF-FORCE-BLEED"]),
+      attackerPosition: { x: 1, y: 0 },
+      skill: BASIC,
+      staggerCoefficient: 5,
+      target: d,
+      rng: Rng.fromSeed(3),
+    });
+    expect(r.applied).toEqual({ toWard: 0, toHp: 0, died: false });
+    expect(r.ailments).toEqual([]);
+    expect(r.staggerValue).toBe(0);
+    expect(d.health.hp).toBe(1000);
+    expect(d.ailments.stacks("AIL-BLEED")).toBe(0);
+    expect(d.stagger.current).toBe(0);
+  });
+
+  it("無敵になる前に付いた持続ダメージは、無敵の間は減らさず、時間は進む（切れる時期は変わらない）", () => {
+    const d = dummy(0);
+    resolveHit({
+      db,
+      attacker: attacker(["EFF-FORCE-BLEED"]),
+      attackerPosition: { x: 1, y: 0 },
+      skill: BASIC,
+      target: d,
+      rng: Rng.fromSeed(4),
+    });
+    expect(d.ailments.stacks("AIL-BLEED")).toBe(1);
+    const hp = d.health.hp;
+    d.health.invulnerable = true;
+    for (let i = 0; i < 120; i++) d.update(FIXED_STEP_SECONDS);
+    expect(d.health.hp).toBe(hp);
+    expect(d.ailments.stacks("AIL-BLEED")).toBe(1);
+    d.health.invulnerable = false;
+    // 出血の持続は5秒：無敵の2秒を含めて、付いてから5秒で切れる
+    for (let i = 0; i < 60; i++) d.update(FIXED_STEP_SECONDS);
+    expect(d.health.hp).toBeLessThan(hp);
+    for (let i = 0; i < 125; i++) d.update(FIXED_STEP_SECONDS);
+    expect(d.ailments.stacks("AIL-BLEED")).toBe(0);
+  });
+
+  it("HPの下限（ボスの段階の境目）より下には、一度のダメージでも減らない", () => {
+    const h = new Health({ maxHp: 100 });
+    h.setFloor(66);
+    expect(h.takeDamage(1000).toHp).toBe(34);
+    expect(h.hp).toBe(66);
+    expect(h.takeDamage(10).toHp).toBe(0);
+    h.setFloor(0);
+    expect(h.takeDamage(1000).died).toBe(true);
+    expect(() => {
+      h.setFloor(100);
+    }).toThrow(RangeError);
+    expect(() => {
+      h.setFloor(Number.NaN);
+    }).toThrow(RangeError);
+  });
+
   it("背面からのヒットを判定する（右を向いた人形の左から＝背面）", () => {
     expect(
       resolveHit({

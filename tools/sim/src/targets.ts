@@ -1,3 +1,5 @@
+import type { ContentDb } from "@stella/core";
+import { text, type TextKey } from "@stella/content";
 import type { Target } from "./build.ts";
 import { chapterBossHp, normalEnemyHp } from "./standards.ts";
 
@@ -25,8 +27,46 @@ export function chapterBoss(level: number, hpLevel = level): Target {
   };
 }
 
-/** 名前で的を選ぶ（例：dummy-1、enemy-14、boss-14、boss-14@15）。 */
-export function targetByName(name: string): Target {
+/**
+ * データのボス（補助仕様書11章）：最大HP・耐性・段階の境目と切り替えの無敵・根渡り（地中にいる間は無敵で、
+ * 移動している）。攻撃は、データで最も強い攻撃を5秒ごとで近似する。
+ */
+export function bossFromData(db: ContentDb, enemyId: string, level: number): Target {
+  const def = db.enemies.get(enemyId);
+  const boss = def?.boss;
+  if (def === undefined || boss === undefined) throw new Error(`ボス ${enemyId} がデータに無い`);
+  const burrow = def.attacks.find((a) => a.delivery.type === "burrow");
+  const strongest = Math.max(...def.attacks.map((a) => a.ratio));
+  return {
+    name: `${text(def.text as TextKey)}（Lv${String(level)}）`,
+    level,
+    maxHp: boss.hp,
+    isBoss: true,
+    resist: { ...(def.defense.resist ?? {}) },
+    phases: { thresholds: [...boss.phaseThresholds], invulnerable: boss.transitionInvulnerable },
+    ...(burrow === undefined
+      ? {}
+      : {
+          burrow: {
+            phase: Math.min(...(burrow.phases ?? [1])),
+            // 根渡りを使ってから次に使うまで：予兆・地中・硬直＋待ち時間
+            period: burrow.windup + burrow.active + burrow.recovery + burrow.cooldown,
+            duration: burrow.active,
+          },
+        }),
+    ...(strongest > 0
+      ? { attack: { ratioOfStandardHp: strongest, interval: 5, element: "physical" as const } }
+      : {}),
+  };
+}
+
+/** 名前で的を選ぶ（例：dummy-1、enemy-14、boss-14、boss-14@15、ENM-MOTHER-TREE@14）。 */
+export function targetByName(name: string, db?: ContentDb): Target {
+  const data = /^(ENM-[A-Z0-9-]+)@(\d+)$/.exec(name);
+  if (data !== null) {
+    if (db === undefined) throw new Error("データのボスには、データが必要");
+    return bossFromData(db, data[1] as string, Number(data[2]));
+  }
   const m = /^(dummy|enemy|boss)-(\d+)(?:@(\d+))?$/.exec(name);
   if (m === null)
     throw new Error(`的の名前が正しくない：${name}（例：dummy-1、enemy-14、boss-14@15）`);

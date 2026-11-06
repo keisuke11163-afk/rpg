@@ -1,0 +1,414 @@
+[
+  {
+    "id": "STAR-GOU-START",
+    "kind": "start",
+    "region": "gou",
+    "links": ["STAR-GOU-0001", "STAR-GOUJIN-0001"],
+    "position": {
+      "x": -200,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "startFor": ["JOB-WARRIOR"],
+    "text": "star.start.gou"
+  },
+  {
+    "id": "STAR-JIN-START",
+    "kind": "start",
+    "region": "jin",
+    "links": ["STAR-JIN-0001", "STAR-JIN-0011"],
+    "position": {
+      "x": 200,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "startFor": ["JOB-ROGUE"],
+    "text": "star.start.jin"
+  },
+  {
+    "id": "STAR-GOU-0001",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOU-0002"],
+    "position": {
+      "x": -200,
+      "y": 40
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GO-10"]
+  },
+  {
+    "id": "STAR-GOU-0002",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOU-0003"],
+    "position": {
+      "x": -200,
+      "y": 80
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOU-0003",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOU-0004"],
+    "position": {
+      "x": -200,
+      "y": 120
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GO-10"]
+  },
+  {
+    "id": "STAR-GOU-0004",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GATE-BLADE"],
+    "position": {
+      "x": -200,
+      "y": 160
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GATE-BLADE",
+    "kind": "gate",
+    "region": "gou",
+    "links": ["STAR-GOU-0101"],
+    "position": {
+      "x": -200,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": [],
+    "text": "star.gate.blade",
+    "gate": {
+      "conditions": [
+        {
+          "type": "equippedTag",
+          "tag": "TAG-WPNGRP-SWORD",
+          "slot": "mainHand"
+        }
+      ]
+    }
+  },
+  {
+    "id": "STAR-GOU-0101",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOU-0102"],
+    "position": {
+      "x": -200,
+      "y": 240
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GO-10"]
+  },
+  {
+    "id": "STAR-GOU-0102",
+    "kind": "minor",
+    "region": "gou",
+    "links": [],
+    "position": {
+      "x": -200,
+      "y": 280
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GO-10"]
+  },
+  {
+    "id": "STAR-GOUJIN-0001",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOUJIN-0002"],
+    "position": {
+      "x": -160,
+      "y": -77
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOUJIN-0002",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOUJIN-0003"],
+    "position": {
+      "x": -120,
+      "y": -111
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOUJIN-0003",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-GOUJIN-0004"],
+    "position": {
+      "x": -80,
+      "y": -137
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOUJIN-0004",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-GOUJIN-0005"],
+    "position": {
+      "x": -40,
+      "y": -154
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOUJIN-0005",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-GOUJIN-0006"],
+    "position": {
+      "x": 0,
+      "y": -160
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOUJIN-0006",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-GOUJIN-0007"],
+    "position": {
+      "x": 40,
+      "y": -154
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOUJIN-0007",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-GOUJIN-0008"],
+    "position": {
+      "x": 80,
+      "y": -137
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOUJIN-0008",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-GOUJIN-0009"],
+    "position": {
+      "x": 120,
+      "y": -111
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-GOUJIN-0009",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-0011"],
+    "position": {
+      "x": 160,
+      "y": -77
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-JIN-0011",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-START"],
+    "position": {
+      "x": 200,
+      "y": -40
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-JIN-10"]
+  },
+  {
+    "id": "STAR-JIN-0001",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-0002"],
+    "position": {
+      "x": 200,
+      "y": 40
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-JIN-10"]
+  },
+  {
+    "id": "STAR-JIN-0002",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-0003"],
+    "position": {
+      "x": 200,
+      "y": 80
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-BLEED-6"]
+  },
+  {
+    "id": "STAR-JIN-0003",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-0004"],
+    "position": {
+      "x": 200,
+      "y": 120
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-JIN-10"]
+  },
+  {
+    "id": "STAR-JIN-0004",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-GATE-BEAST"],
+    "position": {
+      "x": 200,
+      "y": 160
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-BLEED-6"]
+  },
+  {
+    "id": "STAR-GATE-BEAST",
+    "kind": "gate",
+    "region": "jin",
+    "links": ["STAR-JIN-0101"],
+    "position": {
+      "x": 200,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": [],
+    "text": "star.gate.beast",
+    "gate": {
+      "conditions": [
+        {
+          "type": "equippedTag",
+          "tag": "TAG-WPN-CLAW",
+          "slot": "mainHand"
+        }
+      ]
+    }
+  },
+  {
+    "id": "STAR-JIN-0101",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-0102"],
+    "position": {
+      "x": 200,
+      "y": 240
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-BLEED-6"]
+  },
+  {
+    "id": "STAR-JIN-0102",
+    "kind": "minor",
+    "region": "jin",
+    "links": [],
+    "position": {
+      "x": 200,
+      "y": 280
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-BLEED-6"]
+  },
+  {
+    "id": "STAR-JIN-0201",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-0001", "STAR-JIN-0202"],
+    "position": {
+      "x": 250,
+      "y": 80
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-BLEED-6"]
+  },
+  {
+    "id": "STAR-JIN-0202",
+    "kind": "minor",
+    "region": "jin",
+    "links": [],
+    "position": {
+      "x": 290,
+      "y": 120
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-BLEED-6"]
+  },
+  {
+    "id": "STAR-GOU-0201",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOU-0001", "STAR-GOU-0202"],
+    "position": {
+      "x": -250,
+      "y": 80
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GO-10"]
+  },
+  {
+    "id": "STAR-GOU-0202",
+    "kind": "minor",
+    "region": "gou",
+    "links": [],
+    "position": {
+      "x": -290,
+      "y": 120
+    },
+    "provisional": true,
+    "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
+    "effects": ["EFF-STAR-GOJIN-5"]
+  }
+]

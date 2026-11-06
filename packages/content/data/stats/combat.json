@@ -203,5 +203,147 @@
     "text": "stat.cooldown-reduction",
     "unit": "ratio",
     "min": 0
+  },
+  {
+    "id": "STAT-ATTR-GO",
+    "text": "stat.attr.go",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-ATTR-JIN",
+    "text": "stat.attr.jin",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-ATTR-RI",
+    "text": "stat.attr.ri",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-ATTR-KON",
+    "text": "stat.attr.kon",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-WARD-MAX",
+    "text": "stat.ward-max",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-WARD-DELAY",
+    "text": "stat.ward-delay",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-FLASK-RECOVERY",
+    "text": "stat.flask-recovery",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-GAUGE-GAIN",
+    "text": "stat.gauge-gain",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-FINISHER-POINTS",
+    "text": "stat.finisher-points",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-BEAST-HUNT",
+    "text": "stat.beast-hunt",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-BACKSTAB-CRIT",
+    "text": "stat.backstab-crit",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-LIFE-LEECH",
+    "text": "stat.life-leech",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-STRIDE-CDR",
+    "text": "stat.unq-stride-cdr",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-CRIT-TO-DAMAGE",
+    "text": "stat.unq-crit-to-damage",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-STILL-ARMOR",
+    "text": "stat.unq-still-armor",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-RETALIATE-POISON",
+    "text": "stat.unq-retaliate-poison",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BLEED-TRANSFER",
+    "text": "stat.unq-bleed-transfer",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BREAK-FERVOR",
+    "text": "stat.unq-break-fervor",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BREAK-SPREAD",
+    "text": "stat.unq-break-spread",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BEHIND-GUARD",
+    "text": "stat.unq-behind-guard",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-MOVE-BACKSTAB",
+    "text": "stat.unq-move-backstab",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-SPLIT-HIT",
+    "text": "stat.unq-split-hit",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-POISON-AMP",
+    "text": "stat.unq-poison-amp",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-POISON-AMP-CAP",
+    "text": "stat.unq-poison-amp-cap",
+    "unit": "ratio",
+    "min": 0
   }
 ]

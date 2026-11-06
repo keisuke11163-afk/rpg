@@ -88,5 +88,294 @@
     },
     "scope": "self",
     "locality": "local"
+  },
+  {
+    "id": "EFF-BASE-ARMOR",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ARMOR",
+        "value": 0
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-BASE-EVASION",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-EVASION",
+        "value": 0
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-BASE-WARD",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-WARD-MAX",
+        "value": 0
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-UNIFORM-HEAVY",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER-TAKEN",
+        "value": -0.3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3「崩されにくさ+30%」を、受ける崩し値-30%（加算）として扱う（docs/progress D-U11-17）"
+  },
+  {
+    "id": "EFF-UNIFORM-LIGHT-DODGE",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-UNIFORM-ROBE",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-WARD-DELAY",
+        "value": -1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-ALL-ELEM-RESIST-5",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-FIRE",
+        "value": 0.05
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-COLD",
+        "value": 0.05
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-LIGHTNING",
+        "value": 0.05
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-DARK",
+        "value": 0.05
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-HOLY",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "「全属性耐性」に物理を含めない（docs/progress D-U11-18）"
+  },
+  {
+    "id": "EFF-IMP-FIRE-DAMAGE-10",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.1,
+        "filter": {
+          "allOf": ["TAG-ELEM-FIRE"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-ALL-ATTR-8",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-GO",
+        "value": 8
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-JIN",
+        "value": 8
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-RI",
+        "value": 8
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-KON",
+        "value": 8
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-FLASK-15",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-FLASK-RECOVERY",
+        "value": 0.15
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-HEAVY-CHAIN",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.15
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": -0.02
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-TOWER-SHIELD",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": -0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-BUFF-BEAST-HUNT",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.15
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-BACKSTAB-CRIT-5",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-BACKSTAB-CRIT",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-IMP-LIFE-LEECH-05",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-LIFE-LEECH",
+        "value": 0.005
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "locality": "local"
   }
 ]

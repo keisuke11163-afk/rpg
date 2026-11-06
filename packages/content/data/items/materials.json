@@ -30,5 +30,21 @@
   {
     "id": "MAT-BEAST-FANG",
     "text": "item.material.beast-fang"
+  },
+  {
+    "id": "MAT-MAGIC-DUST",
+    "text": "item.material.magic-dust"
+  },
+  {
+    "id": "MAT-STAR-SAND",
+    "text": "item.material.star-sand"
+  },
+  {
+    "id": "MAT-GLOW-STONE",
+    "text": "item.material.glow-stone"
+  },
+  {
+    "id": "MAT-BOSS-CORE-CH1",
+    "text": "item.material.boss-core-ch1"
   }
 ]

@@ -42,6 +42,8 @@ export interface CombatantInit {
   readonly facing?: number;
   readonly maxHp: number;
   readonly maxWard?: number;
+  /** 魔障が回復し始めるまでの秒数（省略で2秒）。 */
+  readonly wardRechargeDelay?: number;
   readonly isBoss?: boolean;
   readonly resist?: Partial<Record<Element, number>>;
   readonly armor?: number;
@@ -87,18 +89,36 @@ export class Combatant {
     this.health = new Health({
       maxHp: init.maxHp,
       ...(init.maxWard === undefined ? {} : { maxWard: init.maxWard }),
+      ...(init.wardRechargeDelay === undefined
+        ? {}
+        : { wardRechargeDelay: init.wardRechargeDelay }),
     });
     this.ailments = new AilmentState(db);
     this.stagger = new StaggerGauge(init.staggerProfile, init.maxHp);
   }
 
-  /** 受けるダメージの倍率（崩れている間・一定時間の効果）。 */
+  /**
+   * 自分の能力値による、受けるダメージ・崩し値の倍率（プレイヤーの装備・自己強化。能力値の評価から渡す）。
+   * 一定時間の効果（statuses）の倍率に掛ける。
+   */
+  ownReceived: ReceivedMultipliers = { damage: 1, stagger: 1 };
+
+  /** 受けるダメージの倍率（崩れている間・一定時間の効果・自分の能力値）。 */
   get takenMultiplier(): number {
     return this.stagger.takenMultiplier * this.receivedMultipliers().damage;
   }
 
-  /** 一定時間の効果による、受けるダメージ・崩し値の倍率（効果が変わったときだけ計算し直す）。 */
+  /** 一定時間の効果と自分の能力値による、受けるダメージ・崩し値の倍率。 */
   receivedMultipliers(): ReceivedMultipliers {
+    const t = this.timedReceived();
+    return {
+      damage: t.damage * this.ownReceived.damage,
+      stagger: t.stagger * this.ownReceived.stagger,
+    };
+  }
+
+  /** 一定時間の効果による、受けるダメージ・崩し値の倍率（効果が変わったときだけ計算し直す）。 */
+  private timedReceived(): ReceivedMultipliers {
     if (this.receivedVersion !== this.statuses.version) {
       this.receivedVersion = this.statuses.version;
       const instances = this.statuses.instances();
@@ -182,6 +202,10 @@ export interface HitInput {
   readonly fullStagger?: boolean;
   /** 必ず会心にする（急所穿ちの5点）。 */
   readonly forceCrit?: boolean;
+  /** このヒットだけの受けるダメージの倍率（母樹の根冠の毒・背向けの外套など。省略で1）。 */
+  readonly extraTakenMultiplier?: number;
+  /** 背面からのヒットとして扱う（背向けの外套の移動の技の後）。 */
+  readonly forceBackstab?: boolean;
   /** 背面からのヒットの補正（メインジョブの職能。盗賊は会心率+10%・付与率+25%。仕様書5.6）。 */
   readonly backstabBonus?: { readonly critChance: number; readonly ailmentChance: number };
 }
@@ -203,7 +227,12 @@ export interface HitReport {
 export function resolveHit(input: HitInput): HitReport {
   const { db, attacker, skill, target, rng } = input;
   const backstab =
-    target.facing !== undefined && isBehind(input.attackerPosition, target.position, target.facing);
+    input.forceBackstab === true ||
+    (target.facing !== undefined &&
+      isBehind(input.attackerPosition, target.position, target.facing));
+  const extra = input.extraTakenMultiplier ?? 1;
+  if (!(Number.isFinite(extra) && extra >= 0))
+    throw new RangeError(`このヒットの受けるダメージの倍率は0以上の有限の数（${String(extra)}）`);
   const hit = computeHit(
     attacker,
     skill,
@@ -211,7 +240,7 @@ export function resolveHit(input: HitInput): HitReport {
       resist: target.resist,
       armor: target.armor,
       evasion: target.evasion,
-      takenMultiplier: target.takenMultiplier,
+      takenMultiplier: target.takenMultiplier * extra,
     },
     {
       rng,
@@ -222,7 +251,20 @@ export function resolveHit(input: HitInput): HitReport {
       ...(input.forceCrit === true ? { forceCrit: true } : {}),
     },
   );
+  // ダメージを受けない間（ボスの段階の切り替え・根渡り）のヒットは、ダメージ・状態異常・崩しを全て与えない
+  // （プレイヤーの回避の無敵と同じく、ヒットそのものを無効にする。docs/progress Q-U19-2 の確定）
+  const invulnerable = target.health.invulnerable;
   const applied = target.health.takeDamage(hit.total);
+  if (invulnerable)
+    return {
+      targetId: target.id,
+      hit,
+      backstab,
+      applied,
+      ailments: [],
+      staggerValue: 0,
+      staggerBroke: false,
+    };
   const tags = [...skill.tags, ...(skill.kind === "weapon" ? (attacker.weapon?.tags ?? []) : [])];
   const weaponUid = attacker.weapon?.uid;
   const ailments = rollAilments({

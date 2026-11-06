@@ -25,6 +25,10 @@ const ENEMY_COLORS: Readonly<Record<string, number>> = {
   "ENM-TUSK-BOAR": 0x8b5a3c,
   "ENM-BARK-BEAR": 0x5c4632,
   "ENM-ROT-SAPLING": 0x6b7f3a,
+  "ENM-PACK-LEADER": 0x6f737d,
+  "ENM-ROOT-TENTACLE": 0x5a6b2f,
+  "ENM-MOTHER-TREE": 0x4f5f2a,
+  "ENM-ABYSS-MOTHER-TREE": 0x3a2f4f,
 };
 
 export function createPlaceholderTextures(
