@@ -32,6 +32,10 @@ export const ATTRIBUTE_STATS: Readonly<Record<keyof Attributes, string>> = {
   kon: "STAT-ATTR-KON",
 };
 
+/** 会心率の増加をダメージに変える能力値と、その効果（盲目の賢者の目隠し）。 */
+const CRIT_TO_DAMAGE_STAT = "STAT-UNQ-CRIT-TO-DAMAGE";
+const CRIT_TO_DAMAGE_EFFECT = "EFF-UNQ-U06-CONVERTED";
+
 /** 魔障が回復し始めるまでの秒数の基礎（仕様書v0.2 2.6：2秒）。 */
 export const BASE_WARD_DELAY = 2;
 /** 移動速度の倍率の下限。 */
@@ -207,17 +211,32 @@ export function buildCharacterSheet(
       for (const effectId of u.latent.effects)
         latentEffects.push({ effectId, source: { kind: "equipment", ref: item.uid } });
   }
-  const evaluated = evaluateEffects(
-    db,
-    tags,
-    [
-      ...unconditional,
-      ...attributeEffects,
-      ...(equipment?.defenseEffects(attributes) ?? []),
-      ...latentEffects,
-    ],
-    facts,
-  );
+  const instances = [
+    ...unconditional,
+    ...attributeEffects,
+    ...(equipment?.defenseEffects(attributes) ?? []),
+    ...latentEffects,
+  ];
+  let evaluated = evaluateEffects(db, tags, instances, facts);
+  // 盲目の賢者の目隠し（U06）：会心率の増加1%ごとに、ダメージ+0.5%（加算）。会心率の増加を見てから足す
+  if (db.stats.has(CRIT_TO_DAMAGE_STAT) && db.effects.has(CRIT_TO_DAMAGE_EFFECT)) {
+    const ratio = evaluated.view.stat(CRIT_TO_DAMAGE_STAT).value;
+    const critInc = evaluated.view.stat("STAT-CRIT-CHANCE").increased;
+    if (ratio > 0 && critInc > 0)
+      evaluated = evaluateEffects(
+        db,
+        tags,
+        [
+          ...instances,
+          {
+            effectId: CRIT_TO_DAMAGE_EFFECT,
+            source: { kind: "unique", ref: CRIT_TO_DAMAGE_STAT },
+            values: [ratio * critInc],
+          },
+        ],
+        facts,
+      );
+  }
   const view = evaluated.view;
   const main = equipment?.mainWeapon(attributes);
   const item = equipment?.get("mainHand");

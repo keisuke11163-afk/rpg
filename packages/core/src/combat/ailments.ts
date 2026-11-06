@@ -463,6 +463,25 @@ export class AilmentState {
     }
   }
 
+  /**
+   * 持続ダメージのうち、残りの総量が最も多い1スタックを、付与し直せる形で返す（残りの総量と残り時間。
+   * 狼牙の首飾りの出血の移動に使う）。無ければ undefined。状態は変えない。
+   */
+  strongestDot(ailmentId: string): AilmentApplication | undefined {
+    const list = this.dots.get(ailmentId) ?? [];
+    let best: DotInstance | undefined;
+    for (const inst of list) if (best === undefined || inst.remaining > best.remaining) best = inst;
+    if (best === undefined || best.remainingTime <= 1e-9) return undefined;
+    const def = best.def;
+    return {
+      ailmentId: def.id,
+      tag: def.tag,
+      total: best.remaining,
+      duration: best.remainingTime,
+      maxStacks: def.stacking.mode === "stack" ? def.stacking.maxStacks : undefined,
+    };
+  }
+
   /** 重ねている数。 */
   stacks(ailmentId: string): number {
     return this.dots.get(ailmentId)?.length ?? (this.debuffs.has(ailmentId) ? 1 : 0);

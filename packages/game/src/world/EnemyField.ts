@@ -86,6 +86,8 @@ export interface FieldHooks {
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
   /** 敵が倒れた（経験値を得る）。 */
   onEnemyKilled(enemy: Enemy): void;
+  /** このヒットの、プレイヤーが受けるダメージの倍率（背向けの外套。省略で1）。 */
+  playerTakenMultiplier?(enemy: Enemy): number;
   /** ボスの段階が変わった・根渡りで潜った・現れた（表示用。省略できる）。 */
   onBossEvent?(enemy: Enemy, event: "phase" | "burrow" | "surface", phase: number): void;
 }
@@ -142,6 +144,22 @@ export class EnemyField {
   /** 生きている敵の、戦う者（プレイヤーの技の対象。根渡りで地中にいるボスは除く）。 */
   targets(): Combatant[] {
     return this.views.filter((v) => v.enemy.targetable).map((v) => v.enemy.combatant);
+  }
+
+  /** 位置に最も近い、生きている敵（except を除く）。 */
+  nearestEnemy(at: Vec2, except?: Enemy): Enemy | undefined {
+    let best: Enemy | undefined;
+    let dist = Infinity;
+    for (const v of this.views) {
+      const e = v.enemy;
+      if (e === except || e.state === "dead" || !e.targetable) continue;
+      const d = Math.hypot(e.position.x - at.x, e.position.y - at.y);
+      if (d < dist) {
+        dist = d;
+        best = e;
+      }
+    }
+    return best;
   }
 
   byCombatant(c: Combatant): Enemy | undefined {
@@ -252,6 +270,7 @@ export class EnemyField {
         staggerCoefficient: attack.staggerCoefficient,
         target: player,
         rng: this.rng,
+        extraTakenMultiplier: hooks.playerTakenMultiplier?.(enemy) ?? 1,
       });
       hooks.onPlayerHit(report, enemy, attack);
     };

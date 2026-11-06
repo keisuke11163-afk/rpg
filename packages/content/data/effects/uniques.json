@@ -286,5 +286,21 @@
       "ailmentBase": false
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-UNQ-U06-CONVERTED",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
   }
 ]

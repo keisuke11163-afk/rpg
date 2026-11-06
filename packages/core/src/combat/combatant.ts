@@ -202,6 +202,10 @@ export interface HitInput {
   readonly fullStagger?: boolean;
   /** 必ず会心にする（急所穿ちの5点）。 */
   readonly forceCrit?: boolean;
+  /** このヒットだけの受けるダメージの倍率（母樹の根冠の毒・背向けの外套など。省略で1）。 */
+  readonly extraTakenMultiplier?: number;
+  /** 背面からのヒットとして扱う（背向けの外套の移動の技の後）。 */
+  readonly forceBackstab?: boolean;
   /** 背面からのヒットの補正（メインジョブの職能。盗賊は会心率+10%・付与率+25%。仕様書5.6）。 */
   readonly backstabBonus?: { readonly critChance: number; readonly ailmentChance: number };
 }
@@ -223,7 +227,12 @@ export interface HitReport {
 export function resolveHit(input: HitInput): HitReport {
   const { db, attacker, skill, target, rng } = input;
   const backstab =
-    target.facing !== undefined && isBehind(input.attackerPosition, target.position, target.facing);
+    input.forceBackstab === true ||
+    (target.facing !== undefined &&
+      isBehind(input.attackerPosition, target.position, target.facing));
+  const extra = input.extraTakenMultiplier ?? 1;
+  if (!(Number.isFinite(extra) && extra >= 0))
+    throw new RangeError(`このヒットの受けるダメージの倍率は0以上の有限の数（${String(extra)}）`);
   const hit = computeHit(
     attacker,
     skill,
@@ -231,7 +240,7 @@ export function resolveHit(input: HitInput): HitReport {
       resist: target.resist,
       armor: target.armor,
       evasion: target.evasion,
-      takenMultiplier: target.takenMultiplier,
+      takenMultiplier: target.takenMultiplier * extra,
     },
     {
       rng,

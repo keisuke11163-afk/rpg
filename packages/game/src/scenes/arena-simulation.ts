@@ -73,6 +73,7 @@ import {
   skillBlock,
   staggerProfiles,
   UNIFORM_EFFECTS,
+  isBehind,
   ALTAR_TOKEN_COST,
   uniqueItem,
   FLASK_FILL,
@@ -101,6 +102,28 @@ import { LootField } from "../world/LootField.ts";
 const LIGHT_UNIFORM_SECONDS = 0.5;
 /** 系統詞【獣狩りの】の移動速度が続く秒数（仕様書v0.2 3.6）。 */
 const BEAST_HUNT_SECONDS = 3;
+/**
+ * 母樹の根冠（U18）の受けるダメージの倍率：毒10スタックにつき ×(1＋step)（乗算）、上限は 1＋cap。
+ */
+export function poisonAmplifier(stacks: number, step: number, cap: number): number {
+  const tens = Math.floor(stacks / 10);
+  return step > 0 && tens > 0 ? Math.min(1 + cap, (1 + step) ** tens) : 1;
+}
+
+/** 毒の状態異常（母樹の根冠・樹皮の盾）。 */
+const POISON_AILMENT = "AIL-POISON";
+/** 出血の状態異常（狼牙の首飾り）。 */
+const BLEED_AILMENT = "AIL-BLEED";
+/** 打ち鳴らしの籠手：重撃の闘志の倍率（+3 → +9）と、崩しゲージを増やす範囲（m）。 */
+const HEAVY_FERVOR_FACTOR = 3;
+const BREAK_SPREAD_RADIUS = 4;
+/** 二股の枝：分かれたヒットが届く範囲（m。「近くの」の仮値。docs/progress D-U16-4）。 */
+const SPLIT_HIT_RADIUS = 4;
+/** 旅人の古靴：何mごとにクールダウンを短縮するか・1秒あたりの上限（秒）。 */
+const STRIDE_METERS = 10;
+const STRIDE_CDR_PER_SECOND = 1;
+/** 樹皮の盾：防具値の上限（+50%）。 */
+const BARK_ARMOR_CAP = 0.5;
 import { toMeters } from "../world/units.ts";
 
 /** 試験用の場の大きさ（m）。 */
@@ -419,6 +442,13 @@ export class ArenaSimulation {
   private questPoints: number;
   private explorationPoints: number;
   private lastHitBy: string | null = null;
+  /** 背向けの外套：全てのヒットを背面として扱う期限（経過時間）。 */
+  private moveBackstabUntil = -1;
+  /** 旅人の古靴：短縮の分の移動距離と、この1秒の短縮の量。 */
+  private strideMeters = 0;
+  private strideWindow = { start: 0, used: 0 };
+  /** 樹皮の盾：止まっている秒数。 */
+  private stillSeconds = 0;
   /** 薬瓶（補助仕様書6章）。 */
   hpFlask = new Flask();
   mpFlask = new Flask();
@@ -1614,6 +1644,10 @@ export class ArenaSimulation {
           ? spent
           : spent + this.sheetValue.evaluated.view.stat("STAT-FINISHER-POINTS").value,
     });
+    // 背向けの外套（U16）：移動の技を使った後の一定時間、全てのヒットを背面からのヒットとして扱う
+    const moveBackstab = this.sheetValue.evaluated.view.stat("STAT-UNQ-MOVE-BACKSTAB").value;
+    if (moveBackstab > 0 && def.tags.includes("TAG-FORM-MOVEMENT"))
+      this.moveBackstabUntil = this.elapsed + moveBackstab;
     let teleportTo: Vec2 | undefined;
     if (def.action.type === "teleport") {
       const t = this.stepTarget(def.action.range);
@@ -1772,6 +1806,13 @@ export class ArenaSimulation {
       speedMultiplier: moveMultiplier * this.sheetValue.moveSpeed,
     });
     // 軽装の統一ボーナス：回避した直後0.5秒間、移動速度+20%（仕様書v0.2 3.3）。回避が終わった瞬間から数える
+    this.updateUniqueMotion(
+      dt,
+      Math.hypot(
+        this.motion.position.x - this.playerValue.position.x,
+        this.motion.position.y - this.playerValue.position.y,
+      ),
+    );
     const dodgeEnded = wasDodging && !(this.motion.dodging as boolean);
     if (dodgeEnded && this.sheetValue.uniform === "light")
       this.buffs.add(UNIFORM_EFFECTS.light, LIGHT_UNIFORM_SECONDS, "uniform-light");
@@ -1780,8 +1821,26 @@ export class ArenaSimulation {
 
     // 敵の行動と攻撃
     this.field?.update(dt, this.playerValue, this.motion.invulnerable, this.motion.facing, {
+      // 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージ-15%
+      playerTakenMultiplier: (enemy) => {
+        const guard = this.sheetValue.evaluated.view.stat("STAT-UNQ-BEHIND-GUARD").value;
+        if (!(guard > 0) || enemy.def.turnRate === null) return 1;
+        return isBehind(this.playerValue.position, enemy.position, enemy.facing) ? 1 - guard : 1;
+      },
       onPlayerHit: (report, enemy) => {
         if (report.hit.evaded) return;
+        // 樹皮の盾（U13）：攻撃を受けると、攻撃してきた敵に毒を1スタック（基準値は受けたダメージの30%）
+        const retaliate = this.sheetValue.evaluated.view.stat("STAT-UNQ-RETALIATE-POISON").value;
+        const taken = report.applied.toHp + report.applied.toWard;
+        const poison = this.db.ailments.get(POISON_AILMENT);
+        if (retaliate > 0 && taken > 0 && poison?.kind === "dot" && !enemy.combatant.health.dead)
+          enemy.combatant.ailments.apply({
+            ailmentId: poison.id,
+            tag: poison.tag,
+            total: taken * retaliate * poison.totalRatio,
+            duration: poison.duration,
+            maxStacks: poison.stacking.mode === "stack" ? poison.stacking.maxStacks : undefined,
+          });
         this.hitsTakenCount += 1;
         this.lastHitBy = enemy.def.id;
         this.jobGaugeValue.onDamageTaken(
@@ -1809,6 +1868,12 @@ export class ArenaSimulation {
         );
         this.progressQuests({ type: "defeat", id: enemy.def.id });
         if (enemy.def.boss !== undefined) this.onBossKilled(enemy);
+        // 狼牙の首飾り（U14）：倒した敵に残っていた出血が、最も近い敵1体に移る（1スタックになる）
+        if (this.sheetValue.evaluated.view.stat("STAT-UNQ-BLEED-TRANSFER").value > 0) {
+          const bleed = enemy.combatant.ailments.strongestDot(BLEED_AILMENT);
+          const to = this.field?.nearestEnemy(enemy.position, enemy);
+          if (bleed !== undefined && to !== undefined) to.combatant.ailments.apply(bleed);
+        }
         // 薬瓶の充填（補助仕様書6章。HP瓶とMP瓶は別にたまる）
         const fill = FLASK_FILL[enemy.def.dropSource ?? enemy.rank.rank];
         this.hpFlask.addFill(fill);
@@ -1927,6 +1992,11 @@ export class ArenaSimulation {
             critChance: (jobBonus?.critChance ?? 0) + extraCrit,
             ailmentChance: jobBonus?.ailmentChance ?? 0,
           };
+    // 母樹の根冠（U18）：敵の毒10スタックにつき受けるダメージ×1.04（上限まで）
+    const ampStep = view.stat("STAT-UNQ-POISON-AMP").value;
+    const ampCap = view.stat("STAT-UNQ-POISON-AMP-CAP").value;
+    const extraTaken = poisonAmplifier(t.ailments.stacks(POISON_AILMENT), ampStep, ampCap);
+    const wasBroken = t.stagger.broken;
     const report = resolveHit({
       db: this.db,
       attacker: this.sheetValue.attacker,
@@ -1939,6 +2009,9 @@ export class ArenaSimulation {
       fullStagger,
       forceCrit,
       ...(bonus === undefined ? {} : { backstabBonus: bonus }),
+      ...(extraTaken === 1 ? {} : { extraTakenMultiplier: extraTaken }),
+      // 背向けの外套（U16）：移動の技を使った後の一定時間、全てのヒットを背面からのヒットとして扱う
+      ...(this.elapsed < this.moveBackstabUntil ? { forceBackstab: true } : {}),
     });
     if (t !== this.dummy) this.field?.onEnemyHit(t);
     if (t === this.dummy) this.lastReport = report;
@@ -1947,6 +2020,7 @@ export class ArenaSimulation {
     const leech = view.stat("STAT-LIFE-LEECH", [], scope).value;
     const dealt = report.applied.toHp + report.applied.toWard;
     if (leech > 0 && dealt > 0) this.playerValue.health.heal(dealt * leech);
+    this.uniqueOnHit(t, report, skill, wasBroken, scope);
     this.hitStopLeft = HIT_STOP;
     if (t === this.dummy) {
       this.dummyHits += 1;
@@ -1955,6 +2029,79 @@ export class ArenaSimulation {
     } else this.enemyHitCount += 1;
     this.onHit?.(report, t.position);
     return true;
+  }
+
+  /**
+   * 動き・止まりで働くユニークの固有効果。
+   * - U02 旅人の古靴：10m移動するごとに、全ての技のクールダウンを短縮（1秒あたり1.0秒分まで）
+   * - U13 樹皮の盾：止まっている間、1秒ごとに防具値+10%（最大+50%。動くと0に戻る）
+   */
+  private updateUniqueMotion(dt: number, moved: number): void {
+    const view = this.sheetValue.evaluated.view;
+    const stride = view.stat("STAT-UNQ-STRIDE-CDR").value;
+    if (stride > 0) {
+      if (this.elapsed - this.strideWindow.start >= 1)
+        this.strideWindow = { start: this.elapsed, used: 0 };
+      this.strideMeters += moved;
+      while (this.strideMeters >= STRIDE_METERS) {
+        this.strideMeters -= STRIDE_METERS;
+        const amount = Math.min(stride, STRIDE_CDR_PER_SECOND - this.strideWindow.used);
+        if (amount <= 0) break;
+        this.strideWindow.used += amount;
+        this.cooldowns.update(amount);
+      }
+    }
+    this.stillSeconds = moved > 1e-6 ? 0 : this.stillSeconds + dt;
+    const step = view.stat("STAT-UNQ-STILL-ARMOR").value;
+    const bonus = step > 0 ? Math.min(BARK_ARMOR_CAP, step * Math.floor(this.stillSeconds)) : 0;
+    this.playerValue.armor = this.sheetValue.defense.armor * (1 + bonus);
+  }
+
+  /** 樹皮の盾の、止まっている間の防具値の増加（表示・確認用）。 */
+  get stillArmorBonus(): number {
+    return this.playerValue.armor / Math.max(1e-9, this.sheetValue.defense.armor) - 1;
+  }
+
+  /** ヒットの後に働くユニークの固有効果（U15 打ち鳴らしの籠手・U17 二股の枝）。 */
+  private uniqueOnHit(
+    t: Combatant,
+    report: HitReport,
+    skill: ResolvedSkill,
+    wasBroken: boolean,
+    scope: { readonly weaponUid: string | undefined },
+  ): void {
+    const view = this.sheetValue.evaluated.view;
+    // U15：崩れている敵へのヒットで闘志+3（重撃なら3倍）。崩しゲージを満タンにしたら、周囲4mの敵の崩しゲージを増やす
+    const fervor = view.stat("STAT-UNQ-BREAK-FERVOR").value;
+    if (fervor > 0 && wasBroken && this.job.id === "JOB-WARRIOR")
+      this.jobGaugeValue.add(
+        skill.def.tags.includes("TAG-FORM-HEAVY") ? fervor * HEAVY_FERVOR_FACTOR : fervor,
+      );
+    const spread = view.stat("STAT-UNQ-BREAK-SPREAD").value;
+    if (spread > 0 && report.staggerBroke)
+      for (const o of this.targets()) {
+        if (o === t || o === this.dummy) continue;
+        const d = Math.hypot(o.position.x - t.position.x, o.position.y - t.position.y);
+        if (d <= BREAK_SPREAD_RADIUS + o.radius) o.stagger.add(o.stagger.max * spread);
+      }
+    // U17：近くの別の敵1体にも、そのヒットの50%のダメージ（状態異常は付与しない。その武器のヒットだけ）
+    const split = view.stat("STAT-UNQ-SPLIT-HIT", [], scope).value;
+    if (split > 0 && report.hit.total > 0) {
+      let nearest: Combatant | undefined;
+      let best = SPLIT_HIT_RADIUS;
+      for (const o of this.targets()) {
+        if (o === t || o.health.dead) continue;
+        const d = Math.hypot(o.position.x - t.position.x, o.position.y - t.position.y) - o.radius;
+        if (d <= best) {
+          best = d;
+          nearest = o;
+        }
+      }
+      if (nearest !== undefined) {
+        nearest.health.takeDamage(report.hit.total * split);
+        if (nearest !== this.dummy) this.field?.onEnemyHit(nearest);
+      }
+    }
   }
 
   /** 煙玉：中の敵に命中-30%をかけ続け、間隔ごとに衰弱を必ず付ける（仕様書v0.2 5.6）。 */

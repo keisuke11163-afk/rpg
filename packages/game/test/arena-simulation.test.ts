@@ -1,9 +1,15 @@
 import fc from "fast-check";
 import { describe, expect, it, vi } from "vitest";
-import { FIXED_STEP_SECONDS, FixedStepClock, type MotionInput, PlayerMotion } from "@stella/core";
+import {
+  type Combatant,
+  FIXED_STEP_SECONDS,
+  FixedStepClock,
+  type MotionInput,
+  PlayerMotion,
+} from "@stella/core";
 import type { Action } from "../src/input/actions.ts";
 import type { InputFrame } from "../src/input/frame.ts";
-import { ARENA, ArenaSimulation } from "../src/scenes/arena-simulation.ts";
+import { ARENA, ArenaSimulation, poisonAmplifier } from "../src/scenes/arena-simulation.ts";
 import { toMeters, toPixels } from "../src/world/units.ts";
 
 const STEP = FIXED_STEP_SECONDS;
@@ -1229,5 +1235,108 @@ describe("ArenaSimulation：ユニークの入手（U-16）", () => {
     expect(view.flag("ailmentApply", "TAG-AIL-BLEED", [], scope).resolution).toBe("force");
     expect(view.stat("STAT-AILMENT-MAX-STACKS", ["TAG-AIL-BLEED"]).value).toBeGreaterThanOrEqual(4);
     expect(sim.sheet.latents).toEqual([{ uid: "itm_930001", base: "BASE-UNQ-U03", active: false }]);
+  });
+});
+
+describe("ArenaSimulation：ユニークの固有効果（U-16 のルールフック）", () => {
+  const wear = (sim: ArenaSimulation, base: string, uid: string): void => {
+    sim.inventory.addItem({ uid, base, rarity: "unique", itemLevel: 20, affixes: [] });
+    expect(sim.equipFromInventory(uid)).toBe(true);
+  };
+  const near = (sim: ArenaSimulation, id: string, dx: number): Combatant => {
+    const eid = sim.spawnEnemy(id);
+    const e = sim.field?.enemies.find((x) => x.id === eid);
+    if (e === undefined) throw new Error("敵がいない");
+    const p = sim.motion.position;
+    e.combatant.position = { x: p.x + dx, y: p.y };
+    return e.combatant;
+  };
+
+  it("U06 目隠し：会心率の増加1%ごとにダメージ+0.5%（加算）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    const before = sim.sheet.evaluated.view.stat("STAT-DAMAGE", ["TAG-ELEM-PHYSICAL"]).increased;
+    wear(sim, "BASE-UNQ-U06", "itm_940001");
+    sim.inventory.addItem({
+      uid: "itm_940002",
+      base: "BASE-ACC-AMBER-NECK-T1",
+      rarity: "magic",
+      itemLevel: 5,
+      affixes: [{ id: "AFX-SUF-CRIT-CHANCE", tier: 7, rolls: [14] }],
+    });
+    expect(sim.equipFromInventory("itm_940002")).toBe(true);
+    const view = sim.sheet.evaluated.view;
+    const critInc = view.stat("STAT-CRIT-CHANCE").increased;
+    expect(critInc).toBeGreaterThan(0);
+    expect(view.stat("STAT-DAMAGE", ["TAG-ELEM-PHYSICAL"]).increased - before).toBeCloseTo(
+      critInc * 0.5,
+    );
+  });
+
+  it("U13 樹皮の盾：止まっていると1秒ごとに防具値+10%（最大+50%）。動くと0に戻る", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.character.gainXp(1e6);
+    wear(sim, "BASE-UNQ-U13", "itm_940003");
+    for (let i = 0; i < Math.ceil(2.5 / STEP); i++) sim.frame(STEP, input());
+    expect(sim.stillArmorBonus).toBeCloseTo(0.2);
+    for (let i = 0; i < Math.ceil(5 / STEP); i++) sim.frame(STEP, input());
+    expect(sim.stillArmorBonus).toBeCloseTo(0.5);
+    sim.frame(STEP, input({ move: { x: 1, y: 0 } }));
+    expect(sim.stillArmorBonus).toBeCloseTo(0);
+  });
+
+  it("U17 二股の枝：近くの別の敵にも、そのヒットの50%が当たる（状態異常は付かない）", () => {
+    const sim = new ArenaSimulation();
+    wear(sim, "BASE-UNQ-U17", "itm_940004");
+    const a = near(sim, "ENM-BARK-BEAR", 1.4);
+    const b = near(sim, "ENM-BARK-BEAR", 3.5);
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    let checked = false;
+    for (let i = 0; i < 120 && !checked; i++) {
+      const ha = a.health.hp;
+      const hb = b.health.hp;
+      sim.frame(STEP, held);
+      const da = ha - a.health.hp;
+      const db2 = hb - b.health.hp;
+      // a だけに当たった刻みで、b は a の半分だけ減る
+      if (da > 0 && b.ailments.activeTags().length === 0 && db2 > 0) {
+        expect(db2).toBeCloseTo(da * 0.5, 5);
+        checked = true;
+      }
+    }
+    expect(checked).toBe(true);
+  });
+
+  it("U14 狼牙の首飾り：倒した敵の出血が、最も近い敵1体に1スタック移る", () => {
+    const sim = new ArenaSimulation();
+    sim.character.gainXp(1e6);
+    wear(sim, "BASE-UNQ-U14", "itm_940005");
+    const dying = near(sim, "ENM-THORN-RAT", 6);
+    const other = near(sim, "ENM-BARK-BEAR", 9);
+    const bleed = sim.db.ailments.get("AIL-BLEED");
+    if (bleed?.kind !== "dot" || bleed.stacking.mode !== "stack") throw new Error("出血が無い");
+    for (let i = 0; i < 3; i++)
+      dying.ailments.apply({
+        ailmentId: bleed.id,
+        tag: bleed.tag,
+        total: 50,
+        duration: bleed.duration,
+        maxStacks: bleed.stacking.maxStacks,
+      });
+    dying.health.takeDamage(dying.health.hp);
+    sim.frame(STEP, input());
+    expect(other.ailments.stacks("AIL-BLEED")).toBe(1);
+  });
+
+  it("U18 母樹の根冠：毒10スタックごとに受けるダメージ×1.04（上限×1.20、潜在効果で×1.30）", () => {
+    expect(poisonAmplifier(9, 0.04, 0.2)).toBe(1);
+    expect(poisonAmplifier(20, 0.04, 0.2)).toBeCloseTo(1.04 ** 2);
+    expect(poisonAmplifier(80, 0.04, 0.2)).toBeCloseTo(1.2);
+    expect(poisonAmplifier(80, 0.04, 0.3)).toBeCloseTo(1.3);
+    expect(poisonAmplifier(80, 0, 0.2)).toBe(1);
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    wear(sim, "BASE-UNQ-U18", "itm_940006");
+    const view = sim.sheet.evaluated.view;
+    expect(view.stat("STAT-UNQ-POISON-AMP").value).toBeCloseTo(0.04);
+    expect(view.stat("STAT-UNQ-POISON-AMP-CAP").value).toBeCloseTo(0.2);
   });
 });
