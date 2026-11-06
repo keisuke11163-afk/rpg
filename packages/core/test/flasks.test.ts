@@ -44,6 +44,8 @@ describe("薬瓶（補助仕様書6章）", () => {
     expect(() => new Flask({ charges: 4, fill: 0 })).toThrow(RangeError);
     expect(() => new Flask({ charges: 1, fill: 40 })).toThrow(RangeError);
     expect(() => new Flask().use(Number.NaN)).toThrow(RangeError);
-    expect(() => new Flask().addFill(-1)).toThrow(RangeError);
+    expect(() => {
+      new Flask().addFill(-1);
+    }).toThrow(RangeError);
   });
 });
