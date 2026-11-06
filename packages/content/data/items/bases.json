@@ -178,5 +178,345 @@
     },
     "provisional": true,
     "provisionalNote": "要求値は補助仕様書14章の仮値。基本刻印（短剣：背面からの会心率+5%・爪：ヒットでHP吸収0.5%）は、必要な仕組みが無いのでまだ付けない（docs/progress Q-U11-3）"
+  },
+  {
+    "id": "BASE-ARM-IRON-HEAD-T1",
+    "text": "item.base.iron-head-1",
+    "category": "head",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 18
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-IRON-BODY-T1",
+    "text": "item.base.iron-body-1",
+    "category": "body",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 40
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-IRON-HANDS-T1",
+    "text": "item.base.iron-hands-1",
+    "category": "hands",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 12
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-IRON-FEET-T1",
+    "text": "item.base.iron-feet-1",
+    "category": "feet",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 12
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-IRON-BELT-T1",
+    "text": "item.base.iron-belt-1",
+    "category": "belt",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 8
+    },
+    "implicitEffects": ["EFF-IMP-HEAVY-CHAIN"],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）。重鎖の帯・革の帯の基本刻印は仕様書v0.2 3.4"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-HEAD-T1",
+    "text": "item.base.leather-head-1",
+    "category": "head",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 18
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-BODY-T1",
+    "text": "item.base.leather-body-1",
+    "category": "body",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 40
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-HANDS-T1",
+    "text": "item.base.leather-hands-1",
+    "category": "hands",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 12
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-FEET-T1",
+    "text": "item.base.leather-feet-1",
+    "category": "feet",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 12
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-BELT-T1",
+    "text": "item.base.leather-belt-1",
+    "category": "belt",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 8
+    },
+    "implicitEffects": ["EFF-IMP-FLASK-15"],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）。重鎖の帯・革の帯の基本刻印は仕様書v0.2 3.4"
+  },
+  {
+    "id": "BASE-ARM-LINEN-HEAD-T1",
+    "text": "item.base.linen-head-1",
+    "category": "head",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 7
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LINEN-BODY-T1",
+    "text": "item.base.linen-body-1",
+    "category": "body",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 15
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LINEN-HANDS-T1",
+    "text": "item.base.linen-hands-1",
+    "category": "hands",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 4
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LINEN-FEET-T1",
+    "text": "item.base.linen-feet-1",
+    "category": "feet",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 4
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LINEN-BELT-T1",
+    "text": "item.base.linen-belt-1",
+    "category": "belt",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 3
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）。重鎖の帯・革の帯の基本刻印は仕様書v0.2 3.4"
+  },
+  {
+    "id": "BASE-SHD-BUCKLER-T1",
+    "text": "item.base.buckler-1",
+    "category": "shield",
+    "tags": ["TAG-WPN-SHIELD"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 12
+    },
+    "defense": {
+      "armor": 12
+    },
+    "shield": {
+      "guard": 0.5
+    },
+    "provisional": true,
+    "provisionalNote": "ガード率は仕様書v0.2 3.2。防具値は記載が無い仮値（胴の30%）。ガードの操作はMVPに無い（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-SHD-TOWER-T1",
+    "text": "item.base.tower-shield-1",
+    "category": "shield",
+    "tags": ["TAG-WPN-SHIELD"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "defense": {
+      "armor": 24
+    },
+    "shield": {
+      "guard": 0.7
+    },
+    "implicitEffects": ["EFF-IMP-TOWER-SHIELD"],
+    "provisional": true,
+    "provisionalNote": "ガード率・移動-5%は仕様書v0.2 3.2。防具値は記載が無い仮値（胴の60%）。ガードの操作はMVPに無い（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ACC-SILVER-RING-T1",
+    "text": "item.base.silver-ring",
+    "category": "ring",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "implicitEffects": ["EFF-IMP-ALL-ELEM-RESIST-5"]
+  },
+  {
+    "id": "BASE-ACC-RUBY-RING-T1",
+    "text": "item.base.ruby-ring",
+    "category": "ring",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "implicitEffects": ["EFF-IMP-FIRE-DAMAGE-10"]
+  },
+  {
+    "id": "BASE-ACC-AMBER-NECK-T1",
+    "text": "item.base.amber-neck",
+    "category": "neck",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "implicitEffects": ["EFF-IMP-ALL-ATTR-8"]
   }
 ]

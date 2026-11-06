@@ -227,5 +227,22 @@
     "text": "stat.attr.kon",
     "unit": "flat",
     "min": 0
+  },
+  {
+    "id": "STAT-WARD-MAX",
+    "text": "stat.ward-max",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-WARD-DELAY",
+    "text": "stat.ward-delay",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-FLASK-RECOVERY",
+    "text": "stat.flask-recovery",
+    "unit": "ratio"
   }
 ]

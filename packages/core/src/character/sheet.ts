@@ -1,3 +1,5 @@
+import { ELEMENTS, type Element } from "../content/effect.ts";
+import type { ArmorType } from "../content/item.ts";
 import type { Affinity, JobDef } from "../content/job.ts";
 import type { ContentDb } from "../content/load.ts";
 import {
@@ -29,6 +31,11 @@ export const ATTRIBUTE_STATS: Readonly<Record<keyof Attributes, string>> = {
   ri: "STAT-ATTR-RI",
   kon: "STAT-ATTR-KON",
 };
+
+/** 魔障が回復し始めるまでの秒数の基礎（仕様書v0.2 2.6：2秒）。 */
+export const BASE_WARD_DELAY = 2;
+/** 移動速度の倍率の下限。 */
+export const MIN_MOVE_SPEED_FACTOR = 0.1;
 
 /** 素手のタグ（仕様書v0.2 3.2：全ジョブの適性はA）。 */
 export const UNARMED_WEAPON_TAG = "TAG-WPN-UNARMED";
@@ -86,6 +93,22 @@ export interface CharacterSheet {
   readonly maxMp: number;
   /** 効果時間の倍率（1 ＋ 効果時間の増加）。 */
   readonly effectDuration: number;
+  /** 受ける側の値（防具・耐性・回避・魔障。仕様書v0.2 2.6・3.3）。戦闘の受ける側に渡す。 */
+  readonly defense: {
+    readonly armor: number;
+    readonly evasion: number;
+    readonly resist: Readonly<Record<Element, number>>;
+    readonly maxWard: number;
+    /** 魔障が回復し始めるまでの秒数（法衣の統一ボーナスで-1秒）。 */
+    readonly wardRechargeDelay: number;
+    /** 受けるダメージ・崩し値の倍率（自己強化・重装の統一ボーナス）。 */
+    readonly damageTaken: number;
+    readonly staggerTaken: number;
+  };
+  /** 移動速度の倍率（1 ＋ 移動速度の増加。大盾・重鎖の帯・亀裂・軽装の統一ボーナスなど）。 */
+  readonly moveSpeed: number;
+  /** 統一ボーナスの防具種（4部位以上。仕様書v0.2 3.3）。 */
+  readonly uniform: ArmorType | undefined;
 }
 
 /** キャラクターの能力値を計算する（装備・能力値・一時的な効果を、効果の評価にまとめて渡す）。 */
@@ -97,6 +120,7 @@ export function buildCharacterSheet(
   const { character, job, equipment } = input;
   const origin = character.attributes;
   const baseStats: Record<string, number> = { ...character.baseStats() };
+  if (db.stats.has("STAT-WARD-DELAY")) baseStats["STAT-WARD-DELAY"] = BASE_WARD_DELAY;
   for (const k of Object.keys(ATTRIBUTE_STATS) as (keyof Attributes)[])
     if (db.stats.has(ATTRIBUTE_STATS[k])) baseStats[ATTRIBUTE_STATS[k]] = origin[k];
   const facts = {
@@ -136,7 +160,12 @@ export function buildCharacterSheet(
       source: { kind: "attribute", ref: k },
       stacks: attributes[k],
     }));
-  const evaluated = evaluateEffects(db, tags, [...unconditional, ...attributeEffects], facts);
+  const evaluated = evaluateEffects(
+    db,
+    tags,
+    [...unconditional, ...attributeEffects, ...(equipment?.defenseEffects(attributes) ?? [])],
+    facts,
+  );
   const view = evaluated.view;
   const main = equipment?.mainWeapon(attributes);
   const item = equipment?.get("mainHand");
@@ -174,7 +203,30 @@ export function buildCharacterSheet(
     maxHp: view.stat("STAT-HP-MAX").value,
     maxMp: view.stat("STAT-MP-MAX").value,
     effectDuration: 1 + view.stat("STAT-EFFECT-DURATION").increased,
+    defense: {
+      armor: view.stat("STAT-ARMOR").value,
+      evasion: view.stat("STAT-EVASION").value,
+      resist: Object.fromEntries(
+        ELEMENTS.map((e) => {
+          const id = `STAT-RESIST-${e.toUpperCase()}`;
+          return [e, db.stats.has(id) ? view.stat(id).value : 0];
+        }),
+      ) as Record<Element, number>,
+      maxWard: db.stats.has("STAT-WARD-MAX") ? view.stat("STAT-WARD-MAX").value : 0,
+      wardRechargeDelay: db.stats.has("STAT-WARD-DELAY")
+        ? view.stat("STAT-WARD-DELAY").value
+        : BASE_WARD_DELAY,
+      damageTaken: multiplierOf(view.stat("STAT-DAMAGE-TAKEN")),
+      staggerTaken: multiplierOf(view.stat("STAT-STAGGER-TAKEN")),
+    },
+    moveSpeed: Math.max(MIN_MOVE_SPEED_FACTOR, 1 + view.stat("STAT-MOVE-SPEED").increased),
+    uniform: equipment?.uniformType(),
   };
+}
+
+/** 受ける側の倍率（加算と乗算。0未満にはしない）。 */
+function multiplierOf(r: StatResult): number {
+  return Math.max(0, (1 + r.increased) * r.more);
 }
 
 /** キャラクターの画面に並べる能力値1つ（タグの条件つきの修正値は、tags の文脈で集計する）。 */
@@ -195,6 +247,7 @@ export const SHEET_STATS: readonly SheetStat[] = [
   { stat: "STAT-ACCURACY" },
   { stat: "STAT-ARMOR" },
   { stat: "STAT-EVASION" },
+  { stat: "STAT-WARD-MAX" },
   { stat: "STAT-DAMAGE", tags: ["TAG-ELEM-PHYSICAL"] },
   { stat: "STAT-CRIT-CHANCE" },
   { stat: "STAT-CRIT-MULTIPLIER" },

@@ -14,6 +14,7 @@ import {
   MemoryBackend,
   type PlayerProfile,
   Rng,
+  slotsFor,
   SAVE_VERSION,
   type SaveData,
   SaveDataError,
@@ -186,7 +187,13 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
           };
           const character = new Character({ origin: job("JOB-ROGUE"), level });
           const equipment = new Equipment(db);
-          equipment.equip(gen(), "mainHand", true);
+          // 武器・防具・盾・アクセサリーを、装備できる部位に装備する（防具の基礎性能・統一ボーナスも比べる）
+          for (let k = 0; k < 6; k++) {
+            const item = gen();
+            const base = db.itemBases.get(item.base);
+            const slot = base === undefined ? undefined : slotsFor(base, true)[0];
+            if (slot !== undefined) equipment.equip(item, slot, true);
+          }
           const inventory = new Inventory();
           for (let i = 0; i < owned; i++) inventory.addItem(gen());
           const p: PlayerProfile = {

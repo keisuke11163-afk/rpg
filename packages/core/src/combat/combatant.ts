@@ -42,6 +42,8 @@ export interface CombatantInit {
   readonly facing?: number;
   readonly maxHp: number;
   readonly maxWard?: number;
+  /** 魔障が回復し始めるまでの秒数（省略で2秒）。 */
+  readonly wardRechargeDelay?: number;
   readonly isBoss?: boolean;
   readonly resist?: Partial<Record<Element, number>>;
   readonly armor?: number;
@@ -87,18 +89,36 @@ export class Combatant {
     this.health = new Health({
       maxHp: init.maxHp,
       ...(init.maxWard === undefined ? {} : { maxWard: init.maxWard }),
+      ...(init.wardRechargeDelay === undefined
+        ? {}
+        : { wardRechargeDelay: init.wardRechargeDelay }),
     });
     this.ailments = new AilmentState(db);
     this.stagger = new StaggerGauge(init.staggerProfile, init.maxHp);
   }
 
-  /** 受けるダメージの倍率（崩れている間・一定時間の効果）。 */
+  /**
+   * 自分の能力値による、受けるダメージ・崩し値の倍率（プレイヤーの装備・自己強化。能力値の評価から渡す）。
+   * 一定時間の効果（statuses）の倍率に掛ける。
+   */
+  ownReceived: ReceivedMultipliers = { damage: 1, stagger: 1 };
+
+  /** 受けるダメージの倍率（崩れている間・一定時間の効果・自分の能力値）。 */
   get takenMultiplier(): number {
     return this.stagger.takenMultiplier * this.receivedMultipliers().damage;
   }
 
-  /** 一定時間の効果による、受けるダメージ・崩し値の倍率（効果が変わったときだけ計算し直す）。 */
+  /** 一定時間の効果と自分の能力値による、受けるダメージ・崩し値の倍率。 */
   receivedMultipliers(): ReceivedMultipliers {
+    const t = this.timedReceived();
+    return {
+      damage: t.damage * this.ownReceived.damage,
+      stagger: t.stagger * this.ownReceived.stagger,
+    };
+  }
+
+  /** 一定時間の効果による、受けるダメージ・崩し値の倍率（効果が変わったときだけ計算し直す）。 */
+  private timedReceived(): ReceivedMultipliers {
     if (this.receivedVersion !== this.statuses.version) {
       this.receivedVersion = this.statuses.version;
       const instances = this.statuses.instances();

@@ -1035,3 +1035,40 @@ describe("ArenaSimulation：母樹（U-19、補助仕様書9・11章）", () => 
     expect(sim.secretsFound.has("SECRET-MOTHER-TREE")).toBe(false);
   });
 });
+
+describe("ArenaSimulation：防具の値がプレイヤーに効く（U-11 の残り）", () => {
+  const give = (sim: ArenaSimulation, base: string, uid: string): void => {
+    sim.inventory.addItem({ uid, base, rarity: "normal", itemLevel: 1, affixes: [] });
+    expect(sim.equipFromInventory(uid)).toBe(true);
+  };
+
+  it("着ると、プレイヤーの防具値・耐性・受けるダメージの倍率が能力値と一致する", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    const before = sim.player.armor;
+    give(sim, "BASE-ARM-IRON-BODY-T1", "itm_900001");
+    give(sim, "BASE-ACC-SILVER-RING-T1", "itm_900002");
+    expect(sim.player.armor).toBeCloseTo(before + 40);
+    expect(sim.player.armor).toBeCloseTo(sim.sheet.defense.armor);
+    expect(sim.player.resist.fire).toBeCloseTo(sim.sheet.defense.resist.fire);
+    expect(sim.player.ownReceived.damage).toBe(sim.sheet.defense.damageTaken);
+  });
+
+  it("軽装4部位：回避が終わった直後、移動速度が20%上がる", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    ["HEAD", "BODY", "HANDS", "FEET"].forEach((p, i) => {
+      give(sim, `BASE-ARM-LEATHER-${p}-T1`, `itm_90001${String(i)}`);
+    });
+    expect(sim.sheet.uniform).toBe("light");
+    const base = sim.sheet.moveSpeed;
+    sim.frame(STEP, input({ pressed: ["dodge"], move: { x: 1, y: 0 } }));
+    let boosted = false;
+    for (let i = 0; i < 60; i++) {
+      sim.frame(STEP, input({ move: { x: 1, y: 0 } }));
+      if (sim.sheet.moveSpeed > base + 0.19) boosted = true;
+    }
+    expect(boosted).toBe(true);
+    // 0.5秒の後は元に戻る
+    for (let i = 0; i < 60; i++) sim.frame(STEP, input());
+    expect(sim.sheet.moveSpeed).toBeCloseTo(base);
+  });
+});

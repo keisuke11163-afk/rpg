@@ -72,6 +72,10 @@ const rangeSchema = z
   .strictObject({ min: z.number().nonnegative(), max: z.number().nonnegative() })
   .refine((r) => r.min <= r.max, "最小値が最大値を超えている");
 
+/** 防具種（仕様書v0.2 3.3。混成は MVP の範囲外）。 */
+export const ARMOR_TYPES = ["heavy", "light", "robe"] as const;
+export type ArmorType = (typeof ARMOR_TYPES)[number];
+
 /** アイテムのベース（開発計画書6.5、仕様書v0.2 3.2〜3.4、補助仕様書14章）。 */
 export const itemBaseSchema = z.strictObject({
   id: idSchema,
@@ -96,6 +100,20 @@ export const itemBaseSchema = z.strictObject({
       critChance: z.number().min(0).max(1),
     })
     .optional(),
+  /**
+   * 防具・盾の基礎性能（仕様書v0.2 3.3：防具値・回避値・魔障）。強化と要求値の未達が掛かる（3.9 の基礎性能）。
+   * type は防具種（統一ボーナスの判定。盾には無い）。
+   */
+  defense: z
+    .strictObject({
+      type: z.enum(ARMOR_TYPES).optional(),
+      armor: z.number().positive().optional(),
+      evasion: z.number().positive().optional(),
+      ward: z.number().positive().optional(),
+    })
+    .optional(),
+  /** 盾の性能（仕様書v0.2 3.2：ガード率）。MVPにはガードの操作が無いので、値を持つだけ（docs/progress D-U11-16）。 */
+  shield: z.strictObject({ guard: z.number().min(0).max(1) }).optional(),
   /** 基本刻印・武器としての特性（効果のID。出どころは implicit）。 */
   implicitEffects: z.array(idSchema).optional(),
   ...provisionalFields,

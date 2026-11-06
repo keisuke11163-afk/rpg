@@ -1,6 +1,6 @@
 import type { Attributes } from "../character/progression.ts";
 import type { DamageWeapon } from "../combat/damage.ts";
-import type { ItemBaseDef } from "../content/item.ts";
+import type { ArmorType, ItemBaseDef } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
 import type { EquipSlot } from "../content/registries.ts";
 import type { EffectInstance } from "../effects/evaluate.ts";
@@ -21,6 +21,31 @@ export const MVP_EQUIP_SLOTS = [
   "ring2",
 ] as const satisfies readonly EquipSlot[];
 export type MvpEquipSlot = (typeof MVP_EQUIP_SLOTS)[number];
+
+/** 防具の部位（統一ボーナスを数える部位。仕様書v0.2 3.3）。 */
+export const ARMOR_SLOTS = [
+  "head",
+  "body",
+  "hands",
+  "feet",
+  "belt",
+] as const satisfies readonly MvpEquipSlot[];
+/** 統一ボーナスに必要な、同じ防具種の部位の数（仕様書v0.2 3.3：4部位以上）。 */
+export const UNIFORM_PIECES = 4;
+
+/** 防具・盾の基礎性能の効果（値は装備ごとに差し替える。出どころは装備の uid）。 */
+export const DEFENSE_EFFECTS = {
+  armor: "EFF-BASE-ARMOR",
+  evasion: "EFF-BASE-EVASION",
+  ward: "EFF-BASE-WARD",
+} as const;
+
+/** 統一ボーナスの効果（仕様書v0.2 3.3。軽装の「回避した直後の移動速度」は、回避したときの一定時間の効果）。 */
+export const UNIFORM_EFFECTS: Readonly<Record<ArmorType, string>> = {
+  heavy: "EFF-UNIFORM-HEAVY",
+  light: "EFF-UNIFORM-LIGHT-DODGE",
+  robe: "EFF-UNIFORM-ROBE",
+};
 
 /** 強化1段階ごとの基礎性能（仕様書v0.2 3.9：+5%。+10で+50%）。 */
 export const ENHANCE_STEP = 0.05;
@@ -148,6 +173,41 @@ export class Equipment {
   /** 装備の効果（基本刻印と詞）。効果の評価に渡す。 */
   effects(): EffectInstance[] {
     return this.entries().flatMap(([, item]) => itemEffectInstances(this.db, item));
+  }
+
+  /**
+   * 防具・盾の基礎性能（防具値・回避値・魔障）の効果。強化（+5%／段階）と要求値の未達（-40%）を掛ける
+   * （仕様書v0.2 3.3・3.9）。統一ボーナスの常に効く効果（重装・法衣）も含める。
+   */
+  defenseEffects(attributes: Attributes): EffectInstance[] {
+    const out: EffectInstance[] = [];
+    for (const [, item] of this.entries()) {
+      const base = this.baseOf(item);
+      const d = base.defense;
+      if (d === undefined) continue;
+      const m = basePerformanceMultiplier(base, attributes) * enhanceMultiplier(item);
+      const source = { kind: "equipment", ref: item.uid };
+      for (const key of ["armor", "evasion", "ward"] as const) {
+        const v = d[key];
+        if (v !== undefined) out.push({ effectId: DEFENSE_EFFECTS[key], source, values: [v * m] });
+      }
+    }
+    const uniform = this.uniformType();
+    if (uniform !== undefined && uniform !== "light")
+      out.push({ effectId: UNIFORM_EFFECTS[uniform], source: { kind: "uniform", ref: uniform } });
+    return out;
+  }
+
+  /** 統一ボーナスの防具種（防具の5部位のうち4部位以上が同じ種類。仕様書v0.2 3.3）。無ければ undefined。 */
+  uniformType(): ArmorType | undefined {
+    const counts = new Map<ArmorType, number>();
+    for (const slot of ARMOR_SLOTS) {
+      const item = this.slots.get(slot);
+      const t = item === undefined ? undefined : this.baseOf(item).defense?.type;
+      if (t !== undefined) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    for (const [t, n] of counts) if (n >= UNIFORM_PIECES) return t;
+    return undefined;
   }
 
   /** 部位ごとの装備のタグ（条件「主手に剣系」などの判定に使う）。 */

@@ -1,0 +1,124 @@
+/**
+ * 防具・盾・アクセサリーのベース（U-11 の残り、仕様書v0.2 3.1〜3.4、補助仕様書14章）と、
+ * 受ける側の能力値（防具値・回避値・魔障・耐性・受けるダメージ・崩し値・移動速度）。
+ */
+import {
+  ARMOR_SLOTS,
+  Character,
+  type ContentDb,
+  Equipment,
+  type ItemInstance,
+  type JobDef,
+  TagIndex,
+  buildCharacterSheet,
+  slotsFor,
+} from "@stella/core";
+import { describe, expect, it } from "vitest";
+import { loadGameContent } from "../src/index.ts";
+
+const db: ContentDb = loadGameContent();
+const tags = new TagIndex(db.tags);
+const job = (id: string): JobDef => {
+  const j = db.jobs.get(id);
+  if (j === undefined) throw new Error(`${id} がない`);
+  return j;
+};
+const WARRIOR = job("JOB-WARRIOR");
+const item = (uid: string, base: string, enhance = 0): ItemInstance => ({
+  uid,
+  base,
+  rarity: "normal",
+  itemLevel: 1,
+  affixes: [],
+  ...(enhance > 0 ? { enhance } : {}),
+});
+
+function sheetWith(ids: readonly string[], level = 15, enhance = 0) {
+  const equipment = new Equipment(db);
+  ids.forEach((id, i) => {
+    const base = db.itemBases.get(id);
+    if (base === undefined) throw new Error(`${id} がない`);
+    const slot = slotsFor(base, true).find((s) => equipment.get(s) === undefined);
+    if (slot === undefined) throw new Error(`${id} の部位が空いていない`);
+    equipment.equip(item(`itm_${String(i)}`, id, enhance), slot, true);
+  });
+  return buildCharacterSheet(db, tags, {
+    character: new Character({ origin: WARRIOR, level }),
+    job: WARRIOR,
+    equipment,
+  });
+}
+
+const parts = (mat: string) => ARMOR_SLOTS.map((p) => `BASE-ARM-${mat}-${p.toUpperCase()}-T1`);
+
+describe("MVPのベース（補助仕様書14章）", () => {
+  it("防具3種類×5部位・小盾・大盾・アクセサリー（銀の指輪・紅玉の指輪・琥珀の首飾り）", () => {
+    for (const mat of ["IRON", "LEATHER", "LINEN"])
+      for (const id of parts(mat)) expect(db.itemBases.has(id), id).toBe(true);
+    expect(db.itemBases.get("BASE-ARM-IRON-BODY-T1")?.defense).toEqual({
+      type: "heavy",
+      armor: 40,
+    });
+    expect(db.itemBases.get("BASE-ARM-LEATHER-BODY-T1")?.defense).toEqual({
+      type: "light",
+      evasion: 40,
+    });
+    expect(db.itemBases.get("BASE-ARM-LINEN-BODY-T1")?.defense).toEqual({ type: "robe", ward: 15 });
+    expect(db.itemBases.get("BASE-SHD-BUCKLER-T1")?.shield?.guard).toBe(0.5);
+    expect(db.itemBases.get("BASE-SHD-TOWER-T1")?.shield?.guard).toBe(0.7);
+    for (const id of ["BASE-ACC-SILVER-RING-T1", "BASE-ACC-RUBY-RING-T1", "BASE-ACC-AMBER-NECK-T1"])
+      expect(db.itemBases.get(id)?.requirement).toBeUndefined();
+    // 防具の要求値は10（補助仕様書14章）
+    expect(db.itemBases.get("BASE-ARM-IRON-HEAD-T1")?.requirement).toEqual({
+      attribute: "go",
+      value: 10,
+    });
+  });
+});
+
+describe("受ける側の能力値", () => {
+  it("防具の防具値・回避値・魔障が能力値に入り、強化（+5%／段階）が掛かる", () => {
+    const base = sheetWith([]);
+    expect(sheetWith(["BASE-ARM-IRON-BODY-T1"]).defense.armor).toBeCloseTo(base.defense.armor + 40);
+    expect(sheetWith(["BASE-ARM-IRON-BODY-T1"], 15, 10).defense.armor).toBeCloseTo(
+      base.defense.armor + 60,
+    );
+    expect(sheetWith(["BASE-ARM-LEATHER-BODY-T1"]).defense.evasion).toBeGreaterThan(
+      base.defense.evasion,
+    );
+  });
+
+  it("要求値を満たさないと、防具の基礎性能が-40%", () => {
+    // 戦士の Lv1 は剛が足りる。理（法衣）は足りない
+    const robe = sheetWith(["BASE-ARM-LINEN-BODY-T1"], 1);
+    expect(robe.attributes.ri).toBeLessThan(10);
+    expect(robe.defense.maxWard).toBeCloseTo(15 * 0.6);
+  });
+
+  it("統一ボーナス：重装4部位で受ける崩し値-30%、法衣4部位で魔障の回復が1秒早い、3部位では無い", () => {
+    expect(sheetWith(parts("IRON").slice(0, 4)).uniform).toBe("heavy");
+    expect(sheetWith(parts("IRON").slice(0, 4)).defense.staggerTaken).toBeCloseTo(0.7);
+    expect(sheetWith(parts("IRON").slice(0, 3)).uniform).toBeUndefined();
+    expect(sheetWith(parts("IRON").slice(0, 3)).defense.staggerTaken).toBe(1);
+    const robe = sheetWith(parts("LINEN"));
+    expect(robe.uniform).toBe("robe");
+    expect(robe.defense.wardRechargeDelay).toBe(1);
+    expect(sheetWith([]).defense.wardRechargeDelay).toBe(2);
+    expect(sheetWith(parts("LEATHER")).uniform).toBe("light");
+  });
+
+  it("アクセサリー・盾・帯の基本刻印", () => {
+    const base = sheetWith([]);
+    const silver = sheetWith(["BASE-ACC-SILVER-RING-T1"]);
+    expect(silver.defense.resist.fire - base.defense.resist.fire).toBeCloseTo(0.05);
+    expect(silver.defense.resist.holy - base.defense.resist.holy).toBeCloseTo(0.05);
+    expect(silver.defense.resist.physical).toBe(base.defense.resist.physical);
+    const amber = sheetWith(["BASE-ACC-AMBER-NECK-T1"]);
+    expect(amber.attributes.go - base.attributes.go).toBe(8);
+    expect(amber.attributes.kon - base.attributes.kon).toBe(8);
+    expect(sheetWith(["BASE-SHD-TOWER-T1"]).moveSpeed).toBeCloseTo(0.95);
+    const chain = sheetWith(["BASE-ARM-IRON-BELT-T1"]);
+    expect(chain.moveSpeed).toBeCloseTo(0.98);
+    expect(chain.defense.armor).toBeCloseTo((base.defense.armor + 8) * 1.15);
+  });
+});

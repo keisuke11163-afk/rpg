@@ -72,6 +72,7 @@ import {
   rollDrops,
   skillBlock,
   staggerProfiles,
+  UNIFORM_EFFECTS,
   unlockedSkills,
   buildCharacterSheet,
   compareEquip,
@@ -89,6 +90,9 @@ import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
 import { EnemyField } from "../world/EnemyField.ts";
 import { LootField } from "../world/LootField.ts";
+
+/** 軽装の統一ボーナスの移動速度が続く秒数（仕様書v0.2 3.3：回避した直後0.5秒間）。 */
+const LIGHT_UNIFORM_SECONDS = 0.5;
 import { toMeters } from "../world/units.ts";
 
 /** 試験用の場の大きさ（m）。 */
@@ -400,6 +404,8 @@ export class ArenaSimulation {
   private questPoints: number;
   private explorationPoints: number;
   private lastHitBy: string | null = null;
+  /** プレイヤーの戦う者を作ったときの、魔障が回復し始めるまでの秒数。 */
+  private wardDelay = 2;
   private readonly onExit: ((to: string) => void) | undefined;
   private readonly onDeath: (() => void) | undefined;
   private readonly onFacility: ((kind: Facility) => void) | undefined;
@@ -1437,14 +1443,28 @@ export class ArenaSimulation {
 
   /** プレイヤーの戦う者（最大HPは、能力値の評価の値）。 */
   private newPlayer(): Combatant {
-    return new Combatant(this.db, {
+    const d = this.sheetValue.defense;
+    const c = new Combatant(this.db, {
       id: "player",
       team: "player",
       position: this.motion.position,
       radius: 0.35,
       maxHp: this.sheetValue.maxHp,
+      maxWard: d.maxWard,
+      wardRechargeDelay: d.wardRechargeDelay,
       staggerProfile: staggerProfiles(this.db).player,
     });
+    this.applyDefense(c);
+    return c;
+  }
+
+  /** 能力値の受ける側の値（防具値・回避値・耐性・受けるダメージと崩し値の倍率）を、プレイヤーに渡す。 */
+  private applyDefense(c: Combatant): void {
+    const d = this.sheetValue.defense;
+    c.armor = d.armor;
+    c.evasion = d.evasion;
+    c.resist = { ...d.resist };
+    c.ownReceived = { damage: d.damageTaken, stagger: d.staggerTaken };
   }
 
   /** メインジョブの職能ゲージ（メインジョブのものだけが有効。仕様書5章）。 */
@@ -1480,10 +1500,19 @@ export class ArenaSimulation {
    */
   private syncPlayerMaxHp(): void {
     // 構築の途中（最初の装備）は、まだプレイヤーがいない
-    const old = (this.playerValue as Combatant | undefined)?.health;
-    if (old === undefined || old.maxHp === this.sheetValue.maxHp) return;
+    const player = this.playerValue as Combatant | undefined;
+    const old = player?.health;
+    if (old === undefined || player === undefined) return;
+    this.applyDefense(player);
+    if (
+      old.maxHp === this.sheetValue.maxHp &&
+      old.maxWard === this.sheetValue.defense.maxWard &&
+      this.wardDelay === this.sheetValue.defense.wardRechargeDelay
+    )
+      return;
     const ratio = old.hp / old.maxHp;
     this.playerValue = this.newPlayer();
+    this.wardDelay = this.sheetValue.defense.wardRechargeDelay;
     const lost = this.sheetValue.maxHp * (1 - ratio);
     if (lost > 0 && ratio > 0) this.playerValue.health.takeDamage(lost);
   }
@@ -1639,12 +1668,18 @@ export class ArenaSimulation {
     this.updateTraps(dt);
     this.zoneRuns = this.zoneRuns.filter((z) => !(z.exec as LingeringZone).done);
 
+    const wasDodging = this.motion.dodging;
     this.motion.update(dt, {
       move: staggered ? ZERO : input.move,
       aim: this.current === undefined && !staggered ? aim : ZERO,
       dodge,
-      speedMultiplier: moveMultiplier,
+      // 技の移動の倍率 × 能力値の移動速度（大盾・重鎖の帯・亀裂・移動速度の詞など）
+      speedMultiplier: moveMultiplier * this.sheetValue.moveSpeed,
     });
+    // 軽装の統一ボーナス：回避した直後0.5秒間、移動速度+20%（仕様書v0.2 3.3）。回避が終わった瞬間から数える
+    const dodgeEnded = wasDodging && !(this.motion.dodging as boolean);
+    if (dodgeEnded && this.sheetValue.uniform === "light")
+      this.buffs.add(UNIFORM_EFFECTS.light, LIGHT_UNIFORM_SECONDS, "uniform-light");
     this.playerValue.position = this.motion.position;
     this.playerValue.moving = length(input.move) > 0 && !staggered;
 

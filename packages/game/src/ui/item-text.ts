@@ -1,4 +1,5 @@
 import type {
+  ArmorType,
   ContentDb,
   EquipComparison,
   ItemInstance,
@@ -152,11 +153,23 @@ function affixValues(
 }
 
 /** ツールチップの行（補助仕様書16章）。 */
+/** 防具種の名前（仕様書v0.2 3.3）。 */
+const ARMOR_TYPE_NAME: Readonly<Record<ArmorType, string>> = {
+  heavy: "重装",
+  light: "軽装",
+  robe: "法衣",
+};
+
 export function tooltipLines(db: ContentDb, tip: ItemTooltip): TextLine[] {
   const lines: TextLine[] = [
     { text: itemName(db, tip.item), color: RARITY_COLOR[tip.rarity] },
     {
-      text: `${t(`item.rarity.${tip.rarity}`)}・アイテムLv${String(tip.itemLevel)}・${tip.base.tags.map((x) => tagName(db, x)).join("・")}`,
+      text: [
+        t(`item.rarity.${tip.rarity}`),
+        `アイテムLv${String(tip.itemLevel)}`,
+        ...tip.base.tags.map((x) => tagName(db, x)),
+        ...(tip.defense?.type === undefined ? [] : [ARMOR_TYPE_NAME[tip.defense.type]]),
+      ].join("・"),
       color: TEXT_COLOR.dim,
     },
   ];
@@ -170,6 +183,20 @@ export function tooltipLines(db: ContentDb, tip: ItemTooltip): TextLine[] {
     lines.push({
       text: `会心率 ${pct(w.critChance)}・攻撃速度 ${w.attackSpeed.toFixed(2)}回/秒`,
       color: TEXT_COLOR.normal,
+    });
+  }
+  if (tip.defense !== undefined) {
+    const d = tip.defense;
+    const unmet = tip.requirement?.met === false;
+    const parts = [
+      ...(d.armor > 0 ? [`防具値 ${num(d.armor)}`] : []),
+      ...(d.evasion > 0 ? [`回避値 ${num(d.evasion)}`] : []),
+      ...(d.ward > 0 ? [`魔障 ${num(d.ward)}`] : []),
+      ...(d.guard === undefined ? [] : [`ガード率 ${pct(d.guard)}`]),
+    ];
+    lines.push({
+      text: `${parts.join("・")}${unmet ? "（要求値の未達で-40%）" : ""}`,
+      color: unmet ? TEXT_COLOR.bad : TEXT_COLOR.normal,
     });
   }
   if (tip.requirement !== undefined)

@@ -44,6 +44,39 @@ describe("表示の文章（U-12 の画面）", () => {
     );
   });
 
+  it("ツールチップ：防具は防具種と防具値（強化を含む）、盾はガード率、要求値の未達は-40%", () => {
+    const helm = {
+      uid: "h",
+      base: "BASE-ARM-IRON-BODY-T1",
+      rarity: "normal" as const,
+      itemLevel: 1,
+      affixes: [],
+      enhance: 2,
+    };
+    const ok = tooltipLines(
+      db,
+      itemTooltip(db, helm, { attributes: { go: 20, jin: 5, ri: 5, kon: 5 }, characterLevel: 1 }),
+    );
+    expect(ok[1]?.text).toContain("重装");
+    expect(ok.some((l) => l.text === "防具値 44")).toBe(true);
+    const unmet = tooltipLines(
+      db,
+      itemTooltip(db, helm, { attributes: { go: 5, jin: 5, ri: 5, kon: 5 }, characterLevel: 1 }),
+    );
+    expect(unmet.some((l) => l.text.startsWith("防具値 26") && l.color === TEXT_COLOR.bad)).toBe(
+      true,
+    );
+    const shield = tooltipLines(
+      db,
+      itemTooltip(
+        db,
+        { uid: "s", base: "BASE-SHD-BUCKLER-T1", rarity: "normal", itemLevel: 1, affixes: [] },
+        { attributes: { go: 20, jin: 5, ri: 5, kon: 5 }, characterLevel: 1 },
+      ),
+    );
+    expect(shield.some((l) => l.text === "防具値 12・ガード率 50%")).toBe(true);
+  });
+
   it("ツールチップ：名前はレアリティの色、要求値の未達は赤、タグが一致する詞は★で光る", () => {
     const tip = itemTooltip(db, sword, {
       attributes: { go: 5, jin: 10, ri: 5, kon: 5 },

@@ -1,7 +1,7 @@
 import type { Attributes } from "../character/progression.ts";
 import { ELEMENTS } from "../content/effect.ts";
 import { ELEMENT_TAG } from "../content/elements.ts";
-import type { AffixDef, ItemBaseDef, ItemRarity } from "../content/item.ts";
+import type { AffixDef, ArmorType, ItemBaseDef, ItemRarity } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
 import { TagIndex } from "../effects/tag-index.ts";
 import { UNMET_REQUIREMENT_MULTIPLIER, enhanceMultiplier, requirementMet } from "./equipment.ts";
@@ -44,6 +44,16 @@ export interface ItemTooltip {
         readonly physical: { readonly min: number; readonly max: number };
         readonly critChance: number;
         readonly attackSpeed: number;
+      }
+    | undefined;
+  /** 防具・盾の基礎性能（強化・要求値の補正の後）と防具種・ガード率。防具・盾でなければ undefined。 */
+  readonly defense:
+    | {
+        readonly type: ArmorType | undefined;
+        readonly armor: number;
+        readonly evasion: number;
+        readonly ward: number;
+        readonly guard: number | undefined;
       }
     | undefined;
   readonly effects: readonly TooltipEffectLine[];
@@ -150,6 +160,16 @@ export function itemTooltip(
             physical: { min: w.damage.physical.min * m, max: w.damage.physical.max * m },
             critChance: w.critChance,
             attackSpeed: w.attackSpeed,
+          },
+    defense:
+      base.defense === undefined
+        ? undefined
+        : {
+            type: base.defense.type,
+            armor: (base.defense.armor ?? 0) * m,
+            evasion: (base.defense.evasion ?? 0) * m,
+            ward: (base.defense.ward ?? 0) * m,
+            guard: base.shield?.guard,
           },
     effects,
   };

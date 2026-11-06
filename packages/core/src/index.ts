@@ -281,6 +281,7 @@ export {
   type SheetStat,
   type SheetWeapon,
   buildCharacterSheet,
+  BASE_WARD_DELAY,
   sheetRows,
 } from "./character/sheet.ts";
 
@@ -289,6 +290,8 @@ export {
   AFFIX_TIERS,
   ATTRIBUTES,
   BASE_CATEGORIES,
+  ARMOR_TYPES,
+  type ArmorType,
   DROP_SOURCES,
   ITEM_RARITIES,
   RARE_OR_BETTER,
@@ -363,6 +366,10 @@ export {
   Equipment,
   MAX_ENHANCE,
   MVP_EQUIP_SLOTS,
+  ARMOR_SLOTS,
+  DEFENSE_EFFECTS,
+  UNIFORM_EFFECTS,
+  UNIFORM_PIECES,
   enhanceMultiplier,
   type MvpEquipSlot,
   UNMET_REQUIREMENT_MULTIPLIER,
