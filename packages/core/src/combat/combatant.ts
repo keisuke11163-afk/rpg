@@ -132,6 +132,16 @@ export class Combatant {
    * - 崩しゲージ・崩しを受けていない時間の計算の溢れ（StaggerGauge.planUpdate）
    */
   update(dt: number): number {
+    return this.commitUpdate(this.planUpdate(dt));
+  }
+
+  /**
+   * update の計算と検証だけを行い、状態を変えずに計画を返す（失敗すれば RangeError で、何も変わらない）。
+   * 複数の戦う者を「全て検証してから全て反映する」ために使う（EnemyField.update）。
+   * 計画は、作ってから反映するまでの間に、この戦う者の HP・状態異常・崩しゲージ・一定時間の効果・
+   * 移動中かが変わらない場合だけ正しい。
+   */
+  planUpdate(dt: number): CombatantUpdatePlan {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const target = {
@@ -139,21 +149,38 @@ export class Combatant {
       takenMultiplier: this.takenMultiplier,
       moving: this.moving,
     };
-    // 1. 計算と検証（状態は変えない）
     const dot = this.ailments.planTick(dt, target);
     // 各属性が有限でも、合計は溢れうる
     const total = sumDot(dot.damage);
     // 持続ダメージを受けてから時間を進める（従来の takeDamage(total) → update(dt) と同じ）
     const health = this.health.planUpdate(dt, total);
     const stagger = this.stagger.planUpdate(dt);
-    // 2. 反映（代入だけで、例外は起きない）
-    this.ailments.commitTick(dot);
-    this.health.commitUpdate(health);
-    this.stagger.commitUpdate(stagger);
-    // 一定時間の効果：dt は検証済みで、残りの時間を減らして切れたものを取り除くだけ（例外は起きない）
-    this.statuses.update(dt);
-    return total;
+    return { owner: this, dt, dot, total, health, stagger };
   }
+
+  /**
+   * planUpdate の計画を反映し、受けた持続ダメージの合計を返す。検証済みの値の代入だけで、例外は起きない
+   * （他の戦う者の計画を渡したときだけ Error。その場合も何も変えない）。
+   */
+  commitUpdate(plan: CombatantUpdatePlan): number {
+    if (plan.owner !== this) throw new Error("別の戦う者の計画は反映できない");
+    this.ailments.commitTick(plan.dot);
+    this.health.commitUpdate(plan.health);
+    this.stagger.commitUpdate(plan.stagger);
+    // 一定時間の効果：dt は検証済みで、残りの時間を減らして切れたものを取り除くだけ（例外は起きない）
+    this.statuses.update(plan.dt);
+    return plan.total;
+  }
+}
+
+/** Combatant.planUpdate の計画（検証済み。Combatant.commitUpdate で反映する）。 */
+export interface CombatantUpdatePlan {
+  readonly owner: Combatant;
+  readonly dt: number;
+  readonly dot: ReturnType<AilmentState["planTick"]>;
+  readonly total: number;
+  readonly health: ReturnType<Health["planUpdate"]>;
+  readonly stagger: ReturnType<StaggerGauge["planUpdate"]>;
 }
 
 /** 属性ごとの持続ダメージの合計。合計が有限でなければ RangeError。 */

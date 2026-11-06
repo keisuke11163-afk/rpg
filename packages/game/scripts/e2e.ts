@@ -28,6 +28,11 @@ interface Page {
     arg: undefined,
     options: { timeout: number },
   ): Promise<unknown>;
+  waitForFunction<A>(
+    fn: (arg: A) => boolean,
+    arg: A,
+    options: { timeout: number },
+  ): Promise<unknown>;
   evaluate<T>(fn: () => T): Promise<T>;
   evaluate<T, A>(fn: (arg: A) => T, arg: A): Promise<T>;
   waitForTimeout(ms: number): Promise<void>;
@@ -89,6 +94,29 @@ interface SkillState {
   buffs: string[];
   cooldowns: Record<string, number>;
 }
+interface EnemyInfo {
+  id: string;
+  def: string;
+  group: string;
+  rank: string;
+  state: string;
+  attack: string | null;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+}
+interface PlayerCombat {
+  hp: number;
+  maxHp: number;
+  hitsTaken: number;
+  avoided: number;
+  deaths: number;
+  staggered: boolean;
+  poison: number;
+  enemyHits: number;
+  kills: number;
+}
 type DebugWindow = {
   __STELLA_DEBUG__: {
     player: () => PlayerState;
@@ -96,6 +124,9 @@ type DebugWindow = {
     dummy: () => DummyState;
     skills: () => SkillState;
     setFervor: (value: number) => number;
+    enemies: () => EnemyInfo[];
+    playerState: () => PlayerCombat;
+    spawnEnemy: (id: string) => string;
     setFrameDeltaMs: (ms: number | null) => void;
   };
 };
@@ -414,6 +445,100 @@ try {
   const afterCharge = await player();
   const charged = afterCharge.x - beforeCharge.x;
   check("1キーで突進（右へ約8m）", charged > 7 && charged < 8.6, `右へ ${charged.toFixed(2)}m`);
+
+  // 16〜19. 敵（補助仕様書10章）
+  const enemies = (): Promise<EnemyInfo[]> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.enemies());
+  const combat = (): Promise<PlayerCombat> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.playerState());
+  const spawn = (id: string): Promise<string> =>
+    page.evaluate(
+      (v: string) => (window as unknown as DebugWindow).__STELLA_DEBUG__.spawnEnemy(v),
+      id,
+    );
+  const enemy = async (id: string): Promise<EnemyInfo | undefined> =>
+    (await enemies()).find((e) => e.id === id);
+  /** 敵に照準を合わせる（画面の位置は、プレイヤーの画面の位置からの差で求める）。 */
+  const aimAtEnemy = async (e: EnemyInfo): Promise<void> => {
+    const p = await player();
+    await page.mouse.move((p.screenX + (e.x - p.x) * 16) * 2, (p.screenY + (e.y - p.y) * 16) * 2);
+  };
+
+  const before = await combat();
+  const groups = new Set((await enemies()).map((e) => e.group));
+  check(
+    "試験用の場に、第1章の敵6種類の群れがいる",
+    ["wolves", "rats", "lizards", "boar", "bear", "saplings"].every((g) => groups.has(g)),
+    `群れ ${[...groups].join(",")}`,
+  );
+
+  // 棘鼠：気づいて近づいてくる → 通常攻撃で倒す
+  await waitIdle();
+  const ratId = await spawn("ENM-THORN-RAT");
+  await page.waitForTimeout(500);
+  const rat0 = await enemy(ratId);
+  for (let i = 0; i < 6; i++) {
+    const r = await enemy(ratId);
+    if (r === undefined || r.state === "dead") break;
+    await aimAtEnemy(r);
+    await page.mouse.down();
+    await page.waitForTimeout(30);
+    await page.mouse.up();
+    await page.waitForTimeout(950);
+  }
+  await page.waitForTimeout(700);
+  const afterRat = await combat();
+  check(
+    "敵は視界に入ると気づいて追い、攻撃を受けると倒れる",
+    rat0 !== undefined && rat0.state !== "idle" && afterRat.kills > before.kills,
+    `気づいた後の状態 ${rat0?.state ?? "なし"}・倒した数 ${String(before.kills)} → ${String(afterRat.kills)}・プレイヤーのヒット ${String(afterRat.enemyHits - before.enemyHits)}`,
+  );
+
+  // 樹皮熊：予兆を見て回避すると、攻撃を受けない
+  const bearId = await spawn("ENM-BARK-BEAR");
+  let dodgedClean = false;
+  let detail = "";
+  for (let attempt = 0; attempt < 4 && !dodgedClean; attempt++) {
+    await page.waitForFunction(
+      (id: string) =>
+        (window as unknown as DebugWindow).__STELLA_DEBUG__
+          .enemies()
+          .some((e) => e.id === id && e.state === "windup"),
+      bearId,
+      { timeout: 8000 },
+    );
+    const b = await enemy(bearId);
+    const c0 = await combat();
+    // 照準を熊と反対に向けて、予兆の終わりの少し前に回避する
+    const p = await player();
+    if (b !== undefined) {
+      await page.mouse.move((p.screenX - (b.x - p.x) * 16) * 2, (p.screenY - (b.y - p.y) * 16) * 2);
+    }
+    await page.waitForTimeout(b?.attack === "slam" ? 650 : 250);
+    await page.keyboard.press("Space");
+    await page.waitForTimeout(900);
+    const c1 = await combat();
+    dodgedClean = c1.hitsTaken === c0.hitsTaken;
+    detail = `攻撃 ${b?.attack ?? "?"}・被弾 ${String(c0.hitsTaken)} → ${String(c1.hitsTaken)}・回避で無効 ${String(c1.avoided)}`;
+  }
+  check("予兆のある攻撃は、回避できる（補助仕様書10.1）", dodgedClean, detail);
+
+  // 回避しなければ当たる
+  const c2 = await combat();
+  await page
+    .waitForFunction(
+      (n: number) =>
+        (window as unknown as DebugWindow).__STELLA_DEBUG__.playerState().hitsTaken > n,
+      c2.hitsTaken,
+      { timeout: 10000 },
+    )
+    .catch(() => undefined);
+  const c3 = await combat();
+  check(
+    "回避しなければ、敵の攻撃を受ける",
+    c3.hitsTaken > c2.hitsTaken,
+    `被弾 ${String(c2.hitsTaken)} → ${String(c3.hitsTaken)}・HP ${c2.hp.toFixed(0)} → ${c3.hp.toFixed(0)}`,
+  );
 
   await page.screenshot({ path: `${outDir}arena.png` });
 } finally {

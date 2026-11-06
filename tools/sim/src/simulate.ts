@@ -21,6 +21,7 @@ import {
   StaggerGauge,
   TagIndex,
   armorReduction,
+  enemyAccuracy,
   evadeChance,
   evaluateEffects,
   computeHit,
@@ -444,7 +445,7 @@ export function simulate(
       const evade =
         target.attack.spell === true
           ? 0
-          : evadeChance(p.defense.evasion, target.attack.accuracy ?? 40 + 12 * target.level);
+          : evadeChance(p.defense.evasion, target.attack.accuracy ?? enemyAccuracy(target.level));
       if (!enemyRng.chance(evade)) {
         let taken = raw * (1 - (p.defense.resist[target.attack.element] ?? 0));
         if (target.attack.element === "physical")

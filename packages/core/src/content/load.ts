@@ -6,6 +6,13 @@ import {
   MORE_REDUCTION_ONLY_ORIGINS,
   effectSchema,
 } from "./effect.ts";
+import {
+  type EnemyDef,
+  type EnemyRank,
+  type EnemyRankDef,
+  enemyRankSchema,
+  enemySchema,
+} from "./enemy.ts";
 import { KNOWN_HOOKS, SKILL_HOOK_PARAMS } from "./hooks.ts";
 import {
   type GaugeDef,
@@ -43,6 +50,9 @@ export interface RawContent {
     readonly skills?: readonly RawSource[];
     readonly gauges?: readonly RawSource[];
     readonly jobs?: readonly RawSource[];
+    /** 敵の種類と格の定義（省略すると無し）。 */
+    readonly enemies?: readonly RawSource[];
+    readonly enemyRanks?: readonly RawSource[];
   };
 }
 
@@ -55,6 +65,7 @@ export type ContentErrorCode =
   | "unknown-hook" // 登録されていないルールフック
   | "forbidden-more" // 乗算を持てない出どころの乗算（仕様書v0.2 2.4）
   | "override-conflict" // 同じ能力値・同じ優先度の上書き（仕様書v0.2 2.4.1）
+  | "telegraph" // 予兆の規則（補助仕様書10.1：標準HPの25%を超える攻撃は、0.6秒以上の予兆）
   | "bad-parent" // 親タグの分類が正しくない
   | "cycle"; // 親タグの循環
 
@@ -88,6 +99,9 @@ export interface ContentDb {
   readonly skills: ReadonlyMap<string, SkillDef>;
   readonly gauges: ReadonlyMap<string, GaugeDef>;
   readonly jobs: ReadonlyMap<string, JobDef>;
+  readonly enemies: ReadonlyMap<string, EnemyDef>;
+  /** 格 → 定義。 */
+  readonly enemyRanks: ReadonlyMap<EnemyRank, EnemyRankDef>;
 }
 
 export type LoadResult =
@@ -190,6 +204,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const skills = parseAll(raw.collections.skills ?? [], skillSchema);
   const gauges = parseAll(raw.collections.gauges ?? [], gaugeSchema);
   const jobs = parseAll(raw.collections.jobs ?? [], jobSchema);
+  const enemies = parseAll(raw.collections.enemies ?? [], enemySchema);
+  const enemyRanks = parseAll(raw.collections.enemyRanks ?? [], enemyRankSchema);
 
   // 3. IDの重複（全てのコレクションを通して）
   const seen = new Map<string, string>();
@@ -201,6 +217,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     ...skills,
     ...gauges,
     ...jobs,
+    ...enemies,
+    ...enemyRanks,
   ];
   for (const { value, file } of all) {
     const prev = seen.get(value.id);
@@ -681,9 +699,87 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       checkMods(skill.dualWieldVariant, file, skill.id, "dualWieldVariant");
   }
 
+  // 9. 敵：文章・系統・状態異常・予兆の規則
+  for (const { value: enemy, file } of enemies) {
+    checkText(enemy.text, file, enemy.id);
+    if (enemy.family !== undefined) tagOf(enemy.family, ["enemyFamily"], file, enemy.id, "family");
+    if (enemy.pack.min > enemy.pack.max)
+      err({
+        code: "schema",
+        file,
+        id: enemy.id,
+        path: "pack",
+        message: "群れの数の最小が最大を超えている",
+      });
+    if (enemy.behavior.type === "kite" && enemy.behavior.min > enemy.behavior.max)
+      err({
+        code: "schema",
+        file,
+        id: enemy.id,
+        path: "behavior",
+        message: "保つ距離の最小が最大を超えている",
+      });
+    const attackIds = new Set<string>();
+    enemy.attacks.forEach((attack, i) => {
+      const at = `attacks.${String(i)}`;
+      if (attackIds.has(attack.id))
+        err({
+          code: "duplicate-id",
+          file,
+          id: enemy.id,
+          path: `${at}.id`,
+          message: `攻撃 ${attack.id} が重複している`,
+        });
+      attackIds.add(attack.id);
+      if (!(attack.text in raw.texts))
+        err({
+          code: "unknown-text",
+          file,
+          id: enemy.id,
+          path: `${at}.text`,
+          message: `文章のキー ${attack.text} がない`,
+        });
+      for (const tagId of Object.keys(attack.ailmentChance ?? {}))
+        tagOf(tagId, ["ailment"], file, enemy.id, `${at}.ailmentChance`);
+      if (attack.delivery.type === "cloud") {
+        const tagId = attack.delivery.ailment;
+        tagOf(tagId, ["ailment"], file, enemy.id, `${at}.delivery.ailment`);
+        if (tagMap.has(tagId) && !ailmentsByTag.has(tagId))
+          err({
+            code: "unknown-ref",
+            file,
+            id: enemy.id,
+            path: `${at}.delivery.ailment`,
+            message: `状態異常 ${tagId} の定義がない`,
+          });
+      }
+      if (attack.ratio > 0.25 && attack.windup < 0.6)
+        err({
+          code: "telegraph",
+          file,
+          id: enemy.id,
+          path: `${at}.windup`,
+          message: `標準HPの${String(Math.round(attack.ratio * 100))}%の攻撃には、0.6秒以上の予兆が必要（${String(attack.windup)}秒。補助仕様書10.1）`,
+        });
+    });
+  }
+  const rankMap = new Map<EnemyRank, EnemyRankDef>();
+  for (const { value: rank, file } of enemyRanks) {
+    checkText(rank.text, file, rank.id);
+    if (rankMap.has(rank.rank))
+      err({
+        code: "duplicate-id",
+        file,
+        id: rank.id,
+        path: "rank",
+        message: `格 ${rank.rank} の定義が2つある`,
+      });
+    else rankMap.set(rank.rank, rank);
+  }
+
   if (errors.length > 0 || manifest === undefined) return { ok: false, errors };
 
-  // 9. 仮値の一覧
+  // 10. 仮値の一覧
   const provisional: ProvisionalEntry[] = [];
   const collect = (
     collection: string,
@@ -711,6 +807,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("skills", skills);
   collect("gauges", gauges);
   collect("jobs", jobs);
+  collect("enemies", enemies);
+  collect("enemyRanks", enemyRanks);
 
   return {
     ok: true,
@@ -725,6 +823,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       skills: skillMap,
       gauges: gaugeMap,
       jobs: jobMap,
+      enemies: new Map(enemies.map((e) => [e.value.id, e.value])),
+      enemyRanks: rankMap,
     },
     provisional,
   };

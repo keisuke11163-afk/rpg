@@ -7,6 +7,8 @@
  */
 import type { RawContent } from "@stella/core";
 import ailmentDefs from "../data/ailments/ailments.json" with { type: "json" };
+import chapter1Enemies from "../data/enemies/chapter1.json" with { type: "json" };
+import enemyRanks from "../data/enemies/ranks.json" with { type: "json" };
 import warriorEffects from "../data/effects/warrior.json" with { type: "json" };
 import gauges from "../data/gauges/gauges.json" with { type: "json" };
 import jobDefs from "../data/jobs/jobs.json" with { type: "json" };
@@ -45,6 +47,8 @@ export const rawContent: RawContent = {
     ],
     gauges: [{ file: "data/gauges/gauges.json", entries: gauges }],
     jobs: [{ file: "data/jobs/jobs.json", entries: jobDefs }],
+    enemies: [{ file: "data/enemies/chapter1.json", entries: chapter1Enemies }],
+    enemyRanks: [{ file: "data/enemies/ranks.json", entries: enemyRanks }],
   },
 };
 
@@ -61,6 +65,8 @@ export function registeredDataFiles(): string[] {
       ...(c.skills ?? []),
       ...(c.gauges ?? []),
       ...(c.jobs ?? []),
+      ...(c.enemies ?? []),
+      ...(c.enemyRanks ?? []),
     ].map((s) => s.file),
   ];
 }

@@ -15,6 +15,8 @@ export function buildDb(
     skills?: unknown[];
     gauges?: unknown[];
     jobs?: unknown[];
+    enemies?: unknown[];
+    enemyRanks?: unknown[];
   },
   knownHooks?: ReadonlySet<string>,
 ): ContentDb {
@@ -26,6 +28,9 @@ export function buildDb(
     ...(parts.gauges ?? []),
     ...(parts.jobs ?? []),
     ...(parts.gauges ?? []).flatMap((g) => (g as { stages?: unknown[] }).stages ?? []),
+    ...(parts.enemies ?? []),
+    ...(parts.enemies ?? []).flatMap((e) => (e as { attacks?: unknown[] }).attacks ?? []),
+    ...(parts.enemyRanks ?? []),
   ]) {
     const key = (entry as { text?: unknown }).text;
     if (typeof key === "string") texts[key] = key;
@@ -41,6 +46,8 @@ export function buildDb(
       skills: [{ file: "skills.json", entries: parts.skills ?? [] }],
       gauges: [{ file: "gauges.json", entries: parts.gauges ?? [] }],
       jobs: [{ file: "jobs.json", entries: parts.jobs ?? [] }],
+      enemies: [{ file: "enemies.json", entries: parts.enemies ?? [] }],
+      enemyRanks: [{ file: "ranks.json", entries: parts.enemyRanks ?? [] }],
     },
   };
   const r = loadContent(raw, knownHooks === undefined ? {} : { knownHooks });
@@ -194,6 +201,8 @@ export function fullCombatDb(
     skills?: unknown[];
     gauges?: unknown[];
     jobs?: unknown[];
+    enemies?: unknown[];
+    enemyRanks?: unknown[];
   } = {},
 ): ContentDb {
   const fx = combatFixture();
@@ -218,5 +227,7 @@ export function fullCombatDb(
     skills: extra.skills ?? [],
     gauges: extra.gauges ?? [],
     jobs: extra.jobs ?? [],
+    enemies: extra.enemies ?? [],
+    enemyRanks: extra.enemyRanks ?? [],
   });
 }

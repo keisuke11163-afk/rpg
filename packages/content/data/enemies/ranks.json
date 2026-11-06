@@ -1,0 +1,35 @@
+[
+  {
+    "id": "RANK-NORMAL",
+    "rank": "normal",
+    "text": "enemy.rank.normal",
+    "hpMultiplier": 1,
+    "damageMultiplier": 1,
+    "xpMultiplier": 1,
+    "scale": 1,
+    "provisional": true,
+    "provisionalNote": "補助仕様書10.3"
+  },
+  {
+    "id": "RANK-MAGIC",
+    "rank": "magic",
+    "text": "enemy.rank.magic",
+    "hpMultiplier": 2.5,
+    "damageMultiplier": 1.15,
+    "xpMultiplier": 3,
+    "scale": 1,
+    "provisional": true,
+    "provisionalNote": "補助仕様書10.3"
+  },
+  {
+    "id": "RANK-ELITE",
+    "rank": "elite",
+    "text": "enemy.rank.elite",
+    "hpMultiplier": 6,
+    "damageMultiplier": 1.3,
+    "xpMultiplier": 10,
+    "scale": 1.25,
+    "provisional": true,
+    "provisionalNote": "補助仕様書10.3"
+  }
+]
