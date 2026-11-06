@@ -222,7 +222,20 @@ export function resolveHit(input: HitInput): HitReport {
       ...(input.forceCrit === true ? { forceCrit: true } : {}),
     },
   );
+  // ダメージを受けない間（ボスの段階の切り替え・根渡り）のヒットは、ダメージ・状態異常・崩しを全て与えない
+  // （プレイヤーの回避の無敵と同じく、ヒットそのものを無効にする。docs/progress Q-U19-2 の確定）
+  const invulnerable = target.health.invulnerable;
   const applied = target.health.takeDamage(hit.total);
+  if (invulnerable)
+    return {
+      targetId: target.id,
+      hit,
+      backstab,
+      applied,
+      ailments: [],
+      staggerValue: 0,
+      staggerBroke: false,
+    };
   const tags = [...skill.tags, ...(skill.kind === "weapon" ? (attacker.weapon?.tags ?? []) : [])];
   const weaponUid = attacker.weapon?.uid;
   const ailments = rollAilments({
