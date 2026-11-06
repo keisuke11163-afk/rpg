@@ -7,7 +7,12 @@
  */
 import type { RawContent } from "@stella/core";
 import ailmentDefs from "../data/ailments/ailments.json" with { type: "json" };
+import warriorEffects from "../data/effects/warrior.json" with { type: "json" };
+import gauges from "../data/gauges/gauges.json" with { type: "json" };
+import jobDefs from "../data/jobs/jobs.json" with { type: "json" };
 import manifest from "../data/manifest.json" with { type: "json" };
+import commonSkills from "../data/skills/common.json" with { type: "json" };
+import warriorSkills from "../data/skills/warrior.json" with { type: "json" };
 import combatStats from "../data/stats/combat.json" with { type: "json" };
 import ailments from "../data/tags/ailments.json" with { type: "json" };
 import elements from "../data/tags/elements.json" with { type: "json" };
@@ -32,8 +37,14 @@ export const rawContent: RawContent = {
       { file: "data/tags/enemy-families.json", entries: enemyFamilies },
     ],
     stats: [{ file: "data/stats/combat.json", entries: combatStats }],
-    effects: [],
+    effects: [{ file: "data/effects/warrior.json", entries: warriorEffects }],
     ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
+    skills: [
+      { file: "data/skills/common.json", entries: commonSkills },
+      { file: "data/skills/warrior.json", entries: warriorSkills },
+    ],
+    gauges: [{ file: "data/gauges/gauges.json", entries: gauges }],
+    jobs: [{ file: "data/jobs/jobs.json", entries: jobDefs }],
   },
 };
 
@@ -42,6 +53,14 @@ export function registeredDataFiles(): string[] {
   const c = rawContent.collections;
   return [
     rawContent.manifest.file,
-    ...[...c.tags, ...c.stats, ...c.effects, ...(c.ailments ?? [])].map((s) => s.file),
+    ...[
+      ...c.tags,
+      ...c.stats,
+      ...c.effects,
+      ...(c.ailments ?? []),
+      ...(c.skills ?? []),
+      ...(c.gauges ?? []),
+      ...(c.jobs ?? []),
+    ].map((s) => s.file),
   ];
 }

@@ -104,40 +104,65 @@ describe("ArenaSimulation：回避の入力を刻みまで保持する", () => {
 
   it("試験用の場で使わない行動の押した瞬間の入力は保持しない（後で発動しないように）", () => {
     const sim = new ArenaSimulation();
-    sim.frame(0, input({ pressed: ["flaskHp", "skill3"] }));
+    // U-08 で skill3〜6 は戦士の技の枠になったので、使わない行動は薬瓶・調べる
+    sim.frame(0, input({ pressed: ["flaskHp", "flaskMp", "interact"] }));
     expect(sim.dodgePending).toBe(false);
     expect(sim.attackPending).toBe(false);
-    expect(sim.shotPending).toBe(false);
+    expect(sim.pending("skill2")).toBe(false);
     sim.frame(STEP, input());
     expect(sim.motion.dodging).toBe(false);
-    expect(sim.attack).toBeUndefined();
+    expect(sim.executing).toBeUndefined();
   });
 });
 
-describe("ArenaSimulation：通常攻撃・試験用の投射物の入力も刻みまで保持する（U-07）", () => {
+describe("ArenaSimulation：技の枠の入力も刻みまで保持する（U-07 の通常攻撃・U-08 の技）", () => {
   it("刻みが0のフレームで押した通常攻撃は、次の刻みで1回だけ始まる", () => {
     const sim = new ArenaSimulation();
     expect(sim.frame(0, input({ pressed: ["skill1"] }))).toBe(0);
     expect(sim.attackPending).toBe(true);
-    expect(sim.attack).toBeUndefined();
+    expect(sim.executing).toBeUndefined();
     sim.frame(STEP, input());
     expect(sim.attackPending).toBe(false);
-    expect(sim.attack).toBeDefined();
-    // 攻撃（1/1.4秒）が終わった後に、再び始まらない
+    expect(sim.executing).toBe("skill1");
+    // 攻撃（下級の大剣：1秒未満）が終わった後に、再び始まらない
     for (let i = 0; i < 120; i++) sim.frame(STEP, input());
-    expect(sim.attack).toBeUndefined();
+    expect(sim.executing).toBeUndefined();
+    expect(sim.uses.get("SKL-BASIC-ATTACK")).toBe(1);
   });
 
-  it("刻みが0のフレームで押した投射物は、次の刻みで1発だけ出る", () => {
+  it("刻みが0のフレームで押した右クリック（薙ぎ払い）は、次の刻みで1回だけ使う", () => {
+    // U-07 の試験用の投射物（右クリック）は、U-08 で戦士の薙ぎ払いに置き換えた
     const sim = new ArenaSimulation();
     sim.frame(0, input({ pressed: ["skill2"] }));
-    expect(sim.shotPending).toBe(true);
-    expect(sim.shotsFired).toBe(0);
+    expect(sim.pending("skill2")).toBe(true);
+    expect(sim.uses.get("SKL-WARRIOR-SWEEP")).toBeUndefined();
     sim.frame(3 * STEP, input());
-    expect(sim.shotPending).toBe(false);
-    expect(sim.shotsFired).toBe(1);
-    for (let i = 0; i < 60; i++) sim.frame(STEP, input());
-    expect(sim.shotsFired).toBe(1);
+    expect(sim.pending("skill2")).toBe(false);
+    expect(sim.uses.get("SKL-WARRIOR-SWEEP")).toBe(1);
+    for (let i = 0; i < 120; i++) sim.frame(STEP, input());
+    expect(sim.uses.get("SKL-WARRIOR-SWEEP")).toBe(1);
+  });
+
+  it("R（破軍）の押した瞬間も、刻みが0のフレームで保持し、闘志100で次の刻みに使う", () => {
+    const sim = new ArenaSimulation();
+    sim.setFervor(100);
+    sim.frame(0, input(), { routPressed: true });
+    expect(sim.pending("rout")).toBe(true);
+    sim.frame(STEP, input());
+    expect(sim.pending("rout")).toBe(false);
+    expect(sim.executing).toBe("rout");
+    expect(sim.uses.get("SKL-WARRIOR-ROUT")).toBe(1);
+  });
+
+  it("Tab で武器を替える。技の実行中は替えない", () => {
+    const sim = new ArenaSimulation();
+    expect(sim.weapon.uid).toBe("test-greatsword");
+    sim.frame(STEP, input(), { switchWeapon: true });
+    expect(sim.weapon.uid).toBe("test-greataxe");
+    sim.frame(STEP, input({ pressed: ["skill1"] }));
+    expect(sim.executing).toBe("skill1");
+    sim.frame(STEP, input(), { switchWeapon: true });
+    expect(sim.weapon.uid).toBe("test-greataxe");
   });
 
   it("人形の正面から通常攻撃が当たり、ヒットの手応えで止まる間も押した回避を保持する", () => {
@@ -162,7 +187,7 @@ describe("ArenaSimulation：通常攻撃・試験用の投射物の入力も刻�
     expect(sim.dodgePending).toBe(false);
     expect(sim.motion.dodging).toBe(true);
     // 回避で攻撃を取り消す
-    expect(sim.attack).toBeUndefined();
+    expect(sim.executing).toBeUndefined();
   });
 });
 

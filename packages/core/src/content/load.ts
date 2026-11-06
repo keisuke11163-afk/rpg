@@ -6,7 +6,16 @@ import {
   MORE_REDUCTION_ONLY_ORIGINS,
   effectSchema,
 } from "./effect.ts";
-import { KNOWN_HOOKS } from "./hooks.ts";
+import { KNOWN_HOOKS, SKILL_HOOK_PARAMS } from "./hooks.ts";
+import {
+  type GaugeDef,
+  type JobDef,
+  type SkillDef,
+  type SkillMods,
+  gaugeSchema,
+  jobSchema,
+  skillSchema,
+} from "./job.ts";
 import { conversionAllowed } from "./elements.ts";
 import { FLAG_TARGET_CATEGORY } from "./registries.ts";
 import { type Manifest, SUPPORTED_SCHEMA_VERSION, manifestSchema } from "./manifest.ts";
@@ -30,6 +39,10 @@ export interface RawContent {
     readonly effects: readonly RawSource[];
     /** 状態異常の定義（省略すると無し）。 */
     readonly ailments?: readonly RawSource[];
+    /** 技・職能ゲージ・ジョブの定義（省略すると無し）。 */
+    readonly skills?: readonly RawSource[];
+    readonly gauges?: readonly RawSource[];
+    readonly jobs?: readonly RawSource[];
   };
 }
 
@@ -72,6 +85,9 @@ export interface ContentDb {
   readonly ailments: ReadonlyMap<string, AilmentDef>;
   /** 状態異常のタグのID → 定義。 */
   readonly ailmentsByTag: ReadonlyMap<string, AilmentDef>;
+  readonly skills: ReadonlyMap<string, SkillDef>;
+  readonly gauges: ReadonlyMap<string, GaugeDef>;
+  readonly jobs: ReadonlyMap<string, JobDef>;
 }
 
 export type LoadResult =
@@ -171,10 +187,21 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const stats = parseAll(raw.collections.stats, statSchema);
   const effects = parseAll(raw.collections.effects, effectSchema);
   const ailments = parseAll(raw.collections.ailments ?? [], ailmentSchema);
+  const skills = parseAll(raw.collections.skills ?? [], skillSchema);
+  const gauges = parseAll(raw.collections.gauges ?? [], gaugeSchema);
+  const jobs = parseAll(raw.collections.jobs ?? [], jobSchema);
 
   // 3. IDの重複（全てのコレクションを通して）
   const seen = new Map<string, string>();
-  const all: Located<{ id: string }>[] = [...tags, ...stats, ...effects, ...ailments];
+  const all: Located<{ id: string }>[] = [
+    ...tags,
+    ...stats,
+    ...effects,
+    ...ailments,
+    ...skills,
+    ...gauges,
+    ...jobs,
+  ];
   for (const { value, file } of all) {
     const prev = seen.get(value.id);
     if (prev !== undefined) {
@@ -482,9 +509,181 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     }
   }
 
+  // 8. 技・職能ゲージ・ジョブ
+  const gaugeMap = new Map(gauges.map((g) => [g.value.id, g.value]));
+  const skillMap = new Map(skills.map((s) => [s.value.id, s.value]));
+  const jobMap = new Map(jobs.map((j) => [j.value.id, j.value]));
+  const refCheck = (
+    map: ReadonlyMap<string, unknown>,
+    what: string,
+    ref: string,
+    file: string,
+    id: string,
+    path: string,
+  ): boolean => {
+    if (map.has(ref)) return true;
+    if (!invalidIds.has(ref))
+      err({ code: "unknown-ref", file, id, path, message: `${what} ${ref} がない` });
+    return false;
+  };
+  const tagOf = (
+    ref: string,
+    categories: readonly string[] | undefined,
+    file: string,
+    id: string,
+    path: string,
+  ): void => {
+    if (!refCheck(tagMap, "タグ", ref, file, id, path) || categories === undefined) return;
+    const t = tagMap.get(ref);
+    if (t !== undefined && !categories.includes(t.category))
+      err({
+        code: "schema",
+        file,
+        id,
+        path,
+        message: `${ref} は分類 ${categories.join("・")} のタグではない（${t.category}）`,
+      });
+  };
+  const checkMods = (mods: SkillMods, file: string, id: string, path: string): void => {
+    for (const tagId of Object.keys(mods.ailmentChance ?? {}))
+      tagOf(tagId, ["ailment"], file, id, `${path}.ailmentChance`);
+    (mods.behaviors ?? []).forEach((b, i) => {
+      const at = `${path}.behaviors.${String(i)}`;
+      if (!knownHooks.has(b.hook)) {
+        err({
+          code: "unknown-hook",
+          file,
+          id,
+          path: `${at}.hook`,
+          message: `ルールフック ${b.hook} は登録されていない`,
+        });
+        return;
+      }
+      const need = (SKILL_HOOK_PARAMS as Partial<Record<string, readonly string[]>>)[b.hook] ?? [];
+      for (const name of need) {
+        if (b.params?.[name] === undefined)
+          err({
+            code: "schema",
+            file,
+            id,
+            path: `${at}.params`,
+            message: `ルールフック ${b.hook} にはパラメータ ${name} が必要`,
+          });
+      }
+    });
+  };
+
+  for (const { value: gauge, file } of gauges) {
+    checkText(gauge.text, file, gauge.id);
+    gauge.stages.forEach((st, i) => {
+      if (!(st.text in raw.texts))
+        err({
+          code: "unknown-text",
+          file,
+          id: gauge.id,
+          path: `stages.${String(i)}.text`,
+          message: `文章のキー ${st.text} がない`,
+        });
+      if (st.min > gauge.max)
+        err({
+          code: "schema",
+          file,
+          id: gauge.id,
+          path: `stages.${String(i)}.min`,
+          message: `段階 ${st.id} の値 ${String(st.min)} が、ゲージの最大 ${String(gauge.max)} を超える`,
+        });
+    });
+    gauge.gains.forEach((g, i) => {
+      if (g.on === "hitDealt" && g.tag !== undefined)
+        tagOf(g.tag, undefined, file, gauge.id, `gains.${String(i)}.tag`);
+    });
+  }
+
+  /** 技 → それを持つジョブの職能ゲージ（段階の名前の確認に使う）。 */
+  const skillGauge = new Map<string, GaugeDef>();
+  for (const { value: job, file } of jobs) {
+    checkText(job.text, file, job.id);
+    tagOf(job.tag, ["job"], file, job.id, "tag");
+    const gauge =
+      job.gauge === undefined
+        ? undefined
+        : refCheck(gaugeMap, "職能ゲージ", job.gauge, file, job.id, "gauge")
+          ? gaugeMap.get(job.gauge)
+          : undefined;
+    job.skills.forEach((entry, i) => {
+      if (refCheck(skillMap, "技", entry.skill, file, job.id, `skills.${String(i)}.skill`)) {
+        const skill = skillMap.get(entry.skill);
+        if (skill?.job !== undefined && skill.job !== job.id)
+          err({
+            code: "schema",
+            file,
+            id: job.id,
+            path: `skills.${String(i)}.skill`,
+            message: `技 ${entry.skill} は、ジョブ ${skill.job} の技`,
+          });
+        if (gauge !== undefined) skillGauge.set(entry.skill, gauge);
+      }
+    });
+    for (const tagId of Object.keys(job.affinity))
+      tagOf(tagId, ["weapon"], file, job.id, "affinity");
+  }
+
+  for (const { value: skill, file } of skills) {
+    checkText(skill.text, file, skill.id);
+    if (skill.job !== undefined) refCheck(jobMap, "ジョブ", skill.job, file, skill.id, "job");
+    skill.tags.forEach((t, i) => {
+      tagOf(t, undefined, file, skill.id, `tags.${String(i)}`);
+    });
+    for (const tagId of Object.keys(skill.ailmentChance ?? {}))
+      tagOf(tagId, ["ailment"], file, skill.id, "ailmentChance");
+    if (skill.kind === "spell" && skill.base === undefined)
+      err({
+        code: "schema",
+        file,
+        id: skill.id,
+        path: "base",
+        message: "呪文には基礎値（base）が必要",
+      });
+    if (skill.action.type === "warcry") {
+      const action = skill.action;
+      action.allyEffects.forEach((e, i) => {
+        refCheck(effectMap, "効果", e, file, skill.id, `action.allyEffects.${String(i)}`);
+      });
+      (action.enemyEffects ?? []).forEach((e, i) => {
+        refCheck(effectMap, "効果", e, file, skill.id, `action.enemyEffects.${String(i)}`);
+      });
+    }
+    (skill.selfEffects ?? []).forEach((e, i) => {
+      refCheck(effectMap, "効果", e.effect, file, skill.id, `selfEffects.${String(i)}.effect`);
+    });
+    const gauge = skillGauge.get(skill.id);
+    (skill.stageVariants ?? []).forEach((v, i) => {
+      const at = `stageVariants.${String(i)}`;
+      if (gauge === undefined || !gauge.stages.some((st) => st.id === v.stage))
+        err({
+          code: "unknown-ref",
+          file,
+          id: skill.id,
+          path: `${at}.stage`,
+          message:
+            gauge === undefined
+              ? `段階 ${v.stage} の変化があるが、この技を持つジョブに職能ゲージがない`
+              : `職能ゲージ ${gauge.id} に段階 ${v.stage} がない`,
+        });
+      checkMods(v.mods, file, skill.id, `${at}.mods`);
+    });
+    (skill.weaponVariants ?? []).forEach((v, i) => {
+      const at = `weaponVariants.${String(i)}`;
+      tagOf(v.weaponTag, ["weapon", "weaponGroup"], file, skill.id, `${at}.weaponTag`);
+      checkMods(v.mods, file, skill.id, `${at}.mods`);
+    });
+    if (skill.dualWieldVariant !== undefined)
+      checkMods(skill.dualWieldVariant, file, skill.id, "dualWieldVariant");
+  }
+
   if (errors.length > 0 || manifest === undefined) return { ok: false, errors };
 
-  // 8. 仮値の一覧
+  // 9. 仮値の一覧
   const provisional: ProvisionalEntry[] = [];
   const collect = (
     collection: string,
@@ -509,6 +708,9 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("stats", stats);
   collect("effects", effects);
   collect("ailments", ailments);
+  collect("skills", skills);
+  collect("gauges", gauges);
+  collect("jobs", jobs);
 
   return {
     ok: true,
@@ -520,6 +722,9 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       effects: effectMap,
       ailments: new Map(ailments.map((a) => [a.value.id, a.value])),
       ailmentsByTag,
+      skills: skillMap,
+      gauges: gaugeMap,
+      jobs: jobMap,
     },
     provisional,
   };

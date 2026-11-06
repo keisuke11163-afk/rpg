@@ -7,11 +7,26 @@ import {
 
 /** テスト用の、小さなデータ一式を作る。足りない文章のキーは自動で用意する。 */
 export function buildDb(
-  parts: { tags?: unknown[]; stats?: unknown[]; effects?: unknown[]; ailments?: unknown[] },
+  parts: {
+    tags?: unknown[];
+    stats?: unknown[];
+    effects?: unknown[];
+    ailments?: unknown[];
+    skills?: unknown[];
+    gauges?: unknown[];
+    jobs?: unknown[];
+  },
   knownHooks?: ReadonlySet<string>,
 ): ContentDb {
   const texts: Record<string, string> = {};
-  for (const entry of [...(parts.tags ?? []), ...(parts.stats ?? [])]) {
+  for (const entry of [
+    ...(parts.tags ?? []),
+    ...(parts.stats ?? []),
+    ...(parts.skills ?? []),
+    ...(parts.gauges ?? []),
+    ...(parts.jobs ?? []),
+    ...(parts.gauges ?? []).flatMap((g) => (g as { stages?: unknown[] }).stages ?? []),
+  ]) {
     const key = (entry as { text?: unknown }).text;
     if (typeof key === "string") texts[key] = key;
   }
@@ -23,6 +38,9 @@ export function buildDb(
       stats: [{ file: "stats.json", entries: parts.stats ?? [] }],
       effects: [{ file: "effects.json", entries: parts.effects ?? [] }],
       ailments: [{ file: "ailments.json", entries: parts.ailments ?? [] }],
+      skills: [{ file: "skills.json", entries: parts.skills ?? [] }],
+      gauges: [{ file: "gauges.json", entries: parts.gauges ?? [] }],
+      jobs: [{ file: "jobs.json", entries: parts.jobs ?? [] }],
     },
   };
   const r = loadContent(raw, knownHooks === undefined ? {} : { knownHooks });
@@ -168,7 +186,16 @@ export const AILMENT_FIXTURE: unknown[] = [
 ];
 
 /** 戦闘の計算に必要なもの一式（タグ・能力値・状態異常）に、効果を加えたデータ。 */
-export function fullCombatDb(effects: unknown[] = []): ContentDb {
+export function fullCombatDb(
+  effects: unknown[] = [],
+  extra: {
+    tags?: unknown[];
+    stats?: unknown[];
+    skills?: unknown[];
+    gauges?: unknown[];
+    jobs?: unknown[];
+  } = {},
+): ContentDb {
   const fx = combatFixture();
   const ailmentTags = ["BURN", "POISON", "WEAKEN", "STAGGER"].map((c) =>
     tag(`TAG-AIL-${c}`, "ailment"),
@@ -180,11 +207,16 @@ export function fullCombatDb(effects: unknown[] = []): ContentDb {
     stat("STAT-AILMENT-MAX-STACKS", { min: 0 }),
     stat("STAT-STAGGER", { unit: "ratio" }),
     stat("STAT-STAGGER-RESIST", { unit: "ratio", min: 0, baseCap: 1 }),
+    stat("STAT-DAMAGE-TAKEN", { unit: "ratio" }),
+    stat("STAT-STAGGER-TAKEN", { unit: "ratio" }),
   ];
   return buildDb({
-    tags: [...fx.tags, ...ailmentTags],
-    stats: [...fx.stats, ...extraStats],
+    tags: [...fx.tags, ...ailmentTags, ...(extra.tags ?? [])],
+    stats: [...fx.stats, ...extraStats, ...(extra.stats ?? [])],
     effects,
     ailments: AILMENT_FIXTURE,
+    skills: extra.skills ?? [],
+    gauges: extra.gauges ?? [],
+    jobs: extra.jobs ?? [],
   });
 }

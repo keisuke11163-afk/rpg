@@ -2,6 +2,8 @@ import type { Vec2 } from "../actor/vector.ts";
 import type { StaggerProfile } from "../content/ailment.ts";
 import type { Element } from "../content/effect.ts";
 import type { ContentDb } from "../content/load.ts";
+import { evaluateEffects } from "../effects/evaluate.ts";
+import { TagIndex } from "../effects/tag-index.ts";
 import type { Rng } from "../random/rng.ts";
 import {
   type AilmentApplication,
@@ -13,6 +15,21 @@ import {
 import { type DamageAttacker, type DamageSkill, type HitResult, computeHit } from "./damage.ts";
 import { type DamageApplied, Health } from "./health.ts";
 import { isBehind } from "./shapes.ts";
+import { TimedEffects } from "./timed-effects.ts";
+
+/** 受ける側の能力値（データの stats/combat.json）。 */
+export const RECEIVED_STATS = {
+  /** 受けるダメージ（加算・乗算。例：破軍の後の「受けるダメージ-20%」）。 */
+  damageTaken: "STAT-DAMAGE-TAKEN",
+  /** 受ける崩し値（例：戦吼の威圧「崩されやすく+20%」）。 */
+  staggerTaken: "STAT-STAGGER-TAKEN",
+} as const;
+
+/** 受ける側の倍率。 */
+export interface ReceivedMultipliers {
+  readonly damage: number;
+  readonly stagger: number;
+}
 
 /** 戦う者（プレイヤー・敵・訓練用の人形）の、戦闘に関わる状態。 */
 export interface CombatantInit {
@@ -48,8 +65,16 @@ export class Combatant {
   evasion: number;
   /** 移動しているか（出血の2倍に使う）。 */
   moving = false;
+  /** 一定時間だけかかっている効果（戦吼の威圧など）。 */
+  readonly statuses = new TimedEffects();
+  private readonly db: ContentDb;
+  private readonly tagIndex: TagIndex;
+  private receivedVersion = -1;
+  private received: ReceivedMultipliers = { damage: 1, stagger: 1 };
 
   constructor(db: ContentDb, init: CombatantInit) {
+    this.db = db;
+    this.tagIndex = new TagIndex(db.tags);
     this.id = init.id;
     this.team = init.team;
     this.radius = init.radius;
@@ -67,9 +92,30 @@ export class Combatant {
     this.stagger = new StaggerGauge(init.staggerProfile, init.maxHp);
   }
 
-  /** 受けるダメージの倍率（崩れている間など）。 */
+  /** 受けるダメージの倍率（崩れている間・一定時間の効果）。 */
   get takenMultiplier(): number {
-    return this.stagger.takenMultiplier;
+    return this.stagger.takenMultiplier * this.receivedMultipliers().damage;
+  }
+
+  /** 一定時間の効果による、受けるダメージ・崩し値の倍率（効果が変わったときだけ計算し直す）。 */
+  receivedMultipliers(): ReceivedMultipliers {
+    if (this.receivedVersion !== this.statuses.version) {
+      this.receivedVersion = this.statuses.version;
+      const instances = this.statuses.instances();
+      if (instances.length === 0) this.received = { damage: 1, stagger: 1 };
+      else {
+        const { view } = evaluateEffects(this.db, this.tagIndex, instances);
+        const mult = (id: string): number => {
+          const r = view.stat(id);
+          return Math.max(0, (1 + r.increased) * r.more);
+        };
+        this.received = {
+          damage: mult(RECEIVED_STATS.damageTaken),
+          stagger: mult(RECEIVED_STATS.staggerTaken),
+        };
+      }
+    }
+    return this.received;
   }
 
   /**
@@ -104,6 +150,8 @@ export class Combatant {
     this.ailments.commitTick(dot);
     this.health.commitUpdate(health);
     this.stagger.commitUpdate(stagger);
+    // 一定時間の効果：dt は検証済みで、残りの時間を減らして切れたものを取り除くだけ（例外は起きない）
+    this.statuses.update(dt);
     return total;
   }
 }
@@ -130,6 +178,8 @@ export interface HitInput {
   readonly rng: Rng;
   /** 平均の値で計算する（表示・確認用）。 */
   readonly roll?: "random" | "average";
+  /** 当てたら、崩しゲージを満タンにする（激化した突進）。 */
+  readonly fullStagger?: boolean;
 }
 
 /** 1回のヒットの結果（表示・記録用）。 */
@@ -192,7 +242,12 @@ export function resolveHit(input: HitInput): HitReport {
     ...(input.staggerCoefficient === undefined ? {} : { coefficient: input.staggerCoefficient }),
     ...(weaponUid === undefined ? {} : { weaponUid }),
   });
-  const stagger = target.stagger.planAdd(value);
+  const scaled = value * target.receivedMultipliers().stagger;
+  // 激化した突進は、当たれば崩しゲージを満タンにする（それ以外は、受ける崩し値の倍率をかけて加える）
+  const stagger =
+    input.fullStagger === true && !hit.evaded
+      ? target.stagger.planBreakNow()
+      : target.stagger.planAdd(scaled);
   // 2. 反映（検証済みの値による代入だけで、例外は起きない）
   target.health.commitUpdate(health);
   for (const plan of ailmentPlans) target.ailments.commitApply(plan);
@@ -203,7 +258,7 @@ export function resolveHit(input: HitInput): HitReport {
     backstab,
     applied: health.applied,
     ailments,
-    staggerValue: value,
+    staggerValue: scaled,
     staggerBroke: stagger.broke,
   };
 }

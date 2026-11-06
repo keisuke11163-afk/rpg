@@ -105,5 +105,18 @@
   "stat.cast-speed": "詠唱速度",
   "stat.mp-max": "最大MP",
   "stat.mp-regen": "MPの回復",
-  "stat.hp-max": "最大HP"
+  "stat.hp-max": "最大HP",
+  "stat.damage-taken": "受けるダメージ",
+  "stat.stagger-taken": "受ける崩し値",
+  "gauge.fervor": "闘志",
+  "gauge.fervor.empowered": "激化",
+  "gauge.fervor.release": "解放",
+  "job.warrior": "戦士",
+  "skill.basic-attack": "通常攻撃",
+  "skill.warrior.sweep": "薙ぎ払い",
+  "skill.warrior.charge": "突進",
+  "skill.warrior.warcry": "戦吼",
+  "skill.warrior.earthsplitter": "地割り",
+  "skill.warrior.whirlwind": "旋風",
+  "skill.warrior.rout": "破軍"
 }

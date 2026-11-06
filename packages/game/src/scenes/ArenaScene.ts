@@ -1,22 +1,37 @@
 // 仮実装: U-18a feature/town-and-dungeon-base で、町とダンジョンの地図に置き換える（試験用の場）
 import Phaser from "phaser";
-import type { HitReport } from "@stella/core";
+import type { HitReport, HitShape, Vec2 } from "@stella/core";
+import { text, type TextKey } from "@stella/content";
 import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import { InputSystem } from "../input/InputSystem.ts";
 import { TEXTURES } from "../world/placeholders.ts";
 import { PIXELS_PER_METER, toPixels } from "../world/units.ts";
-import { ARENA, ArenaSimulation, BASIC_SHAPE, DUMMY_POSITION, HAZARD } from "./arena-simulation.ts";
+import { ARENA, ArenaSimulation, DUMMY_POSITION, HAZARD, LOADOUT } from "./arena-simulation.ts";
 
+const SLOT_LABEL: Readonly<Record<string, string>> = {
+  skill1: "左",
+  skill2: "右",
+  skill3: "1",
+  skill4: "2",
+  skill5: "3",
+  skill6: "4",
+  rout: "R",
+};
+
+/** 試験用の場の描画・入力の取得（計算は ArenaSimulation）。 */
 export class ArenaScene extends Phaser.Scene {
   private sim!: ArenaSimulation;
   private controls!: InputSystem;
+  private keyTab!: Phaser.Input.Keyboard.Key;
+  private keyRout!: Phaser.Input.Keyboard.Key;
+  private routPressed = false;
+  private tabPressed = false;
   private body!: Phaser.GameObjects.Image;
   private facing!: Phaser.GameObjects.Image;
   private dummyImage!: Phaser.GameObjects.Image;
   private dummyFacing!: Phaser.GameObjects.Image;
   private fx!: Phaser.GameObjects.Graphics;
-  private projectileImages: Phaser.GameObjects.Image[] = [];
   private hud!: Phaser.GameObjects.Text;
   private bars!: Phaser.GameObjects.Graphics;
   /** 開発用：描画のフレームの経過時間を固定する（ミリ秒）。null なら実際の経過時間を使う。 */
@@ -33,7 +48,7 @@ export class ArenaScene extends Phaser.Scene {
     this.fx = this.add.graphics();
     this.sim = new ArenaSimulation(undefined, {
       onHit: (report) => {
-        if (report.hit.crit) this.cameras.main.shake(80, 0.004);
+        if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
         this.popDamage(report);
       },
     });
@@ -48,10 +63,14 @@ export class ArenaScene extends Phaser.Scene {
       .setTint(0xa07850);
     this.body = this.add.image(0, 0, TEXTURES.player).setOrigin(0.5, 0.5);
     this.facing = this.add.image(0, 0, TEXTURES.facing).setOrigin(-0.6, 0.5);
-    for (let i = 0; i < this.sim.projectiles.capacity; i++) {
-      this.projectileImages.push(this.add.image(0, 0, TEXTURES.projectile).setVisible(false));
-    }
     this.controls = new InputSystem(this);
+    // 仮実装: U-12 feature/inventory-ui で、装備の画面・技の枠の設定に置き換える（Tab で武器を替える・R で破軍）
+    const keyboard = this.input.keyboard;
+    if (keyboard === null) throw new Error("キーボードの入力が使えない");
+    this.keyTab = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TAB, true);
+    this.keyRout = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R, true);
+    this.keyTab.on("down", () => (this.tabPressed = true));
+    this.keyRout.on("down", () => (this.routPressed = true));
 
     const camera = this.cameras.main;
     camera.setBounds(0, 0, toPixels(ARENA.width), toPixels(ARENA.height));
@@ -68,43 +87,60 @@ export class ArenaScene extends Phaser.Scene {
       })
       .setScrollFactor(0);
 
+    const sim = this.sim;
     exposeDebug({
       player: () => ({
-        x: this.sim.motion.position.x,
-        y: this.sim.motion.position.y,
-        direction8: this.sim.motion.direction8,
-        stamina: this.sim.motion.currentStamina,
-        dodging: this.sim.motion.dodging,
-        invulnerable: this.sim.motion.invulnerable,
-        dodgePending: this.sim.dodgePending,
-        totalSteps: this.sim.clock.totalSteps,
+        x: sim.motion.position.x,
+        y: sim.motion.position.y,
+        direction8: sim.motion.direction8,
+        stamina: sim.motion.currentStamina,
+        dodging: sim.motion.dodging,
+        invulnerable: sim.motion.invulnerable,
+        dodgePending: sim.dodgePending,
+        totalSteps: sim.clock.totalSteps,
         // 画面の上の位置（ゲームのピクセル。カメラの位置を引いたもの）
         screenX: this.body.x - this.cameras.main.scrollX,
         screenY: this.body.y - this.cameras.main.scrollY,
       }),
       hazard: () => ({
-        hits: this.sim.hazardHits,
-        avoided: this.sim.hazardAvoided,
-        phase: this.sim.time % HAZARD.period,
+        hits: sim.hazardHits,
+        avoided: sim.hazardAvoided,
+        phase: sim.time % HAZARD.period,
         x: HAZARD.x,
         y: HAZARD.y,
       }),
       dummy: () => ({
-        x: this.sim.dummy.position.x,
-        y: this.sim.dummy.position.y,
-        hp: this.sim.dummy.health.hp,
-        maxHp: this.sim.dummy.health.maxHp,
-        hits: this.sim.hitCount,
-        lastDamage: this.sim.lastHit?.hit.total ?? 0,
-        lastCrit: this.sim.lastHit?.hit.crit ?? false,
-        lastBackstab: this.sim.lastHit?.backstab ?? false,
-        shotsFired: this.sim.shotsFired,
-        projectilesActive: this.sim.projectiles.active,
-        projectilePositions: this.sim.projectiles
-          .positions()
-          .map((p) => [p.position.x, p.position.y, p.direction.x, p.direction.y]),
+        x: sim.dummy.position.x,
+        y: sim.dummy.position.y,
+        hp: sim.dummy.health.hp,
+        maxHp: sim.dummy.health.maxHp,
+        hits: sim.hitCount,
+        lastDamage: sim.lastHit?.hit.total ?? 0,
+        lastCrit: sim.lastHit?.hit.crit ?? false,
+        lastBackstab: sim.lastHit?.backstab ?? false,
+        lastAilments: sim.lastHit?.ailments.map((a) => a.tag) ?? [],
+        broken: sim.dummy.stagger.broken,
+        statuses: sim.dummy.statuses.active.map((s) => s.effectId),
         screenX: this.dummyImage.x - this.cameras.main.scrollX,
         screenY: this.dummyImage.y - this.cameras.main.scrollY,
+      }),
+      // 確認用：闘志の量を決める（開発版だけ。自動の確認で、激化・解放を短い時間で試すため）
+      setFervor: (value?: number) => sim.setFervor(value ?? 0),
+      skills: () => ({
+        weapon: sim.weapon.uid,
+        affinity: sim.affinity,
+        attackSpeed: sim.attackSpeed,
+        mp: sim.mp,
+        fervor: sim.fervor.value,
+        stages: sim.fervor.stages,
+        executing: sim.executing ?? null,
+        lastSkill: sim.lastSkill?.id ?? null,
+        lastVariants: sim.lastSkill?.variants ?? [],
+        uses: Object.fromEntries(sim.uses),
+        buffs: sim.buffs.active.map((b) => b.effectId),
+        cooldowns: Object.fromEntries(
+          LOADOUT.map((l) => [l.skill, sim.cooldowns.remaining(l.skill)]),
+        ),
       }),
       // 刻みが0のフレームを再現するため（pnpm e2e）。null で元に戻す
       setFrameDeltaMs: (ms: number | null) => {
@@ -117,13 +153,24 @@ export class ArenaScene extends Phaser.Scene {
   override update(_time: number, deltaMs: number): void {
     // 入力の取得はフレームごと。保持と刻みへの受け渡しは ArenaSimulation が行う
     const frame = this.controls.read();
-    this.sim.frame((this.debugFrameDeltaMs ?? deltaMs) / 1000, frame);
+    this.sim.frame((this.debugFrameDeltaMs ?? deltaMs) / 1000, frame, {
+      routPressed: this.routPressed,
+      routHeld: this.keyRout.isDown,
+      switchWeapon: this.tabPressed,
+    });
+    this.routPressed = false;
+    this.tabPressed = false;
     this.render();
+  }
+
+  private skillName(id: string): string {
+    const def = this.sim.db.skills.get(id);
+    return def === undefined ? id : text(def.text as TextKey);
   }
 
   private popDamage(report: HitReport): void {
     const color = report.hit.crit ? "#ffd166" : report.backstab ? "#c3a6ff" : "#ffffff";
-    const label = `${report.hit.total.toFixed(0)}${report.hit.crit ? "!" : ""}${report.backstab ? "（背面）" : ""}`;
+    const label = `${report.hit.total.toFixed(0)}${report.hit.crit ? "!" : ""}${report.backstab ? "（背面）" : ""}${report.staggerBroke ? "（崩し）" : ""}`;
     const t = this.add
       .text(this.dummyImage.x, this.dummyImage.y - 18, label, {
         fontFamily: "sans-serif",
@@ -142,6 +189,42 @@ export class ArenaScene extends Phaser.Scene {
     });
   }
 
+  private drawShape(
+    g: Phaser.GameObjects.Graphics,
+    shape: HitShape,
+    origin: Vec2,
+    facing: number,
+  ): void {
+    const ox = toPixels(origin.x);
+    const oy = toPixels(origin.y);
+    switch (shape.type) {
+      case "circle":
+        g.fillCircle(ox, oy, shape.radius * PIXELS_PER_METER);
+        break;
+      case "sector": {
+        const half = (shape.angleDeg * Math.PI) / 360;
+        g.slice(ox, oy, shape.radius * PIXELS_PER_METER, facing - half, facing + half).fillPath();
+        break;
+      }
+      case "line": {
+        const cos = Math.cos(facing);
+        const sin = Math.sin(facing);
+        const w = shape.width / 2;
+        const l = shape.length;
+        const pts = [
+          { x: -w * -sin, y: -w * cos },
+          { x: l * cos - w * -sin, y: l * sin - w * cos },
+          { x: l * cos + w * -sin, y: l * sin + w * cos },
+          { x: w * -sin, y: w * cos },
+        ].map(
+          (p) => new Phaser.Math.Vector2(ox + p.x * PIXELS_PER_METER, oy + p.y * PIXELS_PER_METER),
+        );
+        g.fillPoints(pts, true);
+        break;
+      }
+    }
+  }
+
   private render(): void {
     const sim = this.sim;
     const motion = sim.motion;
@@ -150,10 +233,16 @@ export class ArenaScene extends Phaser.Scene {
     const y = Math.round(toPixels(p.y));
     this.body.setPosition(x, y).setAlpha(motion.invulnerable ? 0.5 : 1);
     this.facing.setPosition(x, y).setRotation((motion.direction8 * Math.PI) / 4);
+    const dummy = sim.dummy;
+    const dx0 = Math.round(toPixels(dummy.position.x));
+    const dy0 = Math.round(toPixels(dummy.position.y));
+    this.dummyImage.setPosition(dx0, dy0);
+    this.dummyFacing.setPosition(dx0, dy0);
     // Phaser 4 では setTintFill が無くなり、setTint ＋ setTintMode で白く光らせる
     if (sim.flash > 0) this.dummyImage.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+    else if (dummy.stagger.broken)
+      this.dummyImage.setTint(0xffd166).setTintMode(Phaser.TintModes.MULTIPLY);
     else this.dummyImage.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
-    this.dummyFacing.setVisible(true);
 
     const g = this.fx.clear();
     const t = sim.time % HAZARD.period;
@@ -162,39 +251,33 @@ export class ArenaScene extends Phaser.Scene {
     const r = HAZARD.radius * PIXELS_PER_METER;
     if (t < HAZARD.telegraph) g.lineStyle(1, 0xff6b6b, 0.4 + t).strokeCircle(hx, hy, r);
     else if (t < HAZARD.telegraph + HAZARD.active) g.fillStyle(0xff6b6b, 0.5).fillCircle(hx, hy, r);
-    // 攻撃の当たり判定（当たり判定が出ている間だけ）
-    if (sim.attack?.phase === "active") {
-      const half = (BASIC_SHAPE.type === "sector" ? BASIC_SHAPE.angleDeg : 90) / 2;
-      const rad = (BASIC_SHAPE.type === "sector" ? BASIC_SHAPE.radius : 1) * PIXELS_PER_METER;
-      g.fillStyle(0xffffff, 0.25)
-        .slice(
-          x,
-          y,
-          rad,
-          motion.facing - (half * Math.PI) / 180,
-          motion.facing + (half * Math.PI) / 180,
-        )
-        .fillPath();
+    // 残っている亀裂
+    for (const z of sim.zones) {
+      g.fillStyle(0xff9f43, 0.18);
+      for (const part of z.parts) this.drawShape(g, part.shape, part.origin, part.facing);
     }
-    // 人形のHP
-    const dummy = sim.dummy;
+    // 技の当たり判定（出た直後の少しの間だけ）
+    g.fillStyle(0xffffff, 0.22);
+    for (const s of sim.visibleStrikes()) this.drawShape(g, s.shape, s.origin, s.facing);
+    // 人形のHPと崩しゲージ
     const dx = this.dummyImage.x - 12;
     const dy = this.dummyImage.y - 18;
     g.fillStyle(0x2a2934, 1)
       .fillRect(dx, dy, 24, 3)
       .fillStyle(0xff6b6b, 1)
-      .fillRect(dx, dy, Math.round((24 * dummy.health.hp) / dummy.health.maxHp), 3);
-
-    this.projectileImages.forEach((img) => img.setVisible(false));
-    for (const pr of sim.projectiles.positions()) {
-      this.projectileImages[pr.index]
-        ?.setVisible(true)
-        .setPosition(toPixels(pr.position.x), toPixels(pr.position.y))
-        .setRotation(Math.atan2(pr.direction.y, pr.direction.x));
-    }
+      .fillRect(dx, dy, Math.round((24 * dummy.health.hp) / dummy.health.maxHp), 3)
+      .fillStyle(0x2a2934, 1)
+      .fillRect(dx, dy + 4, 24, 2)
+      .fillStyle(0xffd166, 1)
+      .fillRect(
+        dx,
+        dy + 4,
+        dummy.stagger.broken ? 24 : Math.round((24 * dummy.stagger.current) / dummy.stagger.max),
+        2,
+      );
 
     const bar = (row: number, ratio: number, color: number): void => {
-      const by = SCREEN.height - 30 + row * 8;
+      const by = SCREEN.height - 38 + row * 8;
       this.bars
         .fillStyle(0x2a2934, 1)
         .fillRect(8, by, 100, 5)
@@ -205,16 +288,44 @@ export class ArenaScene extends Phaser.Scene {
     bar(0, sim.playerHealth.hp / sim.playerHealth.maxHp, 0xff6b6b);
     bar(1, sim.mp / sim.maxMp, 0x6fa8ff);
     bar(2, motion.currentStamina / motion.config.maxStamina, 0x7bd389);
+    bar(
+      3,
+      sim.fervor.value / sim.fervor.max,
+      sim.fervor.hasStage("empowered") ? 0xff9f43 : 0xb5651d,
+    );
 
     const last = sim.lastHit;
+    const stageText = sim.fervor.def.stages
+      .filter((s) => sim.fervor.hasStage(s.id))
+      .map((s) => text(s.text as TextKey))
+      .join("・");
+    const slots = LOADOUT.map((l) => {
+      const name = this.skillName(l.skill);
+      const block = sim.blockOf(l.skill);
+      const cd = sim.cooldowns.remaining(l.skill);
+      const state =
+        block === undefined
+          ? ""
+          : block === "cooldown"
+            ? `（${cd.toFixed(1)}秒）`
+            : block === "mp"
+              ? "（MP不足）"
+              : block === "gauge"
+                ? "（闘志不足）"
+                : "（使えない）";
+      return `${SLOT_LABEL[l.action] ?? l.action}:${name}${state}`;
+    }).join(" ");
+    const lastSkill = sim.lastSkill;
     this.hud.setText([
-      "試験用の場（WASD移動・マウス照準・左クリック通常攻撃・右クリック試験用の投射物・スペース回避）",
-      `人形：HP ${dummy.health.hp.toFixed(0)}／${dummy.health.maxHp.toFixed(0)}・DPS ${sim.dps().toFixed(1)}・ヒット ${String(sim.hitCount)}`,
+      "試験用の場（WASD移動・マウス照準・スペース回避・Tabで武器を替える）",
+      slots,
+      `武器：${sim.weapon.name}（適性${sim.affinity}・攻撃速度 ${sim.attackSpeed.toFixed(2)}回/秒）${sim.buffs.active.length > 0 ? `・効果：${sim.buffs.active.map((b) => `${this.skillName(b.ref)}（${b.remaining.toFixed(1)}秒）`).join("・")}` : ""}`,
+      `人形：HP ${dummy.health.hp.toFixed(0)}／${dummy.health.maxHp.toFixed(0)}・DPS ${sim.dps().toFixed(1)}・ヒット ${String(sim.hitCount)}${dummy.stagger.broken ? "・崩れ" : ""}${dummy.statuses.active.length > 0 ? "・威圧" : ""}`,
       last === undefined
         ? "最後のヒット：なし"
-        : `最後のヒット：${last.hit.evaded ? "回避された" : `${last.hit.total.toFixed(1)}${last.hit.crit ? "・会心" : ""}${last.backstab ? "・背面" : ""}`}`,
+        : `最後のヒット：${last.hit.evaded ? "回避された" : `${last.hit.total.toFixed(1)}${last.hit.crit ? "・会心" : ""}${last.backstab ? "・背面" : ""}${last.ailments.length > 0 ? "・出血" : ""}`}${lastSkill === undefined ? "" : `（${lastSkill.variants.join("・") || "変化なし"}）`}`,
       `危険地帯：被弾 ${String(sim.hazardHits)}／回避で無効 ${String(sim.hazardAvoided)}`,
-      `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・気力 ${motion.currentStamina.toFixed(0)}`,
+      `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・気力 ${motion.currentStamina.toFixed(0)}・闘志 ${sim.fervor.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
     ]);
   }
 }

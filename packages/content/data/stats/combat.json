@@ -172,5 +172,15 @@
     "text": "stat.hp-max",
     "unit": "flat",
     "min": 1
+  },
+  {
+    "id": "STAT-DAMAGE-TAKEN",
+    "text": "stat.damage-taken",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-STAGGER-TAKEN",
+    "text": "stat.stagger-taken",
+    "unit": "ratio"
   }
 ]

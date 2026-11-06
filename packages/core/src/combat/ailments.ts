@@ -658,6 +658,19 @@ export class StaggerGauge {
     this.breakCount = plan.breakCount;
   }
 
+  /** すぐに崩す（激化した突進「通った敵を全て崩す」。補助仕様書3.6）。崩れている間は何もしない。 */
+  breakNow(): boolean {
+    const plan = this.planBreakNow();
+    this.commitAdd(plan);
+    return plan.broke;
+  }
+
+  /** breakNow の計算と検証だけを行い、次の状態を計画として返す（状態は変えない）。反映は commitAdd。 */
+  planBreakNow(): StaggerAddPlan {
+    if (this.broken) return this.planAdd(0);
+    return this.planAdd(Math.max(this.max - this.value, 1e-9));
+  }
+
   /**
    * 時間を進める（崩れている時間の経過・ゲージの減少）。
    * 不正な経過時間・時間の溢れは、状態を変えずに RangeError（planUpdate を参照）。
