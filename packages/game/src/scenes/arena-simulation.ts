@@ -442,6 +442,8 @@ export class ArenaSimulation {
   private questPoints: number;
   private explorationPoints: number;
   private lastHitBy: string | null = null;
+  /** 潜在効果を見つけたユニーク（ベースのID。セーブの discoveries.latent_revealed）。 */
+  readonly revealedLatents: Set<string>;
   /** 背向けの外套：全てのヒットを背面として扱う期限（経過時間）。 */
   private moveBackstabUntil = -1;
   /** 旅人の古靴：短縮の分の移動距離と、この1秒の短縮の量。 */
@@ -548,6 +550,7 @@ export class ArenaSimulation {
     this.secretsFound = new Set(profile.secretsFound);
     this.bossKills = new Map(Object.entries(profile.bossKills));
     this.bossTokens = new Map(Object.entries(profile.kept.bossTokens));
+    this.revealedLatents = new Set(profile.kept.discoveries.latent_revealed);
     this.questPoints = profile.kept.questPoints;
     this.explorationPoints = profile.kept.explorationPoints;
     this.starsValue = new StarAllocation(this.db, profile.starAllocation);
@@ -1308,6 +1311,10 @@ export class ArenaSimulation {
       kept: {
         ...this.kept,
         bossTokens: Object.fromEntries(this.bossTokens),
+        discoveries: {
+          ...this.kept.discoveries,
+          latent_revealed: [...this.revealedLatents],
+        },
         questPoints: this.questPoints,
         explorationPoints: this.explorationPoints,
       },
@@ -1338,6 +1345,7 @@ export class ArenaSimulation {
       attributes: this.sheetValue.attributes,
       characterLevel: this.character.level,
       contexts: this.skillContexts(),
+      revealedLatents: this.revealedLatents,
     });
   }
 
@@ -1599,6 +1607,17 @@ export class ArenaSimulation {
       starBoard: { allocation: this.stars.nodes, points: this.starPoints },
     });
     this.mpValue = Math.min(this.mpValue, this.sheetValue.maxMp);
+    // ユニークの潜在効果：初めて条件を満たしたら見つけたことにして、知らせる（仕様書v0.2 3.7）
+    for (const l of this.sheetValue.latents)
+      if (l.active && !this.revealedLatents.has(l.base)) {
+        this.revealedLatents.add(l.base);
+        const name = this.db.itemBases.get(l.base)?.text;
+        this.onText?.(
+          `潜在効果が目覚めた：${name === undefined ? l.base : text(name as TextKey)}`,
+          this.motion.position,
+          "#ffd166",
+        );
+      }
     // 職能ゲージの獲得量（職詞。メインジョブの条件は効果の側で判定する）
     this.jobGaugeValue.gainMultiplier = Math.max(
       0,

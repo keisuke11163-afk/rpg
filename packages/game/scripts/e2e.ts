@@ -1118,6 +1118,27 @@ try {
       room.exits.some((x) => x.to === "REGION-A5"),
     `地域 ${room.id}・母樹 ${String(mother?.state)}・HP ${String(mother?.maxHp)}`,
   );
+
+  // 討伐の祭壇（U-16）：町の祭壇の前で F を押すと、交換の画面が開き、専用ユニークの候補が並ぶ
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.goRegion("REGION-TOWN"),
+  );
+  await ready();
+  const townAgain = await regionInfo();
+  const altar = townAgain.facilities.find((f) => f.kind === "altar");
+  if (altar !== undefined) await tp(altar.x, altar.y + 1.2);
+  await page.waitForTimeout(100);
+  await page.keyboard.press("KeyF");
+  await page.waitForTimeout(150);
+  const altarPanel = await panel();
+  await page.screenshot({ path: `${outDir}altar.png` });
+  check(
+    "町の討伐の祭壇で F を押すと、交換の画面が開き、母樹の専用ユニークが並ぶ（U-16）",
+    altarPanel.open === "altar" &&
+      altarPanel.lines.some((l) => l.includes("千の小傷")) &&
+      altarPanel.lines.some((l) => l.includes("討伐証")),
+    `画面 ${String(altarPanel.open)}`,
+  );
 } finally {
   await browser.close();
   await server.close();

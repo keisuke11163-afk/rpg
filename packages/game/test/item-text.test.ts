@@ -44,6 +44,30 @@ describe("表示の文章（U-12 の画面）", () => {
     );
   });
 
+  it("ツールチップ：ユニークは固有効果の説明と、見つけるまでは「潜在効果：？？？」", () => {
+    const item = {
+      uid: "u",
+      base: "BASE-UNQ-U18",
+      rarity: "unique" as const,
+      itemLevel: 18,
+      affixes: [],
+    };
+    const ctx = { attributes: { go: 20, jin: 5, ri: 5, kon: 5 }, characterLevel: 15 };
+    const hidden = tooltipLines(db, itemTooltip(db, item, ctx));
+    expect(hidden[0]?.text).toBe("母樹の根冠");
+    expect(hidden.some((l) => l.text.startsWith("敵の毒10スタックにつき"))).toBe(true);
+    expect(hidden.some((l) => l.text === "潜在効果：？？？")).toBe(true);
+    // 固有効果の効果の行は重ねない
+    expect(hidden.some((l) => l.text.includes("毒10スタックごと"))).toBe(false);
+    const shown = tooltipLines(
+      db,
+      itemTooltip(db, item, { ...ctx, revealedLatents: new Set(["BASE-UNQ-U18"]) }),
+    );
+    expect(shown.some((l) => l.text === "潜在効果：【星座：毒蛇座を完成】上限が×1.30になる")).toBe(
+      true,
+    );
+  });
+
   it("ツールチップ：防具は防具種と防具値（強化を含む）、盾はガード率、要求値の未達は-40%", () => {
     const helm = {
       uid: "h",

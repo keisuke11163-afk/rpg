@@ -20,6 +20,7 @@ import {
   opLoad,
   Rng,
   sheetRows,
+  ALTAR_TOKEN_COST,
 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
 import { type ArenaSimulation, SKILL_SLOTS, type SkillSlot } from "../scenes/arena-simulation.ts";
@@ -184,7 +185,8 @@ export class EquipmentPanel {
       this.kind === "smith" ||
       this.kind === "stash" ||
       this.kind === "merchant" ||
-      this.kind === "teleport";
+      this.kind === "teleport" ||
+      this.kind === "altar";
     this.kind =
       this.kind === kind || (facility && this.sim.region !== undefined) ? undefined : kind;
     this.hovered = undefined;
@@ -226,14 +228,14 @@ export class EquipmentPanel {
 
   /** クリック。何かをしたら true。 */
   click(x: number, y: number, button: "left" | "right"): boolean {
-    if (this.kind === "teleport" || this.kind === "merchant") {
+    if (this.kind === "teleport" || this.kind === "merchant" || this.kind === "altar") {
       if (x >= PANEL.detail.x) {
         const row = this.smithRows.find((r) => y >= r.y0 && y < r.y1);
         if (row === undefined) return false;
         row.run();
         return true;
       }
-      if (this.kind === "teleport") return false;
+      if (this.kind === "teleport" || this.kind === "altar") return false;
       const t = inventoryTarget(x, y);
       const item = t?.kind === "item" ? this.sim.inventory.items[t.index] : undefined;
       if (item === undefined) return false;
@@ -375,6 +377,7 @@ export class EquipmentPanel {
       else if (this.kind === "stash") this.renderStash();
       else if (this.kind === "merchant") this.renderMerchant();
       else if (this.kind === "teleport") this.renderTeleport();
+      else if (this.kind === "altar") this.renderAltar();
       else this.renderStarBoard();
       if (this.message !== undefined && this.scene.time.now < this.message.until)
         this.line(
@@ -935,6 +938,60 @@ export class EquipmentPanel {
   }
 
   /** 転移の石（補助仕様書9.4）：解放した地域の入口へ移る。 */
+  /** 討伐の祭壇（仕様書v0.2 3.12）：討伐証10個で、専用ユニークを1つ選んで交換する。 */
+  private renderAltar(): void {
+    const sim = this.sim;
+    const db = sim.db;
+    this.smithRows = [];
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      { text: "討伐の祭壇（I で閉じる）　欲しいユニークをクリック", color: TEXT_COLOR.dim },
+      0,
+    );
+    const d = PANEL.detail;
+    let y: number = d.y;
+    for (const c of sim.altarCandidates()) {
+      const have = sim.bossTokens.get(c.token) ?? 0;
+      y = this.lines(
+        d.x,
+        y,
+        [
+          {
+            text: `討伐証 ${String(have)}／${String(ALTAR_TOKEN_COST)}`,
+            color: have >= ALTAR_TOKEN_COST ? TEXT_COLOR.good : TEXT_COLOR.dim,
+          },
+        ],
+        d.width,
+      );
+      for (const baseId of c.bases) {
+        const base = db.itemBases.get(baseId);
+        if (base === undefined) continue;
+        const y0 = y;
+        y = this.lines(
+          d.x,
+          y,
+          [
+            {
+              text: `◆ ${text(base.text as TextKey)}（必要Lv${String(base.requiredLevel)}）`,
+              color: have >= ALTAR_TOKEN_COST ? TEXT_COLOR.highlight : TEXT_COLOR.dim,
+            },
+          ],
+          d.width,
+        );
+        this.smithRows.push({
+          y0,
+          y1: y,
+          run: () => {
+            if (sim.exchangeAtAltar(baseId))
+              this.say(`${text(base.text as TextKey)}と交換した`, TEXT_COLOR.good);
+            else this.say("討伐証が足りない・インベントリがいっぱい", TEXT_COLOR.bad);
+          },
+        });
+      }
+    }
+  }
+
   private renderTeleport(): void {
     const sim = this.sim;
     const db = sim.db;

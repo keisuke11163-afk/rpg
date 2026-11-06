@@ -212,7 +212,17 @@ export function tooltipLines(db: ContentDb, tip: ItemTooltip): TextLine[] {
       text: `鍛造負荷 ${String(load)}／100${load >= 60 ? "（亀裂・霊感が起きる）" : ""}`,
       color: load >= 60 ? TEXT_COLOR.bad : TEXT_COLOR.dim,
     });
+  if (tip.unique !== undefined) {
+    lines.push({ text: t(tip.unique.description), color: TEXT_COLOR.highlight });
+    lines.push({
+      text: `潜在効果：${tip.unique.revealed ? t(tip.unique.latentText) : "？？？"}`,
+      color: tip.unique.revealed ? TEXT_COLOR.normal : TEXT_COLOR.dim,
+    });
+  }
   for (const e of tip.effects) {
+    // ユニークの固有効果は、説明の文章で示す（効果の行を重ねない）
+    if (tip.unique !== undefined && tip.base.unique?.effects.includes(e.effectId) === true)
+      continue;
     const values =
       e.affix !== undefined && e.rolled !== undefined
         ? affixValues(e.affix.roll, e.affix.scale, e.rolled.rolls)

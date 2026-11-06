@@ -57,6 +57,14 @@ export interface ItemTooltip {
       }
     | undefined;
   readonly effects: readonly TooltipEffectLine[];
+  /** ユニークの固有効果の説明と潜在効果（見つけるまでは文章を出さない）。ユニークでなければ undefined。 */
+  readonly unique:
+    | {
+        readonly description: string;
+        readonly latentText: string;
+        readonly revealed: boolean;
+      }
+    | undefined;
 }
 
 /**
@@ -103,6 +111,8 @@ export interface TooltipContext {
   readonly characterLevel: number;
   /** 今の技の文脈（{@link skillContexts}）。省略すると、どの行も光らせない。 */
   readonly contexts?: readonly ReadonlySet<string>[];
+  /** 潜在効果を見つけたユニーク（ベースのID）。それ以外の潜在効果は「？？？」（仕様書v0.2 3.7）。 */
+  readonly revealedLatents?: ReadonlySet<string>;
 }
 
 /** 装備のツールチップの中身を作る。 */
@@ -172,5 +182,13 @@ export function itemTooltip(
             guard: base.shield?.guard,
           },
     effects,
+    unique:
+      base.unique === undefined
+        ? undefined
+        : {
+            description: base.unique.description,
+            latentText: base.unique.latent.text,
+            revealed: context.revealedLatents?.has(base.id) === true,
+          },
   };
 }
