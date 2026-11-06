@@ -884,7 +884,7 @@ describe("ArenaSimulation：第1章の地域・クエスト・隠し星（U-18b�
     expect(region("REGION-A1").exits?.map((x) => x.to)).toEqual(["REGION-TOWN", "REGION-A2"]);
     expect(region("REGION-A2").exits?.map((x) => x.to)).toEqual(["REGION-A1", "REGION-A3"]);
     expect(region("REGION-A3").exits?.map((x) => x.to)).toEqual(["REGION-A2", "REGION-A4"]);
-    expect(region("REGION-A4").exits?.map((x) => x.to)).toEqual(["REGION-A3"]);
+    expect(region("REGION-A4").exits?.map((x) => x.to)).toEqual(["REGION-A3", "REGION-A4-BOSS"]);
   });
 
   it("A2 に入るとクエスト「森の異変」の段階1を終え、星辰盤のポイントが1増える（1回だけ）", () => {
@@ -935,5 +935,103 @@ describe("ArenaSimulation：第1章の地域・クエスト・隠し星（U-18b�
     expect(sim.starPoints).toBe(points + 1);
     expect(sim.secretsFound.has("SECRET-A3-BUSH")).toBe(true);
     expect(sim.nearbyInteractable()?.kind).not.toBe("secret");
+  });
+});
+
+describe("ArenaSimulation：母樹（U-19、補助仕様書9・11章）", () => {
+  const db = new ArenaSimulation(undefined, { enemies: false }).db;
+  const region = (id: string) => {
+    const r = db.regions.get(id);
+    if (r === undefined) throw new Error(`${id} が無い`);
+    return r;
+  };
+  /** ボスを倒す（段階の境目ごとに、無敵が切れるのを待って削る）。 */
+  const defeat = (sim: ArenaSimulation, enemyId: string): void => {
+    const boss = sim.field?.entries.find((e) => e.enemy.def.id === enemyId)?.enemy;
+    if (boss === undefined) throw new Error(`${enemyId} がいない`);
+    for (let i = 0; i < 2000 && boss.state !== "dead"; i++) {
+      const h = boss.combatant.health;
+      if (!h.invulnerable) h.takeDamage(h.hp);
+      sim.frame(STEP, input());
+    }
+    for (let i = 0; i < 5; i++) sim.frame(STEP, input());
+  };
+
+  it("A4 の先に母樹の間（腐根の母樹 Lv14・根渡りの3地点）。A5 への出口は、母樹を倒すまで閉じている", () => {
+    const room = region("REGION-A4-BOSS");
+    expect(room.fixedEnemies).toEqual([
+      expect.objectContaining({ enemy: "ENM-MOTHER-TREE", level: 14 }),
+    ]);
+    expect(room.fixedEnemies?.[0]?.anchors).toHaveLength(3);
+    const toA5 = room.exits?.find((x) => x.to === "REGION-A5");
+    expect(toA5?.requires).toEqual({ defeated: "ENM-MOTHER-TREE" });
+    const sim = new ArenaSimulation(undefined, { db, region: room, layoutSeed: "room" });
+    expect(toA5 !== undefined && sim.exitOpen(toA5)).toBe(false);
+    // 閉じた出口に入っても移らない
+    const onExit = vi.fn();
+    const closed = new ArenaSimulation(undefined, { db, region: room, onExit, enemies: false });
+    const p = closed.motion.position;
+    closed.motion.displace({ x: 31.5 - p.x, y: 14 - p.y });
+    closed.frame(STEP, input());
+    expect(onExit).not.toHaveBeenCalled();
+    expect(region("REGION-A5").magicPackChance).toBe(0.15);
+    expect(region("REGION-A5").eliteSpawns?.length).toBeGreaterThanOrEqual(4);
+    expect(region("REGION-A5-BOSS").fixedEnemies?.[0]).toMatchObject({
+      enemy: "ENM-ABYSS-MOTHER-TREE",
+      level: 21,
+    });
+  });
+
+  it("母樹を倒すと：討伐証+1・クエストの段階4・初回だけ隠し星・A5 への出口が開く・ドロップ。2回目は隠し星なし", () => {
+    const room = region("REGION-A4-BOSS");
+    const sim = new ArenaSimulation(undefined, { db, region: room, layoutSeed: "kill1" });
+    const points = sim.starPoints;
+    defeat(sim, "ENM-MOTHER-TREE");
+    expect(sim.bossKills.get("ENM-MOTHER-TREE")).toBe(1);
+    expect(sim.bossTokens.get("TOKEN-BOSS-CH1")).toBe(1);
+    expect(sim.questStages.has("QUEST-FOREST-4")).toBe(true);
+    expect(sim.secretsFound.has("SECRET-MOTHER-TREE")).toBe(true);
+    // 段階4の星図の欠片＋隠し星
+    expect(sim.starPoints).toBe(points + 2);
+    const toA5 = room.exits?.find((x) => x.to === "REGION-A5");
+    expect(toA5 !== undefined && sim.exitOpen(toA5)).toBe(true);
+    // 章ボスのドロップ：6〜10個・母樹の樹液1・開眼の結晶2
+    const items = sim.loot.drops.filter((d) => d.kind === "item");
+    expect(items.length).toBeGreaterThanOrEqual(6);
+    expect(items.length).toBeLessThanOrEqual(10);
+    const mats = sim.loot.drops.flatMap((d) => (d.kind === "material" ? [d] : []));
+    expect(mats).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ material: "MAT-BOSS-CORE-CH1", count: 1 }),
+        expect.objectContaining({ material: "MAT-INSIGHT-CRYSTAL", count: 2 }),
+      ]),
+    );
+    // セーブデータに残り、入り直すとボスはまた出る
+    const again = new ArenaSimulation(undefined, {
+      db,
+      region: room,
+      layoutSeed: "kill2",
+      profile: sim.profile(),
+    });
+    const before = again.starPoints;
+    defeat(again, "ENM-MOTHER-TREE");
+    expect(again.bossKills.get("ENM-MOTHER-TREE")).toBe(2);
+    expect(again.bossTokens.get("TOKEN-BOSS-CH1")).toBe(2);
+    expect(again.starPoints).toBe(before);
+    const data = again.saveData();
+    expect(data.boss_kills).toEqual({ "ENM-MOTHER-TREE": 2 });
+    expect(data.boss_tokens).toEqual({ "TOKEN-BOSS-CH1": 2 });
+  });
+
+  it("深淵の母樹を倒すと、共通の討伐証を2個得る", () => {
+    const sim = new ArenaSimulation(undefined, {
+      db,
+      region: region("REGION-A5-BOSS"),
+      layoutSeed: "abyss",
+    });
+    defeat(sim, "ENM-ABYSS-MOTHER-TREE");
+    expect(sim.bossKills.get("ENM-ABYSS-MOTHER-TREE")).toBe(1);
+    expect(sim.bossTokens.get("TOKEN-BOSS-CH1")).toBe(2);
+    expect(sim.secretsFound.has("SECRET-MOTHER-TREE")).toBe(false);
   });
 });

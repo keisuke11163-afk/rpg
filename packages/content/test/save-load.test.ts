@@ -103,7 +103,8 @@ function sampleProfile(): PlayerProfile {
     unlockedRegions: ["REGION-A1"],
     deathLog: { count: 2, lastCause: "ENM-FOREST-WOLF" },
     questStages: ["QUEST-FOREST-1"],
-    secretsFound: ["SECRET-A3-BUSH"],
+    secretsFound: ["SECRET-A3-BUSH", "SECRET-MOTHER-TREE"],
+    bossKills: { "ENM-MOTHER-TREE": 2 },
     kept: emptyKeptFields(),
   };
 }
@@ -202,6 +203,7 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
             deathLog: { count: 0, lastCause: null },
             questStages: [],
             secretsFound: [],
+            bossKills: {},
             kept: emptyKeptFields(),
           };
           const store = new SaveStore(db, new MemoryBackend());
@@ -219,9 +221,16 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
 });
 
 /** 版1（開発計画書6.9 の例の形）のデータ。 */
+/** 版5（ボスを倒した回数が無い）のデータ。 */
+function v5Sample(): Record<string, unknown> {
+  const v6 = { ...(toSaveData(db, sampleProfile()) as Record<string, unknown>) };
+  delete v6["boss_kills"];
+  return { ...v6, save_version: 5 };
+}
+
 /** 版4（クエストの段階・隠し星が無い）のデータ。 */
 function v4Sample(): Record<string, unknown> {
-  const v5 = { ...(toSaveData(db, sampleProfile()) as Record<string, unknown>) };
+  const v5 = { ...v5Sample() };
   delete v5["quest_stages"];
   delete v5["secrets_found"];
   return { ...v5, save_version: 4 };
@@ -308,8 +317,27 @@ describe("T11：1つ前の版のデータを移行できる", () => {
       unlocked_regions: ["REGION-A1"],
       death_log: { count: 2, last_cause: "ENM-FOREST-WOLF" },
       quest_stages: ["QUEST-FOREST-1"],
-      secrets_found: ["SECRET-A3-BUSH"],
+      secrets_found: ["SECRET-A3-BUSH", "SECRET-MOTHER-TREE"],
+      boss_kills: { "ENM-MOTHER-TREE": 2 },
     }).toEqual(toSaveData(db, sampleProfile()));
+  });
+
+  it("版5 → 版6：ボスはまだ倒していない。ボスでない敵・データに無い敵は参照の問題", () => {
+    const data = decodeSave(wrap(v5Sample()));
+    expect(data.save_version).toBe(SAVE_VERSION);
+    expect(data.boss_kills).toEqual({});
+    expect({ ...data, boss_kills: { "ENM-MOTHER-TREE": 2 } }).toEqual(
+      toSaveData(db, sampleProfile()),
+    );
+    expect(fromSaveData(db, toSaveData(db, sampleProfile())).bossKills).toEqual({
+      "ENM-MOTHER-TREE": 2,
+    });
+    expect(() => fromSaveData(db, { ...data, boss_kills: { "ENM-FOREST-WOLF": 1 } })).toThrow(
+      SaveDataError,
+    );
+    expect(() => fromSaveData(db, { ...data, boss_kills: { "ENM-NONE": 1 } })).toThrow(
+      SaveDataError,
+    );
   });
 
   it("版4 → 版5：クエストの段階・隠し星は無し。データに無い段階は参照の問題", () => {

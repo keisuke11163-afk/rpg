@@ -3,16 +3,35 @@ import { ELEMENTS } from "./effect.ts";
 import { idSchema, provisionalFields, textKeySchema } from "./ids.ts";
 import { hitShapeSchema } from "./job.ts";
 
+/** 連続の当たり判定・連続の雲（回数・間隔）。 */
+const repeatSchema = z.strictObject({
+  count: z.number().int().min(2),
+  interval: z.number().positive(),
+});
+
+/** 地面に残る雲（腐根の暴走の毒だまり）。中にいると、間隔ごとに状態異常を1つ受ける。 */
+const residueSchema = z.strictObject({
+  radius: z.number().positive(),
+  duration: z.number().positive(),
+  interval: z.number().positive(),
+  ailment: idSchema,
+  /** 状態異常の基準値（標準HPに対する割合）。 */
+  baseRatio: z.number().positive(),
+});
+export type EnemyResidue = z.infer<typeof residueSchema>;
+
 /** 攻撃の届け方。 */
 export const enemyDeliverySchema = z.discriminatedUnion("type", [
   // 自分の位置から、向きに合わせて当たり判定を出す（噛みつき・爪・叩きつけ）。
   // repeat があれば、当たり判定が出ている間に間隔ごとに続けて出す（群れ長の大牙の噛みつき3連。それぞれ1回当たる）
+  // aim が target なら、予兆の始めの相手の位置に出す（母樹の根の叩きつけ）。連続なら、2回目からは
+  // 前の1回が出た瞬間の相手の位置に出す（間隔が次の予兆になる）。residue があれば、出た場所に雲が残る
   z.strictObject({
     type: z.literal("strike"),
     shape: hitShapeSchema,
-    repeat: z
-      .strictObject({ count: z.number().int().min(2), interval: z.number().positive() })
-      .optional(),
+    repeat: repeatSchema.optional(),
+    aim: z.enum(["self", "target"]).optional(),
+    residue: residueSchema.optional(),
   }),
   // 決まった距離を、決まった速さで、曲がらずに進む（牙猪の突進）。通り道の相手に1回だけ当たる
   z.strictObject({
@@ -44,7 +63,9 @@ export const enemyDeliverySchema = z.discriminatedUnion("type", [
       })
       .optional(),
   }),
-  // 予兆の始めの、相手の位置に雲を出す。中にいると、間隔ごとに状態異常を1つ受ける（腐根の苗の胞子）
+  // 予兆の始めの、相手の位置に雲を出す。中にいると、間隔ごとに状態異常を1つ受ける（腐根の苗の胞子）。
+  // count が2以上なら、1つ目を相手の位置に、残りをその周り（spread m）に等しい角度で出す（母樹の毒の胞子）。
+  // repeat があれば、間隔ごとに、その瞬間の相手の位置へ続けて出す（深淵の母樹の2回連続）
   z.strictObject({
     type: z.literal("cloud"),
     radius: z.number().positive(),
@@ -53,7 +74,13 @@ export const enemyDeliverySchema = z.discriminatedUnion("type", [
     ailment: idSchema,
     /** 状態異常の基準値（標準HPに対する割合）。 */
     baseRatio: z.number().positive(),
+    count: z.number().int().positive().optional(),
+    spread: z.number().positive().optional(),
+    repeat: repeatSchema.optional(),
   }),
+  // 地中を移動し、別の地点（ボスの間の根渡りの地点）に現れる（母樹の根渡り）。当たり判定が出ている時間の
+  // 間は地中にいて、ダメージを受けず、狙われない。移動しているので、出血の「移動中は2倍」が働く
+  z.strictObject({ type: z.literal("burrow") }),
 ]);
 export type EnemyDelivery = z.infer<typeof enemyDeliverySchema>;
 
@@ -79,6 +106,8 @@ export const enemyAttackSchema = z.strictObject({
   /** 使える攻撃が複数あるときの重み（省略すると1）。 */
   weight: z.number().positive().optional(),
   delivery: enemyDeliverySchema,
+  /** ボスの段階（1から）のうち、この攻撃を使う段階。省略すると全ての段階。 */
+  phases: z.array(z.number().int().min(1)).min(1).optional(),
 });
 export type EnemyAttackDef = z.infer<typeof enemyAttackSchema>;
 
@@ -123,7 +152,26 @@ export const enemySchema = z.strictObject({
   /** 群れの数（単体は1〜1）。 */
   pack: z.strictObject({ min: z.number().int().positive(), max: z.number().int().positive() }),
   /** 倒したときのドロップの出どころ（中ボスは miniBoss。省略すると格〔通常・魔法・精鋭〕）。 */
-  dropSource: z.enum(["miniBoss", "chapterBoss"]).optional(),
+  dropSource: z.enum(["miniBoss", "chapterBoss", "abyssBoss"]).optional(),
+  /** ボス（補助仕様書11章）。段階・段階の切り替えの無敵・攻撃中も向きを変える。 */
+  boss: z
+    .strictObject({
+      /** 最大HP（標準DPS×90秒。補助仕様書11.1・11.2。種類と格の倍率は使わない）。 */
+      hp: z.number().positive(),
+      /** 次の段階に移るHPの割合（高い順。0.66＝66%）。段階の数は、この数＋1。 */
+      phaseThresholds: z.array(z.number().gt(0).lt(1)),
+      /** 段階の切り替えで、ダメージを受けない秒数（仕様書8.4）。 */
+      transitionInvulnerable: z.number().nonnegative(),
+      /** 気づく距離（m。周り全て）。 */
+      aggroRange: z.number().positive(),
+      /** 倒すたびに得る討伐証（仕様書v0.2 3.12。腐根の母樹と深淵の母樹は共通の討伐証）。 */
+      tokens: z.strictObject({ id: idSchema, count: z.number().int().positive() }),
+      /** 初めて倒したときに自動で得る隠し星（補助仕様書9.5）。 */
+      firstKillSecret: z
+        .strictObject({ id: idSchema, explorationPoints: z.number().int().positive() })
+        .optional(),
+    })
+    .optional(),
   ...provisionalFields,
 });
 export type EnemyDef = z.infer<typeof enemySchema>;

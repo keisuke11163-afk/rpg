@@ -202,5 +202,21 @@
   "quest.forest": "森の異変",
   "quest.forest.1": "苔むす小道に到達する",
   "quest.forest.2": "群れ長の大牙を倒す",
-  "quest.forest.3": "腐根の奥地に到達する"
+  "quest.forest.3": "腐根の奥地に到達する",
+  "enemy.mother-tree": "腐根の母樹",
+  "enemy.abyss-mother-tree": "深淵の母樹",
+  "enemy.root-tentacle": "根の触手",
+  "enemy.attack.root-slam": "根の叩きつけ",
+  "enemy.attack.root-slam2": "根の叩きつけ（2連続）",
+  "enemy.attack.vine-sweep": "蔦の薙ぎ",
+  "enemy.attack.poison-spores": "毒の胞子",
+  "enemy.attack.poison-spores2": "毒の胞子（2回連続）",
+  "enemy.attack.tentacles": "根の触手の召喚",
+  "enemy.attack.root-travel": "根渡り",
+  "enemy.attack.rot-rampage": "腐根の暴走",
+  "enemy.attack.thorn-spit": "毒の棘",
+  "region.a4-boss": "母樹の間",
+  "region.a5": "母樹の深淵",
+  "region.a5-boss": "深淵の母樹の間",
+  "quest.forest.4": "腐根の母樹を倒す"
 }

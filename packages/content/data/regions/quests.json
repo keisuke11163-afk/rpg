@@ -29,6 +29,15 @@
           "region": "REGION-A4"
         },
         "questPoints": 1
+      },
+      {
+        "id": "QUEST-FOREST-4",
+        "text": "quest.forest.4",
+        "trigger": {
+          "type": "defeat",
+          "enemy": "ENM-MOTHER-TREE"
+        },
+        "questPoints": 1
       }
     ]
   }

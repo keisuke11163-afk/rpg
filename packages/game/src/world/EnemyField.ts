@@ -28,6 +28,8 @@ export interface SpawnGroup {
   readonly at: Vec2;
   /** 群れの中で、魔法・精鋭にする体（先頭から）。 */
   readonly ranks?: readonly EnemyRank[];
+  /** 根渡りで現れる地点（ボス）。 */
+  readonly anchors?: readonly Vec2[];
 }
 
 /** 開発用の試験用の場に置く群れ（補助仕様書9.2のA1〜A4の敵を、1種類ずつ）。 */
@@ -84,6 +86,8 @@ export interface FieldHooks {
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
   /** 敵が倒れた（経験値を得る）。 */
   onEnemyKilled(enemy: Enemy): void;
+  /** ボスの段階が変わった・根渡りで潜った・現れた（表示用。省略できる）。 */
+  onBossEvent?(enemy: Enemy, event: "phase" | "burrow" | "surface", phase: number): void;
 }
 
 /**
@@ -135,9 +139,9 @@ export class EnemyField {
     return this.views.map((v) => v.enemy);
   }
 
-  /** 生きている敵の、戦う者（プレイヤーの技の対象）。 */
+  /** 生きている敵の、戦う者（プレイヤーの技の対象。根渡りで地中にいるボスは除く）。 */
   targets(): Combatant[] {
-    return this.views.filter((v) => v.enemy.state !== "dead").map((v) => v.enemy.combatant);
+    return this.views.filter((v) => v.enemy.targetable).map((v) => v.enemy.combatant);
   }
 
   byCombatant(c: Combatant): Enemy | undefined {
@@ -164,6 +168,7 @@ export class EnemyField {
         },
         g.id,
         i,
+        g.anchors,
       );
       out.push(e.id);
     }
@@ -178,6 +183,7 @@ export class EnemyField {
     at: Vec2,
     group: string,
     index = 0,
+    anchors?: readonly Vec2[],
   ): Enemy {
     const def = this.db.enemies.get(enemyId);
     const rank = this.db.enemyRanks.get(rankKey);
@@ -193,6 +199,7 @@ export class EnemyField {
       packId: group,
       packIndex: index,
       facing: Math.PI,
+      ...(anchors === undefined ? {} : { anchors }),
     });
     this.views.push({ enemy, group, deadFor: 0, hitGroups: new Set() });
     return enemy;
@@ -302,6 +309,8 @@ export class EnemyField {
                 y: ev.origin.y + Math.sin(e.facing) * ev.radius,
               },
             });
+            // 呼ばれた仲間は、すぐに気づいている
+            for (const v2 of this.views) if (ids.includes(v2.enemy.id)) v2.enemy.notice();
             const haste = ev.haste;
             if (haste !== undefined)
               for (const other of this.views) {
@@ -315,6 +324,13 @@ export class EnemyField {
             break;
           }
           case "returned":
+            break;
+          case "phase":
+            hooks.onBossEvent?.(e, "phase", ev.phase);
+            break;
+          case "burrow":
+          case "surface":
+            hooks.onBossEvent?.(e, ev.type, e.phase);
             break;
         }
       }

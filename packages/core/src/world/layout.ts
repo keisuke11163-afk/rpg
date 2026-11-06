@@ -69,7 +69,7 @@ export function rollRegionLayout(db: ContentDb, region: RegionDef, rng: Rng): Re
     const def = db.enemies.get(enemy);
     const count = def === undefined ? 1 : rng.int(def.pack.min, def.pack.max);
     const level = rng.int(s.levels.min, s.levels.max);
-    const magic = rng.next() < MAGIC_PACK_CHANCE;
+    const magic = rng.next() < (region.magicPackChance ?? MAGIC_PACK_CHANCE);
     packs.push({ at, enemy, level, count, ranks: magic ? ["magic"] : [] });
   }
   for (const at of region.eliteSpawns ?? []) {

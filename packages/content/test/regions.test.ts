@@ -109,7 +109,7 @@ describe("第1章の地域とクエスト（補助仕様書9.2・9.5・9.6）", 
     expect(range("REGION-A4")).toEqual([12, 14]);
   });
 
-  it("A3 に中ボス（Lv11）と隠し星。クエスト「森の異変」は A2 到達・中ボス・A4 到達で星図の欠片1つずつ", () => {
+  it("A3 に中ボス（Lv11）と隠し星。クエスト「森の異変」は A2 到達・中ボス・A4 到達・母樹で星図の欠片1つずつ", () => {
     expect(region("REGION-A3").fixedEnemies).toEqual([
       expect.objectContaining({ enemy: "ENM-PACK-LEADER", level: 11 }),
     ]);
@@ -119,6 +119,7 @@ describe("第1章の地域とクエスト（補助仕様書9.2・9.5・9.6）", 
       { type: "enterRegion", region: "REGION-A2" },
       { type: "defeat", enemy: "ENM-PACK-LEADER" },
       { type: "enterRegion", region: "REGION-A4" },
+      { type: "defeat", enemy: "ENM-MOTHER-TREE" },
     ]);
     expect(q?.stages.every((s) => s.questPoints === 1)).toBe(true);
   });

@@ -812,6 +812,17 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         path: "behavior",
         message: "保つ距離の最小が最大を超えている",
       });
+    if (enemy.boss !== undefined) {
+      const th = enemy.boss.phaseThresholds;
+      if (th.some((v, i) => i > 0 && v >= (th[i - 1] ?? 1)))
+        err({
+          code: "schema",
+          file,
+          id: enemy.id,
+          path: "boss.phaseThresholds",
+          message: "段階の境目は、高い順に並べる",
+        });
+    }
     const attackIds = new Set<string>();
     enemy.attacks.forEach((attack, i) => {
       const at = `attacks.${String(i)}`;
@@ -834,18 +845,48 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         });
       for (const tagId of Object.keys(attack.ailmentChance ?? {}))
         tagOf(tagId, ["ailment"], file, enemy.id, `${at}.ailmentChance`);
-      if (attack.delivery.type === "cloud") {
-        const tagId = attack.delivery.ailment;
-        tagOf(tagId, ["ailment"], file, enemy.id, `${at}.delivery.ailment`);
+      const cloudAilment = (tagId: string, path: string): void => {
+        tagOf(tagId, ["ailment"], file, enemy.id, path);
         if (tagMap.has(tagId) && !ailmentsByTag.has(tagId))
           err({
             code: "unknown-ref",
             file,
             id: enemy.id,
-            path: `${at}.delivery.ailment`,
+            path,
             message: `状態異常 ${tagId} の定義がない`,
           });
-      }
+      };
+      if (attack.delivery.type === "cloud")
+        cloudAilment(attack.delivery.ailment, `${at}.delivery.ailment`);
+      if (attack.delivery.type === "strike" && attack.delivery.residue !== undefined)
+        cloudAilment(attack.delivery.residue.ailment, `${at}.delivery.residue.ailment`);
+      // ボスの段階・根渡りは、ボスだけ
+      const phaseCount = (enemy.boss?.phaseThresholds.length ?? 0) + 1;
+      if (attack.phases !== undefined && enemy.boss === undefined)
+        err({
+          code: "schema",
+          file,
+          id: enemy.id,
+          path: `${at}.phases`,
+          message: "段階はボスの攻撃だけに付けられる",
+        });
+      for (const ph of attack.phases ?? [])
+        if (enemy.boss !== undefined && ph > phaseCount)
+          err({
+            code: "schema",
+            file,
+            id: enemy.id,
+            path: `${at}.phases`,
+            message: `段階 ${String(ph)} がない（段階は${String(phaseCount)}つ）`,
+          });
+      if (attack.delivery.type === "burrow" && enemy.boss === undefined)
+        err({
+          code: "schema",
+          file,
+          id: enemy.id,
+          path: `${at}.delivery`,
+          message: "根渡りはボスの攻撃だけ",
+        });
       if (attack.delivery.type === "summon") {
         const summoned = attack.delivery.enemy;
         if (!enemies.some((e) => e.value.id === summoned) && !invalidIds.has(summoned))
@@ -857,11 +898,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
             message: `呼ぶ敵 ${summoned} がない`,
           });
       }
-      if (
-        attack.delivery.type === "strike" &&
-        attack.delivery.repeat !== undefined &&
-        attack.delivery.repeat.interval * (attack.delivery.repeat.count - 1) > attack.active + 1e-9
-      )
+      const repeat =
+        attack.delivery.type === "strike" || attack.delivery.type === "cloud"
+          ? attack.delivery.repeat
+          : undefined;
+      if (repeat !== undefined && repeat.interval * (repeat.count - 1) > attack.active + 1e-9)
         err({
           code: "schema",
           file,
@@ -1265,6 +1306,31 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
           id: r.id,
           path: `exits.${String(i)}.to`,
           message: `地域 ${x.to} がない`,
+        });
+      if (x.requires !== undefined)
+        refCheck(enemyMap, "敵", x.requires.defeated, file, r.id, `exits.${String(i)}.requires`);
+    });
+    (r.fixedEnemies ?? []).forEach((f, i) => {
+      for (const [j, a] of (f.anchors ?? []).entries())
+        if (!inside(a))
+          err({
+            code: "schema",
+            file,
+            id: r.id,
+            path: `fixedEnemies.${String(i)}.anchors.${String(j)}`,
+            message: "地域の広さの外にある",
+          });
+      const def = enemyMap.get(f.enemy);
+      if (
+        def?.attacks.some((a) => a.delivery.type === "burrow") === true &&
+        (f.anchors ?? []).length < 2
+      )
+        err({
+          code: "schema",
+          file,
+          id: r.id,
+          path: `fixedEnemies.${String(i)}.anchors`,
+          message: "根渡りをする敵には、現れる地点が2つ以上いる",
         });
     });
   }

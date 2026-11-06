@@ -49,13 +49,22 @@ export const regionSchema = z.strictObject({
     )
     .optional(),
   packSpawns: z.array(point).optional(),
+  /** 群れの1体が魔法の敵になる確率（省略すると10%。A5は15%。補助仕様書9.3）。 */
+  magicPackChance: z.number().min(0).max(1).optional(),
   eliteSpawns: z.array(point).optional(),
   woodChests: z.array(point).optional(),
   oldChests: z.array(point).optional(),
-  /** 決まった位置に、いつも出る敵（中ボスなど。補助仕様書9.2）。 */
+  /** 決まった位置に、いつも出る敵（中ボス・ボスなど。補助仕様書9.2）。 */
   fixedEnemies: z
     .array(
-      z.strictObject({ id: idSchema, enemy: idSchema, level: z.number().int().min(1), at: point }),
+      z.strictObject({
+        id: idSchema,
+        enemy: idSchema,
+        level: z.number().int().min(1),
+        at: point,
+        /** 根渡りで現れる地点（ボスの間。補助仕様書11.1：3か所）。 */
+        anchors: z.array(point).optional(),
+      }),
     )
     .optional(),
   /** 隠し星（調べると探索のポイント。補助仕様書9.5）。1回だけ。 */
@@ -69,8 +78,19 @@ export const regionSchema = z.strictObject({
       }),
     )
     .optional(),
-  /** 出口（その範囲に入ると、別の地域へ移る）。 */
-  exits: z.array(z.strictObject({ to: idSchema, rect })).optional(),
+  /**
+   * 出口（その範囲に入ると、別の地域へ移る）。requires があれば、その敵を一度でも倒すまで閉じている
+   * （A5 は母樹を初めて倒すと開く。補助仕様書9.2）。
+   */
+  exits: z
+    .array(
+      z.strictObject({
+        to: idSchema,
+        rect,
+        requires: z.strictObject({ defeated: idSchema }).optional(),
+      }),
+    )
+    .optional(),
   /** 町の施設。 */
   facilities: z.array(z.strictObject({ kind: z.enum(FACILITIES), at: point })).optional(),
   ...provisionalFields,

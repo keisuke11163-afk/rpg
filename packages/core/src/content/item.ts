@@ -165,6 +165,7 @@ export const DROP_SOURCES = [
   "elite",
   "miniBoss",
   "chapterBoss",
+  "abyssBoss",
   "woodChest",
   "oldChest",
 ] as const;

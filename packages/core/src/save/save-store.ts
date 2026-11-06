@@ -208,7 +208,14 @@ export class SaveStore {
 }
 
 /** 自動セーブのきっかけ（補助仕様書15章）。 */
-export type AutoSaveReason = "enterTown" | "changeRegion" | "craft" | "trade" | "respec";
+export type AutoSaveReason =
+  | "enterTown"
+  | "changeRegion"
+  | "craft"
+  | "trade"
+  | "respec"
+  // ボスを倒したとき（補助仕様書15章に記載はない。初回の撃破・討伐証を失わないため。docs/progress D-U19-6）
+  | "bossKill";
 /** ダンジョンの中の自動セーブの間隔（秒。補助仕様書15章）。 */
 export const DUNGEON_AUTOSAVE_SECONDS = 60;
 

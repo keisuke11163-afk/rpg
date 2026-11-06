@@ -24,6 +24,7 @@ import {
   StarAllocation,
   startNodeOf,
   starPoints,
+  type Enemy,
   Equipment,
   type ItemInstance,
   Inventory,
@@ -310,6 +311,7 @@ export function newCharacterProfile(db: ContentDb, originId: string, name: strin
     deathLog: { count: 0, lastCause: null },
     questStages: [],
     secretsFound: [],
+    bossKills: {},
     kept: emptyKeptFields(),
   };
 }
@@ -352,6 +354,7 @@ export function testStartProfile(db: ContentDb): PlayerProfile {
     deathLog: { count: 0, lastCause: null },
     questStages: [],
     secretsFound: [],
+    bossKills: {},
     kept: emptyKeptFields(),
   };
 }
@@ -389,6 +392,10 @@ export class ArenaSimulation {
   readonly questStages: Set<string>;
   /** 見つけた隠し星（補助仕様書9.5）。 */
   readonly secretsFound: Set<string>;
+  /** ボスの敵のID → 倒した回数（補助仕様書11章）。 */
+  readonly bossKills: Map<string, number>;
+  /** 討伐証のID → 持っている数（仕様書v0.2 3.12）。 */
+  readonly bossTokens: Map<string, number>;
   /** 星辰盤のクエストのポイント（星図の欠片）と探索のポイント（隠し星）。 */
   private questPoints: number;
   private explorationPoints: number;
@@ -485,6 +492,8 @@ export class ArenaSimulation {
     this.deathLog = { ...profile.deathLog };
     this.questStages = new Set(profile.questStages);
     this.secretsFound = new Set(profile.secretsFound);
+    this.bossKills = new Map(Object.entries(profile.bossKills));
+    this.bossTokens = new Map(Object.entries(profile.kept.bossTokens));
     this.questPoints = profile.kept.questPoints;
     this.explorationPoints = profile.kept.explorationPoints;
     this.starsValue = new StarAllocation(this.db, profile.starAllocation);
@@ -555,6 +564,7 @@ export class ArenaSimulation {
             level: f.level,
             count: 1,
             at: f.at,
+            ...(f.anchors === undefined ? {} : { anchors: f.anchors }),
           })),
         ],
         false,
@@ -585,6 +595,43 @@ export class ArenaSimulation {
             staggerProfile: staggerProfiles(this.db).enemy,
           });
     if (region !== undefined) this.progressQuests({ type: "enterRegion", id: region.id });
+  }
+
+  /**
+   * ボスを倒した（補助仕様書11章、仕様書v0.2 3.12）：倒した回数・討伐証。初めて倒したときは隠し星（9.5）。
+   * 専用ユニーク（初回は確定・2回目以降は確率）は、ユニークの仕組み（U-16）の後。
+   */
+  private onBossKilled(enemy: Enemy): void {
+    const boss = enemy.def.boss;
+    if (boss === undefined) return;
+    const kills = (this.bossKills.get(enemy.def.id) ?? 0) + 1;
+    this.bossKills.set(enemy.def.id, kills);
+    this.bossTokens.set(
+      boss.tokens.id,
+      (this.bossTokens.get(boss.tokens.id) ?? 0) + boss.tokens.count,
+    );
+    this.onText?.(
+      `${text(enemy.def.text as TextKey)}を倒した（討伐証 +${String(boss.tokens.count)}）`,
+      this.motion.position,
+      "#ffd166",
+    );
+    const secret = boss.firstKillSecret;
+    if (secret !== undefined && !this.secretsFound.has(secret.id)) {
+      this.secretsFound.add(secret.id);
+      this.explorationPoints += secret.explorationPoints;
+      this.attackerVersion = "";
+      this.onText?.(
+        `隠し星を見つけた（星辰盤のポイント +${String(secret.explorationPoints)}）`,
+        this.motion.position,
+        "#ffd166",
+      );
+    }
+    this.autosave.notify("bossKill");
+  }
+
+  /** 出口が開いているか（requires の敵を一度でも倒したか。A5 は母樹の初回撃破で開く）。 */
+  exitOpen(exit: { readonly requires?: { readonly defeated: string } | undefined }): boolean {
+    return exit.requires === undefined || (this.bossKills.get(exit.requires.defeated) ?? 0) > 0;
   }
 
   /** クエストの段階を進める（条件に合う段階を終え、星図の欠片を得る。補助仕様書9.6）。 */
@@ -1144,8 +1191,10 @@ export class ArenaSimulation {
       deathLog: { ...this.deathLog },
       questStages: [...this.questStages],
       secretsFound: [...this.secretsFound],
+      bossKills: Object.fromEntries(this.bossKills),
       kept: {
         ...this.kept,
+        bossTokens: Object.fromEntries(this.bossTokens),
         questPoints: this.questPoints,
         explorationPoints: this.explorationPoints,
       },
@@ -1613,6 +1662,15 @@ export class ArenaSimulation {
       onAvoided: () => {
         this.avoidedAttacks += 1;
       },
+      onBossEvent: (enemy, event, phase) => {
+        const label =
+          event === "phase"
+            ? `${text(enemy.def.text as TextKey)}：第${String(phase)}段階`
+            : event === "burrow"
+              ? "根渡り：地中に潜った"
+              : "根渡り：現れた";
+        this.onText?.(label, enemy.position, event === "phase" ? "#ff9f43" : "#c8a2ff");
+      },
       onEnemyKilled: (enemy) => {
         // 経験値（補助仕様書4.2）：5＋2×敵のLv、格の倍率、Lvの差の補正
         this.gainXp(
@@ -1620,6 +1678,7 @@ export class ArenaSimulation {
             levelGapMultiplier(this.character.level, enemy.level),
         );
         this.progressQuests({ type: "defeat", id: enemy.def.id });
+        if (enemy.def.boss !== undefined) this.onBossKilled(enemy);
         // ドロップ（仕様書v0.2 3.5、補助仕様書12章）。敵の格（通常・魔法・精鋭）がドロップの出どころ
         this.dropLoot(
           enemy.def.dropSource ?? enemy.rank.rank,
@@ -1637,10 +1696,10 @@ export class ArenaSimulation {
       if (r.kind === "full")
         this.onText?.("インベントリがいっぱい", this.motion.position, "#ff6b6b");
     }
-    // 出口（その範囲に入ると、別の地域へ移る）
+    // 出口（その範囲に入ると、別の地域へ移る）。閉じている出口は通れない
     if (!this.exited)
       for (const x of this.region?.exits ?? [])
-        if (inRect(this.motion.position, x.rect)) {
+        if (inRect(this.motion.position, x.rect) && this.exitOpen(x)) {
           this.exited = true;
           this.autosave.notify("changeRegion");
           this.onExit?.(x.to);

@@ -1049,9 +1049,437 @@
           "width": 1.5,
           "height": 8
         }
+      },
+      {
+        "to": "REGION-A4-BOSS",
+        "rect": {
+          "x": 158.5,
+          "y": 20,
+          "width": 1.5,
+          "height": 8
+        }
       }
     ],
     "provisional": true,
     "provisionalNote": "地形・候補地点の位置・広さは開発用の仮の配置（docs/progress Q-U18-1）"
+  },
+  {
+    "id": "REGION-A4-BOSS",
+    "text": "region.a4-boss",
+    "kind": "dungeon",
+    "size": {
+      "width": 32,
+      "height": 28
+    },
+    "entrance": {
+      "x": 3,
+      "y": 14
+    },
+    "sections": [
+      {
+        "id": "SEC-A4-BOSS",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 28
+        },
+        "levels": {
+          "min": 14,
+          "max": 14
+        },
+        "enemies": ["ENM-ROOT-TENTACLE"]
+      }
+    ],
+    "exits": [
+      {
+        "to": "REGION-A4",
+        "rect": {
+          "x": 0,
+          "y": 10,
+          "width": 1.5,
+          "height": 8
+        }
+      },
+      {
+        "to": "REGION-A5",
+        "rect": {
+          "x": 30.5,
+          "y": 10,
+          "width": 1.5,
+          "height": 8
+        },
+        "requires": {
+          "defeated": "ENM-MOTHER-TREE"
+        }
+      }
+    ],
+    "fixedEnemies": [
+      {
+        "id": "BOSS-MOTHER-TREE",
+        "enemy": "ENM-MOTHER-TREE",
+        "level": 14,
+        "at": {
+          "x": 22,
+          "y": 14
+        },
+        "anchors": [
+          {
+            "x": 22.0,
+            "y": 14.0
+          },
+          {
+            "x": 13.0,
+            "y": 19.2
+          },
+          {
+            "x": 13.0,
+            "y": 8.8
+          }
+        ]
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "補助仕様書11.1：半径10mの円形の広場と、根渡りの3地点。地形（円の壁）は無く、位置は開発用の仮の配置（docs/progress Q-U18-1・Q-U19-1）"
+  },
+  {
+    "id": "REGION-A5",
+    "text": "region.a5",
+    "kind": "dungeon",
+    "size": {
+      "width": 240,
+      "height": 48
+    },
+    "entrance": {
+      "x": 6,
+      "y": 24
+    },
+    "teleportStone": {
+      "x": 4,
+      "y": 20
+    },
+    "sections": [
+      {
+        "id": "SEC-A5-1",
+        "rect": {
+          "x": 0.0,
+          "y": 0,
+          "width": 80.0,
+          "height": 48
+        },
+        "levels": {
+          "min": 16,
+          "max": 17
+        },
+        "enemies": [
+          "ENM-FOREST-WOLF",
+          "ENM-THORN-RAT",
+          "ENM-SPINE-LIZARD",
+          "ENM-TUSK-BOAR",
+          "ENM-BARK-BEAR",
+          "ENM-ROT-SAPLING"
+        ]
+      },
+      {
+        "id": "SEC-A5-2",
+        "rect": {
+          "x": 80.0,
+          "y": 0,
+          "width": 80.0,
+          "height": 48
+        },
+        "levels": {
+          "min": 17,
+          "max": 18
+        },
+        "enemies": [
+          "ENM-FOREST-WOLF",
+          "ENM-THORN-RAT",
+          "ENM-SPINE-LIZARD",
+          "ENM-TUSK-BOAR",
+          "ENM-BARK-BEAR",
+          "ENM-ROT-SAPLING"
+        ]
+      },
+      {
+        "id": "SEC-A5-3",
+        "rect": {
+          "x": 160.0,
+          "y": 0,
+          "width": 80.0,
+          "height": 48
+        },
+        "levels": {
+          "min": 18,
+          "max": 19
+        },
+        "enemies": [
+          "ENM-FOREST-WOLF",
+          "ENM-THORN-RAT",
+          "ENM-SPINE-LIZARD",
+          "ENM-TUSK-BOAR",
+          "ENM-BARK-BEAR",
+          "ENM-ROT-SAPLING"
+        ]
+      }
+    ],
+    "packSpawns": [
+      {
+        "x": 25,
+        "y": 40
+      },
+      {
+        "x": 33,
+        "y": 34
+      },
+      {
+        "x": 42,
+        "y": 40
+      },
+      {
+        "x": 47,
+        "y": 18
+      },
+      {
+        "x": 58,
+        "y": 34
+      },
+      {
+        "x": 66,
+        "y": 18
+      },
+      {
+        "x": 70,
+        "y": 34
+      },
+      {
+        "x": 80,
+        "y": 18
+      },
+      {
+        "x": 86,
+        "y": 40
+      },
+      {
+        "x": 94,
+        "y": 40
+      },
+      {
+        "x": 105,
+        "y": 34
+      },
+      {
+        "x": 114,
+        "y": 18
+      },
+      {
+        "x": 122,
+        "y": 10
+      },
+      {
+        "x": 130,
+        "y": 10
+      },
+      {
+        "x": 134,
+        "y": 10
+      },
+      {
+        "x": 143,
+        "y": 18
+      },
+      {
+        "x": 154,
+        "y": 10
+      },
+      {
+        "x": 161,
+        "y": 26
+      },
+      {
+        "x": 169,
+        "y": 40
+      },
+      {
+        "x": 175,
+        "y": 40
+      },
+      {
+        "x": 183,
+        "y": 26
+      },
+      {
+        "x": 193,
+        "y": 10
+      },
+      {
+        "x": 198,
+        "y": 34
+      },
+      {
+        "x": 208,
+        "y": 34
+      }
+    ],
+    "eliteSpawns": [
+      {
+        "x": 40,
+        "y": 12
+      },
+      {
+        "x": 95,
+        "y": 36
+      },
+      {
+        "x": 130,
+        "y": 14
+      },
+      {
+        "x": 175,
+        "y": 30
+      },
+      {
+        "x": 215,
+        "y": 18
+      }
+    ],
+    "woodChests": [
+      {
+        "x": 30,
+        "y": 42
+      },
+      {
+        "x": 55,
+        "y": 42
+      },
+      {
+        "x": 80,
+        "y": 6
+      },
+      {
+        "x": 105,
+        "y": 42
+      },
+      {
+        "x": 130,
+        "y": 6
+      },
+      {
+        "x": 155,
+        "y": 6
+      },
+      {
+        "x": 180,
+        "y": 6
+      },
+      {
+        "x": 205,
+        "y": 42
+      }
+    ],
+    "oldChests": [
+      {
+        "x": 108,
+        "y": 44
+      },
+      {
+        "x": 192,
+        "y": 4
+      },
+      {
+        "x": 232,
+        "y": 24
+      }
+    ],
+    "exits": [
+      {
+        "to": "REGION-A4-BOSS",
+        "rect": {
+          "x": 0,
+          "y": 20,
+          "width": 1.5,
+          "height": 8
+        }
+      },
+      {
+        "to": "REGION-A5-BOSS",
+        "rect": {
+          "x": 238.5,
+          "y": 20,
+          "width": 1.5,
+          "height": 8
+        }
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "地形・候補地点の位置・広さは開発用の仮の配置（A2 の候補地点を流用。docs/progress Q-U18-1）。精鋭の地点5か所（4〜6）・魔法15%は補助仕様書9.3",
+    "magicPackChance": 0.15
+  },
+  {
+    "id": "REGION-A5-BOSS",
+    "text": "region.a5-boss",
+    "kind": "dungeon",
+    "size": {
+      "width": 32,
+      "height": 28
+    },
+    "entrance": {
+      "x": 3,
+      "y": 14
+    },
+    "sections": [
+      {
+        "id": "SEC-A5-BOSS",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 32,
+          "height": 28
+        },
+        "levels": {
+          "min": 21,
+          "max": 21
+        },
+        "enemies": ["ENM-ROOT-TENTACLE"]
+      }
+    ],
+    "exits": [
+      {
+        "to": "REGION-A5",
+        "rect": {
+          "x": 0,
+          "y": 10,
+          "width": 1.5,
+          "height": 8
+        }
+      }
+    ],
+    "fixedEnemies": [
+      {
+        "id": "BOSS-ABYSS-MOTHER-TREE",
+        "enemy": "ENM-ABYSS-MOTHER-TREE",
+        "level": 21,
+        "at": {
+          "x": 22,
+          "y": 14
+        },
+        "anchors": [
+          {
+            "x": 22.0,
+            "y": 14.0
+          },
+          {
+            "x": 13.0,
+            "y": 19.2
+          },
+          {
+            "x": 13.0,
+            "y": 8.8
+          }
+        ]
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "補助仕様書11.1：半径10mの円形の広場と、根渡りの3地点。地形（円の壁）は無く、位置は開発用の仮の配置（docs/progress Q-U18-1・Q-U19-1）"
   }
 ]

@@ -189,13 +189,15 @@ describe("詞のデータ（仕様書v0.2 3.6）", () => {
 });
 
 describe("ドロップ（仕様書v0.2 3.5、補助仕様書5・12章）", () => {
-  it("アイテムLv：通常・魔法は敵のLv、精鋭+2、中ボス+4", () => {
+  it("アイテムLv：通常・魔法は敵のLv、精鋭+2、中ボス・章ボス+4", () => {
     expect(dropItemLevel(db, "normal", 7)).toBe(7);
     expect(dropItemLevel(db, "magic", 7)).toBe(7);
     expect(dropItemLevel(db, "elite", 7)).toBe(9);
     expect(dropItemLevel(db, "miniBoss", 11)).toBe(15);
     expect(() => dropItemLevel(db, "elite", 0)).toThrow(RangeError);
-    expect(() => dropItemLevel(db, "chapterBoss", 14)).toThrow(RangeError); // U-19 で定義する
+    expect(dropItemLevel(db, "chapterBoss", 14)).toBe(18);
+    // 深淵の母樹（Lv21）は iLv25（補助仕様書11.2：MVPでT5の詞が出る唯一の入手先）
+    expect(dropItemLevel(db, "abyssBoss", 21)).toBe(25);
   });
 
   it("ドロップの数：通常は10%で1個、魔法は60%で1〜2個、精鋭は必ず2〜4個", () => {

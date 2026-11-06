@@ -23,8 +23,9 @@ import { INSCRIPTIONS, MAX_FORGE_LOAD } from "../items/crafting.ts";
  * - 版3：装備の実体に、強化値・鍛造負荷・封詞・亀裂・銘を足した（U-17）
  * - 版4：解放した転移の石（unlocked_regions）と、死亡の記録（death_log）を足した（U-18a）
  * - 版5：終えたクエストの段階（quest_stages）と、見つけた隠し星（secrets_found）を足した（U-18b）
+ * - 版6：ボスを倒した回数（boss_kills。初回の撃破・A5 の開放）を足した（U-19）
  */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 /** 技の枠の数（補助仕様書1.1）。 */
 export const SAVE_SKILL_SLOTS = 6;
 
@@ -106,7 +107,7 @@ const characterSchema = z.strictObject({
 
 const deathLogSchema = z.strictObject({ count, last_cause: z.string().nullable() });
 
-/** 版5（今の版）のセーブデータ。 */
+/** 版6（今の版）のセーブデータ。 */
 export const saveDataSchema = z.strictObject({
   save_version: z.literal(SAVE_VERSION),
   character: characterSchema,
@@ -117,9 +118,25 @@ export const saveDataSchema = z.strictObject({
   death_log: deathLogSchema,
   quest_stages: z.array(id),
   secrets_found: z.array(id),
+  /** ボスの敵のID → 倒した回数。 */
+  boss_kills: z.record(id, count),
   ...commonFields,
 });
 export type SaveData = z.infer<typeof saveDataSchema>;
+
+/** 版5。移行のためだけに使う。 */
+export const saveDataV5Schema = z.strictObject({
+  save_version: z.literal(5),
+  character: characterSchema,
+  jobs: z.record(id, jobSchemaV2),
+  gold: count,
+  items: z.record(id, itemSchema),
+  unlocked_regions: z.array(id),
+  death_log: deathLogSchema,
+  quest_stages: z.array(id),
+  secrets_found: z.array(id),
+  ...commonFields,
+});
 
 /** 版4。移行のためだけに使う。 */
 export const saveDataV4Schema = z.strictObject({
@@ -215,6 +232,11 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
     const v4 = saveDataV4Schema.parse(data);
     return { ...v4, save_version: 5, quest_stages: [], secrets_found: [] };
   },
+  /** 版5 → 版6：ボスはまだ倒していない。 */
+  5: (data) => {
+    const v5 = saveDataV5Schema.parse(data);
+    return { ...v5, save_version: 6, boss_kills: {} };
+  },
 };
 
 /** セーブデータの問題（壊れたデータの検出）。 */
@@ -294,6 +316,8 @@ export interface PlayerProfile {
   readonly questStages: readonly string[];
   /** 見つけた隠し星（補助仕様書9.5）。 */
   readonly secretsFound: readonly string[];
+  /** ボスの敵のID → 倒した回数（初回の撃破の判定・A5 の開放。補助仕様書9.2・11章）。 */
+  readonly bossKills: Readonly<Record<string, number>>;
   /** まだゲームで使っていない項目（職紋盤・討伐証など）。読み込んだ値をそのまま保存し直す。 */
   readonly kept: KeptSaveFields;
 }
@@ -402,6 +426,7 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
     death_log: { count: profile.deathLog.count, last_cause: profile.deathLog.lastCause },
     quest_stages: [...profile.questStages],
     secrets_found: [...profile.secretsFound],
+    boss_kills: { ...profile.bossKills },
     gold: profile.inventory.gold,
     materials: Object.fromEntries(profile.inventory.materials),
     boss_tokens: { ...kept.bossTokens },
@@ -609,11 +634,19 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       return [...data.quest_stages];
     })(),
     secretsFound: (() => {
-      const known = new Set(
-        [...db.regions.values()].flatMap((r) => (r.secrets ?? []).map((x) => x.id)),
-      );
+      const known = new Set([
+        ...[...db.regions.values()].flatMap((r) => (r.secrets ?? []).map((x) => x.id)),
+        ...[...db.enemies.values()].flatMap((e) =>
+          e.boss?.firstKillSecret === undefined ? [] : [e.boss.firstKillSecret.id],
+        ),
+      ]);
       for (const x of data.secrets_found) ref(known.has(x), () => `隠し星 ${x} がデータに無い`);
       return [...data.secrets_found];
+    })(),
+    bossKills: (() => {
+      for (const e of Object.keys(data.boss_kills))
+        ref(db.enemies.get(e)?.boss !== undefined, () => `ボス ${e} がデータに無い`);
+      return { ...data.boss_kills };
     })(),
     kept: {
       subJob: c.sub_job,

@@ -35,6 +35,12 @@ export class Health {
   private hpValue: number;
   private wardValue: number;
   private sinceHit = Infinity;
+  /**
+   * ダメージを受けない（ボスの段階の切り替えの2秒・根渡りで地中にいる間。補助仕様書11.1、仕様書8.4）。
+   * 受けるダメージは0として扱う（被弾からの時間も戻さない）。
+   */
+  invulnerable = false;
+  private floorValue = 0;
 
   constructor(config: HealthConfig) {
     const maxWard = config.maxWard ?? 0;
@@ -58,6 +64,21 @@ export class Health {
   }
   get dead(): boolean {
     return this.hpValue <= 0;
+  }
+
+  /** ダメージでこれより下がらないHP（ボスの段階の境目。0は制限なし）。 */
+  get floor(): number {
+    return this.floorValue;
+  }
+
+  /**
+   * ダメージでこれより下がらないHPを決める（ボスの段階の境目で止め、段階を飛ばさないため）。
+   * 0以上・最大HP未満の有限の数。回復・全回復には関係しない。
+   */
+  setFloor(hp: number): void {
+    if (!(Number.isFinite(hp) && hp >= 0 && hp < this.maxHp))
+      throw new RangeError(`HPの下限は0以上・最大HP未満の有限の数：${String(hp)}`);
+    this.floorValue = hp;
   }
 
   /**
@@ -135,11 +156,11 @@ export class Health {
     state: HealthState,
     amount: number,
   ): { state: HealthState; applied: DamageApplied } {
-    if (amount === 0 || state.hp <= 0)
+    if (amount === 0 || state.hp <= 0 || this.invulnerable)
       return { state, applied: { toWard: 0, toHp: 0, died: false } };
     const toWard = Math.min(state.ward, amount);
     const ward = state.ward - toWard;
-    const toHp = Math.min(state.hp, amount - toWard);
+    const toHp = Math.max(0, Math.min(state.hp - this.floorValue, amount - toWard));
     const hp = state.hp - toHp;
     return { state: { hp, ward, sinceHit: 0 }, applied: { toWard, toHp, died: hp <= 0 } };
   }
