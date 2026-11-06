@@ -1,7 +1,7 @@
 import type { EnemyAttackDef, EnemyDef, EnemyRankDef } from "../content/enemy.ts";
 import type { ContentDb } from "../content/load.ts";
 import { type AilmentApplication, staggerProfiles } from "../combat/ailments.ts";
-import { Combatant } from "../combat/combatant.ts";
+import { Combatant, type CombatantUpdatePlan } from "../combat/combatant.ts";
 import type { DamageAttacker } from "../combat/damage.ts";
 import { enemyAccuracy } from "../combat/defense.ts";
 import type { HitShape } from "../combat/shapes.ts";
@@ -292,6 +292,47 @@ export class Enemy {
    */
   update(dt: number, target: EnemyTarget, rng: Rng, bounds?: Bounds): EnemyEvent[] {
     // 1. 検証（状態は変えない）
+    const stateTime = this.checkUpdate(dt);
+    // 2. 持続ダメージ・崩しゲージ・魔障・一定時間の効果（移動していたかは、前の刻みの値を使う）
+    //    例外を起こしうるのはここまで。Combatant.update は失敗すれば何も変えない
+    const dotTaken = this.combatant.update(dt);
+    // 3〜4. 反映と行動の流れ（例外は起きない）
+    return this.proceed(dt, stateTime, dotTaken, target, rng, bounds);
+  }
+
+  /**
+   * update の、状態を変えない前半：経過時間・状態の経過時間の累計・移動後の位置・戦う者の更新を
+   * 全て計算して検証し、計画を返す（失敗すれば RangeError で、何も変わらない）。
+   * 複数の敵を「全て検証してから全て反映する」ために使う（EnemyField.update）。
+   * commitUpdate(plan, ...) は update(dt, ...) と同じ結果になる。
+   *
+   * 計画を作ってから反映するまでの間に変わってよいのは、notice()（行動の状態が待機から追跡になり、
+   * 状態の経過時間が0に戻る）だけ。位置・戦う者（HP・状態異常・崩しゲージなど）は変えないこと。
+   */
+  planUpdate(dt: number): EnemyUpdatePlan {
+    this.checkUpdate(dt);
+    return { owner: this, dt, combatant: this.combatant.planUpdate(dt) };
+  }
+
+  /**
+   * planUpdate の計画を反映し、行動の流れを1刻み進める。検証済みの値だけを使い、例外は起きない
+   * （別の敵の計画を渡したときだけ Error。その場合も何も変えない）。
+   */
+  commitUpdate(
+    plan: EnemyUpdatePlan,
+    target: EnemyTarget,
+    rng: Rng,
+    bounds?: Bounds,
+  ): EnemyEvent[] {
+    if (plan.owner !== this) throw new Error("別の敵の計画は反映できない");
+    // 計画の後に notice() で状態の経過時間が0に戻っていても、累計は検証済みの値以下（有限）
+    const stateTime = this.stateTime + plan.dt;
+    const dotTaken = this.combatant.commitUpdate(plan.combatant);
+    return this.proceed(plan.dt, stateTime, dotTaken, target, rng, bounds);
+  }
+
+  /** 経過時間・状態の経過時間の累計・移動後の位置を検証し、次の状態の経過時間を返す（状態は変えない）。 */
+  private checkUpdate(dt: number): number {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const stateTime = this.stateTime + dt;
@@ -303,10 +344,18 @@ export class Enemy {
       !Number.isFinite(Math.abs(this.position.y) + reach)
     )
       throw new RangeError(`経過時間 ${String(dt)} で動くと、位置が有限の数でなくなる`);
-    // 2. 持続ダメージ・崩しゲージ・魔障・一定時間の効果（移動していたかは、前の刻みの値を使う）
-    //    例外を起こしうるのはここまで。Combatant.update は失敗すれば何も変えない
-    const dotTaken = this.combatant.update(dt);
-    // 3. 反映（検証済みの値の代入だけで、例外は起きない）
+    return stateTime;
+  }
+
+  /** 戦う者の更新の後：経過時間・クールダウンの反映と行動の流れ（検証済みの値だけを使い、例外は起きない）。 */
+  private proceed(
+    dt: number,
+    stateTime: number,
+    dotTaken: number,
+    target: EnemyTarget,
+    rng: Rng,
+    bounds: Bounds | undefined,
+  ): EnemyEvent[] {
     this.stateTime = stateTime;
     this.cooldowns.update(dt);
     this.dotTaken = dotTaken;
@@ -590,6 +639,13 @@ export class Enemy {
     );
     return [];
   }
+}
+
+/** Enemy.planUpdate の計画（検証済み。Enemy.commitUpdate で反映する）。 */
+export interface EnemyUpdatePlan {
+  readonly owner: Enemy;
+  readonly dt: number;
+  readonly combatant: CombatantUpdatePlan;
 }
 
 /** 敵の最大HP（補助仕様書10.1）：通常の敵のHP × 種類の倍率 × 格の倍率。 */

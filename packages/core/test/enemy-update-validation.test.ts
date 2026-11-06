@@ -7,6 +7,7 @@ import {
   type EnemyEvent,
   type EnemyTarget,
   FIXED_STEP_SECONDS,
+  ProjectilePool,
   Rng,
 } from "../src/index.ts";
 import { fullCombatDb, tag } from "./helpers/content.ts";
@@ -408,5 +409,91 @@ describe("Cooldowns.update：経過時間の検証", () => {
     expect(c.remaining("a")).toBe(1.5);
     c.update(MAX);
     expect(c.remaining("a")).toBe(0);
+  });
+});
+
+describe("Enemy.planUpdate / commitUpdate（EnemyField.update の、全て検証してから全て反映する更新）", () => {
+  it.each([
+    ["追跡・攻撃", "ENM-CHASER", target(1.2, 0)],
+    ["回り込み", "ENM-FLANKER", target(3, 0)],
+    ["突進", "ENM-CHARGER", target(6, 0)],
+    ["雲", "ENM-SPORE", target(4, 0)],
+    ["うろつき", "ENM-FLANKER", FAR],
+  ] as const)("%s：計画して反映すると、update と全く同じ結果になる", (_, id, t) => {
+    const [a, b] = pair(id, midFight(t, 0));
+    for (let i = 0; i < 300; i++) {
+      const ea = a.e.update(dt, t, a.rng);
+      const eb = b.e.commitUpdate(b.e.planUpdate(dt), t, b.rng);
+      expect(eb).toEqual(ea);
+      expect(snapshot(b.e, b.rng)).toEqual(snapshot(a.e, a.rng));
+    }
+  });
+
+  it("計画は状態を変えない。失敗する計画は update と同じ RangeError", () => {
+    const [a] = pair("ENM-CHASER", midFight(target(1.2, 0), 12));
+    const before = snapshot(a.e, a.rng);
+    a.e.planUpdate(dt);
+    a.e.planUpdate(1);
+    expect(snapshot(a.e, a.rng)).toEqual(before);
+    for (const bad of [NaN, -1, Infinity, MAX / 2])
+      expect(() => a.e.planUpdate(bad)).toThrow(RangeError);
+    expect(snapshot(a.e, a.rng)).toEqual(before);
+  });
+
+  it("計画の後に仲間から気づかされても（notice）、update と同じ結果になる", () => {
+    const [a, b] = pair("ENM-CHASER", () => undefined);
+    for (let i = 0; i < 30; i++) {
+      a.e.update(dt, FAR, a.rng);
+      b.e.update(dt, FAR, b.rng);
+    }
+    const plan = b.e.planUpdate(dt);
+    expect(a.e.notice()).toBe(true);
+    expect(b.e.notice()).toBe(true);
+    expect(b.e.commitUpdate(plan, FAR, b.rng)).toEqual(a.e.update(dt, FAR, a.rng));
+    expect(snapshot(b.e, b.rng)).toEqual(snapshot(a.e, a.rng));
+    expect(b.e.timeInState).toBeCloseTo(dt, 12);
+  });
+
+  it("別の敵の計画は反映せず、何も変えない", () => {
+    const [a, b] = pair("ENM-CHASER", midFight(target(1.2, 0), 12));
+    const before = snapshot(a.e, a.rng);
+    expect(() => a.e.commitUpdate(b.e.planUpdate(dt), target(1.2, 0), a.rng)).toThrow(
+      "別の敵の計画",
+    );
+    expect(() => a.e.combatant.commitUpdate(b.e.combatant.planUpdate(dt))).toThrow(
+      "別の戦う者の計画",
+    );
+    expect(snapshot(a.e, a.rng)).toEqual(before);
+  });
+});
+
+describe("ProjectilePool.checkUpdate", () => {
+  it("update と同じ入力を拒否し、投射物の状態は変えない", () => {
+    const pool = new ProjectilePool<number>(2);
+    pool.spawn({
+      position: { x: 0, y: 0 },
+      direction: { x: 1, y: 0 },
+      speed: 10,
+      range: 20,
+      radius: MAX,
+      pierce: 0,
+      team: "enemy",
+      payload: 1,
+    });
+    const before = pool.positions();
+    const ok = { id: "p", team: "player", position: { x: 5, y: 0 }, radius: 0 };
+    pool.checkUpdate(dt, [ok]);
+    expect(pool.positions()).toEqual(before);
+    expect(() => {
+      pool.checkUpdate(NaN, [ok]);
+    }).toThrow(RangeError);
+    expect(() => {
+      pool.checkUpdate(dt, [{ ...ok, radius: MAX }]);
+    }).toThrow(RangeError);
+    expect(() => {
+      pool.checkUpdate(dt, [{ ...ok, position: { x: NaN, y: 0 } }]);
+    }).toThrow(RangeError);
+    expect(pool.positions()).toEqual(before);
+    expect(pool.active).toBe(1);
   });
 });
