@@ -517,7 +517,7 @@ export class ArenaScene extends Phaser.Scene {
         .text(
           toPixels(x.rect.x + x.rect.width / 2),
           toPixels(x.rect.y) - 4,
-          `→ ${to === undefined ? x.to : text(to.text as TextKey)}`,
+          `→ ${to === undefined ? x.to : text(to.text as TextKey)}${x.requires === undefined ? "" : "（ボスを倒すと開く）"}`,
           style,
         )
         .setOrigin(0.5, 1);
@@ -704,7 +704,7 @@ export class ArenaScene extends Phaser.Scene {
         if (!sim.secretsFound.has(x.id))
           g.fillStyle(0x3f6b3a, 1).fillCircle(toPixels(x.at.x), toPixels(x.at.y), 6);
       for (const x of region.exits ?? [])
-        g.lineStyle(1, 0x7bd389, 0.8).strokeRect(
+        g.lineStyle(1, sim.exitOpen(x) ? 0x7bd389 : 0xff6b6b, 0.8).strokeRect(
           toPixels(x.rect.x),
           toPixels(x.rect.y),
           toPixels(x.rect.width),

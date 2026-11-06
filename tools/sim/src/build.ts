@@ -84,6 +84,27 @@ export const targetSchema = z.strictObject({
   evasion: z.number().nonnegative().optional(),
   /** 移動している時間の割合（出血の2倍に使う）。 */
   movingRatio: z.number().min(0).max(1).optional(),
+  /**
+   * ボスの段階（補助仕様書11.1）：HPの割合の境目（高い順）。境目でHPが止まり、invulnerable 秒の間は
+   * ダメージ（持続ダメージを含む）を受けない。
+   */
+  phases: z
+    .strictObject({
+      thresholds: z.array(z.number().gt(0).lt(1)),
+      invulnerable: z.number().nonnegative(),
+    })
+    .optional(),
+  /**
+   * 根渡り（補助仕様書11.1）：段階 phase に入って切り替えの無敵が明けた後から、period 秒ごとに duration 秒の間、
+   * 地中にいてダメージを受けず、移動している（出血の2倍）。
+   */
+  burrow: z
+    .strictObject({
+      phase: z.number().int().min(1),
+      period: z.number().positive(),
+      duration: z.number().positive(),
+    })
+    .optional(),
   /** 的の攻撃（受けたダメージを測る）。 */
   attack: z
     .strictObject({

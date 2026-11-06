@@ -229,6 +229,10 @@ export class Enemy {
   get underground(): boolean {
     return this.burrowed;
   }
+  /** 根渡りで現れる地点（地中にいる間。表示用）。 */
+  get burrowDestination(): Vec2 | undefined {
+    return this.burrowed ? this.burrowTo : undefined;
+  }
   /** プレイヤーの技の対象にできるか（倒れている・地中にいるときは false）。 */
   get targetable(): boolean {
     return this.stateValue !== "dead" && !this.burrowed;

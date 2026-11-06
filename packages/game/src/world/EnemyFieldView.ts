@@ -91,6 +91,22 @@ export class EnemyFieldView {
     }
     for (const { enemy: e } of field.entries) {
       const a = e.currentAttack;
+      // 相手の位置を狙う連続の叩きつけ（母樹）：当たり判定が出ている間も、次の1回の位置を示す
+      if (a !== undefined && e.state === "active") {
+        const d = a.delivery;
+        if (d.type === "strike" && d.aim === "target" && d.repeat !== undefined) {
+          g.fillStyle(0xff6b6b, 0.3);
+          drawShape(d.shape, e.targetPoint, 0);
+        }
+      }
+      // 根渡り：現れる地点を示す
+      const to = e.burrowDestination;
+      if (to !== undefined)
+        g.lineStyle(1, 0xc8a2ff, 0.9).strokeCircle(
+          toPixels(to.x),
+          toPixels(to.y),
+          e.combatant.radius * PIXELS_PER_METER,
+        );
       // 予兆：地面に範囲を示す（溜めの間、だんだん濃くなる）
       if (a !== undefined && e.state === "windup") {
         const progress = Math.min(1, e.timeInState / Math.max(a.windup, 1e-6));
@@ -98,7 +114,11 @@ export class EnemyFieldView {
         const d = a.delivery;
         switch (d.type) {
           case "strike":
-            drawShape(d.shape, e.position, e.facing);
+            if (d.aim === "target") drawShape(d.shape, e.targetPoint, 0);
+            else drawShape(d.shape, e.position, e.facing);
+            break;
+          case "burrow":
+          case "summon":
             break;
           case "dash":
             drawShape({ type: "line", length: d.distance, width: d.width }, e.position, e.facing);
@@ -106,9 +126,22 @@ export class EnemyFieldView {
           case "projectile":
             drawShape({ type: "line", length: 2, width: 0.2 }, e.position, e.facing);
             break;
-          case "cloud":
-            drawShape({ type: "circle", radius: d.radius }, e.targetPoint, 0);
+          case "cloud": {
+            // 1つ目は相手の位置、残りはその周りに等しい角度で（Enemy の雲の置き方と同じ）
+            const count = d.count ?? 1;
+            const c = e.targetPoint;
+            const base = Math.atan2(c.y - e.position.y, c.x - e.position.x);
+            for (let i = 0; i < count; i++) {
+              const ang = base + (2 * Math.PI * (i - 1)) / Math.max(1, count - 1);
+              const r = i === 0 ? 0 : (d.spread ?? 0);
+              drawShape(
+                { type: "circle", radius: d.radius },
+                { x: c.x + Math.cos(ang) * r, y: c.y + Math.sin(ang) * r },
+                0,
+              );
+            }
             break;
+          }
         }
       }
     }
@@ -117,8 +150,9 @@ export class EnemyFieldView {
       if (v === undefined) continue;
       const x = Math.round(toPixels(e.position.x));
       const y = Math.round(toPixels(e.position.y));
-      v.body.setPosition(x, y).setAlpha(e.state === "dead" ? 0.3 : 1);
+      v.body.setPosition(x, y).setAlpha(e.state === "dead" || e.underground ? 0.3 : 1);
       if (e.combatant.stagger.broken) v.body.setTint(0xffd166);
+      else if (e.shielded) v.body.setTint(0xc8a2ff);
       else if (e.state === "windup") v.body.setTint(0xff9f9f);
       else v.body.clearTint();
       v.facing
@@ -127,6 +161,11 @@ export class EnemyFieldView {
         .setVisible(e.state !== "dead");
       const half = (v.body.displayHeight / 2) | 0;
       v.label.setPosition(x, y - half - 5);
+      // ボス：段階と、切り替えの無敵を名前に添える
+      if (e.def.boss !== undefined)
+        v.label.setText(
+          `${text(e.def.text as TextKey)} Lv${String(e.level)} 第${String(e.phase)}段階${e.shielded ? "（無敵）" : ""}`,
+        );
       const outline = RANK_OUTLINE[e.rank.rank];
       if (outline !== undefined)
         g.lineStyle(1, outline, 1).strokeRect(

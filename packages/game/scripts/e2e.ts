@@ -1094,6 +1094,30 @@ try {
       back.unlocked.includes("REGION-A1"),
     `地域 ${back.id}・HP ${String(back.hp)}／${String(back.maxHp)}・死亡 ${String(back.deaths)}`,
   );
+
+  // 母樹の間（U-19）：腐根の母樹がいて、近づくと気づいて攻撃してくる。予兆・段階の表示を撮影する
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.goRegion("REGION-A4-BOSS"),
+  );
+  await ready();
+  const room = await regionInfo();
+  const bossOf = async (): Promise<EnemyInfo | undefined> =>
+    (await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.enemies())).find(
+      (e) => e.def === "ENM-MOTHER-TREE",
+    );
+  const motherAt = await bossOf();
+  if (motherAt !== undefined) await tp(motherAt.x - 6, motherAt.y);
+  await page.waitForTimeout(2500);
+  const mother = await bossOf();
+  await page.screenshot({ path: `${outDir}mother-tree.png` });
+  check(
+    "母樹の間に腐根の母樹（HP 5,400）がいて、近づくと気づいて攻撃してくる。A5 への出口は閉じている（U-19）",
+    room.id === "REGION-A4-BOSS" &&
+      mother?.maxHp === 5400 &&
+      mother.state !== "idle" &&
+      room.exits.some((x) => x.to === "REGION-A5"),
+    `地域 ${room.id}・母樹 ${String(mother?.state)}・HP ${String(mother?.maxHp)}`,
+  );
 } finally {
   await browser.close();
   await server.close();
