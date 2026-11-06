@@ -126,9 +126,13 @@ export {
   resolveMaxStacks,
   validateAilmentApplication,
   type AilmentApplication,
+  type AilmentApplyPlan,
   type AilmentCandidate,
   type AilmentRollInput,
+  type AilmentTickPlan,
   type AilmentTickTarget,
+  type StaggerAddPlan,
+  type StaggerUpdatePlan,
 } from "./combat/ailments.ts";
 
 export { ZERO, add, length, normalize, scale, toDirection8, type Vec2 } from "./actor/vector.ts";
@@ -139,3 +143,32 @@ export {
   type MotionConfig,
   type MotionInput,
 } from "./actor/player-motion.ts";
+
+export { isBehind, overlapsShape, type HitShape } from "./combat/shapes.ts";
+export {
+  ActionTimeline,
+  PLAYER_ATTACK_SPLIT,
+  playerAttackTimeline,
+  type TimelineEvents,
+  type TimelinePhase,
+  type TimelineSpec,
+} from "./combat/timeline.ts";
+export {
+  Health,
+  type DamageApplied,
+  type HealthConfig,
+  type HealthUpdatePlan,
+} from "./combat/health.ts";
+export {
+  ProjectilePool,
+  type ProjectileHit,
+  type ProjectileSpawn,
+  type ProjectileTarget,
+} from "./combat/projectiles.ts";
+export {
+  Combatant,
+  resolveHit,
+  type CombatantInit,
+  type HitInput,
+  type HitReport,
+} from "./combat/combatant.ts";

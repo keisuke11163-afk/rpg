@@ -102,12 +102,67 @@ describe("ArenaSimulation：回避の入力を刻みまで保持する", () => {
     expect(sim.dodgePending).toBe(false);
   });
 
-  it("回避以外の押した瞬間の入力は保持しない（まだ使わない行動が後で発動しないように）", () => {
+  it("試験用の場で使わない行動の押した瞬間の入力は保持しない（後で発動しないように）", () => {
     const sim = new ArenaSimulation();
-    sim.frame(0, input({ pressed: ["skill1", "flaskHp"] }));
+    sim.frame(0, input({ pressed: ["flaskHp", "skill3"] }));
     expect(sim.dodgePending).toBe(false);
+    expect(sim.attackPending).toBe(false);
+    expect(sim.shotPending).toBe(false);
     sim.frame(STEP, input());
     expect(sim.motion.dodging).toBe(false);
+    expect(sim.attack).toBeUndefined();
+  });
+});
+
+describe("ArenaSimulation：通常攻撃・試験用の投射物の入力も刻みまで保持する（U-07）", () => {
+  it("刻みが0のフレームで押した通常攻撃は、次の刻みで1回だけ始まる", () => {
+    const sim = new ArenaSimulation();
+    expect(sim.frame(0, input({ pressed: ["skill1"] }))).toBe(0);
+    expect(sim.attackPending).toBe(true);
+    expect(sim.attack).toBeUndefined();
+    sim.frame(STEP, input());
+    expect(sim.attackPending).toBe(false);
+    expect(sim.attack).toBeDefined();
+    // 攻撃（1/1.4秒）が終わった後に、再び始まらない
+    for (let i = 0; i < 120; i++) sim.frame(STEP, input());
+    expect(sim.attack).toBeUndefined();
+  });
+
+  it("刻みが0のフレームで押した投射物は、次の刻みで1発だけ出る", () => {
+    const sim = new ArenaSimulation();
+    sim.frame(0, input({ pressed: ["skill2"] }));
+    expect(sim.shotPending).toBe(true);
+    expect(sim.shotsFired).toBe(0);
+    sim.frame(3 * STEP, input());
+    expect(sim.shotPending).toBe(false);
+    expect(sim.shotsFired).toBe(1);
+    for (let i = 0; i < 60; i++) sim.frame(STEP, input());
+    expect(sim.shotsFired).toBe(1);
+  });
+
+  it("人形の正面から通常攻撃が当たり、ヒットの手応えで止まる間も押した回避を保持する", () => {
+    const hits: boolean[] = [];
+    const sim = new ArenaSimulation(undefined, { onHit: (r) => hits.push(r.backstab) });
+    // 人形（20, 12）の左1.2mまで歩く。照準は右（人形の方）
+    while (sim.motion.position.x < 18.8 - 1e-9) sim.frame(STEP, input({ move: { x: 1, y: 0 } }));
+    const before = sim.dummy.health.hp;
+    sim.frame(STEP, input({ pressed: ["skill1"] }));
+    // 当たるまで進める（予兆は 0.3/1.4 秒）
+    let guard = 0;
+    while (sim.hitCount === 0 && guard++ < 60) sim.frame(STEP, input());
+    expect(sim.hitCount).toBe(1);
+    expect(hits).toEqual([false]); // 正面からなので背面ではない
+    expect(sim.dummy.health.hp).toBeLessThan(before);
+    // ヒットの手応え（0.05秒）の最中に押した回避は、止まっている刻みでは使われず保持される
+    const time = sim.time;
+    sim.frame(STEP, input({ pressed: ["dodge"] }));
+    expect(sim.time).toBe(time);
+    expect(sim.dodgePending).toBe(true);
+    for (let i = 0; i < 5; i++) sim.frame(STEP, input());
+    expect(sim.dodgePending).toBe(false);
+    expect(sim.motion.dodging).toBe(true);
+    // 回避で攻撃を取り消す
+    expect(sim.attack).toBeUndefined();
   });
 });
 

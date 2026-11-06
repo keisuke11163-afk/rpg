@@ -10,6 +10,8 @@ import { createServer } from "vite";
 
 interface Mouse {
   move(x: number, y: number): Promise<void>;
+  down(options?: { button: "left" | "right" }): Promise<void>;
+  up(options?: { button: "left" | "right" }): Promise<void>;
 }
 interface Keyboard {
   down(key: string): Promise<void>;
@@ -58,10 +60,26 @@ interface HazardState {
   x: number;
   y: number;
 }
+interface DummyState {
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  hits: number;
+  lastDamage: number;
+  lastCrit: boolean;
+  lastBackstab: boolean;
+  shotsFired: number;
+  projectilesActive: number;
+  projectilePositions: number[][];
+  screenX: number;
+  screenY: number;
+}
 type DebugWindow = {
   __STELLA_DEBUG__: {
     player: () => PlayerState;
     hazard: () => HazardState;
+    dummy: () => DummyState;
     setFrameDeltaMs: (ms: number | null) => void;
   };
 };
@@ -217,6 +235,74 @@ try {
     "回避の無敵時間で、危険地帯の当たり判定が無効になる",
     avoided,
     `回避で無効：${String((await hazard()).avoided)}回`,
+  );
+
+  // 6〜8. 訓練用の人形を攻撃する
+  const dummy = (): Promise<DummyState> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.dummy());
+  /** WASD で目的の位置まで歩く（毎秒5m。少しずつ近づける）。 */
+  const walkTo = async (tx: number, ty: number): Promise<void> => {
+    for (let i = 0; i < 6; i++) {
+      const p = await player();
+      const dx = tx - p.x;
+      const dy = ty - p.y;
+      if (Math.abs(dx) < 0.15 && Math.abs(dy) < 0.15) return;
+      if (Math.abs(dx) >= 0.15) {
+        const key = dx > 0 ? "KeyD" : "KeyA";
+        await page.keyboard.down(key);
+        await page.waitForTimeout(Math.max(20, (Math.abs(dx) / 5) * 1000 - 20));
+        await page.keyboard.up(key);
+      }
+      if (Math.abs(dy) >= 0.15) {
+        const key = dy > 0 ? "KeyS" : "KeyW";
+        await page.keyboard.down(key);
+        await page.waitForTimeout(Math.max(20, (Math.abs(dy) / 5) * 1000 - 20));
+        await page.keyboard.up(key);
+      }
+    }
+  };
+  /** 人形に照準を合わせて左クリックし、攻撃が終わるまで待つ。 */
+  const clickDummy = async (button: "left" | "right" = "left"): Promise<void> => {
+    const d = await dummy();
+    await page.mouse.move(d.screenX * 2, d.screenY * 2);
+    await page.waitForTimeout(50);
+    await page.mouse.down({ button });
+    await page.waitForTimeout(30);
+    await page.mouse.up({ button });
+    await page.waitForTimeout(900);
+  };
+  const d0 = await dummy();
+  await walkTo(d0.x - 1.2, d0.y);
+  await clickDummy();
+  const d1 = await dummy();
+  check(
+    "通常攻撃で人形のHPが減る（下級の長剣 6–11、会心で×1.5）",
+    d1.hits === d0.hits + 1 && d1.lastDamage >= 6 && d1.lastDamage <= 16.5 && d1.hp < d0.hp,
+    `ヒット ${String(d1.hits - d0.hits)}回・ダメージ ${d1.lastDamage.toFixed(1)}・HP ${d0.hp.toFixed(0)} → ${d1.hp.toFixed(0)}`,
+  );
+  check("正面からのヒットは背面ではない", !d1.lastBackstab, `背面 ${String(d1.lastBackstab)}`);
+
+  // 人形は左を向いているので、右側（背後）に回り込んで攻撃する
+  await walkTo(d0.x, d0.y - 2);
+  await walkTo(d0.x + 1.2, d0.y - 2);
+  await walkTo(d0.x + 1.2, d0.y);
+  await clickDummy();
+  const d2 = await dummy();
+  check(
+    "背後からのヒットを背面と判定する",
+    d2.hits === d1.hits + 1 && d2.lastBackstab,
+    `ヒット ${String(d2.hits - d1.hits)}回・背面 ${String(d2.lastBackstab)}`,
+  );
+
+  // 離れた位置から、右クリックで試験用の投射物を撃つ
+  await walkTo(d0.x - 6, d0.y);
+  await clickDummy("right");
+  const d3 = await dummy();
+  const pp = await player();
+  check(
+    "投射物が人形に当たる",
+    d3.hits === d2.hits + 1,
+    `ヒット ${String(d3.hits - d2.hits)}回・撃った数 ${String(d3.shotsFired - d2.shotsFired)}・飛んでいる数 ${String(d3.projectilesActive)}・プレイヤー (${pp.x.toFixed(1)}, ${pp.y.toFixed(1)})・向き ${String(pp.direction8)}・投射物 ${JSON.stringify(d3.projectilePositions.map((v) => v.map((n) => Number(n.toFixed(2)))))}・人形 (${d3.x.toFixed(1)}, ${d3.y.toFixed(1)})`,
   );
 
   await page.screenshot({ path: `${outDir}arena.png` });
