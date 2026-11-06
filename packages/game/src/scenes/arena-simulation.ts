@@ -1822,11 +1822,7 @@ export class ArenaSimulation {
     // 敵の行動と攻撃
     this.field?.update(dt, this.playerValue, this.motion.invulnerable, this.motion.facing, {
       // 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージ-15%
-      playerTakenMultiplier: (enemy) => {
-        const guard = this.sheetValue.evaluated.view.stat("STAT-UNQ-BEHIND-GUARD").value;
-        if (!(guard > 0) || enemy.def.turnRate === null) return 1;
-        return isBehind(this.playerValue.position, enemy.position, enemy.facing) ? 1 - guard : 1;
-      },
+      playerTakenMultiplier: (enemy) => this.behindGuardMultiplier(enemy),
       onPlayerHit: (report, enemy) => {
         if (report.hit.evaded) return;
         // 樹皮の盾（U13）：攻撃を受けると、攻撃してきた敵に毒を1スタック（基準値は受けたダメージの30%）
@@ -2055,6 +2051,18 @@ export class ArenaSimulation {
     const step = view.stat("STAT-UNQ-STILL-ARMOR").value;
     const bonus = step > 0 ? Math.min(BARK_ARMOR_CAP, step * Math.floor(this.stillSeconds)) : 0;
     this.playerValue.armor = this.sheetValue.defense.armor * (1 + bonus);
+  }
+
+  /** 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージの倍率（1-15%）。 */
+  behindGuardMultiplier(enemy: Enemy): number {
+    const guard = this.sheetValue.evaluated.view.stat("STAT-UNQ-BEHIND-GUARD").value;
+    if (!(guard > 0) || enemy.def.turnRate === null) return 1;
+    return isBehind(this.playerValue.position, enemy.position, enemy.facing) ? 1 - guard : 1;
+  }
+
+  /** 背向けの外套（U16）：今、全てのヒットを背面として扱っているか。 */
+  get allHitsBackstab(): boolean {
+    return this.elapsed < this.moveBackstabUntil;
   }
 
   /** 樹皮の盾の、止まっている間の防具値の増加（表示・確認用）。 */

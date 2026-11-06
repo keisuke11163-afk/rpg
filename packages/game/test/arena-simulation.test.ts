@@ -1252,6 +1252,55 @@ describe("ArenaSimulation：ユニークの固有効果（U-16 のルールフ�
     return e.combatant;
   };
 
+  it("U16 背向けの外套：背後にいる敵から受けるダメージ-15%。移動の技（突進）の後2秒は全てのヒットが背面", () => {
+    const sim = new ArenaSimulation();
+    wear(sim, "BASE-UNQ-U16", "itm_940010");
+    const id = sim.spawnEnemy("ENM-FOREST-WOLF");
+    const wolf = sim.field?.enemies.find((e) => e.id === id);
+    if (wolf === undefined) throw new Error("狼がいない");
+    // 狼は左（π）を向いて出る。右側が背後
+    wolf.combatant.position = { x: 30, y: 30 };
+    sim.player.position = { x: 31.5, y: 30 };
+    expect(sim.behindGuardMultiplier(wolf)).toBeCloseTo(0.85);
+    sim.player.position = { x: 28.5, y: 30 };
+    expect(sim.behindGuardMultiplier(wolf)).toBe(1);
+    expect(sim.allHitsBackstab).toBe(false);
+    sim.frame(STEP, input({ pressed: ["skill3"] }));
+    expect(sim.allHitsBackstab).toBe(true);
+    for (let i = 0; i < Math.ceil(2.1 / STEP); i++) sim.frame(STEP, input());
+    expect(sim.allHitsBackstab).toBe(false);
+  });
+
+  it("U15 打ち鳴らしの籠手：敵を崩すと、周囲4mの敵の崩しゲージを最大値の30%増やす。崩れた敵へのヒットで闘志", () => {
+    const sim = new ArenaSimulation();
+    wear(sim, "BASE-UNQ-U15", "itm_940012");
+    const a = near(sim, "ENM-BARK-BEAR", 1.4);
+    const b = near(sim, "ENM-BARK-BEAR", 4.5);
+    a.stagger.add(a.stagger.max - 0.001);
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    for (let i = 0; i < 120 && !a.stagger.broken; i++) sim.frame(STEP, held);
+    expect(a.stagger.broken).toBe(true);
+    expect(b.stagger.current).toBeGreaterThanOrEqual(b.stagger.max * 0.3 - 1e-6);
+    // 崩れている敵へのヒットで闘志が増える（通常の獲得に+3）
+    const before = sim.jobGauge.value;
+    const hits = sim.enemyHits;
+    for (let i = 0; i < 120 && sim.enemyHits === hits; i++) sim.frame(STEP, held);
+    expect(sim.jobGauge.value - before).toBeGreaterThanOrEqual(3);
+  });
+
+  it("U02 旅人の古靴：10m移動するごとに、全ての技のクールダウンが0.3秒短くなる", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    wear(sim, "BASE-UNQ-U02", "itm_940011");
+    sim.cooldowns.start("TEST", 100);
+    const start = sim.motion.position.x;
+    let t = 0;
+    while (sim.motion.position.x - start < 10.5 && t < 10) {
+      sim.frame(STEP, input({ move: { x: 1, y: 0 } }));
+      t += STEP;
+    }
+    expect(sim.cooldowns.remaining("TEST")).toBeCloseTo(100 - t - 0.3, 5);
+  });
+
   it("U06 目隠し：会心率の増加1%ごとにダメージ+0.5%（加算）", () => {
     const sim = new ArenaSimulation(undefined, { enemies: false });
     const before = sim.sheet.evaluated.view.stat("STAT-DAMAGE", ["TAG-ELEM-PHYSICAL"]).increased;
