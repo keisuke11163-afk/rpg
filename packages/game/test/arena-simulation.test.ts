@@ -1072,3 +1072,62 @@ describe("ArenaSimulation：防具の値がプレイヤーに効く（U-11 の�
     expect(sim.sheet.moveSpeed).toBeCloseTo(base);
   });
 });
+
+describe("ArenaSimulation：系統詞・基本刻印（U-11 の残り）", () => {
+  const killRat = (sim: ArenaSimulation): void => {
+    const id = sim.spawnEnemy("ENM-THORN-RAT");
+    const rat = sim.field?.enemies.find((e) => e.id === id);
+    rat?.combatant.health.takeDamage(rat.combatant.health.hp - 1);
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    for (let i = 0; i < 240 && (sim.field?.kills ?? 0) === 0 && rat?.state !== "dead"; i++)
+      sim.frame(STEP, held);
+  };
+
+  it("【獣狩りの】：獣を倒すと3秒間、移動速度+15%", () => {
+    const sim = new ArenaSimulation();
+    sim.inventory.addItem({
+      uid: "itm_910001",
+      base: "BASE-ARM-LEATHER-FEET-T1",
+      rarity: "magic",
+      itemLevel: 3,
+      affixes: [{ id: "AFX-SUF-BEAST-HUNTER", tier: 7, rolls: [15] }],
+    });
+    expect(sim.equipFromInventory("itm_910001")).toBe(true);
+    const base = sim.sheet.moveSpeed;
+    killRat(sim);
+    sim.frame(STEP, input());
+    expect(sim.sheet.moveSpeed).toBeCloseTo(base + 0.15);
+    for (let i = 0; i < 200; i++) sim.frame(STEP, input());
+    expect(sim.sheet.moveSpeed).toBeCloseTo(base);
+  });
+
+  it("爪の「ヒットでHP吸収0.5%」：当てると、与えたダメージの0.5%だけ回復する", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.inventory.addItem({
+      uid: "itm_910002",
+      base: "BASE-WPN-CLAW-T1",
+      rarity: "normal",
+      itemLevel: 1,
+      affixes: [],
+    });
+    expect(sim.equipFromInventory("itm_910002")).toBe(true);
+    // 訓練用の人形（右）の左に立つ
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+    sim.player.health.takeDamage(sim.player.health.maxHp / 2);
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    let checked = false;
+    for (let i = 0; i < 120 && !checked; i++) {
+      const hp = sim.player.health.hp;
+      const hits = sim.hitCount;
+      sim.frame(STEP, held);
+      if (sim.hitCount > hits) {
+        const dealt = sim.lastHit?.applied.toHp ?? 0;
+        expect(dealt).toBeGreaterThan(0);
+        expect(sim.player.health.hp - hp).toBeCloseTo(dealt * 0.005);
+        checked = true;
+      }
+    }
+    expect(checked).toBe(true);
+  });
+});

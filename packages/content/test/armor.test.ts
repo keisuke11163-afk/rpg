@@ -10,7 +10,9 @@ import {
   type ItemInstance,
   type JobDef,
   TagIndex,
+  JOB_AFFIX_BOOST,
   buildCharacterSheet,
+  candidateAffixes,
   slotsFor,
 } from "@stella/core";
 import { describe, expect, it } from "vitest";
@@ -120,5 +122,70 @@ describe("受ける側の能力値", () => {
     const chain = sheetWith(["BASE-ARM-IRON-BELT-T1"]);
     expect(chain.moveSpeed).toBeCloseTo(0.98);
     expect(chain.defense.armor).toBeCloseTo((base.defense.armor + 8) * 1.15);
+  });
+});
+
+describe("詞の追加（U-11 の残り）：職詞・系統詞・一般の詞", () => {
+  const base = (id: string) => {
+    const b = db.itemBases.get(id);
+    if (b === undefined) throw new Error(`${id} がない`);
+    return b;
+  };
+  const weightOf = (pool: ReturnType<typeof candidateAffixes>, id: string): number | undefined =>
+    pool.find((c) => c.affix.id === id)?.weight;
+
+  it("MVPの詞は30種類前後（一般29・職詞2・系統詞1）", () => {
+    expect(db.affixes.size).toBeGreaterThanOrEqual(30);
+    expect([...db.affixes.values()].filter((a) => a.job !== undefined)).toHaveLength(2);
+    expect([...db.affixes.values()].filter((a) => a.family !== undefined)).toHaveLength(1);
+  });
+
+  it("系統詞【獣狩りの】は、獣の敵のドロップにだけ付く", () => {
+    const boots = base("BASE-ARM-LEATHER-FEET-T1");
+    expect(weightOf(candidateAffixes(db, boots, 5), "AFX-SUF-BEAST-HUNTER")).toBeUndefined();
+    const beast = tags.closure(["TAG-FAMILY-BEAST"]);
+    expect(
+      weightOf(candidateAffixes(db, boots, 5, { families: beast }), "AFX-SUF-BEAST-HUNTER"),
+    ).toBe(50);
+  });
+
+  it("職詞は重み25・頭は2倍・ジョブに合わせたドロップでは、そのジョブの職詞が4倍", () => {
+    const helm = base("BASE-ARM-IRON-HEAD-T1");
+    const body = base("BASE-ARM-IRON-BODY-T1");
+    expect(weightOf(candidateAffixes(db, body, 5), "AFX-PRE-JOB-WARRIOR")).toBe(25);
+    expect(weightOf(candidateAffixes(db, helm, 5), "AFX-PRE-JOB-WARRIOR")).toBe(50);
+    const targeted = candidateAffixes(db, body, 5, { targetJob: "TAG-JOB-WARRIOR" });
+    expect(weightOf(targeted, "AFX-PRE-JOB-WARRIOR")).toBe(25 * JOB_AFFIX_BOOST);
+    expect(weightOf(targeted, "AFX-PRE-JOB-ROGUE")).toBe(25);
+  });
+
+  it("職詞は、そのジョブがメインジョブのときだけ効く", () => {
+    const equipment = new Equipment(db);
+    equipment.equip(
+      {
+        uid: "h",
+        base: "BASE-ARM-IRON-HEAD-T1",
+        rarity: "magic",
+        itemLevel: 5,
+        affixes: [{ id: "AFX-PRE-JOB-WARRIOR", tier: 7, rolls: [15] }],
+      },
+      "head",
+      true,
+    );
+    const gain = (origin: JobDef) =>
+      buildCharacterSheet(db, tags, {
+        character: new Character({ origin, level: 5 }),
+        job: origin,
+        equipment,
+      }).evaluated.view.stat("STAT-GAUGE-GAIN").increased;
+    expect(gain(WARRIOR)).toBeCloseTo(0.15);
+    expect(gain(job("JOB-ROGUE"))).toBe(0);
+  });
+
+  it("短剣は背面からの会心率+5%、爪はヒットでHP吸収0.5%（どちらもその武器のヒットだけ）", () => {
+    expect(base("BASE-WPN-DAGGER-T1").implicitEffects).toEqual(["EFF-IMP-BACKSTAB-CRIT-5"]);
+    expect(base("BASE-WPN-CLAW-T1").implicitEffects).toEqual(["EFF-IMP-LIFE-LEECH-05"]);
+    expect(db.effects.get("EFF-IMP-BACKSTAB-CRIT-5")?.locality).toBe("local");
+    expect(db.effects.get("EFF-IMP-LIFE-LEECH-05")?.locality).toBe("local");
   });
 });

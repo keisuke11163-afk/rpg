@@ -44,6 +44,18 @@ export interface ItemInstance {
   readonly inscription?: string;
 }
 
+/** 職詞の重みの倍率（ジョブに合わせたドロップのとき、そのジョブの職詞。docs/progress D-U11-23）。 */
+export const JOB_AFFIX_BOOST = 4;
+
+/** 詞の抽選の文脈（ドロップの元の敵の系統・ジョブに合わせたドロップ）。 */
+export interface AffixContext {
+  readonly allowT0?: boolean;
+  /** ドロップの元の敵の系統のタグ（親タグを含む）。系統詞は、ここに含まれる系統だけ付く。 */
+  readonly families?: ReadonlySet<string>;
+  /** ジョブに合わせたドロップのジョブのタグ。そのジョブの職詞の重みを JOB_AFFIX_BOOST 倍にする。 */
+  readonly targetJob?: string;
+}
+
 export interface GenerateItemInput {
   readonly uid: string;
   readonly base: ItemBaseDef;
@@ -52,6 +64,10 @@ export interface GenerateItemInput {
   readonly itemLevel: number;
   /** 極T0を出せるか（回廊の第12階層以上）。MVPでは false。 */
   readonly allowT0?: boolean;
+  /** ドロップの元の敵の系統（系統詞）。 */
+  readonly families?: ReadonlySet<string>;
+  /** ジョブに合わせたドロップのジョブのタグ（職詞が出やすい）。 */
+  readonly targetJob?: string;
 }
 
 function requireItemLevel(itemLevel: number): void {
@@ -64,14 +80,20 @@ export function candidateAffixes(
   db: ContentDb,
   base: ItemBaseDef,
   itemLevel: number,
-  options: { readonly allowT0?: boolean } = {},
-): { affix: AffixDef; tiers: AffixTier[] }[] {
+  options: AffixContext = {},
+): { affix: AffixDef; tiers: AffixTier[]; weight: number }[] {
   requireItemLevel(itemLevel);
-  const out: { affix: AffixDef; tiers: AffixTier[] }[] = [];
+  const out: { affix: AffixDef; tiers: AffixTier[]; weight: number }[] = [];
   for (const affix of db.affixes.values()) {
     if (!affix.categories.includes(base.category)) continue;
+    if (affix.family !== undefined && options.families?.has(affix.family) !== true) continue;
     const tiers = eligibleTiers(affix, itemLevel, options);
-    if (tiers.length > 0) out.push({ affix, tiers });
+    if (tiers.length === 0) continue;
+    const weight =
+      affix.weight *
+      (affix.categoryWeights?.[base.category] ?? 1) *
+      (affix.job !== undefined && affix.job === options.targetJob ? JOB_AFFIX_BOOST : 1);
+    out.push({ affix, tiers, weight });
   }
   return out;
 }
@@ -117,6 +139,8 @@ export function generateItem(db: ContentDb, rng: Rng, input: GenerateItemInput):
   const wanted = rng.int(rarityDef.affixes.min, rarityDef.affixes.max);
   const affixes = addAffixes(db, rng, base, itemLevel, [], wanted, {
     ...(input.allowT0 === undefined ? {} : { allowT0: input.allowT0 }),
+    ...(input.families === undefined ? {} : { families: input.families }),
+    ...(input.targetJob === undefined ? {} : { targetJob: input.targetJob }),
   });
   return { uid, base: base.id, rarity, itemLevel, affixes };
 }
@@ -132,7 +156,7 @@ export function addAffixes(
   itemLevel: number,
   existing: readonly RolledAffix[],
   wanted: number,
-  options: { readonly allowT0?: boolean } = {},
+  options: AffixContext = {},
 ): RolledAffix[] {
   const slots = AFFIX_SLOTS[base.category];
   const capacity = slots.prefix + slots.suffix;
@@ -150,7 +174,7 @@ export function addAffixes(
       (c) => !taken.has(c.affix.id) && used[c.affix.position] < slots[c.affix.position],
     );
     if (open.length === 0) break;
-    const chosen = rng.weighted(open.map((c) => ({ item: c, weight: c.affix.weight })));
+    const chosen = rng.weighted(open.map((c) => ({ item: c, weight: c.weight })));
     const tier = rng.weighted(
       tierWeights(chosen.tiers).map((t) => ({ item: t.tier, weight: t.weight })),
     );

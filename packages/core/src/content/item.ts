@@ -162,6 +162,12 @@ export const affixSchema = z.strictObject({
   scale: z.number().positive(),
   /** 出現の重み（仕様書v0.2 3.6：一般100、攻撃速度・会心率・移動速度・付与率50 など）。 */
   weight: z.number().positive(),
+  /** 部位ごとの重みの倍率（頭は職詞が出やすい。仕様書v0.2 3.1）。 */
+  categoryWeights: z.partialRecord(z.enum(BASE_CATEGORIES), z.number().positive()).optional(),
+  /** 系統詞：この系統のタグを持つ敵のドロップにだけ付く（仕様書v0.2 3.6・3.12）。 */
+  family: idSchema.optional(),
+  /** 職詞：このジョブのタグ（効果の条件もこのジョブ。ジョブに合わせたドロップで出やすい）。 */
+  job: idSchema.optional(),
   /** 表に載っているtierの値。載っていないtierは、隣の載っているtierの間を補う。 */
   tiers: z.array(tierValueSchema).min(1),
   ...provisionalFields,

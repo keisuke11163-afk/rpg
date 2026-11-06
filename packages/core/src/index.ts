@@ -317,6 +317,8 @@ export {
   type RolledAffix,
   addAffixes,
   candidateAffixes,
+  JOB_AFFIX_BOOST,
+  type AffixContext,
   generateItem,
   itemEffectInstances,
   rollAffixValue,

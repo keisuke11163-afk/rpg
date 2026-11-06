@@ -93,6 +93,8 @@ import { LootField } from "../world/LootField.ts";
 
 /** 軽装の統一ボーナスの移動速度が続く秒数（仕様書v0.2 3.3：回避した直後0.5秒間）。 */
 const LIGHT_UNIFORM_SECONDS = 0.5;
+/** 系統詞【獣狩りの】の移動速度が続く秒数（仕様書v0.2 3.6）。 */
+const BEAST_HUNT_SECONDS = 3;
 import { toMeters } from "../world/units.ts";
 
 /** 試験用の場の大きさ（m）。 */
@@ -1492,6 +1494,11 @@ export class ArenaSimulation {
       starBoard: { allocation: this.stars.nodes, points: this.starPoints },
     });
     this.mpValue = Math.min(this.mpValue, this.sheetValue.maxMp);
+    // 職能ゲージの獲得量（職詞。メインジョブの条件は効果の側で判定する）
+    this.jobGaugeValue.gainMultiplier = Math.max(
+      0,
+      1 + this.sheetValue.evaluated.view.stat("STAT-GAUGE-GAIN").increased,
+    );
   }
 
   /**
@@ -1526,7 +1533,11 @@ export class ArenaSimulation {
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
       stages: this.jobGaugeValue.stages,
       weaponTags: this.tags.closure(this.sheetValue.weaponTags),
-      gaugeSpent: spent,
+      // 職詞「終結技のコンボ点+1として扱う」（終結技だけ。ゲージから減る量は変わらない）
+      gaugeSpent:
+        def.finisher === undefined
+          ? spent
+          : spent + this.sheetValue.evaluated.view.stat("STAT-FINISHER-POINTS").value,
     });
     let teleportTo: Vec2 | undefined;
     if (def.action.type === "teleport") {
@@ -1714,6 +1725,13 @@ export class ArenaSimulation {
         );
         this.progressQuests({ type: "defeat", id: enemy.def.id });
         if (enemy.def.boss !== undefined) this.onBossKilled(enemy);
+        // 系統詞【獣狩りの】：獣を倒すと3秒間移動速度+15%（仕様書v0.2 3.6）
+        if (
+          enemy.def.family !== undefined &&
+          this.tags.closure([enemy.def.family]).has("TAG-FAMILY-BEAST") &&
+          this.sheetValue.evaluated.view.stat("STAT-BEAST-HUNT").value > 0
+        )
+          this.buffs.add("EFF-BUFF-BEAST-HUNT", BEAST_HUNT_SECONDS, "beast-hunt");
         // ドロップ（仕様書v0.2 3.5、補助仕様書12章）。敵の格（通常・魔法・精鋭）がドロップの出どころ
         this.dropLoot(
           enemy.def.dropSource ?? enemy.rank.rank,
@@ -1805,7 +1823,19 @@ export class ArenaSimulation {
     fullStagger: boolean,
     forceCrit: boolean,
   ): boolean {
-    const bonus = this.job.backstabBonus;
+    // 背面からの補正：メインジョブの職能（盗賊）＋短剣の基本刻印「背面からの会心率+5%（固定値）」（その武器のヒットだけ）
+    const view = this.sheetValue.evaluated.view;
+    const weaponUid = damage.kind === "weapon" ? this.sheetValue.attacker.weapon?.uid : undefined;
+    const scope = { weaponUid };
+    const jobBonus = this.job.backstabBonus;
+    const extraCrit = view.stat("STAT-BACKSTAB-CRIT", [], scope).value;
+    const bonus =
+      jobBonus === undefined && extraCrit === 0
+        ? undefined
+        : {
+            critChance: (jobBonus?.critChance ?? 0) + extraCrit,
+            ailmentChance: jobBonus?.ailmentChance ?? 0,
+          };
     const report = resolveHit({
       db: this.db,
       attacker: this.sheetValue.attacker,
@@ -1822,6 +1852,10 @@ export class ArenaSimulation {
     if (t !== this.dummy) this.field?.onEnemyHit(t);
     if (t === this.dummy) this.lastReport = report;
     if (report.hit.evaded) return false;
+    // 爪の基本刻印「ヒットでHP吸収0.5%」：与えたダメージの割合だけHPを回復する（その武器のヒットだけ）
+    const leech = view.stat("STAT-LIFE-LEECH", [], scope).value;
+    const dealt = report.applied.toHp + report.applied.toWard;
+    if (leech > 0 && dealt > 0) this.playerValue.health.heal(dealt * leech);
     this.hitStopLeft = HIT_STOP;
     if (t === this.dummy) {
       this.dummyHits += 1;

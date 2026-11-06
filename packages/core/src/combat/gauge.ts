@@ -17,6 +17,9 @@ export class JobGauge {
   /** 下限（例：職奥義「不屈の闘志」で30）。 */
   floor = 0;
 
+  /** 獲得量の倍率（職詞「闘志の獲得量+15%」など。1 ＋ 獲得量の増加。0以上）。 */
+  gainMultiplier = 1;
+
   constructor(def: GaugeDef) {
     this.def = def;
   }
@@ -75,7 +78,7 @@ export class JobGauge {
       if (g.on !== "hitDealt") continue;
       gained += g.tag !== undefined && tags.has(g.tag) ? (g.tagValue ?? g.value) : g.value;
     }
-    return this.add(gained);
+    return this.add(gained * this.gainMultiplier);
   }
 
   /** 攻撃を受けたとき（最大HPの1%につき、決まった量）。 */
@@ -86,7 +89,7 @@ export class JobGauge {
     for (const g of this.def.gains) {
       if (g.on === "damageTaken") gained += (amount / maxHp) * 100 * g.valuePerPercentOfMaxHp;
     }
-    return this.add(gained);
+    return this.add(gained * this.gainMultiplier);
   }
 
   /** 時間を進める。戦闘外なら毎秒 decayOutOfCombat ずつ減る。 */

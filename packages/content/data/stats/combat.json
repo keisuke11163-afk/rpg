@@ -244,5 +244,34 @@
     "id": "STAT-FLASK-RECOVERY",
     "text": "stat.flask-recovery",
     "unit": "ratio"
+  },
+  {
+    "id": "STAT-GAUGE-GAIN",
+    "text": "stat.gauge-gain",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-FINISHER-POINTS",
+    "text": "stat.finisher-points",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-BEAST-HUNT",
+    "text": "stat.beast-hunt",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-BACKSTAB-CRIT",
+    "text": "stat.backstab-crit",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-LIFE-LEECH",
+    "text": "stat.life-leech",
+    "unit": "ratio",
+    "min": 0
   }
 ]

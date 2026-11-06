@@ -327,5 +327,55 @@
       "ailmentBase": false
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-BUFF-BEAST-HUNT",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.15
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-BACKSTAB-CRIT-5",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-BACKSTAB-CRIT",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-IMP-LIFE-LEECH-05",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-LIFE-LEECH",
+        "value": 0.005
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "locality": "local"
   }
 ]

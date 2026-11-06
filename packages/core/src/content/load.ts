@@ -992,6 +992,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
   }
   for (const { value: a, file } of affixes) {
+    if (a.family !== undefined) tagOf(a.family, ["enemyFamily"], file, a.id, "family");
+    if (a.job !== undefined) tagOf(a.job, ["job"], file, a.id, "job");
     checkText(a.text, file, a.id);
     if (refCheck(effectMap, "効果", a.effect, file, a.id, "effect")) {
       const def = effectMap.get(a.effect);

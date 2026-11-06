@@ -87,6 +87,9 @@ export function rollDrops(db: ContentDb, rng: Rng, input: DropInput): DropResult
 
   const items: ItemInstance[] = [];
   const jobTargeted: boolean[] = [];
+  // 系統詞は、倒した敵の系統（親タグを含む）のものだけ付く
+  const families =
+    input.enemyFamily === undefined ? undefined : input.tags.closure([input.enemyFamily]);
   if (rng.chance(profile.chance)) {
     if (bases.length === 0)
       throw new RangeError(`アイテムLv ${String(itemLevel)} で落とせるベースが無い`);
@@ -102,7 +105,16 @@ export function rollDrops(db: ContentDb, rng: Rng, input: DropInput): DropResult
       });
       const useJob = targeted.length > 0 && rng.chance(JOB_TARGETED_SHARE);
       const base = rng.pick(useJob ? targeted : bases);
-      items.push(generateItem(db, rng, { uid: input.nextUid(), base, rarity, itemLevel }));
+      items.push(
+        generateItem(db, rng, {
+          uid: input.nextUid(),
+          base,
+          rarity,
+          itemLevel,
+          ...(families === undefined ? {} : { families }),
+          ...(useJob && input.mainJob !== undefined ? { targetJob: input.mainJob.tag } : {}),
+        }),
+      );
       jobTargeted.push(useJob);
     }
   }

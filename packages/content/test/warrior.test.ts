@@ -178,3 +178,16 @@ describe("戦士の技（仕様書v0.2 5.2）", () => {
     expect(skill("SKL-WARRIOR-WARCRY").gauge?.gainOnUse).toBe(20);
   });
 });
+
+describe("職詞「闘志の獲得量+15%」（U-11 の残り）", () => {
+  it("獲得量の倍率は、ヒット・被弾のどちらの獲得にも掛かる", () => {
+    const a = fervor();
+    const b = fervor();
+    b.gainMultiplier = 1.15;
+    const t = tags.closure(["TAG-FORM-MELEE"]);
+    const ga = a.onHitDealt(t);
+    const gb = b.onHitDealt(t);
+    expect(gb).toBeCloseTo(ga * 1.15);
+    expect(b.onDamageTaken(10, 100)).toBeCloseTo(a.onDamageTaken(10, 100) * 1.15);
+  });
+});

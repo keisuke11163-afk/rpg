@@ -170,5 +170,377 @@
       "ailmentBase": false
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-PRE-ADDED-COLD-WPN",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ADDED-COLD",
+        "value": {
+          "min": 1,
+          "max": 2
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-PRE-ADDED-LIGHTNING-WPN",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ADDED-LIGHTNING",
+        "value": {
+          "min": 1,
+          "max": 2
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-PRE-ARMOR",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ARMOR",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-PRE-EVASION",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-EVASION",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-PRE-WARD",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-WARD-MAX",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-PRE-MP-MAX",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-MP-MAX",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-RESIST-COLD",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-COLD",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-RESIST-LIGHTNING",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-LIGHTNING",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-RESIST-DARK",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-DARK",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-RESIST-HOLY",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-RESIST-HOLY",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-CRIT-MULTIPLIER",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-CRIT-MULTIPLIER",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-ACCURACY",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ACCURACY",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-ATTR-GO",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-GO",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-ATTR-JIN",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-JIN",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-ATTR-RI",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-RI",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-ATTR-KON",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-KON",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-STAGGER",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-AILMENT-DAMAGE",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-SUF-FLASK-RECOVERY",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-FLASK-RECOVERY",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-PRE-JOB-WARRIOR",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-GAUGE-GAIN",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "mainJob",
+        "job": "TAG-JOB-WARRIOR"
+      }
+    ]
+  },
+  {
+    "id": "EFF-PRE-JOB-ROGUE",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-FINISHER-POINTS",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "mainJob",
+        "job": "TAG-JOB-ROGUE"
+      }
+    ]
+  },
+  {
+    "id": "EFF-SUF-BEAST-HUNTER",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-BEAST-HUNT",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
   }
 ]
