@@ -150,6 +150,10 @@ export class Enemy {
   private wanderPause = 0;
   private facingAngle: number;
   private readonly db: ContentDb;
+  /** 雲の攻撃で付ける状態異常（攻撃 → 付けるもの）。作るときに計算し、検証しておく。 */
+  private readonly cloudApplications = new Map<EnemyAttackDef, AilmentApplication>();
+  /** 1秒あたりに動く距離の上限（移動・うろつき・帰還・突進のうち最も速いもの）。 */
+  private readonly maxSpeed: number;
   /** 最後の刻みで受けた持続ダメージ。 */
   dotTaken = 0;
 
@@ -177,6 +181,13 @@ export class Enemy {
       evasion: (def.defense.evasionPerLevel ?? 0) * init.level,
       staggerProfile: profiles.enemy,
     });
+    // 雲の状態異常は、データが正しくなければここで Error（update の途中で例外を起こさないため）
+    for (const a of def.attacks)
+      if (a.delivery.type === "cloud") this.cloudApplications.set(a, this.cloudApplication(a));
+    this.maxSpeed = Math.max(
+      def.moveSpeed,
+      ...def.attacks.map((a) => (a.delivery.type === "dash" ? a.delivery.speed : 0)),
+    );
   }
 
   get state(): EnemyState {
@@ -263,13 +274,42 @@ export class Enemy {
     this.setFacing(turnTowards(this.facingAngle, angle, toRad(this.def.turnRate) * dt));
   }
 
-  /** 1刻み進める。 */
+  /**
+   * 1刻み進める。
+   *
+   * 例外安全：次の場合は RangeError で、敵の状態（行動の状態・その経過時間・攻撃・位置・向き・
+   * クールダウン・HP・魔障・崩しゲージ・状態異常・うろつき・突進の距離）も乱数の状態も何も変わらない。
+   * - 経過時間が0以上の有限の数でない（NaN・負の数・Infinity）
+   * - 今の状態の経過時間に足すと有限でなくなる
+   * - その経過時間で最も速く動いたときに、位置が有限でなくなりうる
+   * - 戦う者の更新（持続ダメージ・魔障・崩しゲージの計算）が失敗する（Combatant.update は自身で例外安全）
+   *
+   * 順番：1. 検証 → 2. 戦う者の更新（失敗すれば何も変わらない）→ 3. 経過時間・クールダウンの反映
+   * （検証済みの dt での代入だけで、例外は起きない）→ 4. 行動の流れ。
+   * 経過時間・クールダウンは戦う者の更新の結果に影響せず、行動の流れより前に反映するので、
+   * 振る舞いは従来（経過時間 → クールダウン → 戦う者 → 行動の流れ）と同じ。
+   * 行動の流れは、検証済みの dt と、作るときに検証した攻撃のデータ（雲の状態異常）だけを使い、例外を起こさない。
+   */
   update(dt: number, target: EnemyTarget, rng: Rng, bounds?: Bounds): EnemyEvent[] {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
-    this.stateTime += dt;
+    // 1. 検証（状態は変えない）
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
+    const stateTime = this.stateTime + dt;
+    if (!Number.isFinite(stateTime))
+      throw new RangeError(`状態の経過時間の累計が有限の数でない（${String(stateTime)}）`);
+    const reach = this.maxSpeed * dt;
+    if (
+      !Number.isFinite(Math.abs(this.position.x) + reach) ||
+      !Number.isFinite(Math.abs(this.position.y) + reach)
+    )
+      throw new RangeError(`経過時間 ${String(dt)} で動くと、位置が有限の数でなくなる`);
+    // 2. 持続ダメージ・崩しゲージ・魔障・一定時間の効果（移動していたかは、前の刻みの値を使う）
+    //    例外を起こしうるのはここまで。Combatant.update は失敗すれば何も変えない
+    const dotTaken = this.combatant.update(dt);
+    // 3. 反映（検証済みの値の代入だけで、例外は起きない）
+    this.stateTime = stateTime;
     this.cooldowns.update(dt);
-    // 持続ダメージ・崩しゲージ・魔障・一定時間の効果（移動していたかは、前の刻みの値を使う）
-    this.dotTaken = this.combatant.update(dt);
+    this.dotTaken = dotTaken;
     this.combatant.moving = false;
     if (this.combatant.health.dead) {
       if (this.stateValue !== "dead") this.setState("dead");
@@ -503,10 +543,18 @@ export class Enemy {
             radius: d.radius,
             duration: d.duration,
             interval: d.interval,
-            application: this.cloudApplication(attack),
+            application: this.cloudApplicationOf(attack),
           },
         ];
     }
+  }
+
+  /** 作るときに計算した、雲の状態異常（呼び出す側が書き換えても影響しないよう、写しを返す）。 */
+  private cloudApplicationOf(attack: EnemyAttackDef): AilmentApplication {
+    const app = this.cloudApplications.get(attack);
+    // 雲の攻撃は全て作るときに計算しているので、ここには来ない
+    if (app === undefined) throw new Error(`雲の攻撃 ${attack.id} の状態異常がない`);
+    return { ...app };
   }
 
   private cloudApplication(attack: EnemyAttackDef): AilmentApplication {

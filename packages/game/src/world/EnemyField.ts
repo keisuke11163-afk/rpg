@@ -208,6 +208,9 @@ export class EnemyField {
     facing: number,
     hooks: FieldHooks,
   ): void {
+    // 敵・投射物・雲を1つも動かす前に検証する（途中の敵で例外になり、前の敵だけ進むのを防ぐ）
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const target: EnemyTarget = {
       position: player.position,
       radius: player.radius,
