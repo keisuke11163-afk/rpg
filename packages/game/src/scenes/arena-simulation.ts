@@ -73,6 +73,10 @@ import {
   skillBlock,
   staggerProfiles,
   UNIFORM_EFFECTS,
+  FLASK_FILL,
+  FLASK_RULES,
+  Flask,
+  type FlaskState,
   unlockedSkills,
   buildCharacterSheet,
   compareEquip,
@@ -182,6 +186,8 @@ const ZONE_REFRESH = 0.1;
 const STEP_ACTIONS = [
   "dodge",
   "interact",
+  "flaskHp",
+  "flaskMp",
   "skill1",
   "skill2",
   "skill3",
@@ -257,7 +263,12 @@ export interface ArenaSimulationOptions {
   /** 町の施設を調べた（F）。 */
   onFacility?: (kind: Facility) => void;
   /** 入ったときのHP・MPの割合（地域から地域へ移るとき。省略すると満タン）。 */
-  carry?: { readonly hp: number; readonly mp: number };
+  carry?: {
+    readonly hp: number;
+    readonly mp: number;
+    /** 薬瓶の回数と充填（ダンジョンからダンジョンへ。省略すると満タン）。 */
+    readonly flasks?: { readonly hp: FlaskState; readonly mp: FlaskState };
+  };
 }
 
 /** 場に置いた宝箱（補助仕様書9.3。F で開ける）。 */
@@ -406,6 +417,9 @@ export class ArenaSimulation {
   private questPoints: number;
   private explorationPoints: number;
   private lastHitBy: string | null = null;
+  /** 薬瓶（補助仕様書6章）。 */
+  hpFlask = new Flask();
+  mpFlask = new Flask();
   /** プレイヤーの戦う者を作ったときの、魔障が回復し始めるまでの秒数。 */
   private wardDelay = 2;
   private readonly onExit: ((to: string) => void) | undefined;
@@ -533,6 +547,10 @@ export class ArenaSimulation {
       const lost = this.playerValue.health.maxHp * (1 - Math.min(1, Math.max(0, options.carry.hp)));
       if (lost > 0 && options.carry.hp > 0) this.playerValue.health.takeDamage(lost);
       this.mpValue = this.maxMp * Math.min(1, Math.max(0, options.carry.mp));
+      if (options.carry.flasks !== undefined) {
+        this.hpFlask = new Flask(options.carry.flasks.hp);
+        this.mpFlask = new Flask(options.carry.flasks.mp);
+      }
     }
     const bounds = {
       minX: 0.5,
@@ -1584,6 +1602,15 @@ export class ArenaSimulation {
     // 保持している押した瞬間の入力は、最初に進んだ刻みで取り出され、以降の刻みには渡らない
     const dodgePressed = this.stepInput.take("dodge");
     const interact = this.stepInput.take("interact");
+    // 薬瓶（補助仕様書6章）：最大値×割合×（1＋腰の装備などの回復量）を1.5秒かけて回復する
+    const recovery = Math.max(
+      0,
+      1 + this.sheetValue.evaluated.view.stat("STAT-FLASK-RECOVERY").increased,
+    );
+    if (this.stepInput.take("flaskHp") && !this.playerValue.health.dead)
+      this.hpFlask.use(this.playerValue.health.maxHp * FLASK_RULES.hpRatio * recovery);
+    if (this.stepInput.take("flaskMp") && !this.playerValue.health.dead)
+      this.mpFlask.use(this.maxMp * FLASK_RULES.mpRatio * recovery);
     const pressed = new Set<SkillSlot>();
     for (const a of SKILL_SLOTS) if (this.stepInput.take(a)) pressed.add(a);
     const held = (slot: SkillSlot): boolean => input.held.has(slot);
@@ -1725,6 +1752,10 @@ export class ArenaSimulation {
         );
         this.progressQuests({ type: "defeat", id: enemy.def.id });
         if (enemy.def.boss !== undefined) this.onBossKilled(enemy);
+        // 薬瓶の充填（補助仕様書6章。HP瓶とMP瓶は別にたまる）
+        const fill = FLASK_FILL[enemy.def.dropSource ?? enemy.rank.rank];
+        this.hpFlask.addFill(fill);
+        this.mpFlask.addFill(fill);
         // 系統詞【獣狩りの】：獣を倒すと3秒間移動速度+15%（仕様書v0.2 3.6）
         if (
           enemy.def.family !== undefined &&
@@ -1775,6 +1806,9 @@ export class ArenaSimulation {
       } else this.playerValue = this.newPlayer();
     }
     this.mpValue = Math.min(this.maxMp, this.mpValue + this.maxMp * 0.06 * dt);
+    const flaskHp = this.hpFlask.update(dt);
+    if (flaskHp > 0 && !this.playerValue.health.dead) this.playerValue.health.heal(flaskHp);
+    this.mpValue = Math.min(this.maxMp, this.mpValue + this.mpFlask.update(dt));
     this.cooldowns.update(dt);
     this.buffs.update(dt);
     this.jobGaugeValue.update(dt);

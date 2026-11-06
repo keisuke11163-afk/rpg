@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import {
   type ContentDb,
   type Facility,
+  type FlaskState,
   type HitReport,
   type HitShape,
   type PlayerProfile,
@@ -36,7 +37,11 @@ export interface ArenaSceneData {
   readonly slot?: number;
   readonly region?: string;
   readonly profile?: PlayerProfile;
-  readonly carry?: { readonly hp: number; readonly mp: number };
+  readonly carry?: {
+    readonly hp: number;
+    readonly mp: number;
+    readonly flasks?: { readonly hp: FlaskState; readonly mp: FlaskState };
+  };
   readonly status?: string;
 }
 
@@ -455,7 +460,11 @@ export class ArenaScene extends Phaser.Scene {
     this.saveNow();
     const carry = toTown
       ? undefined
-      : { hp: sim.player.health.hp / sim.player.health.maxHp, mp: sim.mp / sim.maxMp };
+      : {
+          hp: sim.player.health.hp / sim.player.health.maxHp,
+          mp: sim.mp / sim.maxMp,
+          flasks: { hp: sim.hpFlask.state, mp: sim.mpFlask.state },
+        };
     document.body.dataset["stellaReady"] = "false";
     this.scene.restart({
       slot: this.slot,
@@ -836,7 +845,7 @@ export class ArenaScene extends Phaser.Scene {
         `持ち物：装備 ${String(sim.inventory.items.length)}／${String(sim.inventory.capacity)}・金貨 ${String(sim.inventory.gold)}・素材 ${String([...sim.inventory.materials.values()].reduce((a, b) => a + b, 0))}（F で装備を拾う・Alt で名前を全て表示）`,
         `敵：倒した数 ${String(sim.field?.kills ?? 0)}・被弾 ${String(sim.hitsTaken)}・回避で無効 ${String(sim.attacksAvoided)}・倒れた回数 ${String(sim.deaths)}${sim.player.ailments.stacks("AIL-POISON") > 0 ? `・毒 ${String(sim.player.ailments.stacks("AIL-POISON"))}` : ""}${sim.player.stagger.broken ? "・よろめき" : ""}`,
         `セーブ：${this.saveStatus}`,
-        `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・気力 ${motion.currentStamina.toFixed(0)}・${gaugeName} ${gauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
+        `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・薬瓶 Q:${String(sim.hpFlask.charges)} E:${String(sim.mpFlask.charges)}・気力 ${motion.currentStamina.toFixed(0)}・${gaugeName} ${gauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
       ].filter((line) => line !== ""),
     );
   }

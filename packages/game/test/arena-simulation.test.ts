@@ -1131,3 +1131,52 @@ describe("ArenaSimulation：系統詞・基本刻印（U-11 の残り）", () =>
     expect(checked).toBe(true);
   });
 });
+
+describe("ArenaSimulation：薬瓶（補助仕様書6章）", () => {
+  it("Q で最大HPの40%を1.5秒かけて回復する。回数は1つ減る", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    const max = sim.player.health.maxHp;
+    sim.player.health.takeDamage(max * 0.8);
+    const before = sim.player.health.hp;
+    sim.frame(STEP, input({ pressed: ["flaskHp"] }));
+    expect(sim.hpFlask.charges).toBe(2);
+    for (let i = 0; i < 100; i++) sim.frame(STEP, input());
+    expect(sim.player.health.hp - before).toBeCloseTo(max * 0.4, 0);
+  });
+
+  it("革の帯（薬瓶の回復量+15%）が効く。E は最大MPの50%", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.inventory.addItem({
+      uid: "itm_920001",
+      base: "BASE-ARM-LEATHER-BELT-T1",
+      rarity: "normal",
+      itemLevel: 1,
+      affixes: [],
+    });
+    expect(sim.equipFromInventory("itm_920001")).toBe(true);
+    const max = sim.player.health.maxHp;
+    sim.player.health.takeDamage(max * 0.8);
+    const before = sim.player.health.hp;
+    sim.frame(STEP, input({ pressed: ["flaskHp"] }));
+    for (let i = 0; i < 100; i++) sim.frame(STEP, input());
+    expect(sim.player.health.hp - before).toBeCloseTo(max * 0.4 * 1.15, 0);
+    expect(sim.mpFlask.charges).toBe(3);
+  });
+
+  it("敵を倒すと充填がたまり、ダンジョンからダンジョンへは回数を引き継ぐ", () => {
+    const sim = new ArenaSimulation();
+    sim.frame(STEP, input({ pressed: ["flaskHp"] }));
+    expect(sim.hpFlask.charges).toBe(2);
+    const id = sim.spawnEnemy("ENM-THORN-RAT");
+    const rat = sim.field?.enemies.find((e) => e.id === id);
+    rat?.combatant.health.takeDamage(rat.combatant.health.hp);
+    for (let i = 0; i < 3; i++) sim.frame(STEP, input());
+    expect(sim.hpFlask.fill).toBe(1);
+    const next = new ArenaSimulation(undefined, {
+      db: sim.db,
+      enemies: false,
+      carry: { hp: 1, mp: 1, flasks: { hp: sim.hpFlask.state, mp: sim.mpFlask.state } },
+    });
+    expect(next.hpFlask.state).toEqual({ charges: 2, fill: 1 });
+  });
+});
