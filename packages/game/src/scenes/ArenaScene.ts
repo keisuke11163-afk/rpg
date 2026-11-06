@@ -490,7 +490,12 @@ export class ArenaScene extends Phaser.Scene {
         else this.jobPressed = true;
         break;
       case "altar":
-        this.popText("母樹を初めて倒した後に開く", at, "#9a96a8");
+        // 討伐証の数を示す。10個で専用ユニークと交換する仕組みは、ユニーク（U-16）の後（docs/progress U-19）
+        this.popText(
+          `討伐証 ${String(this.sim.bossTokens.get("TOKEN-BOSS-CH1") ?? 0)}／10（交換はユニークの実装の後）`,
+          at,
+          "#9a96a8",
+        );
         break;
       case "dummy":
         break;

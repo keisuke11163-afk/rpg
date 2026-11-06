@@ -98,6 +98,10 @@ describe("腐根の母樹（補助仕様書11.1）", () => {
     expect(abyss.combatant.health.maxHp).toBe(9100);
     expect(abyss.def.dropSource).toBe("abyssBoss");
     expect(abyss.def.boss?.tokens).toEqual({ id: "TOKEN-BOSS-CH1", count: 2 });
+    // 経験値の倍率（補助仕様書4.2：中ボス×30・章ボス×100）
+    expect(boss.def.xpMultiplier).toBe(100);
+    expect(abyss.def.xpMultiplier).toBe(100);
+    expect(db.enemies.get("ENM-PACK-LEADER")?.xpMultiplier).toBe(30);
   });
 
   it("HP66%・33%で段階が変わり、2秒間ダメージを受けない。大きなダメージでも段階を飛ばさない", () => {

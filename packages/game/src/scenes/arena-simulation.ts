@@ -1672,9 +1672,9 @@ export class ArenaSimulation {
         this.onText?.(label, enemy.position, event === "phase" ? "#ff9f43" : "#c8a2ff");
       },
       onEnemyKilled: (enemy) => {
-        // 経験値（補助仕様書4.2）：5＋2×敵のLv、格の倍率、Lvの差の補正
+        // 経験値（補助仕様書4.2）：5＋2×敵のLv、格の倍率（中ボス・章ボスは種類の倍率）、Lvの差の補正
         this.gainXp(
-          enemyXp(enemy.level, enemy.rank.xpMultiplier) *
+          enemyXp(enemy.level, enemy.def.xpMultiplier ?? enemy.rank.xpMultiplier) *
             levelGapMultiplier(this.character.level, enemy.level),
         );
         this.progressQuests({ type: "defeat", id: enemy.def.id });

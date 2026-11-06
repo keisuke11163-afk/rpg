@@ -151,6 +151,8 @@ export const enemySchema = z.strictObject({
   behavior: enemyBehaviorSchema,
   /** 群れの数（単体は1〜1）。 */
   pack: z.strictObject({ min: z.number().int().positive(), max: z.number().int().positive() }),
+  /** 経験値の倍率（補助仕様書4.2：中ボス×30・章ボス×100）。省略すると格の倍率。 */
+  xpMultiplier: z.number().positive().optional(),
   /** 倒したときのドロップの出どころ（中ボスは miniBoss。省略すると格〔通常・魔法・精鋭〕）。 */
   dropSource: z.enum(["miniBoss", "chapterBoss", "abyssBoss"]).optional(),
   /** ボス（補助仕様書11章）。段階・段階の切り替えの無敵・攻撃中も向きを変える。 */

@@ -388,6 +388,7 @@
       "min": 1,
       "max": 1
     },
+    "xpMultiplier": 30,
     "dropSource": "miniBoss",
     "provisional": true,
     "provisionalNote": "補助仕様書10.5。移動の速さ・体の半径・当たり判定の時間・硬直・間合い・CD・形は記載がない（docs/progress Q-U18b-1）"
@@ -618,6 +619,7 @@
       "min": 1,
       "max": 1
     },
+    "xpMultiplier": 100,
     "dropSource": "chapterBoss",
     "boss": {
       "hp": 5400,
@@ -845,6 +847,7 @@
       "min": 1,
       "max": 1
     },
+    "xpMultiplier": 100,
     "dropSource": "abyssBoss",
     "boss": {
       "hp": 9100,
