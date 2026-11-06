@@ -316,6 +316,14 @@ interface DotTickUpdate {
   readonly step: number;
 }
 
+/** AilmentState.planApply の計画（検証済み。commitApply で反映する）。 */
+export interface AilmentApplyPlan {
+  readonly def: DotAilmentDef | DebuffAilmentDef;
+  readonly app: AilmentApplication;
+  /** 実際の最大スタック（上限がなければ undefined）。 */
+  readonly max: number | undefined;
+}
+
 /** AilmentState.planTick の計画（検証済み。commitTick で反映する）。 */
 export interface AilmentTickPlan {
   readonly dt: number;
@@ -339,9 +347,29 @@ export class AilmentState {
    * 入力は resolveMaxStacks で定義と突き合わせ、不正なら状態を変えずに例外にする。
    */
   apply(app: AilmentApplication): void {
+    this.commitApply(this.planApply(app));
+  }
+
+  /**
+   * apply の入力の検証（定義との突き合わせ・最大スタック・付与できる種類）だけを行い、
+   * 計画として返す（状態は変えない）。不正なら例外。計画は commitApply で反映する。
+   * resolveHit が、HP・崩しゲージなど他の計算と合わせて、全て検証してから反映するのに使う。
+   */
+  planApply(app: AilmentApplication): AilmentApplyPlan {
     const def = this.defs.get(app.ailmentId);
     if (def === undefined) throw new Error(`状態異常 ${app.ailmentId} はデータにない`);
     const max = resolveMaxStacks(def, app);
+    if (def.kind !== "debuff" && def.kind !== "dot")
+      throw new Error(`状態異常 ${def.id}（${def.kind}）はヒットでは付与できない`);
+    return { def, app, max };
+  }
+
+  /**
+   * planApply の計画を反映する。検証済みの値による付与だけで、例外は起きない。
+   * 付与の結果は、反映する時点の状態異常に対して決まる（同じ種類を続けて付与してよい）。
+   */
+  commitApply(plan: AilmentApplyPlan): void {
+    const { def, app, max } = plan;
     if (def.kind === "debuff") {
       // 重ね掛けはせず、持続を新しくする
       const current = this.debuffs.get(def.id);
@@ -349,8 +377,6 @@ export class AilmentState {
       this.debuffs.set(def.id, { def, remainingTime: time });
       return;
     }
-    if (def.kind !== "dot")
-      throw new Error(`状態異常 ${def.id}（${def.kind}）はヒットでは付与できない`);
     const list = this.dots.get(def.id) ?? [];
     const instance: DotInstance = {
       def,
@@ -586,26 +612,63 @@ export class StaggerGauge {
 
   /** 崩し値を加える。崩れた場合は true を返す。崩れている間は溜まらない。 */
   add(amount: number): boolean {
+    const plan = this.planAdd(amount);
+    this.commitAdd(plan);
+    return plan.broke;
+  }
+
+  /**
+   * add の計算と検証だけを行い、次の状態を計画として返す（状態は変えない）。
+   * - 崩し値が0以上の有限の数でなければ RangeError
+   * - ゲージの値・崩れた後の次の最大値が有限でなければ RangeError
+   * 計画は commitAdd で反映する。
+   */
+  planAdd(amount: number): StaggerAddPlan {
     if (!(Number.isFinite(amount) && amount >= 0))
       throw new RangeError(`崩し値は有限かつ0以上（${String(amount)}）`);
-    if (amount === 0 || this.broken) return false;
+    const unchanged = {
+      value: this.value,
+      sinceLast: this.sinceLast,
+      brokenFor: this.brokenFor,
+      breakCount: this.breakCount,
+      broke: false,
+    };
+    if (amount === 0 || this.broken) return unchanged;
     const value = requireFinite(this.value + amount, () => "崩しゲージの値");
-    const breaking = value >= this.max;
+    if (value < this.max) return { ...unchanged, value, sinceLast: 0 };
     // 崩れる場合は、次の最大値も有限であることを、状態を変える前に確かめる
-    if (breaking) this.maxAt(this.breakCount + 1);
-    this.sinceLast = 0;
-    this.value = value;
-    if (!breaking) return false;
-    this.value = 0;
-    this.brokenFor = this.profile.breakDuration;
-    this.breakCount += 1;
-    return true;
+    this.maxAt(this.breakCount + 1);
+    return {
+      value: 0,
+      sinceLast: 0,
+      brokenFor: this.profile.breakDuration,
+      breakCount: this.breakCount + 1,
+      broke: true,
+    };
+  }
+
+  /**
+   * planAdd の計画を反映する。検証済みの値の代入だけで、例外は起きない。
+   * 計画を作ってから反映するまでの間に、このゲージを変えてはならない（update など）。
+   */
+  commitAdd(plan: StaggerAddPlan): void {
+    this.value = plan.value;
+    this.sinceLast = plan.sinceLast;
+    this.brokenFor = plan.brokenFor;
+    this.breakCount = plan.breakCount;
   }
 
   /** すぐに崩す（激化した突進「通った敵を全て崩す」。補助仕様書3.6）。崩れている間は何もしない。 */
   breakNow(): boolean {
-    if (this.broken) return false;
-    return this.add(Math.max(this.max - this.value, 1e-9));
+    const plan = this.planBreakNow();
+    this.commitAdd(plan);
+    return plan.broke;
+  }
+
+  /** breakNow の計算と検証だけを行い、次の状態を計画として返す（状態は変えない）。反映は commitAdd。 */
+  planBreakNow(): StaggerAddPlan {
+    if (this.broken) return this.planAdd(0);
+    return this.planAdd(Math.max(this.max - this.value, 1e-9));
   }
 
   /**
@@ -654,6 +717,16 @@ export class StaggerGauge {
     this.brokenFor = plan.brokenFor;
     this.value = plan.value;
   }
+}
+
+/** StaggerGauge.planAdd の計画（検証済みの次の状態。commitAdd で反映する）。 */
+export interface StaggerAddPlan {
+  readonly value: number;
+  readonly sinceLast: number;
+  readonly brokenFor: number;
+  readonly breakCount: number;
+  /** この崩し値で崩れる。 */
+  readonly broke: boolean;
 }
 
 /** StaggerGauge.planUpdate の計画（検証済みの次の状態。commitUpdate で反映する）。 */

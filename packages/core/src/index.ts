@@ -127,10 +127,12 @@ export {
   resolveMaxStacks,
   validateAilmentApplication,
   type AilmentApplication,
+  type AilmentApplyPlan,
   type AilmentCandidate,
   type AilmentRollInput,
   type AilmentTickPlan,
   type AilmentTickTarget,
+  type StaggerAddPlan,
   type StaggerUpdatePlan,
 } from "./combat/ailments.ts";
 
