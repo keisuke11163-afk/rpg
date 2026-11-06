@@ -622,3 +622,290 @@ describe("一定時間の効果と、受ける側の倍率", () => {
     expect(view.stat("STAT-DAMAGE", ["TAG-FORM-MELEE"]).increased).toBeCloseTo(0.15);
   });
 });
+
+/**
+ * 時間を進める処理の検証（PR #11 のレビュー指摘 P2）。
+ * ActionTimeline.update と同じく、経過時間は0以上の有限の数だけを受け付け、
+ * NaN・負の数・無限大は状態を変える前に RangeError にする。
+ */
+describe("時間を進める処理は、0以上の有限の数だけを受け付ける", () => {
+  const INVALID = [Infinity, -Infinity, NaN, -1, -FIXED_STEP_SECONDS, -Number.MIN_VALUE];
+  const d = db();
+  const tags = new TagIndex(d.tags);
+  const resolve = (id: string, weapon: string, stages: string[] = []): ResolvedSkill =>
+    resolveSkill(d, skill(d, id), { stages, weaponTags: tags.closure([weapon]) });
+  const origin = { x: 0, y: 0 };
+  /** 非公開の状態を読む（テスト専用。例外の前後で変わっていないことを確かめる）。 */
+  const internal = (o: object, keys: readonly string[]): Record<string, unknown> => {
+    const r = o as Record<string, unknown>;
+    return Object.fromEntries(keys.map((k) => [k, r[k]]));
+  };
+
+  describe("JobGauge.update", () => {
+    const gauge = (): JobGauge => {
+      const g = new JobGauge(gaugeDef());
+      g.add(40);
+      g.markCombat();
+      g.update(2); // 戦闘中（最後の攻撃から2秒）
+      return g;
+    };
+    const state = (g: JobGauge) => ({
+      value: g.value,
+      inCombat: g.inCombat,
+      stages: g.stages,
+      ...internal(g, ["v", "idle"]),
+    });
+
+    it.each(INVALID)("%s は RangeError で、値・戦闘状態は変わらない", (dt) => {
+      const g = gauge();
+      const before = state(g);
+      expect(() => {
+        g.update(dt);
+      }).toThrow(RangeError);
+      expect(state(g)).toEqual(before);
+      // その後も、例外がなかったときと同じに進む
+      const twin = gauge();
+      g.update(4);
+      twin.update(4);
+      expect(state(g)).toEqual(state(twin));
+      expect(g.value).toBeCloseTo(35); // 5秒で戦闘外、その後1秒で-5
+    });
+
+    it("0は何も変えない。有限の数では従来どおり減る", () => {
+      const g = gauge();
+      const before = state(g);
+      g.update(0);
+      expect(state(g)).toEqual(before);
+      g.update(2.9);
+      expect(g.inCombat).toBe(true);
+      expect(g.value).toBe(40);
+      g.update(1.1);
+      expect(g.inCombat).toBe(false);
+      expect(g.value).toBeCloseTo(35);
+    });
+  });
+
+  describe("TimedEffects.update", () => {
+    const effects = (): TimedEffects => {
+      const s = new TimedEffects();
+      s.add("EFF-T-INTIM", 2, "a");
+      s.add("EFF-T-GUARD", 8, "b");
+      return s;
+    };
+    const state = (s: TimedEffects) => ({
+      version: s.version,
+      active: s.active.map((e) => ({ ...e })),
+    });
+
+    it.each(INVALID)("%s は RangeError で、残りの時間・効果の一覧は変わらない", (dt) => {
+      const s = effects();
+      const before = state(s);
+      expect(() => {
+        s.update(dt);
+      }).toThrow(RangeError);
+      expect(state(s)).toEqual(before);
+      expect(s.has("EFF-T-INTIM")).toBe(true);
+      expect(s.remaining("EFF-T-GUARD")).toBe(8);
+    });
+
+    it("0は何も変えない。有限の数では従来どおり減り、切れたものだけ取り除く", () => {
+      const s = effects();
+      const before = state(s);
+      s.update(0);
+      expect(state(s)).toEqual(before);
+      s.update(2);
+      expect(s.has("EFF-T-INTIM")).toBe(false);
+      expect(s.remaining("EFF-T-GUARD")).toBe(6);
+      expect(s.version).toBe(before.version + 1);
+    });
+  });
+
+  describe("Cooldowns.update", () => {
+    it.each(INVALID)("%s は RangeError で、残りの時間は変わらない", (dt) => {
+      const cd = new Cooldowns();
+      cd.start("A", 1);
+      cd.start("B", 3);
+      expect(() => {
+        cd.update(dt);
+      }).toThrow(RangeError);
+      expect(cd.remaining("A")).toBe(1);
+      expect(cd.remaining("B")).toBe(3);
+    });
+
+    it("0は何も変えない。有限の数では従来どおり減る", () => {
+      const cd = new Cooldowns();
+      cd.start("A", 1);
+      cd.update(0);
+      expect(cd.remaining("A")).toBe(1);
+      cd.update(0.25);
+      expect(cd.remaining("A")).toBeCloseTo(0.75);
+      cd.update(1);
+      expect(cd.remaining("A")).toBe(0);
+    });
+  });
+
+  describe("SkillExecution.update", () => {
+    const KEYS = ["elapsed", "hitTimer", "mpTimer", "finishedFlag"];
+    const state = (e: SkillExecution) => ({
+      finished: e.finished,
+      activePhase: e.activePhase,
+      ...internal(e, KEYS),
+      timeline:
+        (e as unknown as { timeline?: object }).timeline === undefined
+          ? undefined
+          : internal((e as unknown as { timeline: object }).timeline, [
+              "elapsed",
+              "activeFired",
+              "finishedFired",
+            ]),
+    });
+    const tick = (e: SkillExecution, dt: number, mp = 100, held = true) =>
+      e.update(dt, { position: origin, held, mp });
+    const summary = (t: ReturnType<SkillExecution["update"]>) => ({
+      strikes: t.strikes.length,
+      displacement: t.displacement,
+      mpCost: t.mpCost,
+      zones: t.zones.length,
+      finished: t.finished,
+      warcry: t.warcry !== undefined,
+    });
+    const CASES: [string, () => SkillExecution][] = [
+      [
+        "当たり判定（strike）",
+        () => new SkillExecution(resolve("SKL-T-SWEEP", "TAG-WPN-SWORD"), 0, 1),
+      ],
+      ["戦吼（warcry）", () => new SkillExecution(resolve("SKL-T-CRY", "TAG-WPN-SWORD"), 0, 1)],
+      ["突進（dash）", () => new SkillExecution(resolve("SKL-T-DASH", "TAG-WPN-SWORD"), 0, 1)],
+      ["旋風（channel）", () => new SkillExecution(resolve("SKL-T-SPIN", "TAG-WPN-SWORD"), 0, 1)],
+    ];
+
+    describe.each(CASES)("%s", (_name, make) => {
+      it.each(INVALID)("%s は RangeError で、実行の状態は変わらない（始める前・途中）", (dt) => {
+        for (const warmup of [0, 6]) {
+          const e = make();
+          const twin = make();
+          for (let i = 0; i < warmup; i++) {
+            tick(e, FIXED_STEP_SECONDS);
+            tick(twin, FIXED_STEP_SECONDS);
+          }
+          const before = state(e);
+          expect(() => tick(e, dt)).toThrow(RangeError);
+          expect(state(e)).toEqual(before);
+          // その後も、例外がなかったときと同じに進む
+          for (let i = 0; i < 90; i++) {
+            expect(summary(tick(e, FIXED_STEP_SECONDS))).toEqual(
+              summary(tick(twin, FIXED_STEP_SECONDS)),
+            );
+          }
+          expect(state(e)).toEqual(state(twin));
+        }
+      });
+
+      it.each(INVALID)("%s は、終わった後でも RangeError", (dt) => {
+        const e = make();
+        tick(e, FIXED_STEP_SECONDS, 100, false);
+        for (let i = 0; i < 120 && !e.finished; i++) tick(e, FIXED_STEP_SECONDS);
+        if (!e.finished) tick(e, FIXED_STEP_SECONDS, 100, false);
+        expect(e.finished).toBe(true);
+        const before = state(e);
+        expect(() => tick(e, dt)).toThrow(RangeError);
+        expect(state(e)).toEqual(before);
+      });
+
+      it("0は時間を進めず（旋風は始めた瞬間の分だけ払う）、合計は従来どおり", () => {
+        const total = (ticks: ReturnType<SkillExecution["update"]>[]) => ({
+          strikes: ticks.reduce((n, t) => n + t.strikes.length, 0),
+          mpCost: ticks.reduce((n, t) => n + t.mpCost, 0),
+          moved: ticks.reduce((n, t) => n + Math.hypot(t.displacement.x, t.displacement.y), 0),
+          warcries: ticks.filter((t) => t.warcry !== undefined).length,
+          finishedAt: ticks.findIndex((t) => t.finished),
+        });
+        const e = make();
+        const twin = make();
+        const zero = tick(e, 0);
+        expect(zero.finished).toBe(false);
+        expect(Math.hypot(zero.displacement.x, zero.displacement.y)).toBe(0);
+        const a = [zero];
+        const b = [];
+        for (let i = 0; i < 90; i++) {
+          a.push(tick(e, FIXED_STEP_SECONDS));
+          b.push(tick(twin, FIXED_STEP_SECONDS));
+        }
+        const ta = total(a);
+        const tb = total(b);
+        expect({ ...ta, moved: undefined, finishedAt: undefined }).toEqual({
+          ...tb,
+          moved: undefined,
+          finishedAt: undefined,
+        });
+        expect(ta.moved).toBeCloseTo(tb.moved);
+        // 0の1回の分だけ、終わる刻みの番号が1つずれる
+        expect(ta.finishedAt).toBe(tb.finishedAt === -1 ? -1 : tb.finishedAt + 1);
+      });
+    });
+
+    it("離した瞬間でも、不正な経過時間は終わらせずに RangeError", () => {
+      const e = new SkillExecution(resolve("SKL-T-SPIN", "TAG-WPN-SWORD"), 0, 1);
+      const before = state(e);
+      expect(() => tick(e, NaN, 100, false)).toThrow(RangeError);
+      expect(state(e)).toEqual(before);
+      expect(e.finished).toBe(false);
+    });
+
+    it("突進は、大きな有限の経過時間でも決まった距離だけ進んで終わる", () => {
+      const e = new SkillExecution(resolve("SKL-T-DASH", "TAG-WPN-SWORD"), 0, 1);
+      const t = tick(e, 10);
+      expect(Math.hypot(t.displacement.x, t.displacement.y)).toBeCloseTo(8);
+      expect(t.finished).toBe(true);
+    });
+  });
+
+  describe("LingeringZone.update", () => {
+    const zone = (): LingeringZone => {
+      const exec = new SkillExecution(resolve("SKL-T-SPLIT", "TAG-WPN-GREAT", ["empowered"]), 0, 1);
+      for (let i = 0; i < 120; i++) {
+        const t = exec.update(FIXED_STEP_SECONDS, { position: origin, held: true, mp: 100 });
+        const z = t.zones[0];
+        if (z !== undefined) return z;
+      }
+      throw new Error("亀裂が出ない");
+    };
+    const state = (z: LingeringZone) => ({
+      done: z.done,
+      remaining: z.remaining,
+      ...internal(z, ["elapsed", "fired"]),
+    });
+
+    it.each(INVALID)("%s は RangeError で、経過時間・発動回数は変わらない", (dt) => {
+      for (const warmup of [0, 70]) {
+        const z = zone();
+        const twin = zone();
+        for (let i = 0; i < warmup; i++) {
+          z.update(FIXED_STEP_SECONDS);
+          twin.update(FIXED_STEP_SECONDS);
+        }
+        const before = state(z);
+        expect(() => z.update(dt)).toThrow(RangeError);
+        expect(state(z)).toEqual(before);
+        const pulses: string[] = [];
+        const twinPulses: string[] = [];
+        for (let i = 0; i < 180; i++) {
+          pulses.push(...z.update(FIXED_STEP_SECONDS).map((s) => s.group ?? ""));
+          twinPulses.push(...twin.update(FIXED_STEP_SECONDS).map((s) => s.group ?? ""));
+        }
+        expect(pulses).toEqual(twinPulses);
+        expect(state(z)).toEqual(state(twin));
+      }
+    });
+
+    it("0は何も変えない。有限の数では従来どおり1秒ごとに発動する", () => {
+      const z = zone();
+      const before = state(z);
+      expect(z.update(0)).toEqual([]);
+      expect(state(z)).toEqual(before);
+      expect(z.update(1).map((s) => s.group)).toEqual(["pulse1", "pulse1"]);
+      expect(z.update(1).map((s) => s.group)).toEqual(["pulse2", "pulse2"]);
+      expect(z.done).toBe(true);
+    });
+  });
+});

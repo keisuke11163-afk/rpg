@@ -113,7 +113,10 @@ export class LingeringZone {
     return Math.max(0, this.duration - this.elapsed);
   }
 
+  /** 時間を進め、この間に発動した当たり判定を返す。経過時間が0以上の有限の数でなければ、状態を変えずに RangeError。 */
   update(dt: number): Strike[] {
+    // 状態を変える前に検証する（NaN・負の数・無限大を受け付けない。ActionTimeline.update と同じ）
+    if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
     const out: Strike[] = [];
     this.elapsed += dt;
     while (this.fired < this.total && this.elapsed >= (this.fired + 1) * this.interval - 1e-9) {
@@ -160,7 +163,13 @@ export class SkillExecution {
     return !this.finishedFlag;
   }
 
+  /**
+   * 時間を進める。経過時間が0以上の有限の数でなければ、状態を変えずに RangeError
+   * （終わった後・離した瞬間・突進・旋風を含む、全ての種類で同じ）。
+   */
   update(dt: number, input: ExecutionInput): ExecutionTick {
+    // 状態を変える前に検証する（NaN・負の数・無限大を受け付けない。ActionTimeline.update と同じ）
+    if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
     const empty = {
       strikes: [] as Strike[],
       displacement: ZERO,
