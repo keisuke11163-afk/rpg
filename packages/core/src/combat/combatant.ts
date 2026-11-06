@@ -195,7 +195,15 @@ export interface HitReport {
   readonly staggerBroke: boolean;
 }
 
-/** ヒットを解決する：ダメージ → HP（魔障が先）→ 状態異常 → 崩し。 */
+/**
+ * ヒットを解決する：ダメージ → HP（魔障が先）→ 状態異常 → 崩し。
+ *
+ * 例外安全：全ての計算と検証（ダメージ・HPと魔障・状態異常の判定と付与の入力・崩し値・崩しゲージ）を、
+ * 状態を変えない計画（Health.planUpdate・AilmentState.planApply・StaggerGauge.planAdd）として先に行い、
+ * 全て成功してから反映する（Combatant.update と同じ形）。反映は検証済みの値による代入だけで、例外は起きない。
+ * そのため、途中のどこで例外になっても、受ける側の HP・魔障・状態異常・崩しゲージは何も変わらない。
+ * （乱数は、従来どおりダメージ → 状態異常の順に消費する。例外のときも消費した分は戻らない）
+ */
 export function resolveHit(input: HitInput): HitReport {
   const { db, attacker, skill, target, rng } = input;
   const backstab =
@@ -211,7 +219,9 @@ export function resolveHit(input: HitInput): HitReport {
     },
     { rng, ...(input.roll === undefined ? {} : { roll: input.roll }) },
   );
-  const applied = target.health.takeDamage(hit.total);
+  // 1. 計算と検証（受ける側の状態は変えない）
+  // 経過時間0で進めるのは、takeDamage(hit.total) と同じ結果（Health.planUpdate を参照）
+  const health = target.health.planUpdate(0, hit.total);
   const tags = [...skill.tags, ...(skill.kind === "weapon" ? (attacker.weapon?.tags ?? []) : [])];
   const weaponUid = attacker.weapon?.uid;
   const ailments = rollAilments({
@@ -223,7 +233,7 @@ export function resolveHit(input: HitInput): HitReport {
     ...(weaponUid === undefined ? {} : { weaponUid }),
     rng,
   });
-  for (const a of ailments) target.ailments.apply(a);
+  const ailmentPlans = ailments.map((a) => target.ailments.planApply(a));
   const value = staggerValue({
     db,
     view: attacker.view,
@@ -233,17 +243,22 @@ export function resolveHit(input: HitInput): HitReport {
     ...(weaponUid === undefined ? {} : { weaponUid }),
   });
   const scaled = value * target.receivedMultipliers().stagger;
-  const staggerBroke =
+  // 激化した突進は、当たれば崩しゲージを満タンにする（それ以外は、受ける崩し値の倍率をかけて加える）
+  const stagger =
     input.fullStagger === true && !hit.evaded
-      ? target.stagger.breakNow()
-      : target.stagger.add(scaled);
+      ? target.stagger.planBreakNow()
+      : target.stagger.planAdd(scaled);
+  // 2. 反映（検証済みの値による代入だけで、例外は起きない）
+  target.health.commitUpdate(health);
+  for (const plan of ailmentPlans) target.ailments.commitApply(plan);
+  target.stagger.commitAdd(stagger);
   return {
     targetId: target.id,
     hit,
     backstab,
-    applied,
+    applied: health.applied,
     ailments,
     staggerValue: scaled,
-    staggerBroke,
+    staggerBroke: stagger.broke,
   };
 }
