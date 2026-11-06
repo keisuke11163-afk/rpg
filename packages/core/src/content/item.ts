@@ -76,6 +76,41 @@ const rangeSchema = z
 export const ARMOR_TYPES = ["heavy", "light", "robe"] as const;
 export type ArmorType = (typeof ARMOR_TYPES)[number];
 
+/**
+ * ユニークの潜在効果の発動条件（仕様書v0.2 3.7 の原則3：他のシステムが条件）。
+ * pending は、参照するデータ（星座・天極・職紋盤など）がまだ無いもの（参照を検証しない。満たされない）。
+ */
+export const latentConditionSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("constellation"),
+    id: idSchema,
+    pending: z.boolean().optional(),
+  }),
+  z.strictObject({ type: z.literal("starNode"), id: idSchema, pending: z.boolean().optional() }),
+  z.strictObject({ type: z.literal("jobNode"), id: idSchema, pending: z.boolean().optional() }),
+  z.strictObject({ type: z.literal("jobMastery"), id: idSchema, pending: z.boolean().optional() }),
+  z.strictObject({ type: z.literal("mainJob"), job: idSchema }),
+  z.strictObject({ type: z.literal("enhanceAtLeast"), value: z.number().int().min(1).max(10) }),
+]);
+export type LatentCondition = z.infer<typeof latentConditionSchema>;
+
+/** ユニーク（仕様書v0.2 3.7）。ベースごとに1つのユニーク（ユニークは専用のベースとして持つ）。 */
+export const uniqueSchema = z.strictObject({
+  /** 固有効果（出どころは unique。武器なら局所）。 */
+  effects: z.array(idSchema).min(1),
+  /** 潜在効果（条件を満たすと働く。初めて満たすまでは「？？？」）。 */
+  latent: z.strictObject({
+    text: textKeySchema,
+    effects: z.array(idSchema),
+    condition: latentConditionSchema,
+  }),
+  /** 入手先：どこでも（通常の抽選）か、専用（ボスのドロップと討伐の祭壇だけ）。 */
+  source: z.enum(["anywhere", "exclusive"]),
+  /** 固有効果の説明。 */
+  description: textKeySchema,
+});
+export type UniqueDef = z.infer<typeof uniqueSchema>;
+
 /** アイテムのベース（開発計画書6.5、仕様書v0.2 3.2〜3.4、補助仕様書14章）。 */
 export const itemBaseSchema = z.strictObject({
   id: idSchema,
@@ -116,6 +151,8 @@ export const itemBaseSchema = z.strictObject({
   shield: z.strictObject({ guard: z.number().min(0).max(1) }).optional(),
   /** 基本刻印・武器としての特性（効果のID。出どころは implicit）。 */
   implicitEffects: z.array(idSchema).optional(),
+  /** ユニークの専用のベース（通常の抽選のベースには含めない）。 */
+  unique: uniqueSchema.optional(),
   ...provisionalFields,
 });
 export type ItemBaseDef = z.infer<typeof itemBaseSchema>;

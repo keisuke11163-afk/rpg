@@ -1,5 +1,5 @@
 import { ELEMENTS, type Element } from "../content/effect.ts";
-import type { ArmorType } from "../content/item.ts";
+import type { ArmorType, LatentCondition } from "../content/item.ts";
 import type { Affinity, JobDef } from "../content/job.ts";
 import type { ContentDb } from "../content/load.ts";
 import {
@@ -109,6 +109,37 @@ export interface CharacterSheet {
   readonly moveSpeed: number;
   /** 統一ボーナスの防具種（4部位以上。仕様書v0.2 3.3）。 */
   readonly uniform: ArmorType | undefined;
+  /** 装備しているユニークの潜在効果と、条件を満たしているか（仕様書v0.2 3.7）。 */
+  readonly latents: readonly {
+    readonly uid: string;
+    readonly base: string;
+    readonly active: boolean;
+  }[];
+}
+
+/** 潜在効果の条件を満たしているか（星座・星辰盤のノード・メインジョブ・強化値。職紋盤は U-15 の後）。 */
+export function latentConditionMet(
+  cond: LatentCondition,
+  ctx: {
+    readonly board: StarBoardResult | undefined;
+    readonly mainJobTag: string;
+    readonly enhance: number;
+  },
+): boolean {
+  switch (cond.type) {
+    case "constellation":
+      return cond.pending !== true && (ctx.board?.constellations.includes(cond.id) ?? false);
+    case "starNode":
+      return cond.pending !== true && (ctx.board?.active.includes(cond.id) ?? false);
+    case "jobNode":
+    case "jobMastery":
+      // 職紋盤（U-15）がまだ無いので、満たされない
+      return false;
+    case "mainJob":
+      return ctx.mainJobTag === cond.job;
+    case "enhanceAtLeast":
+      return ctx.enhance >= cond.value;
+  }
 }
 
 /** キャラクターの能力値を計算する（装備・能力値・一時的な効果を、効果の評価にまとめて渡す）。 */
@@ -160,10 +191,31 @@ export function buildCharacterSheet(
       source: { kind: "attribute", ref: k },
       stacks: attributes[k],
     }));
+  // ユニークの潜在効果：条件を満たしたものだけ効く
+  const latents: { uid: string; base: string; active: boolean }[] = [];
+  const latentEffects: EffectInstance[] = [];
+  for (const [, item] of equipment?.entries() ?? []) {
+    const u = db.itemBases.get(item.base)?.unique;
+    if (u === undefined) continue;
+    const active = latentConditionMet(u.latent.condition, {
+      board,
+      mainJobTag: job.tag,
+      enhance: item.enhance ?? 0,
+    });
+    latents.push({ uid: item.uid, base: item.base, active });
+    if (active)
+      for (const effectId of u.latent.effects)
+        latentEffects.push({ effectId, source: { kind: "equipment", ref: item.uid } });
+  }
   const evaluated = evaluateEffects(
     db,
     tags,
-    [...unconditional, ...attributeEffects, ...(equipment?.defenseEffects(attributes) ?? [])],
+    [
+      ...unconditional,
+      ...attributeEffects,
+      ...(equipment?.defenseEffects(attributes) ?? []),
+      ...latentEffects,
+    ],
     facts,
   );
   const view = evaluated.view;
@@ -221,6 +273,7 @@ export function buildCharacterSheet(
     },
     moveSpeed: Math.max(MIN_MOVE_SPEED_FACTOR, 1 + view.stat("STAT-MOVE-SPEED").increased),
     uniform: equipment?.uniformType(),
+    latents,
   };
 }
 

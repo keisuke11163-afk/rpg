@@ -273,5 +273,77 @@
     "text": "stat.life-leech",
     "unit": "ratio",
     "min": 0
+  },
+  {
+    "id": "STAT-UNQ-STRIDE-CDR",
+    "text": "stat.unq-stride-cdr",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-CRIT-TO-DAMAGE",
+    "text": "stat.unq-crit-to-damage",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-STILL-ARMOR",
+    "text": "stat.unq-still-armor",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-RETALIATE-POISON",
+    "text": "stat.unq-retaliate-poison",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BLEED-TRANSFER",
+    "text": "stat.unq-bleed-transfer",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BREAK-FERVOR",
+    "text": "stat.unq-break-fervor",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BREAK-SPREAD",
+    "text": "stat.unq-break-spread",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BEHIND-GUARD",
+    "text": "stat.unq-behind-guard",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-MOVE-BACKSTAB",
+    "text": "stat.unq-move-backstab",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-SPLIT-HIT",
+    "text": "stat.unq-split-hit",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-POISON-AMP",
+    "text": "stat.unq-poison-amp",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-POISON-AMP-CAP",
+    "text": "stat.unq-poison-amp-cap",
+    "unit": "ratio",
+    "min": 0
   }
 ]

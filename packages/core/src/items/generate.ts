@@ -193,10 +193,10 @@ export function itemEffectInstances(db: ContentDb, item: ItemInstance): EffectIn
   const base = db.itemBases.get(item.base);
   if (base === undefined) throw new RangeError(`ベース ${item.base} が無い`);
   const source = { kind: EQUIPMENT_SOURCE, ref: item.uid };
-  const out: EffectInstance[] = (base.implicitEffects ?? []).map((effectId) => ({
-    effectId,
-    source,
-  }));
+  const out: EffectInstance[] = [
+    ...(base.implicitEffects ?? []),
+    ...(base.unique?.effects ?? []),
+  ].map((effectId) => ({ effectId, source }));
   for (const rolled of item.affixes) {
     const affix = db.affixes.get(rolled.id);
     if (affix === undefined) throw new RangeError(`詞 ${rolled.id} が無い`);

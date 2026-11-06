@@ -168,6 +168,13 @@ export const enemySchema = z.strictObject({
       aggroRange: z.number().positive(),
       /** 倒すたびに得る討伐証（仕様書v0.2 3.12。腐根の母樹と深淵の母樹は共通の討伐証）。 */
       tokens: z.strictObject({ id: idSchema, count: z.number().int().positive() }),
+      /**
+       * 専用ユニーク（仕様書v0.2 3.12）：候補のベース・2回目以降に落とす確率（初回は確定）。
+       * 討伐の祭壇では、同じ討伐証のボスの候補から選んで交換できる。
+       */
+      uniques: z
+        .strictObject({ pool: z.array(idSchema).min(1), repeatChance: z.number().min(0).max(1) })
+        .optional(),
       /** 初めて倒したときに自動で得る隠し星（補助仕様書9.5）。 */
       firstKillSecret: z
         .strictObject({ id: idSchema, explorationPoints: z.number().int().positive() })

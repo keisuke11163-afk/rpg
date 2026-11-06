@@ -73,6 +73,8 @@ import {
   skillBlock,
   staggerProfiles,
   UNIFORM_EFFECTS,
+  ALTAR_TOKEN_COST,
+  uniqueItem,
   FLASK_FILL,
   FLASK_RULES,
   Flask,
@@ -641,6 +643,28 @@ export class ArenaSimulation {
       this.motion.position,
       "#ffd166",
     );
+    // 専用ユニーク（仕様書v0.2 3.12）：初回は確定、2回目以降は確率で1つ
+    const pool = boss.uniques;
+    if (pool !== undefined && (kills === 1 || this.dropRng.chance(pool.repeatChance))) {
+      const base = this.db.itemBases.get(this.dropRng.pick(pool.pool));
+      if (base !== undefined)
+        this.loot.place(
+          {
+            itemLevel: enemy.level + 4,
+            items: [
+              uniqueItem(
+                base,
+                `itm_${String(++this.itemSerial).padStart(6, "0")}`,
+                enemy.level + 4,
+              ),
+            ],
+            jobTargeted: [false],
+            gold: 0,
+            materials: [],
+          },
+          enemy.position,
+        );
+    }
     const secret = boss.firstKillSecret;
     if (secret !== undefined && !this.secretsFound.has(secret.id)) {
       this.secretsFound.add(secret.id);
@@ -653,6 +677,39 @@ export class ArenaSimulation {
       );
     }
     this.autosave.notify("bossKill");
+  }
+
+  /** 討伐の祭壇で交換できる専用ユニーク（討伐証の種類ごとに、その討伐証を落とすボスの候補）。 */
+  altarCandidates(): { readonly token: string; readonly bases: readonly string[] }[] {
+    const byToken = new Map<string, Set<string>>();
+    for (const e of this.db.enemies.values()) {
+      const b = e.boss;
+      if (b?.uniques === undefined) continue;
+      const set = byToken.get(b.tokens.id) ?? new Set<string>();
+      for (const id of b.uniques.pool) set.add(id);
+      byToken.set(b.tokens.id, set);
+    }
+    return [...byToken].map(([token, bases]) => ({ token, bases: [...bases] }));
+  }
+
+  /**
+   * 討伐の祭壇で、討伐証10個を専用ユニーク1つと交換する（町だけ。仕様書v0.2 3.12）。
+   * 討伐証が足りない・候補に無い・インベントリがいっぱいなら、何も変えずに false。
+   */
+  exchangeAtAltar(baseId: string): boolean {
+    if (!this.inTown || this.inventory.full) return false;
+    const entry = this.altarCandidates().find((c) => c.bases.includes(baseId));
+    const base = this.db.itemBases.get(baseId);
+    if (entry === undefined || base === undefined) return false;
+    const have = this.bossTokens.get(entry.token) ?? 0;
+    if (have < ALTAR_TOKEN_COST) return false;
+    this.bossTokens.set(entry.token, have - ALTAR_TOKEN_COST);
+    const level = Math.max(base.requiredLevel, this.character.level);
+    this.inventory.addItem(
+      uniqueItem(base, `itm_${String(++this.itemSerial).padStart(6, "0")}`, level),
+    );
+    this.autosave.notify("trade");
+    return true;
   }
 
   /** 出口が開いているか（requires の敵を一度でも倒したか。A5 は母樹の初回撃破で開く）。 */

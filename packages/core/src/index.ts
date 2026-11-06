@@ -283,6 +283,7 @@ export {
   type SheetWeapon,
   buildCharacterSheet,
   BASE_WARD_DELAY,
+  latentConditionMet,
   sheetRows,
 } from "./character/sheet.ts";
 
@@ -293,6 +294,8 @@ export {
   BASE_CATEGORIES,
   ARMOR_TYPES,
   type ArmorType,
+  type LatentCondition,
+  type UniqueDef,
   DROP_SOURCES,
   ITEM_RARITIES,
   RARE_OR_BETTER,
@@ -330,8 +333,11 @@ export {
   type DropResult,
   dropItemLevel,
   droppableBases,
+  droppableUniques,
   jobTargetedBases,
   rollDrops,
+  uniqueItem,
+  ALTAR_TOKEN_COST,
 } from "./items/drops.ts";
 export { INVENTORY_SLOTS, Inventory } from "./items/inventory.ts";
 export {

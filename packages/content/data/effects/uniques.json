@@ -1,0 +1,290 @@
+[
+  {
+    "id": "EFF-UNQ-U02-MOVE",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.12
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-UNQ-U02-STRIDE",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-STRIDE-CDR",
+        "value": 0.3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 の値（仮値）。挙動はゲームのルールフックで扱う（docs/progress U-16）"
+  },
+  {
+    "id": "EFF-UNQ-U02-LATENT",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-STRIDE-CDR",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-UNQ-U03-PENALTY",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "more",
+        "stat": "STAT-DAMAGE",
+        "value": 0.6
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-UNQ-U03-BLEED",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "flag",
+        "flag": "ailmentApply",
+        "mode": "force",
+        "target": "TAG-AIL-BLEED"
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-UNQ-U03-STACKS",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-MAX-STACKS",
+        "value": 4,
+        "filter": {
+          "allOf": ["TAG-AIL-BLEED"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-UNQ-U06-SURE",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "flag",
+        "flag": "alwaysHit",
+        "mode": "force"
+      },
+      {
+        "kind": "flag",
+        "flag": "crit",
+        "mode": "forbid"
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-UNQ-U06-INSIGHT",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-CRIT-TO-DAMAGE",
+        "value": 0.5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 の値（仮値）。挙動はゲームのルールフックで扱う（docs/progress U-16）"
+  },
+  {
+    "id": "EFF-UNQ-U13-BARK",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-STILL-ARMOR",
+        "value": 0.1
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-RETALIATE-POISON",
+        "value": 0.3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 の値（仮値）。挙動はゲームのルールフックで扱う（docs/progress U-16）"
+  },
+  {
+    "id": "EFF-UNQ-U14-FANG",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-BLEED-TRANSFER",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 の値（仮値）。挙動はゲームのルールフックで扱う（docs/progress U-16）"
+  },
+  {
+    "id": "EFF-UNQ-U15-RING",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-BREAK-FERVOR",
+        "value": 3
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-BREAK-SPREAD",
+        "value": 0.3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 の値（仮値）。挙動はゲームのルールフックで扱う（docs/progress U-16）"
+  },
+  {
+    "id": "EFF-UNQ-U16-CLOAK",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-BEHIND-GUARD",
+        "value": 0.15
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-MOVE-BACKSTAB",
+        "value": 2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 の値（仮値）。挙動はゲームのルールフックで扱う（docs/progress U-16）"
+  },
+  {
+    "id": "EFF-UNQ-U17-FORK",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-SPLIT-HIT",
+        "value": 0.5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "locality": "local",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 の値（仮値）。挙動はゲームのルールフックで扱う（docs/progress U-16）"
+  },
+  {
+    "id": "EFF-UNQ-U18-CROWN",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-POISON-AMP",
+        "value": 0.04
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-POISON-AMP-CAP",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 の値（仮値）。挙動はゲームのルールフックで扱う（docs/progress U-16）"
+  },
+  {
+    "id": "EFF-UNQ-U18-LATENT",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-UNQ-POISON-AMP-CAP",
+        "value": 0.1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  }
+]

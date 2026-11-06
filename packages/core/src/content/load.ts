@@ -990,7 +990,51 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
           message: `基本刻印の効果 ${e} の出どころが implicit ではない（${def.origin}）`,
         });
     });
+    const u = b.unique;
+    if (u !== undefined) {
+      checkText(u.description, file, b.id);
+      checkText(u.latent.text, file, b.id);
+      [
+        ...u.effects.map((e, i) => [e, `unique.effects.${String(i)}`] as const),
+        ...u.latent.effects.map((e, i) => [e, `unique.latent.effects.${String(i)}`] as const),
+      ].forEach(([e, at]) => {
+        if (!refCheck(effectMap, "効果", e, file, b.id, at)) return;
+        const def = effectMap.get(e);
+        if (def !== undefined && def.origin !== "unique")
+          err({
+            code: "schema",
+            file,
+            id: b.id,
+            path: at,
+            message: `ユニークの効果 ${e} の出どころが unique ではない（${def.origin}）`,
+          });
+      });
+      const c = u.latent.condition;
+      const at = "unique.latent.condition";
+      if (c.type === "mainJob") tagOf(c.job, ["job"], file, b.id, at);
+      else if (c.type === "starNode" && c.pending !== true) {
+        if (!starNodes.some((n) => n.value.id === c.id))
+          err({
+            code: "unknown-ref",
+            file,
+            id: b.id,
+            path: at,
+            message: `星辰盤のノード ${c.id} がない`,
+          });
+      } else if (c.type === "constellation" && c.pending !== true) {
+        if (!constellations.some((n) => n.value.id === c.id))
+          err({ code: "unknown-ref", file, id: b.id, path: at, message: `星座 ${c.id} がない` });
+      } else if ((c.type === "jobNode" || c.type === "jobMastery") && c.pending !== true)
+        err({
+          code: "unknown-ref",
+          file,
+          id: b.id,
+          path: at,
+          message: "職紋盤のデータがまだ無いので、pending にする",
+        });
+    }
   }
+
   for (const { value: a, file } of affixes) {
     if (a.family !== undefined) tagOf(a.family, ["enemyFamily"], file, a.id, "family");
     if (a.job !== undefined) tagOf(a.job, ["job"], file, a.id, "job");

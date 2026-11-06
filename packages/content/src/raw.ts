@@ -20,6 +20,7 @@ import constellations from "../data/boards/constellations.json" with { type: "js
 import regionDefs from "../data/regions/regions.json" with { type: "json" };
 import questDefs from "../data/regions/quests.json" with { type: "json" };
 import implicitEffects from "../data/effects/implicits.json" with { type: "json" };
+import uniqueEffects from "../data/effects/uniques.json" with { type: "json" };
 import gauges from "../data/gauges/gauges.json" with { type: "json" };
 import affixes from "../data/items/affixes.json" with { type: "json" };
 import itemBases from "../data/items/bases.json" with { type: "json" };
@@ -63,6 +64,7 @@ export const rawContent: RawContent = {
       { file: "data/effects/affixes.json", entries: affixEffects },
       { file: "data/effects/star.json", entries: starEffects },
       { file: "data/effects/crafting.json", entries: craftingEffects },
+      { file: "data/effects/uniques.json", entries: uniqueEffects },
     ],
     ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
     skills: [

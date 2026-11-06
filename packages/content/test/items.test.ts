@@ -232,8 +232,9 @@ describe("ドロップ（仕様書v0.2 3.5、補助仕様書5・12章）", () =>
       const r = rollDrops(db, rng, { source: "miniBoss", enemyLevel: 11, tags, nextUid });
       expect(r.items.length).toBeGreaterThanOrEqual(4);
       expect(r.items.length).toBeLessThanOrEqual(6);
-      expect(r.items.some((x) => x.rarity === "rare")).toBe(true);
-      expect(r.items[0]?.rarity).toBe("rare"); // 確定の分（固有・星座はまだ作らないので希少）
+      expect(r.items.some((x) => x.rarity === "rare" || x.rarity === "unique")).toBe(true);
+      // 確定の分は希少か固有（星座はMVPの範囲外）
+      expect(["rare", "unique"]).toContain(r.items[0]?.rarity);
       expect(r.materials).toContainEqual({ material: "MAT-RETURN-LAMP", count: 1 });
       expect(r.materials).toContainEqual({ material: "MAT-AWAKENING-DUST", count: 1 });
       expect(r.itemLevel).toBe(15);
@@ -241,12 +242,32 @@ describe("ドロップ（仕様書v0.2 3.5、補助仕様書5・12章）", () =>
     }
   });
 
-  it("仮実装の確認：固有・星座はまだ作らず、その重みは通常に回る", () => {
-    const rng = Rng.fromSeed("no-unique");
+  it("ユニーク：必要LvがアイテムLv以下の「どこでも」のものだけ落ちる。専用のものと星座は落ちない（U-16）", () => {
+    const rng = Rng.fromSeed("uniques");
+    const seen = new Set<string>();
     for (let i = 0; i < 20_000; i++) {
       const r = rollDrops(db, rng, { source: "elite", enemyLevel: 5, tags, nextUid });
-      for (const item of r.items) expect(["normal", "magic", "rare"]).toContain(item.rarity);
+      for (const item of r.items) {
+        expect(item.rarity).not.toBe("set");
+        if (item.rarity !== "unique") {
+          expect(db.itemBases.get(item.base)?.unique).toBeUndefined();
+          continue;
+        }
+        const base = db.itemBases.get(item.base);
+        expect(base?.unique?.source).toBe("anywhere");
+        expect(base?.requiredLevel ?? 99).toBeLessThanOrEqual(r.itemLevel);
+        expect(item.affixes).toEqual([]);
+        seen.add(item.base);
+      }
     }
+    // アイテムLv7（精鋭Lv5）で落ちるのは、旅人の古靴（Lv2）・狼牙の首飾り（Lv6）・二股の枝（Lv4）
+    expect([...seen].sort()).toEqual(["BASE-UNQ-U02", "BASE-UNQ-U14", "BASE-UNQ-U17"]);
+    // ユニークの無いアイテムLvでは、ユニークの重みは通常に回る
+    const low = Rng.fromSeed("low");
+    for (let i = 0; i < 5000; i++)
+      for (const item of rollDrops(db, low, { source: "normal", enemyLevel: 1, tags, nextUid })
+        .items)
+        expect(item.rarity).not.toBe("unique");
   });
 
   it("金貨：通常は25%で（1＋Lv）〜2×（1＋Lv）、魔法は60%で2倍、精鋭は必ず5倍", () => {

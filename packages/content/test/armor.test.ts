@@ -13,6 +13,7 @@ import {
   JOB_AFFIX_BOOST,
   buildCharacterSheet,
   candidateAffixes,
+  latentConditionMet,
   slotsFor,
 } from "@stella/core";
 import { describe, expect, it } from "vitest";
@@ -187,5 +188,37 @@ describe("詞の追加（U-11 の残り）：職詞・系統詞・一般の詞",
     expect(base("BASE-WPN-CLAW-T1").implicitEffects).toEqual(["EFF-IMP-LIFE-LEECH-05"]);
     expect(db.effects.get("EFF-IMP-BACKSTAB-CRIT-5")?.locality).toBe("local");
     expect(db.effects.get("EFF-IMP-LIFE-LEECH-05")?.locality).toBe("local");
+  });
+});
+
+describe("ユニークの潜在効果の条件（U-16）", () => {
+  it("星座・ノードは星辰盤の結果、メインジョブ・強化値はその値で判定する。職紋盤と pending は満たさない", () => {
+    const board = {
+      constellations: ["CONST-A"],
+      active: ["NODE-A"],
+    } as unknown as Parameters<typeof latentConditionMet>[1]["board"];
+    const ctx = { board, mainJobTag: "TAG-JOB-WARRIOR", enhance: 7 };
+    expect(latentConditionMet({ type: "constellation", id: "CONST-A" }, ctx)).toBe(true);
+    expect(latentConditionMet({ type: "constellation", id: "CONST-A", pending: true }, ctx)).toBe(
+      false,
+    );
+    expect(latentConditionMet({ type: "starNode", id: "NODE-A" }, ctx)).toBe(true);
+    expect(latentConditionMet({ type: "starNode", id: "NODE-B" }, ctx)).toBe(false);
+    expect(latentConditionMet({ type: "mainJob", job: "TAG-JOB-WARRIOR" }, ctx)).toBe(true);
+    expect(latentConditionMet({ type: "enhanceAtLeast", value: 10 }, ctx)).toBe(false);
+    expect(latentConditionMet({ type: "jobMastery", id: "X" }, ctx)).toBe(false);
+  });
+
+  it("MVPのユニークは9個（U02・U03・U06・U13〜U18）。専用は千の小傷・樹皮の盾・母樹の根冠", () => {
+    const uniques = [...db.itemBases.values()].filter((b) => b.unique !== undefined);
+    expect(uniques.map((b) => b.id).sort()).toEqual(
+      ["U02", "U03", "U06", "U13", "U14", "U15", "U16", "U17", "U18"].map((n) => `BASE-UNQ-${n}`),
+    );
+    expect(
+      uniques
+        .filter((b) => b.unique?.source === "exclusive")
+        .map((b) => b.id)
+        .sort(),
+    ).toEqual(["BASE-UNQ-U03", "BASE-UNQ-U13", "BASE-UNQ-U18"]);
   });
 });

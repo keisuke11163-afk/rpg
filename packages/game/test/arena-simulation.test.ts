@@ -997,8 +997,15 @@ describe("ArenaSimulation：母樹（U-19、補助仕様書9・11章）", () => 
     expect(toA5 !== undefined && sim.exitOpen(toA5)).toBe(true);
     // 章ボスのドロップ：6〜10個・母樹の樹液1・開眼の結晶2
     const items = sim.loot.drops.filter((d) => d.kind === "item");
-    expect(items.length).toBeGreaterThanOrEqual(6);
-    expect(items.length).toBeLessThanOrEqual(10);
+    // 6〜10個と、初回は確定の専用ユニーク1つ（千の小傷・樹皮の盾・母樹の根冠から）
+    expect(items.length).toBeGreaterThanOrEqual(7);
+    expect(items.length).toBeLessThanOrEqual(11);
+    const exclusive = sim.loot.drops.flatMap((d) =>
+      d.kind === "item" && ["BASE-UNQ-U03", "BASE-UNQ-U13", "BASE-UNQ-U18"].includes(d.item.base)
+        ? [d]
+        : [],
+    );
+    expect(exclusive).toHaveLength(1);
     const mats = sim.loot.drops.flatMap((d) => (d.kind === "material" ? [d] : []));
     expect(mats).toEqual(
       expect.arrayContaining([
@@ -1178,5 +1185,49 @@ describe("ArenaSimulation：薬瓶（補助仕様書6章）", () => {
       carry: { hp: 1, mp: 1, flasks: { hp: sim.hpFlask.state, mp: sim.mpFlask.state } },
     });
     expect(next.hpFlask.state).toEqual({ charges: 2, fill: 1 });
+  });
+});
+
+describe("ArenaSimulation：ユニークの入手（U-16）", () => {
+  const db = new ArenaSimulation(undefined, { enemies: false }).db;
+  const town = db.regions.get("REGION-TOWN");
+
+  it("討伐の祭壇：討伐証10個で、母樹の専用ユニークを1つ選んで交換する（町だけ）", () => {
+    if (town === undefined) throw new Error("町が無い");
+    const sim = new ArenaSimulation(undefined, { db, region: town, layoutSeed: "altar" });
+    expect(sim.altarCandidates()).toEqual([
+      { token: "TOKEN-BOSS-CH1", bases: ["BASE-UNQ-U03", "BASE-UNQ-U13", "BASE-UNQ-U18"] },
+    ]);
+    sim.bossTokens.set("TOKEN-BOSS-CH1", 9);
+    expect(sim.exchangeAtAltar("BASE-UNQ-U18")).toBe(false);
+    sim.bossTokens.set("TOKEN-BOSS-CH1", 12);
+    expect(sim.exchangeAtAltar("BASE-UNQ-U02")).toBe(false); // 候補に無い
+    expect(sim.exchangeAtAltar("BASE-UNQ-U18")).toBe(true);
+    expect(sim.bossTokens.get("TOKEN-BOSS-CH1")).toBe(2);
+    const got = sim.inventory.items.find((i) => i.base === "BASE-UNQ-U18");
+    expect(got?.rarity).toBe("unique");
+    // ダンジョンでは交換できない
+    const field = new ArenaSimulation(undefined, { db, enemies: false });
+    field.bossTokens.set("TOKEN-BOSS-CH1", 10);
+    expect(field.exchangeAtAltar("BASE-UNQ-U03")).toBe(false);
+  });
+
+  it("千の小傷：打撃値-40%・必ず出血・出血の最大スタック+4。潜在効果は職紋盤の後なので「？？？」のまま", () => {
+    const sim = new ArenaSimulation(undefined, { db, enemies: false });
+    sim.character.gainXp(1e6);
+    sim.inventory.addItem({
+      uid: "itm_930001",
+      base: "BASE-UNQ-U03",
+      rarity: "unique",
+      itemLevel: 18,
+      affixes: [],
+    });
+    expect(sim.equipFromInventory("itm_930001")).toBe(true);
+    const view = sim.sheet.evaluated.view;
+    const scope = { weaponUid: "itm_930001" };
+    expect(view.stat("STAT-DAMAGE", ["TAG-ELEM-PHYSICAL"], scope).more).toBeCloseTo(0.6);
+    expect(view.flag("ailmentApply", "TAG-AIL-BLEED", [], scope).resolution).toBe("force");
+    expect(view.stat("STAT-AILMENT-MAX-STACKS", ["TAG-AIL-BLEED"]).value).toBeGreaterThanOrEqual(4);
+    expect(sim.sheet.latents).toEqual([{ uid: "itm_930001", base: "BASE-UNQ-U03", active: false }]);
   });
 });

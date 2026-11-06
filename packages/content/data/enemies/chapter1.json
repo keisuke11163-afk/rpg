@@ -633,6 +633,10 @@
       "firstKillSecret": {
         "id": "SECRET-MOTHER-TREE",
         "explorationPoints": 1
+      },
+      "uniques": {
+        "pool": ["BASE-UNQ-U03", "BASE-UNQ-U13", "BASE-UNQ-U18"],
+        "repeatChance": 0.15
       }
     },
     "provisional": true,
@@ -857,6 +861,10 @@
       "tokens": {
         "id": "TOKEN-BOSS-CH1",
         "count": 2
+      },
+      "uniques": {
+        "pool": ["BASE-UNQ-U03", "BASE-UNQ-U13", "BASE-UNQ-U18"],
+        "repeatChance": 0.25
       }
     },
     "provisional": true,
