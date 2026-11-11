@@ -120,6 +120,14 @@ const CRITICAL_INTERVAL = 2;
 /** 影写し：遅れて受ける秒数・敵を倒したときに消える割合（仕様書v0.2 4.7）。 */
 const SHADOW_SECONDS = 4;
 const SHADOW_KILL_CLEAR = 0.2;
+/** 剣気の衝撃波（武器ダメージの50%。届く距離は仮値）。 */
+const SWORD_WAVE_RATIO = 0.5;
+const SWORD_WAVE_RANGE = 4;
+/** 狙い澄まし：当て続ける秒数・途切れたとみなす間隔（仮値）。 */
+const FOCUS_SECONDS = 3;
+const FOCUS_GAP = 1.5;
+/** 循環の泉：MPをこの量使うごとに。 */
+const CYCLE_MP = 100;
 /**
  * 母樹の根冠（U18）の受けるダメージの倍率：毒10スタックにつき ×(1＋step)（乗算）、上限は 1＋cap。
  */
@@ -486,6 +494,10 @@ export class ArenaSimulation {
   private demonLeft = 0;
   /** 背面からのヒットでコンボ点を得た時刻（背向けの外套の潜在効果。1秒に1回まで）。 */
   private lastBackstabCombo = -Infinity;
+  /** 剣気の衝撃波の回数・狙い澄ましの相手・循環の泉のMPの積み上げ。 */
+  private swordWaves = 0;
+  private focus: { target: string; since: number; last: number } | undefined;
+  private mpCycled = 0;
   /** 血の盟約の共鳴変化：戻るHP。 */
   private pactRefunds: { at: number; amount: number }[] = [];
   /** 千変：敵ごとの最後の臨界の時刻と、臨界の回数。 */
@@ -1019,6 +1031,41 @@ export class ArenaSimulation {
     )
       tags.push("TAG-AIL-POISON");
     return countAilmentTypes(tags);
+  }
+
+  /**
+   * 剣気の衝撃波：当てた敵と、その先（向きの直線上・4m）の敵に、決まった量のダメージ（状態異常は付けない）。
+   * 仕様書は「斬撃の衝撃波を飛ばす」だけなので、直線の範囲は仮（docs/progress D-STAR-13）。
+   */
+  private swordWave(first: Combatant, amount: number): void {
+    if (!(amount > 0)) return;
+    const f = this.motion.facing;
+    const dir = { x: Math.cos(f), y: Math.sin(f) };
+    const p = this.motion.position;
+    for (const o of this.targets()) {
+      if (o.health.invulnerable) continue;
+      const along = (o.position.x - p.x) * dir.x + (o.position.y - p.y) * dir.y;
+      const across = Math.abs(-(o.position.x - p.x) * dir.y + (o.position.y - p.y) * dir.x);
+      if (o === first || (along > 0 && along <= SWORD_WAVE_RANGE && across <= 0.6 + o.radius))
+        o.health.takeDamage(amount * (1 - (o.resist.physical ?? 0)) * o.takenMultiplier);
+    }
+    this.swordWaves += 1;
+  }
+
+  /** 剣気の衝撃波が出た回数（確認用）。 */
+  get swordWaveCount(): number {
+    return this.swordWaves;
+  }
+
+  /** 狙い澄まし：同じ敵に当て続けた時間を数え、3秒からその間の会心率を上げる（別の敵に当てると最初から）。 */
+  private updateFocus(t: Combatant): void {
+    const inc = this.view.stat("STAT-NT-FOCUS").value;
+    if (!(inc > 0)) return;
+    if (this.focus?.target !== t.id || this.elapsed - this.focus.last > FOCUS_GAP)
+      this.focus = { target: t.id, since: this.elapsed, last: this.elapsed };
+    else this.focus.last = this.elapsed;
+    if (this.elapsed - this.focus.since >= FOCUS_SECONDS)
+      this.buffs.add("EFF-BUFF-FOCUS", FOCUS_GAP, "focus");
   }
 
   /** HPの回復効果の倍率（血の盟約の+30%など）。 */
@@ -1965,7 +2012,18 @@ export class ArenaSimulation {
       // 共鳴変化：支払ったHPの一部が2秒後に戻る（装備の共鳴紋が無いので、まだ働かない）
       const refund = this.view.stat("STAT-KEY-BLOOD-PACT-REFUND").value;
       if (refund > 0) this.pactRefunds.push({ at: this.elapsed + 2, amount: paid * refund });
-    } else this.mpValue -= def.mpCost;
+    } else {
+      this.mpValue -= def.mpCost;
+      // 輝星「循環の泉」：MPを100使うごとに、職能ゲージが最大値の5%増える
+      const cycle = this.view.stat("STAT-NT-CYCLE").value;
+      if (cycle > 0) {
+        this.mpCycled += def.mpCost;
+        while (this.mpCycled >= CYCLE_MP) {
+          this.mpCycled -= CYCLE_MP;
+          this.jobGaugeValue.add(this.jobGaugeValue.max * cycle);
+        }
+      }
+    }
     // クールダウン短縮（詞・怒涛）。短縮は90%まで（仮値。docs/progress D-U15-6）
     const cdr = Math.min(MAX_COOLDOWN_REDUCTION, this.view.stat("STAT-COOLDOWN-REDUCTION").value);
     this.cooldowns.start(def.id, Math.max(def.cooldown, endlessCd) * (1 - cdr));
@@ -2191,6 +2249,9 @@ export class ArenaSimulation {
       },
       onAvoided: () => {
         this.avoidedAttacks += 1;
+        // 輝星「影踏み」：回避に成功すると、1秒間だけ受けるダメージ-25%
+        if (this.view.stat("STAT-NT-SHADOW-STEP").value > 0)
+          this.buffs.add("EFF-BUFF-SHADOW-STEP", 1, "shadow-step");
       },
       onBossEvent: (enemy, event, phase) => {
         const label =
@@ -2335,7 +2396,12 @@ export class ArenaSimulation {
     const first = strikes[0];
     if (!landed || first === undefined) return;
     // 闘志：1回の当たり判定の発生で、当たれば1回増える（docs/progress D-U08-3）
-    this.jobGaugeValue.onHitDealt(this.tags.closure(first.skill.damage.tags));
+    // 転変「重撃化」：近接の技は重撃のタグを得る（闘志の獲得が重撃の値になる）
+    const base = this.tags.closure(first.skill.damage.tags);
+    const heavy = this.view.stat("STAT-MUT-HEAVY").value > 0 && base.has("TAG-FORM-MELEE");
+    this.jobGaugeValue.onHitDealt(
+      heavy ? this.tags.closure([...first.skill.damage.tags, "TAG-FORM-HEAVY"]) : base,
+    );
     // コンボ点：1回の使用で、1体以上に当たれば1回だけ増える（docs/progress D-U10-1）
     const gain = first.skill.def.gauge?.gainOnHit;
     if (gain !== undefined && run.gained !== true) {
@@ -2407,6 +2473,18 @@ export class ArenaSimulation {
     if (silent > 0 && this.elapsed - this.lastCombatAt >= OUT_OF_COMBAT_SECONDS)
       extraTaken *= silent;
     const allBackstab = view.stat("STAT-JOB-ALL-BACKSTAB").value > 0;
+    // 輝星「狩りの本能」：HPが50%以下の敵へのダメージ+25%
+    const hunt = view.stat("STAT-NT-HUNT").value;
+    if (hunt > 0 && t.health.hp <= t.health.maxHp * 0.5) extraTaken *= 1 + hunt;
+    // 輝星「断ち切る刃」：崩れた敵への近接ダメージがさらに+20%
+    const brokenMelee = view.stat("STAT-NT-BROKEN-MELEE").value;
+    if (brokenMelee > 0 && t.stagger.broken && skill.def.tags.includes("TAG-FORM-MELEE"))
+      extraTaken *= 1 + brokenMelee;
+    // 輝星「腐食の手」：状態異常を受けている敵は、物理耐性-10%（このヒットの間だけ下げる）
+    const corrode = view.stat("STAT-NT-CORRODE").value;
+    const corroded = corrode > 0 && t.ailments.activeTags().length > 0;
+    const physicalResist = t.resist.physical;
+    if (corroded) t.resist = { ...t.resist, physical: (physicalResist ?? 0) - corrode };
     // 千変の臨界は、このヒットの前の状態で判定する（敵1体につき2秒に1回まで）
     const critical =
       view.stat("STAT-KEY-CRITICAL").value > 0 &&
@@ -2432,6 +2510,12 @@ export class ArenaSimulation {
       // 背向けの外套（U16）：移動の技を使った後の一定時間、全てのヒットを背面からのヒットとして扱う
       ...(this.elapsed < this.moveBackstabUntil || allBackstab ? { forceBackstab: true } : {}),
     });
+    if (corroded) {
+      const restored = { ...t.resist };
+      if (physicalResist === undefined) delete restored.physical;
+      else restored.physical = physicalResist;
+      t.resist = restored;
+    }
     this.lastCombatAt = this.elapsed;
     // 背向けの外套の潜在効果（影法師）：背面からのヒットでコンボ点+1（1秒に1回まで）
     const backCombo = view.stat("STAT-UNQ-BACKSTAB-COMBO").value;
@@ -2452,6 +2536,23 @@ export class ArenaSimulation {
     const leech = view.stat("STAT-LIFE-LEECH", [], scope).value;
     const dealt = report.applied.toHp + report.applied.toWard;
     if (leech > 0 && dealt > 0) this.playerValue.health.heal(dealt * leech * this.hpRecovery);
+    // 転変「血の刃」：出血している敵へのヒットは、出血を1スタック消費して、その残りダメージを即座に与える
+    if (view.stat("STAT-MUT-BLOOD-BLADE").value > 0) {
+      const c = t.ailments.consumeStrongest(BLEED_AILMENT);
+      if (c !== undefined)
+        t.health.takeDamage(c.amount * (1 - (t.resist[c.element] ?? 0)) * t.takenMultiplier);
+    }
+    // 輝星「剣気」：剣での攻撃は、10%の確率で斬撃の衝撃波（武器ダメージの50%）を飛ばす
+    const aura = view.stat("STAT-NT-SWORD-AURA").value;
+    if (
+      aura > 0 &&
+      damage.kind === "weapon" &&
+      this.tags.closure(attacker.weapon?.tags ?? []).has("TAG-WPNGRP-SWORD") &&
+      this.rng.chance(aura)
+    )
+      this.swordWave(t, report.hit.total * SWORD_WAVE_RATIO);
+    // 輝星「狙い澄まし」：同じ敵に3秒当て続けると、その敵への会心率+40%（増加）
+    this.updateFocus(t);
     // 輝星「傷口を抉る」：出血している敵へのヒットは、出血の持続を延ばす（最大で元の2倍まで）
     const reopen = view.stat("STAT-NOTABLE-REOPEN").value;
     if (reopen > 0) t.ailments.extendDots(BLEED_AILMENT, reopen);
@@ -2492,6 +2593,9 @@ export class ArenaSimulation {
     const step = view.stat("STAT-UNQ-STILL-ARMOR").value;
     const bonus = step > 0 ? Math.min(BARK_ARMOR_CAP, step * Math.floor(this.stillSeconds)) : 0;
     this.playerValue.armor = this.sheetValue.defense.armor * (1 + bonus);
+    // 輝星「疾風の脚」：移動中は回避値+20%
+    const gale = view.stat("STAT-NT-GALE").value;
+    this.playerValue.evasion = this.sheetValue.defense.evasion * (moved > 1e-6 ? 1 + gale : 1);
   }
 
   /** 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージの倍率（1-15%）。 */

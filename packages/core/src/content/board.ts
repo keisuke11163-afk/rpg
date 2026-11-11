@@ -66,6 +66,8 @@ export const starNodeSchema = z.strictObject({
   factStacked: z
     .strictObject({ fact: z.enum(FACTS), effects: z.array(idSchema).min(1) })
     .optional(),
+  /** このノードを取ると、この星域の共鳴紋の効果の上限が上がる（輝星「星の器」：+10%）。 */
+  resonanceCapBonus: z.number().positive().optional(),
   ...provisionalFields,
 });
 export type StarNodeDef = z.infer<typeof starNodeSchema>;

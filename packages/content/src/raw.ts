@@ -18,6 +18,9 @@ import craftingEffects from "../data/effects/crafting.json" with { type: "json" 
 import starNodes from "../data/boards/star.json" with { type: "json" };
 import constellations from "../data/boards/constellations.json" with { type: "json" };
 import jobBoardNodes from "../data/boards/job-boards.json" with { type: "json" };
+import starMvpNodes from "../data/boards/star-mvp.json" with { type: "json" };
+import starMvpEffects from "../data/effects/star-mvp.json" with { type: "json" };
+import starMvpStats from "../data/stats/star-mvp.json" with { type: "json" };
 import jobBoardEffects from "../data/effects/job-boards.json" with { type: "json" };
 import regionDefs from "../data/regions/regions.json" with { type: "json" };
 import questDefs from "../data/regions/quests.json" with { type: "json" };
@@ -57,7 +60,10 @@ export const rawContent: RawContent = {
       { file: "data/tags/regions.json", entries: regions },
       { file: "data/tags/enemy-families.json", entries: enemyFamilies },
     ],
-    stats: [{ file: "data/stats/combat.json", entries: combatStats }],
+    stats: [
+      { file: "data/stats/combat.json", entries: combatStats },
+      { file: "data/stats/star-mvp.json", entries: starMvpStats },
+    ],
     effects: [
       { file: "data/effects/attributes.json", entries: attributeEffects },
       { file: "data/effects/warrior.json", entries: warriorEffects },
@@ -68,6 +74,7 @@ export const rawContent: RawContent = {
       { file: "data/effects/crafting.json", entries: craftingEffects },
       { file: "data/effects/uniques.json", entries: uniqueEffects },
       { file: "data/effects/job-boards.json", entries: jobBoardEffects },
+      { file: "data/effects/star-mvp.json", entries: starMvpEffects },
     ],
     ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
     skills: [
@@ -84,7 +91,10 @@ export const rawContent: RawContent = {
     affixes: [{ file: "data/items/affixes.json", entries: affixes }],
     materials: [{ file: "data/items/materials.json", entries: materials }],
     dropProfiles: [{ file: "data/items/drops.json", entries: dropProfiles }],
-    starNodes: [{ file: "data/boards/star.json", entries: starNodes }],
+    starNodes: [
+      { file: "data/boards/star.json", entries: starNodes },
+      { file: "data/boards/star-mvp.json", entries: starMvpNodes },
+    ],
     constellations: [{ file: "data/boards/constellations.json", entries: constellations }],
     jobNodes: [{ file: "data/boards/job-boards.json", entries: jobBoardNodes }],
     regions: [{ file: "data/regions/regions.json", entries: regionDefs }],

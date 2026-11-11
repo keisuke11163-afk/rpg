@@ -487,6 +487,25 @@ export class AilmentState {
   }
 
   /**
+   * 持続ダメージのうち、残りの総量が最も多い1スタックを取り除き、その残りの総量と属性を返す
+   * （転変「血の刃」：出血を1スタック消費して、その残りダメージを即座に与える）。無ければ undefined。
+   * 耐性・受けるダメージの倍率は、呼び出す側でかける。
+   */
+  consumeStrongest(
+    ailmentId: string,
+  ): { readonly element: Element; readonly amount: number } | undefined {
+    const list = this.dots.get(ailmentId);
+    if (list === undefined || list.length === 0) return undefined;
+    let best = 0;
+    for (let i = 1; i < list.length; i++)
+      if ((list[i]?.remaining ?? 0) > (list[best]?.remaining ?? 0)) best = i;
+    const [inst] = list.splice(best, 1);
+    if (list.length === 0) this.dots.delete(ailmentId);
+    if (inst === undefined) return undefined;
+    return { element: inst.def.dotElement, amount: inst.remaining };
+  }
+
+  /**
    * 持続ダメージの全てのスタックを、付与し直せる形で返す（狼牙の首飾りの潜在効果「スタック数を保つ」）。
    * 状態は変えない。
    */

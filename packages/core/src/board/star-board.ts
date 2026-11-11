@@ -246,6 +246,13 @@ export function evaluateStarBoard(
   const pool = new Set(within);
   const node = (id: string): StarNodeDef | undefined => db.starNodes.get(id);
   const isGate = (id: string): boolean => node(id)?.kind === "gate";
+  // 星の器：取った（ポイントの内の）ノードのうち、上限を上げるものの星域ごとの合計
+  const capBonus = new Map<StarRegion, number>();
+  for (const id of within) {
+    const n = node(id);
+    if (n?.resonanceCapBonus !== undefined)
+      capBonus.set(n.region, (capBonus.get(n.region) ?? 0) + n.resonanceCapBonus);
+  }
   // 職紋盤の接続ノード：始点の周り（盤のつながりで数えた距離）の小星は×2
   const boosted = nodesWithin(db, root, input.boostRadius ?? 0);
   const instancesOf = (ids: Iterable<string>): EffectInstance[] => {
@@ -255,7 +262,8 @@ export function evaluateStarBoard(
       const double = boosted.has(id) && n?.kind === "minor";
       // 共鳴紋：その星域の輝星の効果の数値の部分を +10%／個（上限+40%。仕様書v0.2 6.1 I-01）
       const marks = n?.kind === "notable" ? (input.resonance?.[n.region] ?? 0) : 0;
-      const amp = Math.min(RESONANCE_CAP, RESONANCE_PER_MARK * marks);
+      const cap = n === undefined ? RESONANCE_CAP : RESONANCE_CAP + (capBonus.get(n.region) ?? 0);
+      const amp = Math.min(cap, RESONANCE_PER_MARK * marks);
       for (const effectId of n?.effects ?? []) {
         const values = amp > 0 ? amplifiedValues(db, effectId, amp) : undefined;
         out.push({
