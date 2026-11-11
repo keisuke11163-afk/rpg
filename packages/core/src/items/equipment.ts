@@ -248,7 +248,21 @@ export class Equipment {
   mainWeapon(
     attributes: Attributes,
   ): { readonly weapon: DamageWeapon; readonly attackSpeed: number } | undefined {
-    const item = this.slots.get("mainHand");
+    return this.weaponIn("mainHand", attributes);
+  }
+
+  /** 副手の武器（二刀流。仕様書v0.2 3.2：それぞれの手の武器のダメージを使う）。盾・空なら undefined。 */
+  offWeapon(
+    attributes: Attributes,
+  ): { readonly weapon: DamageWeapon; readonly attackSpeed: number } | undefined {
+    return this.weaponIn("offHand", attributes);
+  }
+
+  private weaponIn(
+    slot: "mainHand" | "offHand",
+    attributes: Attributes,
+  ): { readonly weapon: DamageWeapon; readonly attackSpeed: number } | undefined {
+    const item = this.slots.get(slot);
     if (item === undefined) return undefined;
     const base = this.baseOf(item);
     const w = base.weapon;

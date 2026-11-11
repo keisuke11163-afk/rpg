@@ -772,7 +772,7 @@
       "effects": ["EFF-UNQ-U17-FORK"],
       "latent": {
         "text": "item.unique.u17.latent",
-        "effects": [],
+        "effects": ["EFF-UNQ-U17-LATENT"],
         "condition": {
           "type": "constellation",
           "id": "CONST-TWIN-BLADES"

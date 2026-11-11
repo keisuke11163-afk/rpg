@@ -440,5 +440,11 @@
     "text": "stat.unq-backstab-combo",
     "unit": "flat",
     "min": 0
+  },
+  {
+    "id": "STAT-UNQ-SPLIT-AILMENT",
+    "text": "stat.unq-split-ailment",
+    "unit": "flat",
+    "min": 0
   }
 ]

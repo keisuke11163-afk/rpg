@@ -1623,3 +1623,42 @@ describe("ArenaSimulation：職紋盤（U-15、仕様書v0.2 4.10・5.2・5.6）
     );
   });
 });
+
+describe("ArenaSimulation：二刀流の左右交互の攻撃（仕様書v0.2 3.2）", () => {
+  const dual = (): ArenaSimulation => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    for (const [uid, base] of [
+      ["itm_960001", "BASE-WPN-LONGSWORD-T1"],
+      ["itm_960002", "BASE-WPN-AXE-T1"],
+    ] as const)
+      sim.inventory.addItem({ uid, base, rarity: "normal", itemLevel: 1, affixes: [] });
+    expect(sim.equipFromInventory("itm_960001", "mainHand")).toBe(true);
+    expect(sim.equipFromInventory("itm_960002", "offHand")).toBe(true);
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+    return sim;
+  };
+
+  it("通常攻撃は主手・副手の順に交互に出て、それぞれの手の武器のダメージを使う", () => {
+    const sim = dual();
+    expect(sim.sheet.offAttacker?.weapon?.uid).toBe("itm_960002");
+    const hands: boolean[] = [];
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    for (let i = 0; i < 600 && hands.length < 4; i++) {
+      const hits = sim.hitCount;
+      sim.frame(STEP, held);
+      if (sim.hitCount > hits) hands.push(sim.lastHitOffHand);
+    }
+    expect(hands).toEqual([false, true, false, true]);
+  });
+
+  it("片手だけ・盾を持っているときは、いつも主手", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.sheet.offAttacker).toBeUndefined();
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    for (let i = 0; i < 300 && sim.hitCount < 2; i++) sim.frame(STEP, held);
+    expect(sim.lastHitOffHand).toBe(false);
+  });
+});

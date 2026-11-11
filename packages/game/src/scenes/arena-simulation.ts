@@ -111,6 +111,7 @@ const BEAST_HUNT_SECONDS = 3;
 const MAX_COOLDOWN_REDUCTION = 0.9;
 /** 職紋盤「素早い手」の対象の技。 */
 const FLURRY_SKILL = "SKL-ROGUE-FLURRY";
+const BASIC_ATTACK = "SKL-BASIC-ATTACK";
 /**
  * 母樹の根冠（U18）の受けるダメージの倍率：毒10スタックにつき ×(1＋step)（乗算）、上限は 1＋cap。
  */
@@ -254,6 +255,8 @@ interface Running {
   readonly hit: Map<string, Set<string>>;
   /** 1回の使用で1体以上に当たったときのゲージ（コンボ点）を、もう得たか。 */
   gained?: boolean;
+  /** 二刀流の左右交互：この技の実行で出した当たり判定の数（偶数は主手・奇数は副手）。 */
+  swings?: number;
 }
 
 /** 置いた煙玉。 */
@@ -475,6 +478,9 @@ export class ArenaSimulation {
   private demonLeft = 0;
   /** 背面からのヒットでコンボ点を得た時刻（背向けの外套の潜在効果。1秒に1回まで）。 */
   private lastBackstabCombo = -Infinity;
+  /** 二刀流の通常攻撃の回数（奇数回目は主手・偶数回目は副手）と、直前のヒットの手。 */
+  private basicSwings = 0;
+  private lastOffHand = false;
   /** 最後に攻撃を当てようとした・攻撃を受けた時刻（静かなる刃の「戦闘外」の判定）。 */
   private lastCombatAt = -Infinity;
   /** 毒蛇座の毒だまりと、次に置くまでの秒数。 */
@@ -1853,6 +1859,7 @@ export class ArenaSimulation {
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
       stages: this.jobGaugeValue.stages,
       weaponTags: this.tags.closure(this.sheetValue.weaponTags),
+      dualWield: this.sheetValue.offAttacker !== undefined,
       // 職詞「終結技のコンボ点+1として扱う」（終結技だけ。ゲージから減る量は変わらない）
       gaugeSpent:
         def.finisher === undefined
@@ -2169,6 +2176,8 @@ export class ArenaSimulation {
     let landed = false;
     for (const s of strikes) {
       this.showShape(s.shape, s.origin, s.facing);
+      // 二刀流：通常攻撃と連撃の技は左右交互に出て、それぞれの手の武器のダメージを使う（仕様書v0.2 3.2）
+      const offHand = this.alternates(s.skill) && this.nextSwingIsOffHand(run, s.skill);
       for (const t of this.targets()) {
         if (!overlapsShape(s.shape, s.origin, s.facing, t.position, t.radius)) continue;
         if (s.group !== undefined) {
@@ -2177,7 +2186,17 @@ export class ArenaSimulation {
           set.add(t.id);
           run.hit.set(s.group, set);
         }
-        if (this.hitTarget(t, s.skill, s.damage, s.origin, s.fullStagger, s.forceCrit === true))
+        if (
+          this.hitTarget(
+            t,
+            s.skill,
+            s.damage,
+            s.origin,
+            s.fullStagger,
+            s.forceCrit === true,
+            offHand,
+          )
+        )
           landed = true;
       }
     }
@@ -2193,6 +2212,28 @@ export class ArenaSimulation {
     }
   }
 
+  /** 二刀流で左右交互に出る技か（通常攻撃と、連撃の技）。 */
+  private alternates(skill: ResolvedSkill): boolean {
+    if (this.sheetValue.offAttacker === undefined || skill.damage.kind !== "weapon") return false;
+    const a = skill.def.action;
+    return skill.def.id === BASIC_ATTACK || (a.type === "strike" && (a.hits ?? 1) > 1);
+  }
+
+  /** 次の当たり判定が副手か。通常攻撃は使うたびに、連撃の技は1回の使用の中で交互（主手から）。 */
+  private nextSwingIsOffHand(run: Running, skill: ResolvedSkill): boolean {
+    if (skill.def.id === BASIC_ATTACK) {
+      this.basicSwings += 1;
+      return this.basicSwings % 2 === 0;
+    }
+    run.swings = (run.swings ?? 0) + 1;
+    return run.swings % 2 === 0;
+  }
+
+  /** 直前のヒットが副手の武器だったか（確認用）。 */
+  get lastHitOffHand(): boolean {
+    return this.lastOffHand;
+  }
+
   /** 1体にヒットを解決する。当たれば true。 */
   private hitTarget(
     t: Combatant,
@@ -2201,10 +2242,16 @@ export class ArenaSimulation {
     origin: Vec2,
     fullStagger: boolean,
     forceCrit: boolean,
+    offHand = false,
   ): boolean {
+    const attacker =
+      (offHand ? this.sheetValue.offAttacker : undefined) ?? this.sheetValue.attacker;
+    this.lastOffHand = attacker !== this.sheetValue.attacker;
+    // 双刃座の完成ボーナス：二刀流のとき、交互攻撃の2撃目（副手）の崩し値+30%
+    const twin = this.lastOffHand ? 1 + this.view.stat("STAT-CONST-TWIN-STAGGER").value : 1;
     // 背面からの補正：メインジョブの職能（盗賊）＋短剣の基本刻印「背面からの会心率+5%（固定値）」（その武器のヒットだけ）
     const view = this.sheetValue.evaluated.view;
-    const weaponUid = damage.kind === "weapon" ? this.sheetValue.attacker.weapon?.uid : undefined;
+    const weaponUid = damage.kind === "weapon" ? attacker.weapon?.uid : undefined;
     const scope = { weaponUid };
     const jobBonus = this.job.backstabBonus;
     const extraCrit = view.stat("STAT-BACKSTAB-CRIT", [], scope).value;
@@ -2234,11 +2281,11 @@ export class ArenaSimulation {
     const wasBroken = t.stagger.broken;
     const report = resolveHit({
       db: this.db,
-      attacker: this.sheetValue.attacker,
+      attacker,
       attackerPosition: origin,
       skill: damage,
       skillChance: skill.ailmentChance,
-      staggerCoefficient: skill.staggerCoefficient,
+      staggerCoefficient: skill.staggerCoefficient * twin,
       target: t,
       rng: this.rng,
       fullStagger,
@@ -2359,6 +2406,9 @@ export class ArenaSimulation {
         }
       }
       if (nearest !== undefined) {
+        // 潜在効果（双刃座の完成・二刀流のとき）：分かれたヒットも、元のヒットと同じ状態異常を付与する
+        if (view.stat("STAT-UNQ-SPLIT-AILMENT").value > 0 && !nearest.health.invulnerable)
+          for (const a of report.ailments) nearest.ailments.apply(a);
         nearest.health.takeDamage(report.hit.total * split);
         if (nearest !== this.dummy) this.field?.onEnemyHit(nearest);
       }

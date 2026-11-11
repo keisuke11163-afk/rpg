@@ -356,5 +356,6 @@
   "jobnode.rogue.m-silent": "静かなる刃",
   "jobnode.rogue.m-silent.desc": "戦闘外からの最初の一撃×3（乗算）",
   "jobnode.rogue.m-shadow": "影法師",
-  "jobnode.rogue.m-shadow.desc": "背面判定が全方向になる"
+  "jobnode.rogue.m-shadow.desc": "背面判定が全方向になる",
+  "stat.unq-split-ailment": "分かれたヒットも状態異常を付与する"
 }

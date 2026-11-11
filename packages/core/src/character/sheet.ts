@@ -90,6 +90,11 @@ export interface CharacterSheet {
   readonly attacker: DamageAttacker;
   /** 主手の武器（素手なら undefined）。 */
   readonly weapon: SheetWeapon | undefined;
+  /**
+   * 副手の武器で攻撃する側（二刀流のとき。通常攻撃と連撃の技の、副手のヒットに使う。仕様書v0.2 3.2）。
+   * 二刀流でなければ undefined。
+   */
+  readonly offAttacker: DamageAttacker | undefined;
   /** 主手の武器のタグ（素手なら素手のタグ）。技の変化・適性に使う。 */
   readonly weaponTags: readonly string[];
   /** メインジョブの、主手の武器への適性。 */
@@ -257,6 +262,7 @@ export function buildCharacterSheet(
   }
   const view = evaluated.view;
   const main = equipment?.mainWeapon(attributes);
+  const off = main === undefined ? undefined : equipment?.offWeapon(attributes);
   const item = equipment?.get("mainHand");
   const base = item === undefined ? undefined : db.itemBases.get(item.base);
   const weapon: SheetWeapon | undefined =
@@ -286,6 +292,10 @@ export function buildCharacterSheet(
       ...(main === undefined ? {} : { weapon: main.weapon }),
     },
     weapon,
+    offAttacker:
+      off === undefined
+        ? undefined
+        : { db, view, characterLevel: character.level, weapon: off.weapon },
     weaponTags,
     affinity,
     attackSpeed,
