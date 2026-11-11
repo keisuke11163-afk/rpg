@@ -1046,8 +1046,9 @@ export class ArenaSimulation {
       if (o.health.invulnerable) continue;
       const along = (o.position.x - p.x) * dir.x + (o.position.y - p.y) * dir.y;
       const across = Math.abs(-(o.position.x - p.x) * dir.y + (o.position.y - p.y) * dir.x);
+      // 元のヒットの最終の値（耐性・受けるダメージの倍率の後）の割合なので、もう一度は軽減しない（二股の枝と同じ）
       if (o === first || (along > 0 && along <= SWORD_WAVE_RANGE && across <= 0.6 + o.radius))
-        o.health.takeDamage(amount * (1 - (o.resist.physical ?? 0)) * o.takenMultiplier);
+        o.health.takeDamage(amount);
     }
     this.swordWaves += 1;
   }

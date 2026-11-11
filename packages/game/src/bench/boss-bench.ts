@@ -71,6 +71,9 @@ export interface BenchResult {
   readonly jobNodesSpent: number;
   /** 倒れた回数（invincible でなければ）。 */
   readonly deaths: number;
+  /** 倒れた時刻（倒れなければ undefined）と、そのときのボスの残りHPの割合。 */
+  readonly deathTime: number | undefined;
+  readonly bossHpLeft: number;
   readonly criticals: number;
   /** 技ごとの使った回数。 */
   readonly uses: Readonly<Record<string, number>>;
@@ -202,10 +205,16 @@ export function prepareBench(
  * ゲージが最大のときだけ、③CDの無い技、④通常攻撃。同じ区分の中は枠の順。
  */
 function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Action } | undefined {
-  const usable = sim.loadout.filter(
-    (l) => l.skill !== "SKL-BASIC-ATTACK" && sim.blockOf(l.skill) === undefined,
-  );
   const def = (id: string) => db.skills.get(id);
+  // 近接の距離では、瞬間移動の技（影走り）は使わない。背面を取る意味が無いとき（影法師など）は無駄になる。
+  // 背向けの外套（移動の技の後は全てのヒットが背面）を着ているときだけは使う
+  const moveBackstab = sim.sheet.evaluated.view.stat("STAT-UNQ-MOVE-BACKSTAB").value > 0;
+  const usable = sim.loadout.filter(
+    (l) =>
+      l.skill !== "SKL-BASIC-ATTACK" &&
+      sim.blockOf(l.skill) === undefined &&
+      (def(l.skill)?.action.type !== "teleport" || moveBackstab),
+  );
   const full = sim.jobGauge.value >= sim.jobGauge.max - 1e-9;
   const spender = (id: string): boolean => def(id)?.gauge?.cost === "all";
   // CD のある技が2秒以内に使えるようになるなら、その MP を残す（CD の無い技で使い切らない）
@@ -273,6 +282,7 @@ export function runBossBench(
   let taken = 0;
   let killTime: number | undefined;
   let deaths = 0;
+  let deathTime: number | undefined;
   const startHp = boss.combatant.health.hp;
   while (t < limit) {
     const me = sim.motion.position;
@@ -307,6 +317,7 @@ export function runBossBench(
     }
     if (!invincible && sim.player.health.dead) {
       deaths += 1;
+      deathTime = t;
       break;
     }
   }
@@ -321,6 +332,8 @@ export function runBossBench(
     starsSpent: sim.stars.spent,
     jobNodesSpent: sim.jobBoard.spent,
     deaths,
+    deathTime,
+    bossHpLeft: Math.max(0, boss.combatant.health.hp) / boss.combatant.health.maxHp,
     criticals: sim.criticals,
     uses: Object.fromEntries(sim.uses),
   };

@@ -17,7 +17,7 @@ for (const region of ["REGION-A4-BOSS", "REGION-A5-BOSS"]) {
       .map(([k, n]) => `${k.replace(/^SKL-(WARRIOR|ROGUE|BASIC)-/, "")} ${String(n)}`)
       .join("・");
     console.log(
-      `  ${build.name}\n    攻撃面：撃破 ${fmt(atk.killTime)}秒・DPS ${fmt(atk.dps)}・被ダメージ毎秒 ${fmt(atk.damageTakenPerSecond)}（最大HP ${fmt(atk.maxHp)}）・臨界 ${String(atk.criticals)}・星 ${String(atk.starsSpent)}・職紋 ${String(atk.jobNodesSpent)}\n    技：${uses}\n    通しで：撃破 ${fmt(real.killTime)}秒・倒れた ${String(real.deaths)}`,
+      `  ${build.name}\n    攻撃面：撃破 ${fmt(atk.killTime)}秒・DPS ${fmt(atk.dps)}・被ダメージ毎秒 ${fmt(atk.damageTakenPerSecond)}（最大HP ${fmt(atk.maxHp)}）・臨界 ${String(atk.criticals)}・星 ${String(atk.starsSpent)}・職紋 ${String(atk.jobNodesSpent)}\n    技：${uses}\n    通しで：撃破 ${fmt(real.killTime)}秒${real.deathTime === undefined ? "" : `・${fmt(real.deathTime)}秒で倒れた（ボスの残りHP ${(real.bossHpLeft * 100).toFixed(0)}%）`}`,
     );
   }
 }
