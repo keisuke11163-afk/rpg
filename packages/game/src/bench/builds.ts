@@ -206,4 +206,36 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
     stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07"],
     jobNodes: ["JBN-ROGUE-T7", "JBN-ROGUE-B1B", "JBN-ROGUE-B2B"],
   },
+  {
+    id: "baseline-rogue-dual",
+    name: "基準・盗賊（希少の短剣の二刀流＝双牙・ユニークと天極なし）",
+    job: "JOB-ROGUE",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-DAGGER-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      {
+        slot: "offHand",
+        base: "BASE-WPN-DAGGER-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07"],
+    jobNodes: ["JBN-ROGUE-T7", "JBN-ROGUE-B1B", "JBN-ROGUE-B2B"],
+  },
 ];

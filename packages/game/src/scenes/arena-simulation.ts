@@ -581,6 +581,8 @@ export class ArenaSimulation {
   private playerValue!: Combatant;
   private hitsTakenCount = 0;
   private avoidedAttacks = 0;
+  /** 敵の攻撃ごとの、ヒットで受けたダメージ（敵のID:攻撃のID。持続ダメージは含まない。計測用）。 */
+  private readonly takenBySourceMap = new Map<string, number>();
   private deathCount = 0;
   private enemyHitCount = 0;
   private attackerVersion = "";
@@ -1186,6 +1188,10 @@ export class ArenaSimulation {
   /** 敵の攻撃を回避の無敵時間で無効にした回数。 */
   get attacksAvoided(): number {
     return this.avoidedAttacks;
+  }
+  /** 敵の攻撃ごとの、ヒットで受けたダメージ（敵のID:攻撃のID。持続ダメージは含まない）。 */
+  get damageTakenBySource(): ReadonlyMap<string, number> {
+    return this.takenBySourceMap;
   }
   get deaths(): number {
     return this.deathCount;
@@ -2207,7 +2213,7 @@ export class ArenaSimulation {
       playerTakenMultiplier: (enemy) =>
         this.behindGuardMultiplier(enemy) *
         (1 - Math.min(0.99, this.view.stat("STAT-KEY-SHADOW-DELAY").value)),
-      onPlayerHit: (report, enemy) => {
+      onPlayerHit: (report, enemy, attack) => {
         this.lastCombatAt = this.elapsed;
         if (report.hit.evaded) return;
         // 影写し（K15）：受けるダメージの35%を、4秒かけて遅れて受ける（即時の分は65%に減っている）
@@ -2245,6 +2251,8 @@ export class ArenaSimulation {
           for (const v of victims) v.combatant.applyAilment(app);
         }
         this.hitsTakenCount += 1;
+        const key = `${enemy.def.id}:${attack.id}`;
+        this.takenBySourceMap.set(key, (this.takenBySourceMap.get(key) ?? 0) + taken);
         this.lastHitBy = enemy.def.id;
         this.jobGaugeValue.onDamageTaken(
           report.applied.toHp + report.applied.toWard,

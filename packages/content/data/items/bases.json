@@ -152,7 +152,7 @@
       "critChance": 0.08
     },
     "provisional": true,
-    "provisionalNote": "要求値は補助仕様書14章の仮値。基本刻印（短剣：背面からの会心率+5%・爪：ヒットでHP吸収0.5%）は、必要な仕組みが無いのでまだ付けない（docs/progress Q-U11-3）",
+    "provisionalNote": "要求値は補助仕様書14章の仮値",
     "implicitEffects": ["EFF-IMP-BACKSTAB-CRIT-5"]
   },
   {
@@ -178,7 +178,7 @@
       "critChance": 0.06
     },
     "provisional": true,
-    "provisionalNote": "要求値は補助仕様書14章の仮値。基本刻印（短剣：背面からの会心率+5%・爪：ヒットでHP吸収0.5%）は、必要な仕組みが無いのでまだ付けない（docs/progress Q-U11-3）",
+    "provisionalNote": "要求値は補助仕様書14章の仮値",
     "implicitEffects": ["EFF-IMP-LIFE-LEECH-05"]
   },
   {

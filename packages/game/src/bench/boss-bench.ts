@@ -17,7 +17,6 @@ import {
   type MvpEquipSlot,
   affixTierValues,
   emptyKeptFields,
-  isBehind,
 } from "@stella/core";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
@@ -78,6 +77,11 @@ export interface BenchResult {
   readonly criticals: number;
   /** 技ごとの使った回数。 */
   readonly uses: Readonly<Record<string, number>>;
+  /** 受けたダメージの内訳（敵のID:攻撃のID → 毎秒。「持続ほか」はヒット以外＝毒の水たまり・状態異常など）。 */
+  readonly takenBySource: Readonly<Record<string, number>>;
+  /** 敵の攻撃を受けた回数・回避の無敵で避けた回数。 */
+  readonly hitsTaken: number;
+  readonly attacksAvoided: number;
 }
 
 const STEP = FIXED_STEP_SECONDS;
@@ -207,22 +211,14 @@ export function prepareBench(
  */
 function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Action } | undefined {
   const def = (id: string) => db.skills.get(id);
-  // 瞬間移動の技（影走り）は、背面を取れるときだけ使う：今ボスの背後にいない、かつ背面判定が全方向（影法師）
-  // でない。背向けの外套（移動の技の後は全てのヒットが背面）を着ているときは、いつでも使う
-  const view = sim.sheet.evaluated.view;
-  const moveBackstab = view.stat("STAT-UNQ-MOVE-BACKSTAB").value > 0;
-  const allBackstab = view.stat("STAT-JOB-ALL-BACKSTAB").value > 0;
-  const boss = bossOf(sim);
-  const behind =
-    boss !== undefined &&
-    boss.def.turnRate !== null &&
-    isBehind(sim.motion.position, boss.position, boss.facing);
-  const teleportUseful = moveBackstab || (!allBackstab && !behind);
+  // 近接の距離では、瞬間移動の技（影走り）は使わない。背面を取る意味が無いとき（影法師など）は無駄になる。
+  // 背向けの外套（移動の技の後は全てのヒットが背面）を着ているときだけは使う
+  const moveBackstab = sim.sheet.evaluated.view.stat("STAT-UNQ-MOVE-BACKSTAB").value > 0;
   const usable = sim.loadout.filter(
     (l) =>
       l.skill !== "SKL-BASIC-ATTACK" &&
       sim.blockOf(l.skill) === undefined &&
-      (def(l.skill)?.action.type !== "teleport" || teleportUseful),
+      (def(l.skill)?.action.type !== "teleport" || moveBackstab),
   );
   const full = sim.jobGauge.value >= sim.jobGauge.max - 1e-9;
   const spender = (id: string): boolean => def(id)?.gauge?.cost === "all";
@@ -345,5 +341,20 @@ export function runBossBench(
     bossHpLeft: Math.max(0, boss.combatant.health.hp) / boss.combatant.health.maxHp,
     criticals: sim.criticals,
     uses: Object.fromEntries(sim.uses),
+    takenBySource: takenBreakdown(sim, taken, t),
+    hitsTaken: sim.hitsTaken,
+    attacksAvoided: sim.attacksAvoided,
   };
+}
+
+function takenBreakdown(sim: ArenaSimulation, total: number, t: number): Record<string, number> {
+  const seconds = Math.max(t, 1e-9);
+  const out: Record<string, number> = {};
+  let hits = 0;
+  for (const [k, v] of sim.damageTakenBySource) {
+    out[k] = v / seconds;
+    hits += v;
+  }
+  out["持続ほか"] = Math.max(0, total - hits) / seconds;
+  return out;
 }
