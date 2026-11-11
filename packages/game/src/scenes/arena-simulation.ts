@@ -117,6 +117,8 @@ const BASIC_ATTACK = "SKL-BASIC-ATTACK";
 /** 武具連携（仕様書v0.2 3.13）：双牙の2撃目の付与率（加算）・双斧の付与率（-25% は相対で ×0.75。D-DUAL-3）。 */
 const TWIN_FANGS_CHANCE = 0.2;
 const TWIN_AXES_CHANCE_MULTIPLIER = 0.75;
+/** 闘志の職能ゲージ（U15 打ち鳴らしの籠手の「闘志+3」は、メインジョブの職能ゲージが闘志のときだけ）。 */
+const FERVOR_GAUGE = "GAU-FERVOR";
 /** 千変：臨界になる状態異常の種類の数・同じ敵に臨界が起きる間隔（仕様書v0.2 4.7）。 */
 const CRITICAL_TYPES = 3;
 const CRITICAL_INTERVAL = 2;
@@ -2665,7 +2667,7 @@ export class ArenaSimulation {
     const view = this.sheetValue.evaluated.view;
     // U15：崩れている敵へのヒットで闘志+3（重撃なら3倍）。崩しゲージを満タンにしたら、周囲4mの敵の崩しゲージを増やす
     const fervor = view.stat("STAT-UNQ-BREAK-FERVOR").value;
-    if (fervor > 0 && wasBroken && this.job.id === "JOB-WARRIOR")
+    if (fervor > 0 && wasBroken && this.job.gauge === FERVOR_GAUGE)
       this.jobGaugeValue.add(
         skill.def.tags.includes("TAG-FORM-HEAVY") ? fervor * HEAVY_FERVOR_FACTOR : fervor,
       );
