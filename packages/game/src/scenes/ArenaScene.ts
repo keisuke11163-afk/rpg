@@ -16,6 +16,7 @@ import { text, type TextKey } from "@stella/content";
 import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
 import { EquipmentPanel } from "../ui/EquipmentPanel.ts";
 import { itemName } from "../ui/item-text.ts";
+import { MINIMAP, type MinimapMarkKind, minimapMarks } from "../ui/minimap.ts";
 import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import type { Action } from "../input/actions.ts";
@@ -570,6 +571,72 @@ export class ArenaScene extends Phaser.Scene {
     this.panel.render();
   }
 
+  /** 受けている状態異常（全ての種類。補助仕様書16章「状態異常のアイコン」の文字の版）。 */
+  private ailmentText(): string {
+    const db = this.sim.db;
+    const st = this.sim.player.ailments;
+    return st
+      .activeTags()
+      .map((tag) => {
+        const def = [...db.ailments.values()].find((a) => a.tag === tag);
+        const name = db.tags.has(tag) ? text(db.tags.get(tag)?.text as TextKey) : tag;
+        const n = def === undefined ? 0 : st.stacks(def.id);
+        return `・${name}${n > 1 ? ` ${String(n)}` : ""}`;
+      })
+      .join("");
+  }
+
+  /** 小さな地図（補助仕様書16章）：右下に、地域の全体と自分・敵・宝箱・出口などの点。 */
+  private drawMinimap(): void {
+    const sim = this.sim;
+    const r = sim.region;
+    const center = (x: { x: number; y: number; width: number; height: number }) => ({
+      x: x.x + x.width / 2,
+      y: x.y + x.height / 2,
+    });
+    const marks = minimapMarks({
+      size: sim.size,
+      player: sim.motion.position,
+      enemies: (sim.field?.enemies ?? [])
+        .filter((e) => e.state !== "dead" && !e.underground)
+        .map((e) => ({
+          x: e.position.x,
+          y: e.position.y,
+          boss: e.def.boss !== undefined,
+          elite: e.rank.id === "RANK-ELITE",
+        })),
+      chests: sim.chests.filter((c) => !c.opened).map((c) => c.at),
+      exits: (r?.exits ?? []).map((x) => ({ ...center(x.rect), open: sim.exitOpen(x) })),
+      stone: r?.kind === "dungeon" ? r.teleportStone : undefined,
+      facilities: (r?.facilities ?? []).filter((f) => f.kind !== "dummy").map((f) => f.at),
+    });
+    const g = this.bars;
+    g.fillStyle(0x16151c, 0.75)
+      .fillRect(MINIMAP.x, MINIMAP.y, MINIMAP.width, MINIMAP.height)
+      .lineStyle(1, 0x4a4858, 1)
+      .strokeRect(MINIMAP.x, MINIMAP.y, MINIMAP.width, MINIMAP.height);
+    const STYLE: Readonly<Record<MinimapMarkKind, { color: number; size: number }>> = {
+      facility: { color: 0x8c88a0, size: 2 },
+      exit: { color: 0x7bd389, size: 3 },
+      exitClosed: { color: 0x6a6878, size: 3 },
+      stone: { color: 0xc3a6ff, size: 3 },
+      chest: { color: 0xffd166, size: 2 },
+      enemy: { color: 0xff6b6b, size: 1 },
+      elite: { color: 0xff9f43, size: 2 },
+      boss: { color: 0xff3b3b, size: 4 },
+      player: { color: 0xffffff, size: 3 },
+    };
+    for (const m of marks) {
+      const s = STYLE[m.kind];
+      g.fillStyle(s.color, 1).fillRect(
+        Math.round(m.x - s.size / 2),
+        Math.round(m.y - s.size / 2),
+        s.size,
+        s.size,
+      );
+    }
+  }
+
   private skillName(id: string): string {
     const def = this.sim.db.skills.get(id);
     return def === undefined ? id : text(def.text as TextKey);
@@ -789,6 +856,7 @@ export class ArenaScene extends Phaser.Scene {
     bar(2, motion.currentStamina / motion.config.maxStamina, 0x7bd389);
     const gauge = sim.jobGauge;
     bar(3, gauge.value / gauge.max, gauge.hasStage("empowered") ? 0xff9f43 : 0xb5651d);
+    this.drawMinimap();
 
     const last = sim.lastHit;
     const stageText = gauge.def.stages
@@ -846,7 +914,7 @@ export class ArenaScene extends Phaser.Scene {
           ? `危険地帯：被弾 ${String(sim.hazardHits)}／回避で無効 ${String(sim.hazardAvoided)}`
           : "",
         `持ち物：装備 ${String(sim.inventory.items.length)}／${String(sim.inventory.capacity)}・金貨 ${String(sim.inventory.gold)}・素材 ${String([...sim.inventory.materials.values()].reduce((a, b) => a + b, 0))}（F で装備を拾う・Alt で名前を全て表示）`,
-        `敵：倒した数 ${String(sim.field?.kills ?? 0)}・被弾 ${String(sim.hitsTaken)}・回避で無効 ${String(sim.attacksAvoided)}・倒れた回数 ${String(sim.deaths)}${sim.player.ailments.stacks("AIL-POISON") > 0 ? `・毒 ${String(sim.player.ailments.stacks("AIL-POISON"))}` : ""}${sim.player.stagger.broken ? "・よろめき" : ""}`,
+        `敵：倒した数 ${String(sim.field?.kills ?? 0)}・被弾 ${String(sim.hitsTaken)}・回避で無効 ${String(sim.attacksAvoided)}・倒れた回数 ${String(sim.deaths)}${this.ailmentText()}${sim.player.stagger.broken ? "・よろめき" : ""}`,
         `セーブ：${this.saveStatus}`,
         `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・薬瓶 Q:${String(sim.hpFlask.charges)} E:${String(sim.mpFlask.charges)}・気力 ${motion.currentStamina.toFixed(0)}・${gaugeName} ${gauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
       ].filter((line) => line !== ""),

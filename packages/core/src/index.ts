@@ -251,6 +251,7 @@ export {
   EnemyAttackers,
   WANDER,
   angleDiff,
+  cloudCenters,
   enemyAttackDamage,
   enemyMaxHp,
   separate,

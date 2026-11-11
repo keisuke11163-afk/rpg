@@ -724,29 +724,16 @@ export class Enemy {
       case "cloud": {
         // 2回目からは、その瞬間の相手の位置に出す
         const center = index === 0 ? this.attackPoint : target.position;
-        const count = d.count ?? 1;
-        const spread = d.spread ?? 0;
-        const base = Math.atan2(center.y - this.position.y, center.x - this.position.x);
         const application = this.ailmentApplication(d);
-        const events: EnemyEvent[] = [];
-        // 1つ目は相手の位置。残りは、相手の位置からボスと反対側へ spread だけ離し、±fanDeg の間に並べる
-        const fan = ((d.fanDeg ?? 0) * Math.PI) / 180;
-        for (let i = 0; i < count; i++) {
-          const a = count <= 2 ? base : base + fan * ((2 * (i - 1)) / Math.max(1, count - 2) - 1);
-          events.push({
-            type: "cloud",
-            attack,
-            center:
-              i === 0
-                ? center
-                : { x: center.x + Math.cos(a) * spread, y: center.y + Math.sin(a) * spread },
-            radius: d.radius,
-            duration: d.duration,
-            interval: d.interval,
-            application,
-          });
-        }
-        return events;
+        return cloudCenters(d, center, this.position).map((c) => ({
+          type: "cloud" as const,
+          attack,
+          center: c,
+          radius: d.radius,
+          duration: d.duration,
+          interval: d.interval,
+          application,
+        }));
       }
     }
   }
@@ -790,6 +777,33 @@ export class Enemy {
  * 敵の最大HP（補助仕様書10.1）：通常の敵のHP × 種類の倍率 × 格の倍率。
  * ボスは、データの最大HP（標準DPS×90秒。補助仕様書11章）。
  */
+/**
+ * 雲を複数出すときの中心（予兆の表示と同じ計算を使う）。1つ目は相手の位置。残りは、相手の位置から
+ * 出した敵と反対側へ spread m 離し、その向きの ±fanDeg の間に等しい角度で並べる（docs/progress D-U21-3）。
+ */
+export function cloudCenters(
+  d: {
+    readonly count?: number | undefined;
+    readonly spread?: number | undefined;
+    readonly fanDeg?: number | undefined;
+  },
+  center: Vec2,
+  from: Vec2,
+): Vec2[] {
+  const count = d.count ?? 1;
+  const spread = d.spread ?? 0;
+  const base = Math.atan2(center.y - from.y, center.x - from.x);
+  const fan = ((d.fanDeg ?? 0) * Math.PI) / 180;
+  const out: Vec2[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = count <= 2 ? base : base + fan * ((2 * (i - 1)) / Math.max(1, count - 2) - 1);
+    out.push(
+      i === 0 ? center : { x: center.x + Math.cos(a) * spread, y: center.y + Math.sin(a) * spread },
+    );
+  }
+  return out;
+}
+
 export function enemyMaxHp(def: EnemyDef, rank: EnemyRankDef, level: number): number {
   if (def.boss !== undefined) return def.boss.hp;
   return normalEnemyHp(level) * def.hpMultiplier * rank.hpMultiplier;

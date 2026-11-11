@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { Enemy, EnemyRank, HitShape, Vec2 } from "@stella/core";
+import { type Enemy, type EnemyRank, type HitShape, type Vec2, cloudCenters } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
 import type { EnemyField } from "./EnemyField.ts";
 import { enemyTexture, TEXTURES } from "./placeholders.ts";
@@ -127,19 +127,9 @@ export class EnemyFieldView {
             drawShape({ type: "line", length: 2, width: 0.2 }, e.position, e.facing);
             break;
           case "cloud": {
-            // 1つ目は相手の位置、残りはその周りに等しい角度で（Enemy の雲の置き方と同じ）
-            const count = d.count ?? 1;
-            const c = e.targetPoint;
-            const base = Math.atan2(c.y - e.position.y, c.x - e.position.x);
-            for (let i = 0; i < count; i++) {
-              const ang = base + (2 * Math.PI * (i - 1)) / Math.max(1, count - 1);
-              const r = i === 0 ? 0 : (d.spread ?? 0);
-              drawShape(
-                { type: "circle", radius: d.radius },
-                { x: c.x + Math.cos(ang) * r, y: c.y + Math.sin(ang) * r },
-                0,
-              );
-            }
+            // 実際の雲と同じ置き方（core の cloudCenters）
+            for (const c of cloudCenters(d, e.targetPoint, e.position))
+              drawShape({ type: "circle", radius: d.radius }, c, 0);
             break;
           }
         }
