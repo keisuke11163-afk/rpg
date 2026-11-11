@@ -375,3 +375,19 @@ describe("天極・輝星のルールフック（仕様書v0.2 4.5・4.7）", ()
     expect(sim.player.staggerImmune).toBe(true);
   });
 });
+
+describe("煙玉（仕様書v0.2 5.6）", () => {
+  it("中の敵に、間隔ごとに衰弱を付ける（付与の検証で例外にならない）", () => {
+    const sim = rogue();
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+    const slot = sim.loadout.find((l) => l.skill === "SKL-ROGUE-SMOKE")?.action;
+    if (slot === undefined) throw new Error("煙玉が枠に無い");
+    const d = sim.dummy as Combatant;
+    // 煙は照準の位置に置く（人形を狙う。16ピクセル＝1m）
+    const aim = { x: d.position.x * 16, y: d.position.y * 16 };
+    sim.frame(STEP, { ...input(), pointerWorld: aim, pressed: new Set<Action>([slot]) });
+    for (let i = 0; i < 120; i++) sim.frame(STEP, { ...input(), pointerWorld: aim });
+    expect(d.ailments.activeTags()).toContain("TAG-AIL-WEAKEN");
+  });
+});

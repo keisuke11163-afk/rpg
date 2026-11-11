@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json && tsc -p scripts/tsconfig.json && tsc -p test/tsconfig.json",
     "smoke": "node scripts/smoke.ts",
-    "e2e": "node scripts/e2e.ts"
+    "e2e": "node scripts/e2e.ts",
+    "bench": "node scripts/boss-bench.ts"
   },
   "dependencies": {
     "@stella/content": "workspace:*",

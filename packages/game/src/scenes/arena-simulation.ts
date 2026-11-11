@@ -2576,7 +2576,11 @@ export class ArenaSimulation {
             tag: def.tag,
             total: 0,
             duration: def.duration,
-            maxStacks: 1,
+            // 定義の最大スタックと一致させる（上限の無い衰弱は undefined。付与の検証に合わせる）
+            maxStacks:
+              def.kind === "dot" && def.stacking.mode === "stack"
+                ? def.stacking.maxStacks
+                : undefined,
           });
           if (t !== this.dummy) this.field?.onEnemyHit(t);
         }
