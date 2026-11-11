@@ -17,6 +17,13 @@ import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
 import { EquipmentPanel } from "../ui/EquipmentPanel.ts";
 import { itemName } from "../ui/item-text.ts";
 import { MINIMAP, type MinimapMarkKind, minimapMarks } from "../ui/minimap.ts";
+import {
+  DEFAULT_SETTINGS,
+  type Settings,
+  bindingName,
+  effectiveBindings,
+} from "../settings/settings.ts";
+import { loadSettings, saveSettings } from "../settings/storage.ts";
 import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import type { Action } from "../input/actions.ts";
@@ -96,6 +103,8 @@ export class ArenaScene extends Phaser.Scene {
   private lootView!: LootView;
   private showLoot = false;
   private controls!: InputSystem;
+  /** 設定（補助仕様書16章。端末ごと。D-UI-2）。 */
+  private settings: Settings = DEFAULT_SETTINGS;
   private keyJob!: Phaser.Input.Keyboard.Key;
   private jobPressed = false;
   private body!: Phaser.GameObjects.Image;
@@ -182,7 +191,9 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.body = this.add.image(0, 0, TEXTURES.player).setOrigin(0.5, 0.5);
     this.facing = this.add.image(0, 0, TEXTURES.facing).setOrigin(-0.6, 0.5);
-    this.controls = new InputSystem(this);
+    this.settings = loadSettings();
+    this.controls = new InputSystem(this, effectiveBindings(this.settings));
+    this.applySettings();
     const keyboard = this.input.keyboard;
     if (keyboard === null) throw new Error("キーボードの入力が使えない");
     // 開発用の機能：開発用の試験用の場だけ、B で鍛冶屋・G で転職（町では施設を F で使う）
@@ -211,6 +222,16 @@ export class ArenaScene extends Phaser.Scene {
     this.panel = new EquipmentPanel(this, this.sim, {
       onTravel: (to) => {
         this.travel(to);
+      },
+      settings: {
+        get: () => this.settings,
+        set: (s) => {
+          const bindingsChanged = s.bindings !== this.settings.bindings;
+          this.settings = s;
+          saveSettings(s);
+          if (bindingsChanged) this.controls.setBindings(effectiveBindings(s));
+          this.applySettings();
+        },
       },
     });
 
@@ -390,6 +411,13 @@ export class ArenaScene extends Phaser.Scene {
         lamps: sim.inventory.material("MAT-RETURN-LAMP"),
       }),
       starNodeScreen: (id?: number | string) => this.panel.nodeScreen(String(id)) ?? null,
+      // 設定（補助仕様書16章）：今の設定と、設定の画面の行の位置
+      settings: () => ({
+        dodge: effectiveBindings(this.settings).dodge.map((b) => ("key" in b ? b.key : b.mouse)),
+        volume: this.settings.volume,
+        scale: this.settings.scale,
+        rows: [...this.panel.settingsRowBoxes()],
+      }),
       // ロードアウト（U-20）
       loadouts: () => ({
         active: sim.activeLoadout,
@@ -554,7 +582,11 @@ export class ArenaScene extends Phaser.Scene {
     if (raw.pressed.has("character")) this.panel.toggle("character");
     if (raw.pressed.has("starBoard")) this.panel.toggle("starBoard");
     if (raw.pressed.has("jobBoard")) this.panel.toggle("jobBoard");
-    if (raw.pressed.has("menu")) this.panel.close();
+    // Esc：画面を開いていれば閉じる。何も開いていなければ設定を開く
+    if (raw.pressed.has("menu")) {
+      if (this.panel.open === undefined) this.panel.show("settings");
+      else this.panel.close();
+    }
     const pointer = this.input.activePointer;
     this.panel.hover(pointer.x, pointer.y);
     // 画面を開いている間も、ゲームは止めない（移動・回避はできる）。クリックは画面の操作に使うので、
@@ -569,6 +601,31 @@ export class ArenaScene extends Phaser.Scene {
     if (this.sim.autosave.due()) this.saveNow();
     this.render();
     this.panel.render();
+  }
+
+  /** 操作の説明（今の割り当てで。設定で変えると変わる）。 */
+  private controlsHint(): string {
+    const k = (a: Action): string =>
+      effectiveBindings(this.settings)[a].map(bindingName).join("・");
+    return `${k("moveUp")}${k("moveLeft")}${k("moveDown")}${k("moveRight")}移動・マウス照準・${k("dodge")} 回避・${k("inventory")} インベントリ・${k("character")} キャラクター・${k("starBoard")} 星辰盤・Esc 設定`;
+  }
+
+  /** 音量と画面の拡大率を効かせる（割り当ては InputSystem.setBindings）。 */
+  private applySettings(): void {
+    this.sound.volume = this.settings.volume;
+    const scale = this.scale;
+    const s = this.settings.scale;
+    if (s === "fit") {
+      if (scale.scaleMode !== Phaser.Scale.FIT || scale.zoom !== 1) {
+        scale.scaleMode = Phaser.Scale.FIT;
+        scale.setZoom(1);
+        scale.refresh();
+      }
+    } else if (scale.scaleMode !== Phaser.Scale.NONE || scale.zoom !== s) {
+      scale.scaleMode = Phaser.Scale.NONE;
+      scale.setZoom(s);
+      scale.refresh();
+    }
   }
 
   /** 受けている状態異常（全ての種類。補助仕様書16章「状態異常のアイコン」の文字の版）。 */
@@ -890,7 +947,7 @@ export class ArenaScene extends Phaser.Scene {
     const lastSkill = sim.lastSkill;
     this.hud.setText(
       [
-        `${region === undefined ? "試験用の場（開発用。B 鍛冶屋・G 転職）" : text(region.text as TextKey)}　WASD移動・マウス照準・スペース回避・I インベントリ・C キャラクター・T 星辰盤${(() => {
+        `${region === undefined ? "試験用の場（開発用。B 鍛冶屋・G 転職）" : text(region.text as TextKey)}　${this.controlsHint()}${(() => {
           const n = sim.nearbyInteractable();
           if (n === undefined) return "";
           return n.kind === "facility"

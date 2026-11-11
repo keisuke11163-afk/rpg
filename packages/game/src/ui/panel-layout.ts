@@ -32,7 +32,8 @@ export type PanelKind =
   | "stash"
   | "merchant"
   | "teleport"
-  | "altar";
+  | "altar"
+  | "settings";
 
 export type PanelTarget =
   | { readonly kind: "slot"; readonly slot: MvpEquipSlot }

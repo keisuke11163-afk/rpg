@@ -169,6 +169,12 @@ type DebugWindow = {
       uid: string,
     ) => { rarity: string; affixes: number; enhance: number; forgeLoad: number } | null;
     starNodeScreen: (id: string) => { x: number; y: number } | null;
+    settings: () => {
+      dodge: string[];
+      volume: number;
+      scale: string | number;
+      rows: { x: number; y: number }[];
+    };
     saves: () => SavesInfo;
     region: () => RegionInfo;
     goRegion: (id: string) => boolean;
@@ -868,6 +874,52 @@ try {
       boardPanel.lines.some((l) => l.startsWith("取得済み")),
     `取得 ${st1.allocated.join(",")}・迅 ${String(st0.attributes.jin)} → ${String(st1.attributes.jin)}・ポイント ${String(st1.allocated.length)}／${String(st1.points)}`,
   );
+  // 設定（補助仕様書16章・D-UI-2）：何も開いていないときに Esc で開き、回避の行をクリックして K を押すと K になる。
+  // 音量の行の左クリックで上がる。初期に戻す行で戻す
+  const settings = () =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.settings());
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(100);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  const setPanel = await panel();
+  const se0 = await settings();
+  const clickRow = async (i: number): Promise<void> => {
+    const r = (await settings()).rows[i];
+    if (r === undefined) return;
+    await page.mouse.move(r.x * 2, r.y * 2);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+  };
+  // 行の順：移動4・技6・回避（10番目）…・音量・拡大率・初期に戻す
+  await clickRow(10);
+  await page.keyboard.press("KeyK");
+  await page.waitForTimeout(100);
+  const se1 = await settings();
+  await clickRow(se1.rows.length - 3);
+  const se2 = await settings();
+  const stored = await page.evaluate(() => localStorage.getItem("stella-sigil.settings") ?? "");
+  await page.screenshot({ path: `${outDir}settings.png` });
+  await clickRow(se2.rows.length - 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  const se3 = await settings();
+  const afterPanel = await panel();
+  check(
+    "Esc で設定を開き、回避を K に変えると保存され、音量を上げられ、初期に戻せる（補助仕様書16章）",
+    setPanel.open === "settings" &&
+      se0.dodge.join() === "SPACE" &&
+      se1.dodge.join() === "K" &&
+      stored.includes('"K"') &&
+      se2.volume > se0.volume &&
+      se3.dodge.join() === "SPACE" &&
+      afterPanel.open === null,
+    `画面 ${String(setPanel.open)}・回避 ${se0.dodge.join()} → ${se1.dodge.join()} → ${se3.dodge.join()}・音量 ${String(se0.volume)} → ${String(se2.volume)}`,
+  );
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(100);
+
   // 星辰盤の検索（補助仕様書16章・D-UI-1）：入力欄に打つと、見つかったノードが光る。打つ間はゲームのキーが効かない
   await page.click("input[data-stella-search]");
   await page.keyboard.type("t");

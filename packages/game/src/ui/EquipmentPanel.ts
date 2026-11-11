@@ -24,6 +24,17 @@ import {
 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
 import { type ArenaSimulation, SKILL_SLOTS, type SkillSlot } from "../scenes/arena-simulation.ts";
+import { ACTIONS, type Action, type Binding } from "../input/actions.ts";
+import {
+  ACTION_NAME,
+  FIXED_ACTIONS,
+  SCALES,
+  type SettingsHost,
+  bindingName,
+  effectiveBindings,
+  keyNameFromCode,
+  rebind,
+} from "../settings/settings.ts";
 import {
   RARITY_COLOR,
   SLOT_NAME,
@@ -125,18 +136,61 @@ export class EquipmentPanel {
   private drag: { x: number; y: number; cam: BoardCamera; moved: boolean } | undefined;
 
   private readonly onTravel: ((to: string) => void) | undefined;
+  /** 設定（補助仕様書16章。D-UI-2）：読み書きは ArenaScene が持つ。 */
+  private readonly settingsHost: SettingsHost | undefined;
+  /** 設定の画面の行（左クリック・右クリックで違う操作）。 */
+  private settingsRows: {
+    x0: number;
+    x1: number;
+    y0: number;
+    y1: number;
+    run: (button: "left" | "right") => void;
+  }[] = [];
+  /** キーの割り当てを変える行動（次に押したキー・ボタンにする）。 */
+  private capturing: Action | undefined;
 
   constructor(
     scene: Phaser.Scene,
     sim: ArenaSimulation,
-    options: { readonly onTravel?: (to: string) => void } = {},
+    options: {
+      readonly onTravel?: (to: string) => void;
+      readonly settings?: SettingsHost;
+    } = {},
   ) {
     this.scene = scene;
     this.sim = sim;
+    this.settingsHost = options.settings;
+    // 割り当てを変える間は、次のキーを先に受け取る（Phaser より前。Esc はやめる）
+    if (typeof window !== "undefined")
+      window.addEventListener(
+        "keydown",
+        (e) => {
+          const action = this.capturing;
+          if (action === undefined || this.kind !== "settings") return;
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          this.capturing = undefined;
+          if (e.key === "Escape") return;
+          const name = keyNameFromCode(e.code);
+          if (name === undefined || !(name in Phaser.Input.Keyboard.KeyCodes)) {
+            this.say("そのキーは使えない", TEXT_COLOR.bad);
+            return;
+          }
+          this.applyBinding(action, { key: name });
+        },
+        { capture: true },
+      );
     this.onTravel = options.onTravel;
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH);
     scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       const button = p.button === 2 ? "right" : "left";
+      // 割り当てを変える間は、押したマウスのボタンにする
+      const capturing = this.capturing;
+      if (capturing !== undefined && this.kind === "settings") {
+        this.capturing = undefined;
+        this.applyBinding(capturing, { mouse: button });
+        return;
+      }
       // 星辰盤の何も無い所を左ボタンで押すと、ドラッグで動かす（離したときに動いていなければ何もしない）
       if (
         this.kind === "starBoard" &&
@@ -287,6 +341,26 @@ export class EquipmentPanel {
 
   close(): void {
     this.kind = undefined;
+    this.capturing = undefined;
+  }
+
+  /** 設定の画面の行の位置（自動の確認用。行動の行・音量・拡大率・初期に戻す、の順）。 */
+  settingsRowBoxes(): readonly { x: number; y: number }[] {
+    return this.settingsRows.map((r) => ({ x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 }));
+  }
+
+  /** 設定の行動の割り当てを変える（入れ替えを含む）。 */
+  private applyBinding(action: Action, binding: Binding): void {
+    const host = this.settingsHost;
+    if (host === undefined) return;
+    const before = host.get();
+    const next = rebind(before, action, binding);
+    if (next === before) {
+      this.say("そのキーには割り当てられない（Esc は固定）", TEXT_COLOR.bad);
+      return;
+    }
+    host.set(next);
+    this.say(`${ACTION_NAME[action]}：${bindingName(binding)}`, TEXT_COLOR.good);
   }
 
   /** 画面を開く（施設を使ったとき）。開いていれば何もしない。 */
@@ -325,6 +399,12 @@ export class EquipmentPanel {
 
   /** クリック。何かをしたら true。 */
   click(x: number, y: number, button: "left" | "right"): boolean {
+    if (this.kind === "settings") {
+      const row = this.settingsRows.find((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1);
+      if (row === undefined) return false;
+      row.run(button);
+      return true;
+    }
     if (this.kind === "teleport" || this.kind === "merchant" || this.kind === "altar") {
       if (x >= PANEL.detail.x) {
         const row = this.smithRows.find((r) => y >= r.y0 && y < r.y1);
@@ -489,6 +569,7 @@ export class EquipmentPanel {
       else if (this.kind === "merchant") this.renderMerchant();
       else if (this.kind === "teleport") this.renderTeleport();
       else if (this.kind === "altar") this.renderAltar();
+      else if (this.kind === "settings") this.renderSettings();
       else if (this.kind === "jobBoard") this.renderJobBoard();
       else this.renderStarBoard();
       this.placeSearchBox();
@@ -1263,5 +1344,112 @@ export class EquipmentPanel {
         },
       });
     }
+  }
+
+  /** 設定の画面（補助仕様書16章：キーの割り当て・音量・画面の拡大率。D-UI-2）。 */
+  private renderSettings(): void {
+    this.settingsRows = [];
+    const host = this.settingsHost;
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      {
+        text: "設定（Esc で閉じる）　行をクリックして、割り当てるキー・ボタンを押す（Esc でやめる）",
+        color: TEXT_COLOR.dim,
+      },
+      0,
+    );
+    if (host === undefined) return;
+    const s = host.get();
+    const bindings = effectiveBindings(s);
+    const colW = 300;
+    const rowH = 11;
+    const x0 = PANEL.x + 12;
+    const y0 = PANEL.y + 24;
+    const listed = ACTIONS.filter((a) => !FIXED_ACTIONS.includes(a));
+    const perCol = Math.ceil(listed.length / 2);
+    listed.forEach((a, i) => {
+      const x = x0 + Math.floor(i / perCol) * colW;
+      const y = y0 + (i % perCol) * rowH;
+      const waiting = this.capturing === a;
+      this.line(
+        x,
+        y,
+        {
+          text: `${ACTION_NAME[a]}：${waiting ? "（キー・ボタンを押す）" : bindings[a].map(bindingName).join("・")}`,
+          color: waiting ? TEXT_COLOR.highlight : TEXT_COLOR.normal,
+        },
+        colW - 8,
+      );
+    });
+    for (const [i, a] of listed.entries()) {
+      const x = x0 + Math.floor(i / perCol) * colW;
+      const y = y0 + (i % perCol) * rowH;
+      this.settingsRows.push({
+        x0: x,
+        x1: x + colW,
+        y0: y,
+        y1: y + rowH,
+        run: () => {
+          this.capturing = a;
+        },
+      });
+    }
+    let y = y0 + perCol * rowH + 10;
+    const vy = y;
+    y = this.lines(
+      x0,
+      y,
+      [
+        {
+          text: `音量：${String(Math.round(s.volume * 100))}%（左クリックで上げる・右クリックで下げる）`,
+          color: TEXT_COLOR.normal,
+        },
+      ],
+      colW * 2,
+    );
+    this.settingsRows.push({
+      x0,
+      x1: x0 + colW * 2,
+      y0: vy,
+      y1: y,
+      run: (button) => {
+        const v = Math.round((s.volume + (button === "left" ? 0.1 : -0.1)) * 10) / 10;
+        host.set({ ...s, volume: Math.min(1, Math.max(0, v)) });
+      },
+    });
+    const sy = y;
+    y = this.lines(
+      x0,
+      y,
+      [
+        {
+          text: `画面の拡大率：${s.scale === "fit" ? "画面に合わせる" : `${String(s.scale)}倍`}（クリックで切り替える）`,
+          color: TEXT_COLOR.normal,
+        },
+      ],
+      colW * 2,
+    );
+    this.settingsRows.push({
+      x0,
+      x1: x0 + colW * 2,
+      y0: sy,
+      y1: y,
+      run: () => {
+        const i = SCALES.indexOf(s.scale);
+        host.set({ ...s, scale: SCALES[(i + 1) % SCALES.length] ?? "fit" });
+      },
+    });
+    const ry = y;
+    y = this.lines(x0, y, [{ text: "初期の割り当てに戻す", color: TEXT_COLOR.good }], colW * 2);
+    this.settingsRows.push({
+      x0,
+      x1: x0 + colW * 2,
+      y0: ry,
+      y1: y,
+      run: () => {
+        host.set({ ...s, bindings: {} });
+      },
+    });
   }
 }
