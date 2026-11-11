@@ -1139,6 +1139,28 @@ try {
       altarPanel.lines.some((l) => l.includes("討伐証")),
     `画面 ${String(altarPanel.open)}`,
   );
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+
+  // 職紋盤（U-15）：J で開き、最初のノードをクリックすると取れる
+  await page.keyboard.press("KeyJ");
+  await page.waitForTimeout(150);
+  const jobPanel = await panel();
+  const firstNode = jobPanel.lines.findIndex((l) => l.startsWith("□"));
+  await page.mouse.move(PANEL.slots.x * 2 + 40, PANEL.slots.y * 2 + 6);
+  await page.mouse.down({ button: "left" });
+  await page.mouse.up({ button: "left" });
+  await page.waitForTimeout(150);
+  const jobPanel2 = await panel();
+  await page.screenshot({ path: `${outDir}job-board.png` });
+  check(
+    "J で職紋盤が開き、始点の隣のノードをクリックすると取れる（U-15）",
+    jobPanel.open === "jobBoard" &&
+      firstNode >= 0 &&
+      jobPanel.lines.some((l) => l.includes("【職奥義】")) &&
+      jobPanel2.lines.some((l) => l.startsWith("■")),
+    `画面 ${String(jobPanel.open)}・取ったノード ${String(jobPanel2.lines.filter((l) => l.startsWith("■")).length)}`,
+  );
 } finally {
   await browser.close();
   await server.close();

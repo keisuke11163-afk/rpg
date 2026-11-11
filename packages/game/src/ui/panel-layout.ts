@@ -24,7 +24,15 @@ export const PANEL = {
 } as const;
 
 export type PanelKind =
-  "inventory" | "character" | "starBoard" | "smith" | "stash" | "merchant" | "teleport" | "altar";
+  | "inventory"
+  | "character"
+  | "starBoard"
+  | "jobBoard"
+  | "smith"
+  | "stash"
+  | "merchant"
+  | "teleport"
+  | "altar";
 
 export type PanelTarget =
   | { readonly kind: "slot"; readonly slot: MvpEquipSlot }

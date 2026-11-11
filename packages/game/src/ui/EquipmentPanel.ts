@@ -109,6 +109,8 @@ export class EquipmentPanel {
   private smithSelected: string | undefined;
   /** 鍛冶屋の操作の行（クリックの当たり判定。描くたびに作り直す）。 */
   private smithRows: { y0: number; y1: number; run: () => void }[] = [];
+  /** 職紋盤の画面の行（左右の2列）。 */
+  private jobRows: { x0: number; x1: number; y0: number; y1: number; run: () => void }[] = [];
   /** 星辰盤の視点（始点を中心にして開く）。 */
   private camera: BoardCamera = { cx: 0, cy: 0, zoom: ZOOM.initial };
   /** 星辰盤をドラッグで動かしている（押した位置と、その時の視点）。 */
@@ -269,6 +271,12 @@ export class EquipmentPanel {
       this.smithSelected = this.sim.inventory.items[t.index]?.uid;
       return true;
     }
+    if (this.kind === "jobBoard") {
+      const row = this.jobRows.find((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1);
+      if (row === undefined) return false;
+      row.run();
+      return true;
+    }
     if (this.kind === "starBoard") {
       const r = this.respecRow;
       if (r !== undefined && x >= BOARD_DETAIL.x && y >= r.y0 && y < r.y1) {
@@ -378,6 +386,7 @@ export class EquipmentPanel {
       else if (this.kind === "merchant") this.renderMerchant();
       else if (this.kind === "teleport") this.renderTeleport();
       else if (this.kind === "altar") this.renderAltar();
+      else if (this.kind === "jobBoard") this.renderJobBoard();
       else this.renderStarBoard();
       if (this.message !== undefined && this.scene.time.now < this.message.until)
         this.line(
@@ -938,6 +947,103 @@ export class EquipmentPanel {
   }
 
   /** 転移の石（補助仕様書9.4）：解放した地域の入口へ移る。 */
+  /**
+   * 職紋盤（仕様書v0.2 4.10）：メインジョブの盤のノードを一覧で出し、クリックで取る。
+   * 振り直し（全て返す）は、安全地帯で金貨を払う。
+   */
+  private renderJobBoard(): void {
+    const sim = this.sim;
+    const db = sim.db;
+    const board = sim.jobBoard;
+    const points = sim.jobBoardPoints;
+    this.jobRows = [];
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      {
+        text: `職紋盤：${text(sim.job.text as TextKey)}（J で閉じる）　ポイント ${String(board.spent)}／${String(points)}　クリック：取る`,
+        color: TEXT_COLOR.dim,
+      },
+      0,
+    );
+    const nodes = [...db.jobNodes.values()].filter(
+      (n) => n.job === sim.job.id && n.kind !== "start",
+    );
+    const label = (id: string): TextLine => {
+      const n = db.jobNodes.get(id);
+      if (n === undefined) return { text: id, color: TEXT_COLOR.dim };
+      const taken = board.has(id);
+      const can = board.allocateBlock(id, points) === undefined;
+      const mark = taken ? "■" : can ? "□" : "・";
+      const kind = n.kind === "mastery" ? "【職奥義】" : n.kind === "connector" ? "【接続】" : "";
+      const name = n.text === undefined ? "" : `${text(n.text as TextKey)}：`;
+      const desc =
+        n.description !== undefined
+          ? text(n.description as TextKey)
+          : (n.effects ?? []).map((e) => effectText(db, e)).join("・");
+      return {
+        text: `${mark} ${kind}${name}${desc}`,
+        color: taken ? TEXT_COLOR.highlight : can ? TEXT_COLOR.good : TEXT_COLOR.dim,
+      };
+    };
+    const column = (x: number, width: number, y0: number, ids: readonly string[]): number => {
+      let y = y0;
+      for (const id of ids) {
+        const top = y;
+        y = this.lines(x, y, [label(id)], width);
+        this.jobRows.push({
+          x0: x,
+          x1: x + width,
+          y0: top,
+          y1: y,
+          run: () => {
+            if (sim.allocateJobNode(id)) return;
+            const block = board.allocateBlock(id, points);
+            if (block === "taken") return;
+            this.say(
+              block === "points"
+                ? "ポイントが足りない（ジョブLvで増える）"
+                : block === "masteryChosen"
+                  ? "職奥義は1つだけ選べる"
+                  : "取ったノードの隣だけ取れる",
+            );
+          },
+        });
+      }
+      return y;
+    };
+    const left = nodes.filter((n) => n.kind === "minor" || n.kind === "notable").map((n) => n.id);
+    const right = nodes
+      .filter((n) => n.kind === "connector" || n.kind === "mastery")
+      .map((n) => n.id);
+    column(PANEL.slots.x, PANEL.detail.x - PANEL.slots.x - 8, PANEL.slots.y, left);
+    let y = column(PANEL.detail.x, PANEL.detail.width, PANEL.detail.y, right);
+    y += LINE;
+    const top = y;
+    const cost = sim.jobBoardRespecCost;
+    y = this.lines(
+      PANEL.detail.x,
+      y,
+      [
+        {
+          text: `▶ 全て振り直す（金貨 ${String(cost)}。安全地帯だけ）　所持 ${String(sim.inventory.gold)}`,
+          color: sim.inventory.gold >= cost && board.spent > 0 ? TEXT_COLOR.good : TEXT_COLOR.dim,
+        },
+      ],
+      PANEL.detail.width,
+    );
+    this.jobRows.push({
+      x0: PANEL.detail.x,
+      x1: PANEL.detail.x + PANEL.detail.width,
+      y0: top,
+      y1: y,
+      run: () => {
+        if (sim.resetJobBoard()) this.say("職紋盤を全て振り直した", TEXT_COLOR.good);
+        else this.say("振り直せない（安全地帯・金貨・取得したノードが要る）");
+      },
+    });
+  }
+
   /** 討伐の祭壇（仕様書v0.2 3.12）：討伐証10個で、専用ユニークを1つ選んで交換する。 */
   private renderAltar(): void {
     const sim = this.sim;

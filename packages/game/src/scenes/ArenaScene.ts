@@ -551,6 +551,7 @@ export class ArenaScene extends Phaser.Scene {
     if (raw.pressed.has("inventory")) this.panel.toggle("inventory");
     if (raw.pressed.has("character")) this.panel.toggle("character");
     if (raw.pressed.has("starBoard")) this.panel.toggle("starBoard");
+    if (raw.pressed.has("jobBoard")) this.panel.toggle("jobBoard");
     if (raw.pressed.has("menu")) this.panel.close();
     const pointer = this.input.activePointer;
     this.panel.hover(pointer.x, pointer.y);
