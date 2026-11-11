@@ -423,3 +423,41 @@ describe("武具連携（仕様書v0.2 3.13）", () => {
     expect(d.ailments.stacks("AIL-BLEED")).toBe(2);
   });
 });
+
+describe("星読みの記録の簡易版（仕様書v0.2 6.7・D-UI-3）", () => {
+  it("武具連携を初めて組むと「新しい星の巡り」を1回だけ知らせ、セーブに残る", () => {
+    const texts: string[] = [];
+    const sim = new ArenaSimulation(undefined, {
+      enemies: false,
+      onText: (label) => texts.push(label),
+    });
+    sim.changeJob();
+    sim.gainXp(1e7);
+    for (const [uid, slot] of [
+      ["itm_994001", "mainHand"],
+      ["itm_994002", "offHand"],
+    ] as const) {
+      sim.inventory.addItem({
+        uid,
+        base: "BASE-WPN-DAGGER-T1",
+        rarity: "normal",
+        itemLevel: 1,
+        affixes: [],
+      });
+      expect(sim.equipFromInventory(uid, slot)).toBe(true);
+    }
+    sim.frame(STEP, input([]));
+    sim.frame(STEP, input([]));
+    expect(sim.interactionsSeen.has("I-21")).toBe(true);
+    expect(texts.filter((t) => t === "新しい星の巡り：武具連携")).toHaveLength(1);
+    expect(sim.saveData().discoveries.interactions_seen).toContain("I-21");
+  });
+
+  it("武器による技の変化（I-15）は、変化のある技を使ったときに記録する", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    // 試験用の初期の状態は戦士・大剣。薙ぎ払いは大剣で範囲が広がる（変化あり）
+    for (let i = 0; i < 30; i++) sim.frame(STEP, input(["skill2"]));
+    expect(sim.lastSkill?.variants.length ?? 0).toBeGreaterThan(0);
+    expect(sim.interactionsSeen.has("I-15")).toBe(true);
+  });
+});

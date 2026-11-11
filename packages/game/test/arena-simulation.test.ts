@@ -328,7 +328,8 @@ describe("ArenaSimulation：転職・経験値（U-10）", () => {
     expect(sim.character.level).toBeGreaterThan(before);
     expect(sim.player.health.hp).toBe(sim.player.health.maxHp);
     expect(sim.levelUps).toBeGreaterThan(0);
-    expect(texts.length).toBe(1);
+    // 知らせは Lvアップの1つ（星読みの記録の「新しい星の巡り」は別に数える）
+    expect(texts.filter((t) => !t.startsWith("新しい星の巡り")).length).toBe(1);
   });
 });
 

@@ -1,4 +1,5 @@
 // 場の計算：地域（町・ダンジョン。補助仕様書8・9章）と、開発用の試験用の場（地域を渡さないとき）
+import { INTERACTION_NAMES, activeInteractions, skillInteractions } from "./interactions.ts";
 import {
   type Affinity,
   Character,
@@ -492,6 +493,8 @@ export class ArenaSimulation {
   private puddleDropTimer = 0;
   /** 潜在効果を見つけたユニーク（ベースのID。セーブの discoveries.latent_revealed）。 */
   readonly revealedLatents: Set<string>;
+  /** 初めて効いた相互作用（仕様書6.6 の I-xx。セーブの discoveries.interactions_seen。D-UI-3）。 */
+  readonly interactionsSeen: Set<string>;
   /** 背向けの外套：全てのヒットを背面として扱う期限（経過時間）。 */
   private moveBackstabUntil = -1;
   /** 旅人の古靴：短縮の分の移動距離と、この1秒の短縮の量。 */
@@ -602,6 +605,7 @@ export class ArenaSimulation {
     this.bossKills = new Map(Object.entries(profile.bossKills));
     this.bossTokens = new Map(Object.entries(profile.kept.bossTokens));
     this.revealedLatents = new Set(profile.kept.discoveries.latent_revealed);
+    this.interactionsSeen = new Set(profile.kept.discoveries.interactions_seen);
     for (const [jobId, b] of Object.entries(profile.kept.boards))
       if (b.board.length > 0)
         this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId, b.board));
@@ -1610,6 +1614,7 @@ export class ArenaSimulation {
         discoveries: {
           ...this.kept.discoveries,
           latent_revealed: [...this.revealedLatents],
+          interactions_seen: [...this.interactionsSeen],
         },
         questPoints: this.questPoints,
         explorationPoints: this.explorationPoints,
@@ -1925,6 +1930,16 @@ export class ArenaSimulation {
           "#ffd166",
         );
       }
+    // 星読みの記録（簡易版）：初めて効いた相互作用を知らせる
+    this.noteInteractions(
+      activeInteractions({
+        db: this.db,
+        sheet: this.sheetValue,
+        equipment: this.equipment,
+        mainJobTag: this.job.tag,
+        pairing: this.weaponPairing() !== undefined,
+      }),
+    );
     // 職紋盤のノード・職奥義：職能ゲージの減少・被弾の獲得・下限・最大値
     const jv = this.sheetValue.evaluated.view;
     const g = this.jobGaugeValue;
@@ -2022,6 +2037,7 @@ export class ArenaSimulation {
     for (const e of def.selfEffects ?? [])
       this.buffs.add(e.effect, e.duration * this.sheetValue.effectDuration, def.id);
     this.lastSkillValue = { id: def.id, variants: resolved.variants };
+    this.noteInteractions(skillInteractions(resolved.variants));
     // 技ごとの動作の速さの能力値（例：職紋盤「素早い手」の連刃の速度+15%）
     const flurry = def.speedStat === undefined ? 1 : 1 + this.view.stat(def.speedStat).value;
     this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
@@ -2397,9 +2413,22 @@ export class ArenaSimulation {
     }
   }
 
+  /** 初めて効いた相互作用を記録して「新しい星の巡り」として知らせる（仕様書v0.2 6.7）。 */
+  private noteInteractions(ids: readonly string[]): void {
+    for (const id of ids) {
+      if (this.interactionsSeen.has(id)) continue;
+      this.interactionsSeen.add(id);
+      this.onText?.(
+        `新しい星の巡り：${INTERACTION_NAMES[id] ?? id}`,
+        this.motion.position,
+        "#c3a6ff",
+      );
+    }
+  }
+
   /**
    * 武具連携（主手×副手。仕様書v0.2 3.13）のうち、MVPで成り立つもの：短剣＋短剣「双牙」（2撃目＝副手の
-   * ヒットの付与率+20%）、片手斧＋片手斧「双斧」（出血のスタックが2つずつ・付与率-25%）。
+   * ヒットの付与率+20%）、片手斧＋片手斧「双斧」（出血のスタックが2つずつ・付与率×0.75。D-DUAL-3）。
    * 剣盾の型・槍衾はパリィ・ガードが前提なので MVP には無い。
    */
   weaponPairing(): "twinFangs" | "twinAxes" | undefined {
