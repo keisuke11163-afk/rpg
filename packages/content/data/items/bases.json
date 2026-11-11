@@ -579,11 +579,10 @@
       "effects": ["EFF-UNQ-U03-PENALTY", "EFF-UNQ-U03-BLEED", "EFF-UNQ-U03-STACKS"],
       "latent": {
         "text": "item.unique.u03.latent",
-        "effects": [],
+        "effects": ["EFF-UNQ-U03-LATENT"],
         "condition": {
           "type": "jobNode",
-          "id": "JOBNODE-ROGUE-POISON-BLOOD",
-          "pending": true
+          "id": "JBN-ROGUE-POISON-BLOOD"
         }
       },
       "source": "exclusive",
@@ -703,11 +702,10 @@
       "effects": ["EFF-UNQ-U15-RING"],
       "latent": {
         "text": "item.unique.u15.latent",
-        "effects": [],
+        "effects": ["EFF-UNQ-U15-LATENT"],
         "condition": {
           "type": "jobMastery",
-          "id": "MASTERY-WARRIOR-DEMON",
-          "pending": true
+          "id": "JBN-WARRIOR-M-DEMON"
         }
       },
       "source": "anywhere",
@@ -735,11 +733,10 @@
       "effects": ["EFF-UNQ-U16-CLOAK"],
       "latent": {
         "text": "item.unique.u16.latent",
-        "effects": [],
+        "effects": ["EFF-UNQ-U16-LATENT"],
         "condition": {
           "type": "jobMastery",
-          "id": "MASTERY-ROGUE-SHADOW",
-          "pending": true
+          "id": "JBN-ROGUE-M-SHADOW"
         }
       },
       "source": "anywhere",

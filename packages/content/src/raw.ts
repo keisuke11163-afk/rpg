@@ -17,6 +17,8 @@ import starEffects from "../data/effects/star.json" with { type: "json" };
 import craftingEffects from "../data/effects/crafting.json" with { type: "json" };
 import starNodes from "../data/boards/star.json" with { type: "json" };
 import constellations from "../data/boards/constellations.json" with { type: "json" };
+import jobBoardNodes from "../data/boards/job-boards.json" with { type: "json" };
+import jobBoardEffects from "../data/effects/job-boards.json" with { type: "json" };
 import regionDefs from "../data/regions/regions.json" with { type: "json" };
 import questDefs from "../data/regions/quests.json" with { type: "json" };
 import implicitEffects from "../data/effects/implicits.json" with { type: "json" };
@@ -65,6 +67,7 @@ export const rawContent: RawContent = {
       { file: "data/effects/star.json", entries: starEffects },
       { file: "data/effects/crafting.json", entries: craftingEffects },
       { file: "data/effects/uniques.json", entries: uniqueEffects },
+      { file: "data/effects/job-boards.json", entries: jobBoardEffects },
     ],
     ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
     skills: [
@@ -83,6 +86,7 @@ export const rawContent: RawContent = {
     dropProfiles: [{ file: "data/items/drops.json", entries: dropProfiles }],
     starNodes: [{ file: "data/boards/star.json", entries: starNodes }],
     constellations: [{ file: "data/boards/constellations.json", entries: constellations }],
+    jobNodes: [{ file: "data/boards/job-boards.json", entries: jobBoardNodes }],
     regions: [{ file: "data/regions/regions.json", entries: regionDefs }],
     quests: [{ file: "data/regions/quests.json", entries: questDefs }],
   },
@@ -110,6 +114,7 @@ export function registeredDataFiles(): string[] {
       ...(c.dropProfiles ?? []),
       ...(c.starNodes ?? []),
       ...(c.constellations ?? []),
+      ...(c.jobNodes ?? []),
       ...(c.regions ?? []),
       ...(c.quests ?? []),
     ].map((s) => s.file),

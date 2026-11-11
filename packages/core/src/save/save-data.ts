@@ -3,6 +3,7 @@ import { Character } from "../character/progression.ts";
 import { type LoadoutRecord, MAX_LOADOUTS } from "../character/loadouts.ts";
 import { ITEM_RARITIES, AFFIX_TIERS } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
+import { JobBoardAllocation } from "../board/job-board.ts";
 import { dualWieldAffinity } from "../combat/skills.ts";
 import {
   Equipment,
@@ -648,7 +649,28 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
         ref(db.enemies.get(e)?.boss !== undefined, () => `ボス ${e} がデータに無い`);
       return { ...data.boss_kills };
     })(),
-    kept: {
+    kept: (() => {
+      // 職紋盤（仕様書v0.2 4.10）：データにあるノード・そのジョブの盤・職奥義は1つ・職奥義の選択と一致
+      for (const [jobId, j] of Object.entries(data.jobs)) {
+        try {
+          const alloc = new JobBoardAllocation(db, jobId, j.board_allocation);
+          ref(
+            (alloc.mastery ?? null) === j.mastery_choice,
+            () => `ジョブ ${jobId} の職奥義の選択が、職紋盤の取得と合わない`,
+          );
+        } catch (e) {
+          ref(
+            false,
+            () => `ジョブ ${jobId} の職紋盤：${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+      }
+      return keptOf();
+    })(),
+  };
+
+  function keptOf(): KeptSaveFields {
+    return {
       subJob: c.sub_job,
       boards: Object.fromEntries(
         Object.entries(data.jobs).map(([k, j]) => [
@@ -661,6 +683,6 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       questPoints: data.quest_points,
       explorationPoints: data.exploration_points,
       settings: data.settings,
-    },
-  };
+    };
+  }
 }

@@ -58,6 +58,24 @@ function reachable(
   return out;
 }
 
+/** root から、盤のつながりで radius ノード以内にあるノード（root 自身は含めない）。 */
+export function nodesWithin(db: ContentDb, root: string | undefined, radius: number): Set<string> {
+  const out = new Set<string>();
+  if (root === undefined || !(radius > 0)) return out;
+  let frontier = [root];
+  for (let d = 0; d < radius; d++) {
+    const next: string[] = [];
+    for (const cur of frontier)
+      for (const l of links(db, cur)) {
+        if (l === root || out.has(l)) continue;
+        out.add(l);
+        next.push(l);
+      }
+    frontier = next;
+  }
+  return out;
+}
+
 /**
  * 星辰盤の取得の状態（取った順を保つ。ポイントの上限を超えたときに、最後に取ったものから休眠させるため）。
  * 取得・返却の規則（仕様書v0.2 4.3・4.9.1）：
@@ -156,6 +174,10 @@ export interface StarBoardInput {
   /** 第1段階の効果（能力値・装備など。星門の能力値の条件の判定に使う）。 */
   readonly baseInstances: readonly EffectInstance[];
   readonly facts?: EvaluationFacts;
+  /**
+   * 職紋盤の接続ノード（仕様書v0.2 4.10）：始点からこのノード数以内にある小星の効果を×2にする（0・省略で無し）。
+   */
+  readonly boostRadius?: number;
   /** 星域ごとの共鳴紋の数（天極の共鳴変化。共鳴紋の付いた装備は、まだ無い）。 */
   readonly resonance?: Partial<Record<StarRegion, number>>;
 }
@@ -200,11 +222,19 @@ export function evaluateStarBoard(
   const pool = new Set(within);
   const node = (id: string): StarNodeDef | undefined => db.starNodes.get(id);
   const isGate = (id: string): boolean => node(id)?.kind === "gate";
+  // 職紋盤の接続ノード：始点の周り（盤のつながりで数えた距離）の小星は×2
+  const boosted = nodesWithin(db, root, input.boostRadius ?? 0);
   const instancesOf = (ids: Iterable<string>): EffectInstance[] => {
     const out: EffectInstance[] = [];
-    for (const id of ids)
+    for (const id of ids) {
+      const double = boosted.has(id) && node(id)?.kind === "minor";
       for (const effectId of node(id)?.effects ?? [])
-        out.push({ effectId, source: { kind: STAR_NODE_SOURCE, ref: id } });
+        out.push({
+          effectId,
+          source: { kind: STAR_NODE_SOURCE, ref: id },
+          ...(double ? { stacks: 2 } : {}),
+        });
+    }
     return out;
   };
   // 第1段階：星門を通らずにつながるノード（星門そのものは含めない）

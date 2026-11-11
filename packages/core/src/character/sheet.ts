@@ -19,6 +19,7 @@ import {
   stageOneView,
 } from "../effects/evaluate.ts";
 import type { TagIndex } from "../effects/tag-index.ts";
+import { type JobBoardAllocation, jobBoardPoints } from "../board/job-board.ts";
 import type { Equipment } from "../items/equipment.ts";
 import { requirementMet } from "../items/equipment.ts";
 import type { ItemInstance } from "../items/generate.ts";
@@ -62,6 +63,8 @@ export interface CharacterSheetInput {
     /** 省略すると {@link starPoints}（キャラLv−1）。 */
     readonly points?: number;
   };
+  /** メインジョブの職紋盤の取得（省略すると職紋盤なし）。ポイントはメインジョブのジョブLv−1。 */
+  readonly jobBoard?: JobBoardAllocation;
 }
 
 /** 主手の武器の状態。 */
@@ -111,6 +114,8 @@ export interface CharacterSheet {
   };
   /** 移動速度の倍率（1 ＋ 移動速度の増加。大盾・重鎖の帯・亀裂・軽装の統一ボーナスなど）。 */
   readonly moveSpeed: number;
+  /** メインジョブの職紋盤の有効なノード（職奥義を含む）。 */
+  readonly jobNodes: ReadonlySet<string>;
   /** 統一ボーナスの防具種（4部位以上。仕様書v0.2 3.3）。 */
   readonly uniform: ArmorType | undefined;
   /** 装備しているユニークの潜在効果と、条件を満たしているか（仕様書v0.2 3.7）。 */
@@ -128,6 +133,8 @@ export function latentConditionMet(
     readonly board: StarBoardResult | undefined;
     readonly mainJobTag: string;
     readonly enhance: number;
+    /** メインジョブの職紋盤の有効なノード（職奥義を含む）。 */
+    readonly jobNodes?: ReadonlySet<string>;
   },
 ): boolean {
   switch (cond.type) {
@@ -137,8 +144,7 @@ export function latentConditionMet(
       return cond.pending !== true && (ctx.board?.active.includes(cond.id) ?? false);
     case "jobNode":
     case "jobMastery":
-      // 職紋盤（U-15）がまだ無いので、満たされない
-      return false;
+      return cond.pending !== true && (ctx.jobNodes?.has(cond.id) ?? false);
     case "mainJob":
       return ctx.mainJobTag === cond.job;
     case "enhanceAtLeast":
@@ -164,7 +170,15 @@ export function buildCharacterSheet(
     mainJob: job.tag,
     facts: equipment?.facts() ?? { "mainHand.empty": 1 },
   };
-  const gear = [...(input.extraEffects ?? []), ...(equipment?.effects() ?? [])];
+  // 職紋盤（メインジョブの盤だけ。仕様書v0.2 4.10）
+  const jobBoard = input.jobBoard?.job === job.id ? input.jobBoard : undefined;
+  const jobPoints = jobBoardPoints(character.jobLevel(job.id));
+  const jobActive = new Set(jobBoard?.active(jobPoints) ?? []);
+  const gear = [
+    ...(input.extraEffects ?? []),
+    ...(equipment?.effects() ?? []),
+    ...(jobBoard?.effects(jobPoints) ?? []),
+  ];
   // 星辰盤：星門の条件は、第1段階の値（基礎・装備・星門を通らないノード）で判定する
   const board =
     input.starBoard === undefined
@@ -173,6 +187,8 @@ export function buildCharacterSheet(
           allocation: input.starBoard.allocation,
           points: input.starBoard.points ?? starPoints(character.level),
           rootJob: job.id,
+          // 接続ノードを1つ取るごとに、×2にする範囲が1ノード広がる（3つで半径3。docs/progress D-U15-3）
+          boostRadius: jobBoard?.connectors(jobPoints) ?? 0,
           baseInstances: gear,
           facts,
         });
@@ -206,6 +222,7 @@ export function buildCharacterSheet(
       board,
       mainJobTag: job.tag,
       enhance: item.enhance ?? 0,
+      jobNodes: jobActive,
     });
     latents.push({ uid: item.uid, base: item.base, active });
     if (active)
@@ -293,6 +310,7 @@ export function buildCharacterSheet(
     },
     moveSpeed: Math.max(MIN_MOVE_SPEED_FACTOR, 1 + view.stat("STAT-MOVE-SPEED").increased),
     uniform: equipment?.uniformType(),
+    jobNodes: jobActive,
     latents,
   };
 }

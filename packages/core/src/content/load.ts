@@ -42,6 +42,9 @@ import {
   NODE_EFFECT_ORIGIN,
   type StarNodeDef,
   constellationSchema,
+  jobNodeSchema,
+  JOB_NODE_EFFECT_ORIGIN,
+  type JobNodeDef,
   starNodeSchema,
 } from "./board.ts";
 import type { Condition } from "./effect.ts";
@@ -85,6 +88,7 @@ export interface RawContent {
     /** 星辰盤のノードと星座（省略すると無し）。 */
     readonly starNodes?: readonly RawSource[];
     readonly constellations?: readonly RawSource[];
+    readonly jobNodes?: readonly RawSource[];
     /** 地域（町・ダンジョン。省略すると無し）。 */
     readonly regions?: readonly RawSource[];
     /** クエスト（省略すると無し）。 */
@@ -151,6 +155,10 @@ export interface ContentDb {
   readonly starLinks: ReadonlyMap<string, ReadonlySet<string>>;
   /** 星座。 */
   readonly constellations: ReadonlyMap<string, ConstellationDef>;
+  /** 職紋盤のノード（仕様書v0.2 4.10）と、つながり（両方向）・ジョブごとの始点。 */
+  readonly jobNodes: ReadonlyMap<string, JobNodeDef>;
+  readonly jobLinks: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly jobBoardStarts: ReadonlyMap<string, string>;
   /** 地域（町・ダンジョン）。 */
   readonly regions: ReadonlyMap<string, RegionDef>;
   /** クエスト。 */
@@ -266,6 +274,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const dropProfiles = parseAll(raw.collections.dropProfiles ?? [], dropProfileSchema);
   const starNodes = parseAll(raw.collections.starNodes ?? [], starNodeSchema);
   const constellations = parseAll(raw.collections.constellations ?? [], constellationSchema);
+  const jobNodes = parseAll(raw.collections.jobNodes ?? [], jobNodeSchema);
   const regions = parseAll(raw.collections.regions ?? [], regionSchema);
   const quests = parseAll(raw.collections.quests ?? [], questSchema);
 
@@ -288,6 +297,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     ...dropProfiles,
     ...starNodes,
     ...constellations,
+    ...jobNodes,
     ...regions,
     ...quests,
   ];
@@ -1024,14 +1034,17 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       } else if (c.type === "constellation" && c.pending !== true) {
         if (!constellations.some((n) => n.value.id === c.id))
           err({ code: "unknown-ref", file, id: b.id, path: at, message: `星座 ${c.id} がない` });
-      } else if ((c.type === "jobNode" || c.type === "jobMastery") && c.pending !== true)
-        err({
-          code: "unknown-ref",
-          file,
-          id: b.id,
-          path: at,
-          message: "職紋盤のデータがまだ無いので、pending にする",
-        });
+      } else if ((c.type === "jobNode" || c.type === "jobMastery") && c.pending !== true) {
+        const n = jobNodes.find((x) => x.value.id === c.id)?.value;
+        if (n === undefined || (n.kind === "mastery") !== (c.type === "jobMastery"))
+          err({
+            code: "unknown-ref",
+            file,
+            id: b.id,
+            path: at,
+            message: `職紋盤の${c.type === "jobMastery" ? "職奥義" : "ノード"} ${c.id} がない`,
+          });
+      }
     }
   }
 
@@ -1214,6 +1227,68 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         message: "共鳴変化は天極（keystone）だけが持つ",
       });
   }
+  // 11b. 職紋盤：ジョブの参照・つながり（同じジョブの中だけ）・効果の出どころ・始点はジョブごとに1つ
+  const jobNodeMap = new Map(jobNodes.map((n) => [n.value.id, n.value]));
+  const jobLinks = new Map<string, Set<string>>();
+  for (const id of jobNodeMap.keys()) jobLinks.set(id, new Set());
+  const jobBoardStarts = new Map<string, string>();
+  for (const { value: n, file } of jobNodes) {
+    if (n.text !== undefined) checkText(n.text, file, n.id);
+    if (n.description !== undefined) checkText(n.description, file, n.id);
+    refCheck(jobMap, "ジョブ", n.job, file, n.id, "job");
+    n.links.forEach((l, i) => {
+      const at = `links.${String(i)}`;
+      if (l === n.id)
+        err({ code: "schema", file, id: n.id, path: at, message: "自分自身とはつながれない" });
+      else if (refCheck(jobNodeMap, "職紋盤のノード", l, file, n.id, at)) {
+        if (jobNodeMap.get(l)?.job !== n.job)
+          err({
+            code: "schema",
+            file,
+            id: n.id,
+            path: at,
+            message: "別のジョブの盤とはつながれない",
+          });
+        jobLinks.get(n.id)?.add(l);
+        jobLinks.get(l)?.add(n.id);
+      }
+    });
+    const allowed = JOB_NODE_EFFECT_ORIGIN[n.kind];
+    (n.effects ?? []).forEach((e, i) => {
+      const at = `effects.${String(i)}`;
+      if (!refCheck(effectMap, "効果", e, file, n.id, at)) return;
+      const origin = effectMap.get(e)?.origin ?? "";
+      if (!allowed.includes(origin))
+        err({
+          code: "schema",
+          file,
+          id: n.id,
+          path: at,
+          message: `${n.kind} のノードは、出どころが ${origin} の効果を持てない`,
+        });
+    });
+    if (n.kind === "start") {
+      const prev = jobBoardStarts.get(n.job);
+      if (prev !== undefined)
+        err({
+          code: "schema",
+          file,
+          id: n.id,
+          path: "kind",
+          message: `ジョブ ${n.job} の職紋盤の始点が2つある（${prev}）`,
+        });
+      else jobBoardStarts.set(n.job, n.id);
+    }
+  }
+  for (const { value: n, file } of jobNodes)
+    if (!jobBoardStarts.has(n.job) && jobMap.has(n.job))
+      err({
+        code: "schema",
+        file,
+        id: n.id,
+        path: "job",
+        message: `ジョブ ${n.job} の職紋盤に始点が無い`,
+      });
   const starters = new Map<string, string>();
   for (const { value: n, file } of starNodes)
     for (const j of n.startFor ?? []) {
@@ -1448,6 +1523,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("dropProfiles", dropProfiles);
   collect("starNodes", starNodes);
   collect("constellations", constellations);
+  collect("jobNodes", jobNodes);
   collect("regions", regions);
   collect("quests", quests);
 
@@ -1474,6 +1550,9 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       starNodes: starMap,
       starLinks,
       constellations: new Map(constellations.map((c) => [c.value.id, c.value])),
+      jobNodes: jobNodeMap,
+      jobLinks,
+      jobBoardStarts,
       regions: regionMap,
       quests: new Map(quests.map((q) => [q.value.id, q.value])),
     },

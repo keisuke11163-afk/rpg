@@ -10,6 +10,14 @@ export const CORE_API_VERSION = 1;
 
 export { Rng, type RngState } from "./random/rng.ts";
 export { FLASK_FILL, FLASK_RULES, Flask, type FlaskState } from "./character/flasks.ts";
+export {
+  JOB_NODE_SOURCE,
+  JobBoardAllocation,
+  type JobAllocateBlock,
+  jobBoardPoints,
+  jobBoardRespecCost,
+} from "./board/job-board.ts";
+export { type JobNodeDef, type JobNodeKind } from "./content/board.ts";
 export { FIXED_STEP_SECONDS, FixedStepClock, type AdvanceResult } from "./time/fixed-step.ts";
 export { StepInputBuffer } from "./time/step-input.ts";
 
@@ -442,6 +450,7 @@ export {
   type StarBoardResult,
   evaluateStarBoard,
   startNodeOf,
+  nodesWithin,
   starPoints,
 } from "./board/star-board.ts";
 

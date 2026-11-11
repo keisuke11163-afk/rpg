@@ -106,7 +106,11 @@ function sampleProfile(): PlayerProfile {
     questStages: ["QUEST-FOREST-1"],
     secretsFound: ["SECRET-A3-BUSH", "SECRET-MOTHER-TREE"],
     bossKills: { "ENM-MOTHER-TREE": 2 },
-    kept: emptyKeptFields(),
+    kept: {
+      ...emptyKeptFields(),
+      // 職紋盤（盗賊）：幹の最初の2つ
+      boards: { "JOB-ROGUE": { board: ["JBN-ROGUE-T1", "JBN-ROGUE-T2"], mastery: null } },
+    },
   };
 }
 
@@ -327,6 +331,34 @@ describe("T11：1つ前の版のデータを移行できる", () => {
       secrets_found: ["SECRET-A3-BUSH", "SECRET-MOTHER-TREE"],
       boss_kills: { "ENM-MOTHER-TREE": 2 },
     }).toEqual(toSaveData(db, sampleProfile()));
+  });
+
+  it("職紋盤：取得と職奥義を保存して戻す。データに無い・別のジョブ・職奥義の不一致は参照の問題", () => {
+    const data = toSaveData(db, sampleProfile());
+    expect(data.jobs["JOB-ROGUE"]?.board_allocation).toEqual(["JBN-ROGUE-T1", "JBN-ROGUE-T2"]);
+    expect(fromSaveData(db, data).kept.boards["JOB-ROGUE"]?.board).toEqual([
+      "JBN-ROGUE-T1",
+      "JBN-ROGUE-T2",
+    ]);
+    const withBoard = (board: string[], mastery: string | null): SaveData => {
+      const rogue = data.jobs["JOB-ROGUE"];
+      if (rogue === undefined) throw new Error("盗賊が無い");
+      return {
+        ...data,
+        jobs: {
+          ...data.jobs,
+          "JOB-ROGUE": { ...rogue, board_allocation: board, mastery_choice: mastery },
+        },
+      };
+    };
+    expect(() => fromSaveData(db, withBoard(["JBN-NONE"], null))).toThrow(SaveDataError);
+    expect(() => fromSaveData(db, withBoard(["JBN-WARRIOR-T1"], null))).toThrow(SaveDataError);
+    expect(() => fromSaveData(db, withBoard(["JBN-ROGUE-T1"], "JBN-ROGUE-M-SHADOW"))).toThrow(
+      SaveDataError,
+    );
+    expect(() =>
+      fromSaveData(db, withBoard(["JBN-ROGUE-M-SHADOW", "JBN-ROGUE-M-SILENT"], null)),
+    ).toThrow(SaveDataError);
   });
 
   it("版5 → 版6：ボスはまだ倒していない。ボスでない敵・データに無い敵は参照の問題", () => {

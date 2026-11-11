@@ -73,6 +73,11 @@ import {
   skillBlock,
   staggerProfiles,
   UNIFORM_EFFECTS,
+  OUT_OF_COMBAT_SECONDS,
+  JobBoardAllocation,
+  jobBoardPoints,
+  jobBoardRespecCost,
+  type ModifierView,
   isBehind,
   ALTAR_TOKEN_COST,
   uniqueItem,
@@ -102,6 +107,10 @@ import { LootField } from "../world/LootField.ts";
 const LIGHT_UNIFORM_SECONDS = 0.5;
 /** 系統詞【獣狩りの】の移動速度が続く秒数（仕様書v0.2 3.6）。 */
 const BEAST_HUNT_SECONDS = 3;
+/** クールダウン短縮の上限（仮値）。 */
+const MAX_COOLDOWN_REDUCTION = 0.9;
+/** 職紋盤「素早い手」の対象の技。 */
+const FLURRY_SKILL = "SKL-ROGUE-FLURRY";
 /**
  * 母樹の根冠（U18）の受けるダメージの倍率：毒10スタックにつき ×(1＋step)（乗算）、上限は 1＋cap。
  */
@@ -459,6 +468,15 @@ export class ArenaSimulation {
   private questPoints: number;
   private explorationPoints: number;
   private lastHitBy: string | null = null;
+  /** ジョブごとの職紋盤の取得（仕様書v0.2 4.10）。 */
+  private readonly jobBoards = new Map<string, JobBoardAllocation>();
+  private jobBoardVersion = 0;
+  /** 鬼神化（職奥義）の残りの秒数。 */
+  private demonLeft = 0;
+  /** 背面からのヒットでコンボ点を得た時刻（背向けの外套の潜在効果。1秒に1回まで）。 */
+  private lastBackstabCombo = -Infinity;
+  /** 最後に攻撃を当てようとした・攻撃を受けた時刻（静かなる刃の「戦闘外」の判定）。 */
+  private lastCombatAt = -Infinity;
   /** 毒蛇座の毒だまりと、次に置くまでの秒数。 */
   private puddleList: PoisonPuddle[] = [];
   private puddleDropTimer = 0;
@@ -571,6 +589,9 @@ export class ArenaSimulation {
     this.bossKills = new Map(Object.entries(profile.bossKills));
     this.bossTokens = new Map(Object.entries(profile.kept.bossTokens));
     this.revealedLatents = new Set(profile.kept.discoveries.latent_revealed);
+    for (const [jobId, b] of Object.entries(profile.kept.boards))
+      if (b.board.length > 0)
+        this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId, b.board));
     this.questPoints = profile.kept.questPoints;
     this.explorationPoints = profile.kept.explorationPoints;
     this.starsValue = new StarAllocation(this.db, profile.starAllocation);
@@ -972,7 +993,12 @@ export class ArenaSimulation {
       this.puddleDropTimer = PUDDLE_DROP_INTERVAL;
       for (const e of this.field?.enemies ?? []) {
         if (e.state === "dead" || !e.combatant.moving) continue;
-        if (e.combatant.ailments.stacks(POISON_AILMENT) < PUDDLE_MIN_STACKS) continue;
+        const count =
+          e.combatant.ailments.stacks(POISON_AILMENT) +
+          (this.view.stat("STAT-UNQ-BLEED-AS-POISON").value > 0
+            ? e.combatant.ailments.stacks(BLEED_AILMENT)
+            : 0);
+        if (count < PUDDLE_MIN_STACKS) continue;
         const strongest = e.combatant.ailments.strongestDot(POISON_AILMENT);
         if (strongest === undefined) continue;
         this.puddleList.push({
@@ -1264,6 +1290,82 @@ export class ArenaSimulation {
     return true;
   }
 
+  /** メインジョブの職紋盤（仕様書v0.2 4.10）。 */
+  get jobBoard(): JobBoardAllocation {
+    let b = this.jobBoards.get(this.job.id);
+    if (b === undefined) {
+      b = new JobBoardAllocation(this.db, this.job.id);
+      this.jobBoards.set(this.job.id, b);
+    }
+    return b;
+  }
+
+  /** 職紋盤のポイント（メインジョブのジョブLv−1）。 */
+  get jobBoardPoints(): number {
+    return jobBoardPoints(this.character.jobLevel(this.job.id));
+  }
+
+  /** 職紋盤のノードを取る。取れなければ false。 */
+  allocateJobNode(id: string): boolean {
+    if (!this.jobBoard.allocate(id, this.jobBoardPoints)) return false;
+    this.jobBoardChanged();
+    return true;
+  }
+
+  /** 職紋盤の振り直しの金貨（補助仕様書5章：20×ジョブLv）。 */
+  get jobBoardRespecCost(): number {
+    return jobBoardRespecCost(this.character.jobLevel(this.job.id));
+  }
+
+  /**
+   * 職紋盤を全て返す（転職神殿。金貨 20×ジョブLv。仕様書v0.2 4.13）。町・安全地帯だけ。
+   * 何も取っていない・金貨が足りないときは、何も変えずに false。
+   */
+  resetJobBoard(): boolean {
+    if (!this.inSafeZone || this.current !== undefined || this.jobBoard.spent === 0) return false;
+    if (!this.inventory.spendGold(this.jobBoardRespecCost)) return false;
+    this.jobBoard.clear();
+    this.jobBoardChanged();
+    this.autosave.notify("respec");
+    return true;
+  }
+
+  private jobBoardChanged(): void {
+    this.jobBoardVersion += 1;
+    this.refreshAttacker();
+    this.syncPlayerMaxHp();
+  }
+
+  /**
+   * 職奥義「鬼神化」：闘志が最大になると、自動的に一定時間「鬼神」になる（全ての職技が激化版・攻撃速度+20%）。
+   * 鬼神になると闘志を全て使い、終わるまで段階は全て達している扱い（docs/progress D-U15-5）。
+   */
+  private updateDemon(dt: number): void {
+    const g = this.jobGaugeValue;
+    if (this.demonLeft > 0) {
+      this.demonLeft = this.demonLeft - dt <= 1e-9 ? 0 : this.demonLeft - dt;
+      if (this.demonLeft === 0) g.forceStages = false;
+      return;
+    }
+    const seconds = this.view.stat("STAT-JOB-DEMON").value;
+    if (seconds > 0 && g.value >= g.max - 1e-9) {
+      this.demonLeft = seconds;
+      g.spend("all");
+      g.forceStages = true;
+      this.buffs.add("EFF-BUFF-DEMON", seconds, "demon");
+      this.onText?.("鬼神化", this.motion.position, "#ff6b6b");
+    }
+  }
+
+  private get view(): ModifierView {
+    return this.sheetValue.evaluated.view;
+  }
+
+  /** 鬼神化（職奥義）の最中か。 */
+  get demon(): boolean {
+    return this.demonLeft > 0;
+  }
+
   /** 星辰盤のポイント（キャラLv−1＋クエスト＋探索。仕様書v0.2 4.12）。 */
   get starPoints(): number {
     return starPoints(this.character.level, this.questPoints, this.explorationPoints);
@@ -1382,6 +1484,15 @@ export class ArenaSimulation {
       kept: {
         ...this.kept,
         bossTokens: Object.fromEntries(this.bossTokens),
+        boards: {
+          ...this.kept.boards,
+          ...Object.fromEntries(
+            [...this.jobBoards].map(([jobId, b]) => [
+              jobId,
+              { board: [...b.nodes], mastery: b.mastery ?? null },
+            ]),
+          ),
+        },
         discoveries: {
           ...this.kept.discoveries,
           latent_revealed: [...this.revealedLatents],
@@ -1543,6 +1654,7 @@ export class ArenaSimulation {
       equipFromInventory(this.inventory, this.equipment, start, "mainHand", this.canDualWield);
     this.equipmentVersion += 1;
     this.jobGaugeValue = this.newGauge();
+    this.demonLeft = 0;
     this.attackerVersion = "";
     this.refreshAttacker();
     this.syncPlayerMaxHp();
@@ -1585,6 +1697,9 @@ export class ArenaSimulation {
     // 影走りは、対象（照準の近くの敵）がいなければ使えない（補助仕様書3.6）
     if (def.action.type === "teleport" && this.stepTarget(def.action.range) === undefined)
       return "target";
+    // 職奥義「鬼神化」を選ぶと、解放技は使えなくなる
+    if (def.tags.includes("TAG-FORM-RELEASE") && this.view.stat("STAT-JOB-DEMON").value > 0)
+      return "locked";
     return skillBlock(def, {
       cooldown: this.cooldowns.remaining(skillId),
       mp: this.mpValue,
@@ -1667,7 +1782,7 @@ export class ArenaSimulation {
 
   /** 効果（戦吼の強化など）・Lv・ジョブ・装備が変わったら、能力値を計算し直す（キャラクターの画面と同じ計算）。 */
   private refreshAttacker(): void {
-    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}`;
+    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}|${String(this.jobBoardVersion)}|${String(this.character.jobLevel(this.job.id))}`;
     if (this.attackerVersion === version) return;
     this.attackerVersion = version;
     this.sheetValue = buildCharacterSheet(this.db, this.tags, {
@@ -1676,6 +1791,7 @@ export class ArenaSimulation {
       equipment: this.equipment,
       extraEffects: this.buffs.instances(),
       starBoard: { allocation: this.stars.nodes, points: this.starPoints },
+      jobBoard: this.jobBoard,
     });
     this.mpValue = Math.min(this.mpValue, this.sheetValue.maxMp);
     // ユニークの潜在効果：初めて条件を満たしたら見つけたことにして、知らせる（仕様書v0.2 3.7）
@@ -1689,6 +1805,13 @@ export class ArenaSimulation {
           "#ffd166",
         );
       }
+    // 職紋盤のノード・職奥義：職能ゲージの減少・被弾の獲得・下限・最大値
+    const jv = this.sheetValue.evaluated.view;
+    const g = this.jobGaugeValue;
+    g.decayMultiplier = Math.max(0, 1 + jv.stat("STAT-GAUGE-DECAY").increased);
+    g.takenGainMultiplier = Math.max(0, 1 + jv.stat("STAT-GAUGE-GAIN-TAKEN").increased);
+    g.floor = jv.stat("STAT-GAUGE-FLOOR").value;
+    g.maxBonus = jv.stat("STAT-GAUGE-MAX-BONUS").value;
     // 職能ゲージの獲得量（職詞。メインジョブの条件は効果の側で判定する）
     this.jobGaugeValue.gainMultiplier = Math.max(
       0,
@@ -1723,6 +1846,8 @@ export class ArenaSimulation {
     const def = this.db.skills.get(skillId);
     if (def === undefined) return;
     // 終結技は、使う前のゲージの量で強さが決まる
+    // 職奥義「無限連撃」：終結技はコンボ点を使わない代わりに、CDが決まった秒数になる
+    const endlessCd = def.finisher === undefined ? 0 : this.view.stat("STAT-JOB-ENDLESS-CD").value;
     const cost = def.gauge?.cost;
     const spent = cost === "all" ? this.jobGaugeValue.value : (cost ?? 0);
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
@@ -1745,18 +1870,26 @@ export class ArenaSimulation {
       teleportTo = this.behind(t, def.action.behind);
     }
     this.mpValue -= def.mpCost;
-    this.cooldowns.start(def.id, def.cooldown);
-    if (def.gauge?.cost !== undefined) this.jobGaugeValue.spend(def.gauge.cost);
+    // クールダウン短縮（詞・怒涛）。短縮は90%まで（仮値。docs/progress D-U15-6）
+    const cdr = Math.min(MAX_COOLDOWN_REDUCTION, this.view.stat("STAT-COOLDOWN-REDUCTION").value);
+    this.cooldowns.start(def.id, Math.max(def.cooldown, endlessCd) * (1 - cdr));
+    if (def.gauge?.cost !== undefined && !(endlessCd > 0)) this.jobGaugeValue.spend(def.gauge.cost);
+    // 職奥義「怒涛」：解放技の後の一定時間、職技のCD-50%
+    const surge = this.view.stat("STAT-JOB-SURGE").value;
+    if (surge > 0 && def.tags.includes("TAG-FORM-RELEASE"))
+      this.buffs.add("EFF-BUFF-SURGE", surge, "surge");
     if (def.gauge?.gainOnUse !== undefined) this.jobGaugeValue.add(def.gauge.gainOnUse);
     this.jobGaugeValue.markCombat();
     for (const e of def.selfEffects ?? [])
       this.buffs.add(e.effect, e.duration * this.sheetValue.effectDuration, def.id);
     this.lastSkillValue = { id: def.id, variants: resolved.variants };
+    // 職紋盤「素早い手」：連刃の速度+15%
+    const flurry = def.id === FLURRY_SKILL ? 1 + this.view.stat("STAT-JOB-FLURRY-SPEED").value : 1;
     this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
     this.current = {
       slot,
       run: {
-        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeed, {
+        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeed * flurry, {
           aimPoint: this.aimPoint,
           ...(teleportTo === undefined ? {} : { teleportTo }),
         }),
@@ -1915,6 +2048,7 @@ export class ArenaSimulation {
       // 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージ-15%
       playerTakenMultiplier: (enemy) => this.behindGuardMultiplier(enemy),
       onPlayerHit: (report, enemy) => {
+        this.lastCombatAt = this.elapsed;
         if (report.hit.evaded) return;
         // 樹皮の盾（U13）：攻撃を受けると、攻撃してきた敵に毒を1スタック（基準値は受けたダメージの30%）
         const retaliate = this.sheetValue.evaluated.view.stat("STAT-UNQ-RETALIATE-POISON").value;
@@ -2020,6 +2154,8 @@ export class ArenaSimulation {
     this.mpValue = Math.min(this.maxMp, this.mpValue + this.mpFlask.update(dt));
     this.cooldowns.update(dt);
     this.buffs.update(dt);
+    // 鬼神化は、闘志が最大に届いた刻みで始まる（戦闘外の減少より先に判定する）
+    this.updateDemon(dt);
     this.jobGaugeValue.update(dt);
     this.refreshAttacker();
     this.elapsed += dt;
@@ -2082,7 +2218,19 @@ export class ArenaSimulation {
     // 母樹の根冠（U18）：敵の毒10スタックにつき受けるダメージ×1.04（上限まで）
     const ampStep = view.stat("STAT-UNQ-POISON-AMP").value;
     const ampCap = view.stat("STAT-UNQ-POISON-AMP-CAP").value;
-    const extraTaken = poisonAmplifier(t.ailments.stacks(POISON_AILMENT), ampStep, ampCap);
+    // 千の小傷の潜在効果（毒血同源）：出血も毒として数える
+    const bleedAsPoison = view.stat("STAT-UNQ-BLEED-AS-POISON").value > 0;
+    const poisonCount =
+      t.ailments.stacks(POISON_AILMENT) + (bleedAsPoison ? t.ailments.stacks(BLEED_AILMENT) : 0);
+    let extraTaken = poisonAmplifier(poisonCount, ampStep, ampCap);
+    // 職紋盤「崩しの達人」：崩れた敵への職技のダメージ+25%
+    const isJobSkill = skill.def.job !== undefined;
+    if (isJobSkill && t.stagger.broken) extraTaken *= 1 + view.stat("STAT-JOB-BROKEN-DAMAGE").value;
+    // 職奥義「静かなる刃」：戦闘外からの最初の一撃×3
+    const silent = view.stat("STAT-JOB-SILENT-BLADE").value;
+    if (silent > 0 && this.elapsed - this.lastCombatAt >= OUT_OF_COMBAT_SECONDS)
+      extraTaken *= silent;
+    const allBackstab = view.stat("STAT-JOB-ALL-BACKSTAB").value > 0;
     const wasBroken = t.stagger.broken;
     const report = resolveHit({
       db: this.db,
@@ -2098,8 +2246,20 @@ export class ArenaSimulation {
       ...(bonus === undefined ? {} : { backstabBonus: bonus }),
       ...(extraTaken === 1 ? {} : { extraTakenMultiplier: extraTaken }),
       // 背向けの外套（U16）：移動の技を使った後の一定時間、全てのヒットを背面からのヒットとして扱う
-      ...(this.elapsed < this.moveBackstabUntil ? { forceBackstab: true } : {}),
+      ...(this.elapsed < this.moveBackstabUntil || allBackstab ? { forceBackstab: true } : {}),
     });
+    this.lastCombatAt = this.elapsed;
+    // 背向けの外套の潜在効果（影法師）：背面からのヒットでコンボ点+1（1秒に1回まで）
+    const backCombo = view.stat("STAT-UNQ-BACKSTAB-COMBO").value;
+    if (
+      backCombo > 0 &&
+      report.backstab &&
+      !report.hit.evaded &&
+      this.elapsed - this.lastBackstabCombo >= 1
+    ) {
+      this.lastBackstabCombo = this.elapsed;
+      this.jobGaugeValue.add(backCombo);
+    }
     if (t !== this.dummy) this.field?.onEnemyHit(t);
     if (t === this.dummy) this.lastReport = report;
     if (report.hit.evaded) return false;
@@ -2176,7 +2336,9 @@ export class ArenaSimulation {
       this.jobGaugeValue.add(
         skill.def.tags.includes("TAG-FORM-HEAVY") ? fervor * HEAVY_FERVOR_FACTOR : fervor,
       );
-    const spread = view.stat("STAT-UNQ-BREAK-SPREAD").value;
+    const spread =
+      view.stat("STAT-UNQ-BREAK-SPREAD").value +
+      (this.demon ? view.stat("STAT-UNQ-BREAK-SPREAD-DEMON").value : 0);
     if (spread > 0 && report.staggerBroke)
       for (const o of this.targets()) {
         if (o === t || o === this.dummy) continue;

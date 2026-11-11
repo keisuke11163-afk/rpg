@@ -1,0 +1,391 @@
+[
+  {
+    "id": "EFF-JBN-WAR-STAGGER",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-WAR-MELEE",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.04,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-WAR-HP",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-HP-MAX",
+        "value": 10
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-WAR-GAIN",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-GAUGE-GAIN",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-WAR-FORGE",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-GAUGE-DECAY",
+        "value": -0.5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-WAR-BLOOD",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-GAUGE-GAIN-TAKEN",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-WAR-TWOHAND",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.25
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "factAtLeast",
+        "fact": "twoHanded",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "EFF-JBN-WAR-BREAKER",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-BROKEN-DAMAGE",
+        "value": 0.25
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBM-WAR-UNYIELDING",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GAUGE-FLOOR",
+        "value": 30
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBM-WAR-SURGE",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-SURGE",
+        "value": 10
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBM-WAR-DEMON",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-DEMON",
+        "value": 6
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-ROG-CRIT",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-CRIT-CHANCE",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-ROG-AILMENT",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-CHANCE",
+        "value": 0.02
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-ROG-SPEED",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ATTACK-SPEED",
+        "value": 0.02
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-ROG-BACKSTAB",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-BACKSTAB-CRIT",
+        "value": 0.01
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-ROG-POISON-BLOOD",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 0.05,
+        "filter": {
+          "anyOf": ["TAG-AIL-BLEED", "TAG-AIL-POISON"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-ROG-VITALS",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-CRIT-MULTIPLIER",
+        "value": 0.3,
+        "filter": {
+          "allOf": ["TAG-FORM-FINISHER"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-ROG-QUICK",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-FLURRY-SPEED",
+        "value": 0.15
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBM-ROG-ENDLESS",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GAUGE-MAX-BONUS",
+        "value": 3
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-ENDLESS-CD",
+        "value": 3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBM-ROG-SILENT",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-SILENT-BLADE",
+        "value": 3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBM-ROG-SHADOW",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-ALL-BACKSTAB",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-BUFF-SURGE",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-COOLDOWN-REDUCTION",
+        "value": 0.5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-BUFF-DEMON",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ATTACK-SPEED",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  }
+]

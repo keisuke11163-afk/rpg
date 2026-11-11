@@ -71,3 +71,31 @@ export const constellationSchema = z.strictObject({
   ...provisionalFields,
 });
 export type ConstellationDef = z.infer<typeof constellationSchema>;
+
+/** 職紋盤のノードの種類（仕様書v0.2 4.10）。mastery は職奥義（1つだけ選べる）、connector は星辰盤への接続ノード。 */
+export const JOB_NODE_KINDS = ["start", "minor", "notable", "mastery", "connector"] as const;
+export type JobNodeKind = (typeof JOB_NODE_KINDS)[number];
+
+/** 種類ごとに、職紋盤のノードの効果が持てる出どころ。 */
+export const JOB_NODE_EFFECT_ORIGIN: Readonly<Record<JobNodeKind, readonly string[]>> = {
+  start: [],
+  minor: ["jobNode"],
+  notable: ["jobNode"],
+  mastery: ["jobMastery"],
+  connector: ["jobNode"],
+};
+
+/** 職紋盤のノード（仕様書v0.2 4.10）。ジョブごとの盤。つながりは向きを持たない。 */
+export const jobNodeSchema = z.strictObject({
+  id: idSchema,
+  job: idSchema,
+  text: textKeySchema.optional(),
+  /** 説明（名前のあるノード・職奥義）。 */
+  description: textKeySchema.optional(),
+  kind: z.enum(JOB_NODE_KINDS),
+  links: z.array(idSchema),
+  effects: z.array(idSchema).optional(),
+  position: z.strictObject({ x: z.number(), y: z.number() }),
+  ...provisionalFields,
+});
+export type JobNodeDef = z.infer<typeof jobNodeSchema>;

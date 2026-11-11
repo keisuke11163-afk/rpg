@@ -1459,3 +1459,167 @@ describe("ArenaSimulation：毒蛇座の完成ボーナス（毒だまり。仕�
     expect(sim.poisonPuddles).toHaveLength(0);
   });
 });
+
+describe("ArenaSimulation：職紋盤（U-15、仕様書v0.2 4.10・5.2・5.6）", () => {
+  const W = "JBN-WARRIOR-";
+  const R = "JBN-ROGUE-";
+  const take = (sim: ArenaSimulation, ids: string[]): void => {
+    for (const id of ids) expect(sim.allocateJobNode(id), id).toBe(true);
+  };
+  const trunk = (p: string, n = 7): string[] =>
+    Array.from({ length: n }, (_, i) => `${p}T${String(i + 1)}`);
+
+  it("ポイントはメインジョブのジョブLv−1。取得はセーブデータに残り、転職するとジョブごとに別", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.jobBoardPoints).toBe(sim.character.jobLevel(sim.job.id) - 1);
+    take(sim, trunk(W, 2));
+    expect(sim.saveData().jobs["JOB-WARRIOR"]?.board_allocation).toEqual(trunk(W, 2));
+    sim.changeJob();
+    expect(sim.jobBoard.spent).toBe(0);
+    expect(sim.allocateJobNode(`${W}T3`)).toBe(false);
+    sim.changeJob();
+    expect(sim.jobBoard.nodes).toEqual(trunk(W, 2));
+    const again = new ArenaSimulation(undefined, {
+      db: sim.db,
+      enemies: false,
+      profile: sim.profile(),
+    });
+    expect(again.jobBoard.nodes).toEqual(trunk(W, 2));
+  });
+
+  it("不屈の闘志：闘志が30より下がらない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    take(sim, [...trunk(W), `${W}M-UNYIELDING`]);
+    expect(sim.jobGauge.value).toBe(30);
+    sim.jobGauge.add(20);
+    sim.jobGauge.spend("all");
+    expect(sim.jobGauge.value).toBe(30);
+  });
+
+  it("鬼神化：闘志が100になると6秒間、全ての職技が激化版・攻撃速度+20%。解放技は使えない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    take(sim, [...trunk(W), `${W}M-DEMON`]);
+    const speed = sim.attackSpeed;
+    const inc = (): number => sim.sheet.evaluated.view.stat("STAT-ATTACK-SPEED").increased;
+    const before = inc();
+    expect(sim.blockOf("SKL-WARRIOR-ROUT")).toBe("locked");
+    sim.jobGauge.add(100);
+    sim.frame(STEP, input());
+    expect(sim.demon).toBe(true);
+    expect(sim.jobGauge.value).toBe(0);
+    expect(sim.jobGauge.hasStage("empowered")).toBe(true);
+    // 攻撃速度の増加は、適性の補正と足し合わせる（加算）
+    expect(sim.attackSpeed).toBeGreaterThan(speed);
+    expect(inc() - before).toBeCloseTo(0.2);
+    for (let i = 0; i < Math.ceil(6.1 / STEP); i++) sim.frame(STEP, input());
+    expect(sim.demon).toBe(false);
+    expect(sim.jobGauge.hasStage("empowered")).toBe(false);
+    expect(sim.attackSpeed).toBeCloseTo(speed);
+  });
+
+  it("怒涛：解放技の後10秒間、職技のCDが-50%", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    take(sim, [...trunk(W), `${W}M-SURGE`]);
+    sim.setFervor(100);
+    expect(sim.setSlotSkill(1, "SKL-WARRIOR-ROUT")).toBe(true);
+    sim.frame(STEP, input({ pressed: ["skill2"] }));
+    expect(sim.lastSkill?.id).toBe("SKL-WARRIOR-ROUT");
+    for (let i = 0; i < Math.ceil(3 / STEP); i++) sim.frame(STEP, input());
+    const charge = sim.db.skills.get("SKL-WARRIOR-CHARGE");
+    sim.frame(STEP, input({ pressed: ["skill3"] }));
+    expect(sim.lastSkill?.id).toBe("SKL-WARRIOR-CHARGE");
+    expect(sim.cooldowns.remaining("SKL-WARRIOR-CHARGE")).toBeCloseTo(
+      (charge?.cooldown ?? 0) * 0.5,
+      1,
+    );
+  });
+
+  it("静かなる刃：戦闘外からの最初の一撃だけ×3", () => {
+    const hitTotals = (mastery: boolean): number[] => {
+      const sim = new ArenaSimulation(undefined, { enemies: false });
+      sim.changeJob();
+      sim.gainXp(1e7);
+      if (mastery) take(sim, [...trunk(R), `${R}M-SILENT`]);
+      const p = sim.motion.position;
+      sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+      const out: number[] = [];
+      const held = { ...input(), held: new Set<Action>(["skill1"]) };
+      for (let i = 0; i < 400 && out.length < 2; i++) {
+        const hits = sim.hitCount;
+        sim.frame(STEP, held);
+        if (sim.hitCount > hits) out.push(sim.lastHit?.hit.total ?? 0);
+      }
+      return out;
+    };
+    const plain = hitTotals(false);
+    const silent = hitTotals(true);
+    // 同じ乱数の列なので、1撃目だけが3倍になる
+    expect((silent[0] ?? 0) / (plain[0] ?? 1)).toBeCloseTo(3);
+    expect((silent[1] ?? 0) / (plain[1] ?? 1)).toBeCloseTo(1);
+  });
+
+  it("無限連撃：コンボ点の最大+3。終結技はコンボ点を使わず、CDが3秒", () => {
+    const sim = new ArenaSimulation();
+    sim.changeJob();
+    sim.gainXp(1e7);
+    take(sim, [...trunk(R), `${R}M-ENDLESS`]);
+    expect(sim.jobGauge.max).toBe(8);
+    sim.jobGauge.add(8);
+    const id = sim.spawnEnemy("ENM-BARK-BEAR");
+    const bear = sim.field?.enemies.find((e) => e.id === id);
+    if (bear !== undefined)
+      bear.combatant.position = { x: sim.motion.position.x + 1.3, y: sim.motion.position.y };
+    const slot = sim.loadout.find((l) => l.skill === "SKL-ROGUE-PIERCE")?.action;
+    if (slot === undefined) throw new Error("急所穿ちが枠に無い");
+    sim.frame(STEP, input({ pressed: [slot] }));
+    expect(sim.lastSkill?.id).toBe("SKL-ROGUE-PIERCE");
+    expect(sim.jobGauge.value).toBe(8);
+    expect(sim.cooldowns.remaining("SKL-ROGUE-PIERCE")).toBeCloseTo(3, 1);
+  });
+
+  it("影法師：正面からのヒットも背面からのヒットになる", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.changeJob();
+    sim.gainXp(1e7);
+    take(sim, [...trunk(R), `${R}M-SHADOW`]);
+    // 人形は左（プレイヤーの方）を向いている。左から叩くと正面
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    for (let i = 0; i < 200 && sim.hitCount === 0; i++) sim.frame(STEP, held);
+    expect(sim.lastHit?.backstab).toBe(true);
+  });
+
+  it("転職神殿の振り直し：金貨 20×ジョブLv で全て返す（安全地帯だけ）", () => {
+    const db = new ArenaSimulation(undefined, { enemies: false }).db;
+    const town = db.regions.get("REGION-TOWN");
+    if (town === undefined) throw new Error("町が無い");
+    const sim = new ArenaSimulation(undefined, { db, region: town });
+    take(sim, trunk(W, 3));
+    const cost = sim.jobBoardRespecCost;
+    expect(cost).toBe(20 * sim.character.jobLevel(sim.job.id));
+    expect(sim.resetJobBoard()).toBe(false); // 金貨が無い
+    sim.inventory.addGold(cost + 5);
+    expect(sim.resetJobBoard()).toBe(true);
+    expect(sim.jobBoard.spent).toBe(0);
+    expect(sim.inventory.gold).toBe(5);
+  });
+
+  it("クールダウン短縮の詞が、技のCDに効く", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.inventory.addItem({
+      uid: "itm_950001",
+      base: "BASE-ARM-IRON-HEAD-T1",
+      rarity: "magic",
+      itemLevel: 40,
+      affixes: [{ id: "AFX-SUF-COOLDOWN-REDUCTION", tier: 4, rolls: [6] }],
+    });
+    expect(sim.equipFromInventory("itm_950001")).toBe(true);
+    const charge = sim.db.skills.get("SKL-WARRIOR-CHARGE");
+    sim.frame(STEP, input({ pressed: ["skill3"] }));
+    expect(sim.cooldowns.remaining("SKL-WARRIOR-CHARGE")).toBeCloseTo(
+      (charge?.cooldown ?? 0) * 0.94,
+      1,
+    );
+  });
+});

@@ -216,6 +216,8 @@ export class Equipment {
     }
     const off = this.slots.get("offHand");
     out.dualWield = off !== undefined && this.baseOf(off).category === "weapon" ? 1 : 0;
+    const main = this.slots.get("mainHand");
+    out.twoHanded = main !== undefined && isTwoHanded(this.baseOf(main)) ? 1 : 0;
     return out;
   }
 

@@ -357,5 +357,88 @@
     "text": "stat.const-twin-stagger",
     "unit": "ratio",
     "min": 0
+  },
+  {
+    "id": "STAT-GAUGE-DECAY",
+    "text": "stat.gauge-decay",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-GAUGE-GAIN-TAKEN",
+    "text": "stat.gauge-gain-taken",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-GAUGE-FLOOR",
+    "text": "stat.gauge-floor",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-GAUGE-MAX-BONUS",
+    "text": "stat.gauge-max-bonus",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-BROKEN-DAMAGE",
+    "text": "stat.job-broken-damage",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-SURGE",
+    "text": "stat.job-surge",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-DEMON",
+    "text": "stat.job-demon",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-FLURRY-SPEED",
+    "text": "stat.job-flurry-speed",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-ENDLESS-CD",
+    "text": "stat.job-endless-cd",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-SILENT-BLADE",
+    "text": "stat.job-silent-blade",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-ALL-BACKSTAB",
+    "text": "stat.job-all-backstab",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BLEED-AS-POISON",
+    "text": "stat.unq-bleed-as-poison",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BREAK-SPREAD-DEMON",
+    "text": "stat.unq-break-spread-demon",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BACKSTAB-COMBO",
+    "text": "stat.unq-backstab-combo",
+    "unit": "flat",
+    "min": 0
   }
 ]
