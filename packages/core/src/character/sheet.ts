@@ -205,6 +205,7 @@ export function buildCharacterSheet(
           rootJob: job.id,
           // 接続ノードを1つ取るごとに、×2にする範囲が1ノード広がる（3つで半径3。docs/progress D-U15-3）
           boostRadius: jobBoard?.connectors(jobPoints) ?? 0,
+          resonance: equipment?.resonance() ?? {},
           baseInstances: gear,
           facts,
         });

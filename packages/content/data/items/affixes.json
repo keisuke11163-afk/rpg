@@ -1050,5 +1050,65 @@
     "provisional": true,
     "provisionalNote": "仕様書v0.2 3.6 の系統詞の例（獣を倒すと3秒間移動速度+15%）。付く部位は仮（docs/progress D-U11-25）",
     "family": "TAG-FAMILY-BEAST"
+  },
+  {
+    "id": "AFX-SUF-RESONANCE-GOU",
+    "text": "item.affix.resonance-gou",
+    "position": "suffix",
+    "categories": ["weapon", "shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-AFX-RESONANCE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "resonance": "gou",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6（共鳴紋は後詞の枠を1つ使う・重み25）。付く部位の記載が無いので全ての部位（docs/progress D-RES-1）"
+  },
+  {
+    "id": "AFX-SUF-RESONANCE-GOUJIN",
+    "text": "item.affix.resonance-goujin",
+    "position": "suffix",
+    "categories": ["weapon", "shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-AFX-RESONANCE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "resonance": "goujin",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6（共鳴紋は後詞の枠を1つ使う・重み25）。付く部位の記載が無いので全ての部位（docs/progress D-RES-1）"
+  },
+  {
+    "id": "AFX-SUF-RESONANCE-JIN",
+    "text": "item.affix.resonance-jin",
+    "position": "suffix",
+    "categories": ["weapon", "shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-AFX-RESONANCE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "resonance": "jin",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6（共鳴紋は後詞の枠を1つ使う・重み25）。付く部位の記載が無いので全ての部位（docs/progress D-RES-1）"
   }
 ]

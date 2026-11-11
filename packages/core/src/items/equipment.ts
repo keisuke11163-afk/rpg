@@ -1,5 +1,6 @@
 import type { Attributes } from "../character/progression.ts";
 import type { DamageWeapon } from "../combat/damage.ts";
+import type { StarRegion } from "../content/board.ts";
 import type { ArmorType, ItemBaseDef } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
 import type { EquipSlot, FactId } from "../content/registries.ts";
@@ -219,6 +220,17 @@ export class Equipment {
     out["enhance.total"] = this.entries().reduce((s, [, i]) => s + (i.enhance ?? 0), 0);
     const main = this.slots.get("mainHand");
     out.twoHanded = main !== undefined && isTwoHanded(this.baseOf(main)) ? 1 : 0;
+    return out;
+  }
+
+  /** 星域ごとの共鳴紋の数（仕様書v0.2 6.1 I-01・I-02）。 */
+  resonance(): Partial<Record<StarRegion, number>> {
+    const out: Partial<Record<StarRegion, number>> = {};
+    for (const [, item] of this.entries())
+      for (const a of item.affixes) {
+        const r = this.db.affixes.get(a.id)?.resonance;
+        if (r !== undefined) out[r] = (out[r] ?? 0) + 1;
+      }
     return out;
   }
 

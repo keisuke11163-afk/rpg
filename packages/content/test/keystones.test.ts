@@ -7,7 +7,9 @@ import {
   Equipment,
   type ItemInstance,
   type JobDef,
+  Rng,
   StarAllocation,
+  generateItem,
   TagIndex,
   buildCharacterSheet,
   startNodeOf,
@@ -171,5 +173,74 @@ describe("鍛冶座（仕様書v0.2 4.4。開発計画書4.2 の MVP の星座�
     // 強化値の合計10 → +4%（物理でない文脈で比べる。小星の物理ダメージ+5%を除くため）
     expect(dmg(b) - dmg(a)).toBeCloseTo(0.04);
     expect(path.length).toBeLessThanOrEqual(25);
+  });
+});
+
+describe("共鳴紋と共鳴変化（仕様書v0.2 3.6・6.1 I-01・I-02）", () => {
+  const mark = (uid: string, base: string, region: "GOU" | "JIN" | "GOUJIN"): ItemInstance => ({
+    ...item(uid, base),
+    rarity: "magic",
+    affixes: [{ id: `AFX-SUF-RESONANCE-${region}`, tier: 7, rolls: [1] }],
+  });
+
+  it("共鳴紋1つにつき、その星域の輝星の効果の数値の部分+10%（上限+40%）", () => {
+    const R = startNodeOf(db, "JOB-ROGUE") as string;
+    const path = pathTo(R, "STAR-NOTABLE-REOPEN");
+    const reopen = (n: number) =>
+      sheet(ROGUE, path, (e) => {
+        const slots = ["head", "body", "hands", "feet", "belt"] as const;
+        const bases = ["HEAD", "BODY", "HANDS", "FEET", "BELT"];
+        for (let i = 0; i < n; i++)
+          e.equip(
+            mark(`m${String(i)}`, `BASE-ARM-LEATHER-${bases[i] ?? ""}-T1`, "JIN"),
+            slots[i] ?? "head",
+            true,
+          );
+      }).evaluated.view.stat("STAT-NOTABLE-REOPEN").value;
+    expect(reopen(0)).toBeCloseTo(1);
+    expect(reopen(2)).toBeCloseTo(1.2);
+    expect(reopen(5)).toBeCloseTo(1.4); // 上限+40%
+  });
+
+  it("別の星域の共鳴紋・輝星でないノード（小星）には効かない", () => {
+    const R = startNodeOf(db, "JOB-ROGUE") as string;
+    const path = pathTo(R, "STAR-NOTABLE-REOPEN");
+    const s = sheet(ROGUE, path, (e) =>
+      e.equip(mark("g", "BASE-ARM-IRON-HEAD-T1", "GOU"), "head", true),
+    );
+    expect(s.evaluated.view.stat("STAT-NOTABLE-REOPEN").value).toBeCloseTo(1);
+  });
+
+  it("同じ星域の共鳴紋3つで、その星域の天極が共鳴変化になる（重荷の誇り：移動の低下 -12% → -6%）", () => {
+    const W = startNodeOf(db, "JOB-WARRIOR") as string;
+    const path = pathTo(W, "STAR-KEY-BURDEN");
+    const gear = (n: number) => (e: Equipment) => {
+      const slots = ["head", "body", "hands"] as const;
+      const bases = ["HEAD", "BODY", "HANDS"];
+      for (let i = 0; i < n; i++)
+        e.equip(
+          mark(`g${String(i)}`, `BASE-ARM-LEATHER-${bases[i] ?? ""}-T1`, "GOU"),
+          slots[i] ?? "head",
+          true,
+        );
+    };
+    expect(sheet(WARRIOR, path, gear(2)).moveSpeed).toBeCloseTo(0.88);
+    const three = sheet(WARRIOR, path, gear(3));
+    expect(three.board?.resonating).toContain("STAR-KEY-BURDEN");
+    expect(three.moveSpeed).toBeCloseTo(0.94);
+  });
+
+  it("星鉄の首飾り：共鳴紋が確定で付き、詞の枠が1つ減る", () => {
+    const base = db.itemBases.get("BASE-ACC-STAR-IRON-NECK-T1");
+    if (base === undefined) throw new Error("星鉄の首飾りが無い");
+    const rng = Rng.fromSeed("star-iron");
+    for (let i = 0; i < 300; i++) {
+      for (const rarity of ["normal", "magic", "rare"] as const) {
+        const it = generateItem(db, rng, { uid: "n", base, rarity, itemLevel: 20 });
+        const marks = it.affixes.filter((a) => db.affixes.get(a.id)?.resonance !== undefined);
+        expect(marks.length).toBeGreaterThanOrEqual(1);
+        expect(it.affixes.length).toBeLessThanOrEqual(5);
+      }
+    }
   });
 });

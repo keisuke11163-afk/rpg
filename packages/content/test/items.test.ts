@@ -95,6 +95,8 @@ describe("T12：ジョブに合わせたドロップ（35%）", () => {
         nextUid,
       });
       r.items.forEach((item, k) => {
+        // ユニークはジョブに合わせない（ベースを選ばない）ので、割合の分母から除く
+        if (item.rarity === "unique") return;
         items += 1;
         if (r.jobTargeted[k] === true) {
           targeted += 1;

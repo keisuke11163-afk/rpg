@@ -499,5 +499,11 @@
     "text": "stat.key-blood-pact-refund",
     "unit": "ratio",
     "min": 0
+  },
+  {
+    "id": "STAT-RESONANCE-MARK",
+    "text": "stat.resonance-mark",
+    "unit": "flat",
+    "min": 0
   }
 ]

@@ -58,6 +58,30 @@ function reachable(
   return out;
 }
 
+/** 共鳴紋1つあたりの輝星の効果の強化と、その上限（仕様書v0.2 6.1 I-01。星の器で50%は MVP の盤に無い）。 */
+export const RESONANCE_PER_MARK = 0.1;
+export const RESONANCE_CAP = 0.4;
+
+/**
+ * 効果の数値の部分だけを (1＋amp) 倍にした値（修正値ごと）。値を持たない修正値（印など）は変えない。
+ * 乗算は、1を超える分（または1に足りない分）だけを強める（×1.2 → ×1.22）。
+ */
+export function amplifiedValues(
+  db: ContentDb,
+  effectId: string,
+  amp: number,
+): (number | { min: number; max: number } | undefined)[] | undefined {
+  const def = db.effects.get(effectId);
+  if (def === undefined) return undefined;
+  return def.modifiers.map((m) => {
+    if (!("value" in m)) return undefined;
+    const v = m.value;
+    if (typeof v === "object") return { min: v.min * (1 + amp), max: v.max * (1 + amp) };
+    if (m.kind === "more") return 1 + (v - 1) * (1 + amp);
+    return v * (1 + amp);
+  });
+}
+
 /** root から、盤のつながりで radius ノード以内にあるノード（root 自身は含めない）。 */
 export function nodesWithin(db: ContentDb, root: string | undefined, radius: number): Set<string> {
   const out = new Set<string>();
@@ -229,12 +253,18 @@ export function evaluateStarBoard(
     for (const id of ids) {
       const n = node(id);
       const double = boosted.has(id) && n?.kind === "minor";
-      for (const effectId of n?.effects ?? [])
+      // 共鳴紋：その星域の輝星の効果の数値の部分を +10%／個（上限+40%。仕様書v0.2 6.1 I-01）
+      const marks = n?.kind === "notable" ? (input.resonance?.[n.region] ?? 0) : 0;
+      const amp = Math.min(RESONANCE_CAP, RESONANCE_PER_MARK * marks);
+      for (const effectId of n?.effects ?? []) {
+        const values = amp > 0 ? amplifiedValues(db, effectId, amp) : undefined;
         out.push({
           effectId,
           source: { kind: STAR_NODE_SOURCE, ref: id },
           ...(double ? { stacks: 2 } : {}),
+          ...(values === undefined ? {} : { values }),
         });
+      }
       // 事実の数だけ重ねる効果（重荷の誇り）
       const fs = n?.factStacked;
       const count = fs === undefined ? 0 : Math.max(0, input.facts?.facts?.[fs.fact] ?? 0);

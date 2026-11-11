@@ -812,5 +812,16 @@
     },
     "provisional": true,
     "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-ACC-STAR-IRON-NECK-T1",
+    "text": "item.base.star-iron-neck",
+    "category": "neck",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "guaranteedResonance": true,
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.4：共鳴紋が確定で付く（その代わり詞の枠-1）"
   }
 ]

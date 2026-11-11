@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STAR_REGIONS } from "./board.ts";
 import { idSchema, provisionalFields, textKeySchema } from "./ids.ts";
 
 /**
@@ -151,6 +152,8 @@ export const itemBaseSchema = z.strictObject({
   shield: z.strictObject({ guard: z.number().min(0).max(1) }).optional(),
   /** 基本刻印・武器としての特性（効果のID。出どころは implicit）。 */
   implicitEffects: z.array(idSchema).optional(),
+  /** 共鳴紋が確定で付く（その代わり詞の枠-1。星鉄の首飾り。仕様書v0.2 3.4）。 */
+  guaranteedResonance: z.boolean().optional(),
   /** ユニークの専用のベース（通常の抽選のベースには含めない）。 */
   unique: uniqueSchema.optional(),
   ...provisionalFields,
@@ -205,6 +208,11 @@ export const affixSchema = z.strictObject({
   family: idSchema.optional(),
   /** 職詞：このジョブのタグ（効果の条件もこのジョブ。ジョブに合わせたドロップで出やすい）。 */
   job: idSchema.optional(),
+  /**
+   * 共鳴紋：この星域（仕様書v0.2 3.6・6.1 I-01）。1つにつき、その星域の輝星の効果の数値の部分+10%
+   * （上限+40%）。同じ星域が3つ以上で、その星域の天極が共鳴変化になる。
+   */
+  resonance: z.enum(STAR_REGIONS).optional(),
   /** 表に載っているtierの値。載っていないtierは、隣の載っているtierの間を補う。 */
   tiers: z.array(tierValueSchema).min(1),
   ...provisionalFields,

@@ -228,7 +228,12 @@ export function tooltipLines(db: ContentDb, tip: ItemTooltip): TextLine[] {
         ? affixValues(e.affix.roll, e.affix.scale, e.rolled.rolls)
         : undefined;
     const sealed = e.affix !== undefined && e.affix.id === tip.item.sealed;
-    const label = `${e.kind === "implicit" ? "基本刻印：" : ""}${effectText(db, e.effectId, values)}${e.rolled === undefined ? "" : `（T${String(e.rolled.tier)}）`}${e.local ? "［この武器］" : ""}${sealed ? "［封詞］" : ""}`;
+    // 共鳴紋は、効果ではなく詞の名前（「共鳴：迅域」）で示す
+    const body =
+      e.affix?.resonance !== undefined
+        ? `${t(e.affix.text)}（その星域の輝星+10%）`
+        : effectText(db, e.effectId, values);
+    const label = `${e.kind === "implicit" ? "基本刻印：" : ""}${body}${e.rolled === undefined || e.affix?.resonance !== undefined ? "" : `（T${String(e.rolled.tier)}）`}${e.local ? "［この武器］" : ""}${sealed ? "［封詞］" : ""}`;
     lines.push({
       text: `${e.matchesSkills ? "★ " : ""}${label}`,
       color: e.matchesSkills

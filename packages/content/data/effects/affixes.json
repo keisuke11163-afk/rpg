@@ -542,5 +542,23 @@
       "ailmentBase": false
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-AFX-RESONANCE",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-RESONANCE-MARK",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "共鳴紋の印（数は詞の resonance から数える。この効果は表示用の印だけ）"
   }
 ]

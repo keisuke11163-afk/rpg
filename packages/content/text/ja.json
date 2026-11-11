@@ -373,5 +373,10 @@
   "star.key.myriad": "千変",
   "star.key.shadow-copy": "影写し",
   "star.notable.reopen": "傷口を抉る",
-  "constellation.smith": "鍛冶座"
+  "constellation.smith": "鍛冶座",
+  "stat.resonance-mark": "共鳴紋",
+  "item.affix.resonance-gou": "共鳴：剛域",
+  "item.affix.resonance-goujin": "共鳴：剛迅域",
+  "item.affix.resonance-jin": "共鳴：迅域",
+  "item.base.star-iron-neck": "星鉄の首飾り"
 }

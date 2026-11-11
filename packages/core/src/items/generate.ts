@@ -137,7 +137,19 @@ export function generateItem(db: ContentDb, rng: Rng, input: GenerateItemInput):
   if (rarity === "unique" || rarity === "set")
     throw new RangeError(`${rarity} は固定の効果を持つので、generateItem では作らない`);
   const wanted = rng.int(rarityDef.affixes.min, rarityDef.affixes.max);
-  const affixes = addAffixes(db, rng, base, itemLevel, [], wanted, {
+  // 星鉄の首飾り：共鳴紋が確定で付く。その代わり詞の枠-1（共鳴紋は枠を1つ使い、合計は枠−1まで）
+  const forced: RolledAffix[] = [];
+  if (base.guaranteedResonance === true) {
+    const marks = candidateAffixes(db, base, itemLevel).filter(
+      (c) => c.affix.resonance !== undefined,
+    );
+    if (marks.length > 0) {
+      const c = rng.pick(marks);
+      const tier = c.tiers[0] as AffixTier;
+      forced.push({ id: c.affix.id, tier, rolls: rollAffixValue(rng, c.affix, tier) });
+    }
+  }
+  const affixes = addAffixes(db, rng, base, itemLevel, forced, wanted + forced.length, {
     ...(input.allowT0 === undefined ? {} : { allowT0: input.allowT0 }),
     ...(input.families === undefined ? {} : { families: input.families }),
     ...(input.targetJob === undefined ? {} : { targetJob: input.targetJob }),
@@ -159,7 +171,7 @@ export function addAffixes(
   options: AffixContext = {},
 ): RolledAffix[] {
   const slots = AFFIX_SLOTS[base.category];
-  const capacity = slots.prefix + slots.suffix;
+  const capacity = slots.prefix + slots.suffix - (base.guaranteedResonance === true ? 1 : 0);
   const pool = candidateAffixes(db, base, itemLevel, options);
   const used = { prefix: 0, suffix: 0 };
   const taken = new Set<string>();
