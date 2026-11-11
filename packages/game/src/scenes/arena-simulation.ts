@@ -1235,6 +1235,8 @@ export class ArenaSimulation {
     const base = this.db.itemBases.get(item.base);
     if (target === undefined || base === undefined) return false;
     if (!slotsFor(base, this.canDualWield).includes(target)) return false;
+    // 必要Lv（キャラLv）に届いていない装備は着られない（docs/progress D-EQ-1）
+    if (base.requiredLevel > this.character.level) return false;
     if (!equipFromInventory(this.inventory, this.equipment, uid, target, this.canDualWield))
       return false;
     this.equipmentChanged();

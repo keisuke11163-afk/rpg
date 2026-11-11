@@ -1238,8 +1238,28 @@ describe("ArenaSimulation：ユニークの入手（U-16）", () => {
   });
 });
 
+describe("ArenaSimulation：必要Lv（docs/progress D-EQ-1）", () => {
+  it("必要Lvに届いていない装備は着られず、届けば着られる", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.character.level).toBeLessThan(20);
+    sim.inventory.addItem({
+      uid: "itm_990001",
+      base: "BASE-UNQ-U06",
+      rarity: "unique",
+      itemLevel: 20,
+      affixes: [],
+    });
+    expect(sim.equipFromInventory("itm_990001")).toBe(false);
+    expect(sim.equipment.get("head")).toBeUndefined();
+    sim.gainXp(1e7);
+    expect(sim.equipFromInventory("itm_990001")).toBe(true);
+  });
+});
+
 describe("ArenaSimulation：ユニークの固有効果（U-16 のルールフック）", () => {
   const wear = (sim: ArenaSimulation, base: string, uid: string): void => {
+    // 必要Lv（U06 は20）に届くように上げておく
+    if (sim.character.level < 20) sim.gainXp(1e7);
     sim.inventory.addItem({ uid, base, rarity: "unique", itemLevel: 20, affixes: [] });
     expect(sim.equipFromInventory(uid)).toBe(true);
   };

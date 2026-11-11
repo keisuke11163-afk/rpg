@@ -334,8 +334,16 @@ export class EquipmentPanel {
     const item = sim.inventory.items[target.index];
     if (item === undefined) return false;
     const slot: MvpEquipSlot | undefined = button === "right" ? "offHand" : undefined;
-    if (!sim.equipFromInventory(item.uid, slot))
-      this.say(button === "right" ? "副手に装備できない" : "装備できない");
+    if (!sim.equipFromInventory(item.uid, slot)) {
+      const need = sim.db.itemBases.get(item.base)?.requiredLevel ?? 1;
+      this.say(
+        need > sim.character.level
+          ? `必要Lv ${String(need)} に届いていない`
+          : button === "right"
+            ? "副手に装備できない"
+            : "装備できない",
+      );
+    }
     return true;
   }
 
