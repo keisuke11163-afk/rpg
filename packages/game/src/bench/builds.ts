@@ -41,7 +41,7 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       { slot: "ring1", base: "BASE-ACC-SILVER-RING-T1", affixes: ["AFX-SUF-ATTACK-SPEED"] },
       { slot: "ring2", base: "BASE-ACC-RUBY-RING-T1", affixes: ["AFX-SUF-AILMENT-DAMAGE"] },
     ],
-    stars: ["STAR-VIPER-09", "STAR-KEY-MYRIAD", "STAR-NOTABLE-REOPEN"],
+    stars: ["STAR-VIPER-09", "STAR-KEY-MYRIAD", "STAR-NOTABLE-REOPEN", "STAR-NT-FOCUS"],
     jobNodes: [
       "JBN-ROGUE-POISON-BLOOD",
       "JBN-ROGUE-QUICK",
@@ -82,7 +82,7 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       { slot: "ring1", base: "BASE-ACC-SILVER-RING-T1", affixes: ["AFX-SUF-ATTACK-SPEED"] },
       { slot: "ring2", base: "BASE-ACC-RUBY-RING-T1", affixes: ["AFX-SUF-ACCURACY"] },
     ],
-    stars: ["STAR-KEY-BURDEN", "STAR-SMITH-08"],
+    stars: ["STAR-KEY-BURDEN", "STAR-SMITH-08", "STAR-NT-SEVERING", "STAR-MUT-HEAVY"],
     jobNodes: [
       "JBN-WARRIOR-FORGE",
       "JBN-WARRIOR-TWOHAND",
@@ -117,7 +117,7 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       { slot: "ring1", base: "BASE-ACC-SILVER-RING-T1", affixes: ["AFX-SUF-ATTACK-SPEED"] },
       { slot: "ring2", base: "BASE-ACC-RUBY-RING-T1", affixes: ["AFX-SUF-ACCURACY"] },
     ],
-    stars: ["STAR-KEY-BARE-HANDS", "STAR-KEY-BURDEN"],
+    stars: ["STAR-KEY-BARE-HANDS", "STAR-KEY-BURDEN", "STAR-SMITH-08", "STAR-NT-SEVERING"],
     jobNodes: ["JBN-WARRIOR-BLOOD", "JBN-WARRIOR-BREAKER", "JBN-WARRIOR-M-UNYIELDING"],
   },
 ];
