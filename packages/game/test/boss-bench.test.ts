@@ -10,7 +10,7 @@ import { BENCH_BUILDS } from "../src/bench/builds.ts";
 const db = loadGameContent();
 
 describe("ボスの撃破時間の計測", () => {
-  it("3つのビルドを、MVPのポイント（星辰盤25・職紋盤19）以内で組み立てられる", () => {
+  it("全てのビルドを、MVPのポイント（星辰盤25・職紋盤19）以内で組み立てられる", () => {
     for (const build of BENCH_BUILDS) {
       const sim = prepareBench(db, build);
       expect(sim.character.level).toBe(20);
@@ -29,4 +29,18 @@ describe("ボスの撃破時間の計測", () => {
     expect(r.killTime).toBeDefined();
     expect(r.dps).toBeGreaterThan(0);
   });
+
+  it("盗賊（短剣の二刀流＋影法師）は、深淵の母樹を倒れずに60〜120秒で倒せる（完成の条件3。ボットでの代わりの確認）", () => {
+    const build = BENCH_BUILDS.find((b) => b.id === "rogue-dual-shadow");
+    if (build === undefined) throw new Error("ビルドが無い");
+    const r = runBossBench(db, build, {
+      region: "REGION-A5-BOSS",
+      invincible: false,
+      seconds: 150,
+    });
+    expect(r.boss).toBe("ENM-ABYSS-MOTHER-TREE");
+    expect(r.deaths).toBe(0);
+    expect(r.killTime).toBeGreaterThanOrEqual(60);
+    expect(r.killTime).toBeLessThanOrEqual(120);
+  }, 60_000);
 });

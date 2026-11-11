@@ -307,6 +307,8 @@ export interface ArenaSimulationOptions {
   region?: RegionDef;
   /** 地域の配置の抽選のシード（入るたびに変える）。 */
   layoutSeed?: string;
+  /** 戦闘の乱数のシード（計測で複数のシードを回す。省略すると "arena"）。 */
+  rngSeed?: string;
   /** 出口に入った（行き先の地域）。 */
   onExit?: (to: string) => void;
   /** 地域で倒れた（町に戻す）。 */
@@ -511,7 +513,7 @@ export class ArenaSimulation {
   readonly cooldowns = new Cooldowns();
   readonly buffs = new TimedEffects();
   private readonly stepInput = new StepInputBuffer<StepAction>();
-  private readonly rng = Rng.fromSeed("arena");
+  private readonly rng: Rng;
   /** ドロップの抽選（戦闘の乱数の列を変えないように、別の列にする）。 */
   private readonly dropRng = Rng.fromSeed("arena-drops");
   private itemSerial = 0;
@@ -576,6 +578,7 @@ export class ArenaSimulation {
 
   constructor(clock: FixedStepClock = new FixedStepClock(), options: ArenaSimulationOptions = {}) {
     this.clock = clock;
+    this.rng = Rng.fromSeed(options.rngSeed ?? "arena");
     this.db = options.db ?? loadGameContent();
     this.onHit = options.onHit;
     this.onText = options.onText;

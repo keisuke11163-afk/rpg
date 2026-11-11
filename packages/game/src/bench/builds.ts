@@ -197,7 +197,7 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
   }, // ---- 基準のビルド（ユニーク・天極なし。両ジョブで同じ防具。ジョブの数値を比べる） ----
   {
     id: "baseline-warrior",
-    name: "基準・戦士（希少の大剣・ユニークと天極なし）",
+    name: "基準・戦士（希少の大剣・ユニークと天極なし・ポイントをほぼ使う）",
     job: "JOB-WARRIOR",
     equipment: [
       {
@@ -213,12 +213,18 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       },
       ...BASELINE_ARMOR,
     ],
-    stars: ["STAR-SMITH-08", "STAR-SM-GOU-A-07"],
-    jobNodes: ["JBN-WARRIOR-T7", "JBN-WARRIOR-B1B", "JBN-WARRIOR-B2B"],
+    stars: ["STAR-SMITH-08", "STAR-SM-GOU-A-07", "STAR-NT-SEVERING", "STAR-NT-IRON-SKIN"],
+    jobNodes: [
+      "JBN-WARRIOR-T7",
+      "JBN-WARRIOR-B1B",
+      "JBN-WARRIOR-B2B",
+      "JBN-WARRIOR-BREAKER",
+      "JBN-WARRIOR-M-UNYIELDING",
+    ],
   },
   {
     id: "baseline-rogue",
-    name: "基準・盗賊（希少の短剣・ユニークと天極なし）",
+    name: "基準・盗賊（希少の短剣・ユニークと天極なし・ポイントをほぼ使う）",
     job: "JOB-ROGUE",
     equipment: [
       {
@@ -234,12 +240,18 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       },
       ...BASELINE_ARMOR,
     ],
-    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07"],
-    jobNodes: ["JBN-ROGUE-T7", "JBN-ROGUE-B1B", "JBN-ROGUE-B2B"],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07", "STAR-NT-FOCUS", "STAR-NT-CORRODE"],
+    jobNodes: [
+      "JBN-ROGUE-T7",
+      "JBN-ROGUE-B1B",
+      "JBN-ROGUE-B2B",
+      "JBN-ROGUE-VITALS",
+      "JBN-ROGUE-M-ENDLESS",
+    ],
   },
   {
     id: "baseline-rogue-dual",
-    name: "基準・盗賊（希少の短剣の二刀流＝双牙・ユニークと天極なし）",
+    name: "基準・盗賊（希少の短剣の二刀流＝双牙・ユニークと天極なし・ポイントをほぼ使う）",
     job: "JOB-ROGUE",
     equipment: [
       {
@@ -266,7 +278,13 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       },
       ...BASELINE_ARMOR,
     ],
-    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07"],
-    jobNodes: ["JBN-ROGUE-T7", "JBN-ROGUE-B1B", "JBN-ROGUE-B2B"],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07", "STAR-NT-FOCUS", "STAR-NT-CORRODE"],
+    jobNodes: [
+      "JBN-ROGUE-T7",
+      "JBN-ROGUE-B1B",
+      "JBN-ROGUE-B2B",
+      "JBN-ROGUE-VITALS",
+      "JBN-ROGUE-M-ENDLESS",
+    ],
   },
 ];

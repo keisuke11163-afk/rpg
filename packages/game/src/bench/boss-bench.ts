@@ -146,6 +146,7 @@ export function prepareBench(
     region,
     profile,
     layoutSeed: options.seed ?? "bench",
+    ...(options.seed === undefined ? {} : { rngSeed: options.seed }),
   });
   sim.gainXp(1e9);
   // 装備（主手の指定が無ければ素手）
@@ -315,6 +316,21 @@ function dodgeDirection(sim: ArenaSimulation, boss: Enemy): { x: number; y: numb
     : { x: me.x - boss.position.x || 1, y: me.y - boss.position.y };
 }
 
+/** 一番近い、生きているボス以外の敵（触手など）。 */
+function nearestAdd(sim: ArenaSimulation, me: { x: number; y: number }): Enemy | undefined {
+  let best: Enemy | undefined;
+  let bestD = Infinity;
+  for (const e of sim.field?.enemies ?? []) {
+    if (e.def.boss !== undefined || e.state === "dead") continue;
+    const d = Math.hypot(e.position.x - me.x, e.position.y - me.y);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  return best;
+}
+
 /** ボスを探す（倒れた後も、消えるまでは返す）。 */
 function bossOf(sim: ArenaSimulation): Enemy | undefined {
   return sim.field?.enemies.find((e) => e.def.boss !== undefined);
@@ -340,12 +356,16 @@ export function runBossBench(
   const startHp = boss.combatant.health.hp;
   while (t < limit) {
     const me = sim.motion.position;
-    const dest = boss.burrowDestination ?? boss.position;
+    // 呼ばれた触手が生きていれば、先に倒す（毒の棘を吐き続けるため。人なら先に片付ける）
+    const add = nearestAdd(sim, me);
+    const foe = add ?? boss;
+    const dest = add === undefined ? (boss.burrowDestination ?? boss.position) : add.position;
     const dx = dest.x - me.x;
     const dy = dest.y - me.y;
-    const dist = Math.hypot(dx, dy) - boss.combatant.radius - sim.player.radius;
+    const dist = Math.hypot(dx, dy) - foe.combatant.radius - sim.player.radius;
     // 胞子の雲：近接の位置が雲の中なら、雲の無い近接の位置へ回る（無ければ外側で雲が消えるのを待つ）
-    const spot = boss.burrowDestination === undefined ? cloudSpot(sim, boss) : undefined;
+    const spot =
+      add === undefined && boss.burrowDestination === undefined ? cloudSpot(sim, boss) : undefined;
     const toSpot = spot === undefined ? undefined : { x: spot.x - me.x, y: spot.y - me.y };
     const atSpot = toSpot !== undefined && Math.hypot(toSpot.x, toSpot.y) <= 0.15;
     const move =

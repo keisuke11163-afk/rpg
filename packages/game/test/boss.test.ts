@@ -269,7 +269,8 @@ describe("毒の胞子の雲の並べ方（docs/progress D-U21-3）", () => {
       expect(clouds.length).toBe(3);
       const r = boss.combatant.radius + 0.6;
       const inside = (x: number, y: number): boolean =>
-        clouds.some((c) => Math.hypot(x - c.center.x, y - c.center.y) <= c.radius);
+        // ゲームの判定と同じ：雲の半径＋プレイヤーの体の半径
+        clouds.some((c) => Math.hypot(x - c.center.x, y - c.center.y) <= c.radius + p.radius);
       // プレイヤーの位置は雲の中、ボスの上下（横）と反対側は雲の外
       expect(inside(p.position.x, p.position.y)).toBe(true);
       expect(inside(boss.position.x, boss.position.y - r)).toBe(false);
