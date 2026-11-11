@@ -729,8 +729,10 @@ export class Enemy {
         const base = Math.atan2(center.y - this.position.y, center.x - this.position.x);
         const application = this.ailmentApplication(d);
         const events: EnemyEvent[] = [];
+        // 1つ目は相手の位置。残りは、相手の位置からボスと反対側へ spread だけ離し、±fanDeg の間に並べる
+        const fan = ((d.fanDeg ?? 0) * Math.PI) / 180;
         for (let i = 0; i < count; i++) {
-          const a = base + (2 * Math.PI * (i - 1)) / Math.max(1, count - 1);
+          const a = count <= 2 ? base : base + fan * ((2 * (i - 1)) / Math.max(1, count - 2) - 1);
           events.push({
             type: "cloud",
             attack,

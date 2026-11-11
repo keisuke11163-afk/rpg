@@ -239,13 +239,62 @@ function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Action } | 
   );
 }
 
+/**
+ * 胞子の雲を避けて立つ位置。ボスの近接の距離の輪の上で自分に一番近い点が雲の中なら、雲の無い点を探す：
+ * まず近接の輪の上（melee: true）、無ければ外側の輪（離れて雲が消えるのを待つ。melee: false）。
+ * 雲を気にしなくてよいときは undefined（いつもどおりボスへ寄る）。
+ */
+function cloudSpot(
+  sim: ArenaSimulation,
+  boss: Enemy,
+): { readonly x: number; readonly y: number; readonly melee: boolean } | undefined {
+  const clouds = sim.field?.clouds ?? [];
+  if (clouds.length === 0) return undefined;
+  const r = sim.player.radius;
+  const inside = (p: { x: number; y: number }): boolean =>
+    clouds.some((c) => Math.hypot(p.x - c.center.x, p.y - c.center.y) <= c.radius + r + 0.2);
+  const me = sim.motion.position;
+  const ring = boss.combatant.radius + r + MELEE_GAP * 0.5;
+  const toMe = Math.atan2(me.y - boss.position.y, me.x - boss.position.x);
+  const mySpot = {
+    x: boss.position.x + Math.cos(toMe) * ring,
+    y: boss.position.y + Math.sin(toMe) * ring,
+  };
+  if (!inside(mySpot) && !inside(me)) return undefined;
+  for (const [k, radius] of [ring, ring + 2, ring + 4, ring + 6].entries()) {
+    let best: { x: number; y: number } | undefined;
+    let bestD = Infinity;
+    for (let i = 0; i < 36; i++) {
+      const a = (i / 36) * Math.PI * 2;
+      const p = {
+        x: boss.position.x + Math.cos(a) * radius,
+        y: boss.position.y + Math.sin(a) * radius,
+      };
+      if (inside(p)) continue;
+      const d = Math.hypot(p.x - me.x, p.y - me.y);
+      if (d < bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    if (best !== undefined) return { ...best, melee: k === 0 };
+  }
+  return undefined;
+}
+
 /** 予兆の終わり際（残り0.25秒）に当たる範囲にいれば、範囲の外への向き（移動の入力）を返す。 */
 function dodgeDirection(sim: ArenaSimulation, boss: Enemy): { x: number; y: number } | undefined {
   const a = boss.currentAttack;
-  if (a === undefined || boss.state !== "windup") return undefined;
-  const left = a.windup / (1 + boss.haste) - boss.timeInState / (1 + boss.haste);
-  if (left > 0.25 || sim.motion.currentStamina < 25) return undefined;
+  if (a === undefined) return undefined;
   const d = a.delivery;
+  // 連続の叩きつけ（母樹）：当たり判定の間も、次の1回の位置が示される。その直前に回避する
+  const repeatNext =
+    boss.state === "active" && d.type === "strike" && d.aim === "target" && d.repeat !== undefined
+      ? d.repeat.interval - (boss.timeInState % d.repeat.interval)
+      : undefined;
+  if (boss.state !== "windup" && repeatNext === undefined) return undefined;
+  const left = repeatNext ?? a.windup / (1 + boss.haste) - boss.timeInState / (1 + boss.haste);
+  if (left > 0.25 || sim.motion.currentStamina < 25) return undefined;
   const me = sim.motion.position;
   let center = boss.position;
   let radius = 0;
@@ -295,10 +344,24 @@ export function runBossBench(
     const dx = dest.x - me.x;
     const dy = dest.y - me.y;
     const dist = Math.hypot(dx, dy) - boss.combatant.radius - sim.player.radius;
-    const move = dist > MELEE_GAP ? { x: dx, y: dy } : { x: 0, y: 0 };
+    // 胞子の雲：近接の位置が雲の中なら、雲の無い近接の位置へ回る（無ければ外側で雲が消えるのを待つ）
+    const spot = boss.burrowDestination === undefined ? cloudSpot(sim, boss) : undefined;
+    const toSpot = spot === undefined ? undefined : { x: spot.x - me.x, y: spot.y - me.y };
+    const atSpot = toSpot !== undefined && Math.hypot(toSpot.x, toSpot.y) <= 0.15;
+    const move =
+      toSpot !== undefined
+        ? atSpot
+          ? { x: 0, y: 0 }
+          : toSpot
+        : dist > MELEE_GAP
+          ? { x: dx, y: dy }
+          : { x: 0, y: 0 };
     const special = chooseSkill(sim, db);
     // 近接の距離まで寄ってから技を使う（技の間は動けないので、離れたまま押すと届かない）
-    const held = new Set<Action>(dist <= MELEE_GAP + 0.2 ? [special?.action ?? "skill1"] : []);
+    const canAttack = spot === undefined || (spot.melee && atSpot);
+    const held = new Set<Action>(
+      canAttack && dist <= MELEE_GAP + 0.2 ? [special?.action ?? "skill1"] : [],
+    );
     const pressed = new Set<Action>();
     // 予兆の回避：ボスの攻撃の予兆の終わり際に、当たる範囲にいれば、範囲の外へ回避する
     const away = dodgeDirection(sim, boss);

@@ -163,7 +163,38 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
     ],
     jobNodes: ["JBN-WARRIOR-BLOOD", "JBN-WARRIOR-BREAKER", "JBN-WARRIOR-M-UNYIELDING"],
   },
-  // ---- 基準のビルド（ユニーク・天極なし。両ジョブで同じ防具。ジョブの数値を比べる） ----
+  {
+    id: "rogue-dual-shadow",
+    name: "盗賊・短剣の二刀流（双牙）＋影法師（職紋盤を使い切る・ユニークと天極なし）",
+    job: "JOB-ROGUE",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-DAGGER-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      {
+        slot: "offHand",
+        base: "BASE-WPN-DAGGER-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07"],
+    jobNodes: ["JBN-ROGUE-VITALS", "JBN-ROGUE-QUICK", "JBN-ROGUE-B1B", "JBN-ROGUE-M-SHADOW"],
+  }, // ---- 基準のビルド（ユニーク・天極なし。両ジョブで同じ防具。ジョブの数値を比べる） ----
   {
     id: "baseline-warrior",
     name: "基準・戦士（希少の大剣・ユニークと天極なし）",

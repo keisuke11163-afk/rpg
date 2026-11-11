@@ -254,6 +254,33 @@ describe("腐根の母樹（補助仕様書11.1）", () => {
   });
 });
 
+describe("毒の胞子の雲の並べ方（docs/progress D-U21-3）", () => {
+  it("3つの雲はプレイヤーの側に寄り、ボスの横（近接の輪の90°の位置）は空いている", () => {
+    const field = bossField();
+    const boss = bossOf(field);
+    // 近接の距離（体の半径1.5＋0.6）でボスの左に立つ
+    const p = player({ x: CENTER.x - 2.1, y: CENTER.y });
+    const log = newLog();
+    let checked = false;
+    for (let i = 0; i < Math.ceil(40 / STEP) && !checked; i++) {
+      run(field, p, log, 1);
+      if (boss.currentAttack?.id !== "poison-spores" || boss.state !== "recovery") continue;
+      const clouds = field.clouds.filter((c) => c.radius === 2.5);
+      expect(clouds.length).toBe(3);
+      const r = boss.combatant.radius + 0.6;
+      const inside = (x: number, y: number): boolean =>
+        clouds.some((c) => Math.hypot(x - c.center.x, y - c.center.y) <= c.radius);
+      // プレイヤーの位置は雲の中、ボスの上下（横）と反対側は雲の外
+      expect(inside(p.position.x, p.position.y)).toBe(true);
+      expect(inside(boss.position.x, boss.position.y - r)).toBe(false);
+      expect(inside(boss.position.x, boss.position.y + r)).toBe(false);
+      expect(inside(boss.position.x + r, boss.position.y)).toBe(false);
+      checked = true;
+    }
+    expect(checked).toBe(true);
+  });
+});
+
 describe("深淵の母樹（補助仕様書11.2）", () => {
   it("第2段階から、毒の胞子が2回連続（3つ×2回）になる", () => {
     const field = bossField("ENM-ABYSS-MOTHER-TREE", 21, "abyss");

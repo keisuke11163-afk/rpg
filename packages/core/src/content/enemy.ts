@@ -64,7 +64,8 @@ export const enemyDeliverySchema = z.discriminatedUnion("type", [
       .optional(),
   }),
   // 予兆の始めの、相手の位置に雲を出す。中にいると、間隔ごとに状態異常を1つ受ける（腐根の苗の胞子）。
-  // count が2以上なら、1つ目を相手の位置に、残りをその周り（spread m）に等しい角度で出す（母樹の毒の胞子）。
+  // count が2以上なら、1つ目を相手の位置に、残りを相手の位置からボスと反対側へ spread m 離し、
+  // その向きの ±fanDeg の間に等しい角度で並べる（母樹の毒の胞子。ボスの横は空く。docs/progress D-U21-3）。
   // repeat があれば、間隔ごとに、その瞬間の相手の位置へ続けて出す（深淵の母樹の2回連続）
   z.strictObject({
     type: z.literal("cloud"),
@@ -76,6 +77,7 @@ export const enemyDeliverySchema = z.discriminatedUnion("type", [
     baseRatio: z.number().positive(),
     count: z.number().int().positive().optional(),
     spread: z.number().positive().optional(),
+    fanDeg: z.number().min(0).max(180).optional(),
     repeat: repeatSchema.optional(),
   }),
   // 地中を移動し、別の地点（ボスの間の根渡りの地点）に現れる（母樹の根渡り）。当たり判定が出ている時間の
