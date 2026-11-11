@@ -192,7 +192,7 @@
       {
         "kind": "increased",
         "stat": "STAT-CRIT-CHANCE",
-        "value": 0.05
+        "value": 0.25
       }
     ],
     "affects": {
@@ -208,12 +208,17 @@
       {
         "kind": "added",
         "stat": "STAT-AILMENT-CHANCE",
-        "value": 0.02
+        "value": 0.03
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 0.04
       }
     ],
     "affects": {
-      "hit": false,
-      "ailmentBase": false
+      "hit": true,
+      "ailmentBase": true
     },
     "scope": "self"
   },
@@ -224,7 +229,7 @@
       {
         "kind": "increased",
         "stat": "STAT-ATTACK-SPEED",
-        "value": 0.02
+        "value": 0.04
       }
     ],
     "affects": {
@@ -240,7 +245,7 @@
       {
         "kind": "added",
         "stat": "STAT-BACKSTAB-CRIT",
-        "value": 0.01
+        "value": 0.05
       }
     ],
     "affects": {
