@@ -73,6 +73,7 @@ import {
   skillBlock,
   staggerProfiles,
   UNIFORM_EFFECTS,
+  countAilmentTypes,
   OUT_OF_COMBAT_SECONDS,
   JobBoardAllocation,
   jobBoardPoints,
@@ -980,6 +981,32 @@ export class ArenaSimulation {
   get sheet(): CharacterSheet {
     return this.sheetValue;
   }
+  /**
+   * 「毒の数」を数える効果に使う、相手の毒のスタック数。千の小傷の潜在効果（毒血同源）があれば、
+   * 出血も毒として数える（ダメージは二重にならない。仕様書v0.2 3.7 U03・9章 V-08）。
+   */
+  poisonCount(c: Combatant): number {
+    const bleedAsPoison = this.view.stat("STAT-UNQ-BLEED-AS-POISON").value > 0;
+    return (
+      c.ailments.stacks(POISON_AILMENT) + (bleedAsPoison ? c.ailments.stacks(BLEED_AILMENT) : 0)
+    );
+  }
+
+  /**
+   * 「状態異常の種類」を数える効果に使う、相手の状態異常の種類の数（仕様書v0.2 2.7）。
+   * 千の小傷の潜在効果があれば、出血している相手は毒も受けているものとして数える（I-30）。
+   */
+  ailmentTypeCount(c: Combatant): number {
+    const tags = c.ailments.activeTags();
+    if (
+      this.view.stat("STAT-UNQ-BLEED-AS-POISON").value > 0 &&
+      tags.includes("TAG-AIL-BLEED") &&
+      !tags.includes("TAG-AIL-POISON")
+    )
+      tags.push("TAG-AIL-POISON");
+    return countAilmentTypes(tags);
+  }
+
   /** 毒蛇座の毒だまり（表示・確認用）。 */
   get poisonPuddles(): readonly PoisonPuddle[] {
     return this.puddleList;
@@ -999,12 +1026,7 @@ export class ArenaSimulation {
       this.puddleDropTimer = PUDDLE_DROP_INTERVAL;
       for (const e of this.field?.enemies ?? []) {
         if (e.state === "dead" || !e.combatant.moving) continue;
-        const count =
-          e.combatant.ailments.stacks(POISON_AILMENT) +
-          (this.view.stat("STAT-UNQ-BLEED-AS-POISON").value > 0
-            ? e.combatant.ailments.stacks(BLEED_AILMENT)
-            : 0);
-        if (count < PUDDLE_MIN_STACKS) continue;
+        if (this.poisonCount(e.combatant) < PUDDLE_MIN_STACKS) continue;
         const strongest = e.combatant.ailments.strongestDot(POISON_AILMENT);
         if (strongest === undefined) continue;
         this.puddleList.push({
@@ -2266,10 +2288,7 @@ export class ArenaSimulation {
     const ampStep = view.stat("STAT-UNQ-POISON-AMP").value;
     const ampCap = view.stat("STAT-UNQ-POISON-AMP-CAP").value;
     // 千の小傷の潜在効果（毒血同源）：出血も毒として数える
-    const bleedAsPoison = view.stat("STAT-UNQ-BLEED-AS-POISON").value > 0;
-    const poisonCount =
-      t.ailments.stacks(POISON_AILMENT) + (bleedAsPoison ? t.ailments.stacks(BLEED_AILMENT) : 0);
-    let extraTaken = poisonAmplifier(poisonCount, ampStep, ampCap);
+    let extraTaken = poisonAmplifier(this.poisonCount(t), ampStep, ampCap);
     // 職紋盤「崩しの達人」：崩れた敵への職技のダメージ+25%
     const isJobSkill = skill.def.job !== undefined;
     if (isJobSkill && t.stagger.broken) extraTaken *= 1 + view.stat("STAT-JOB-BROKEN-DAMAGE").value;
