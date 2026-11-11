@@ -298,6 +298,30 @@ describe("付与率（開発計画書 T5・仕様書v0.2 2.7）", () => {
     expect(bleeds / 10000).toBeGreaterThan(0.27);
     expect(bleeds / 10000).toBeLessThan(0.33);
   });
+
+  it("付与率の倍率は、足した後の付与率に掛かる（武具連携「双斧」の ×0.75）", () => {
+    const { db, attacker } = setup(["EFF-BLEED-CHANCE"]);
+    const hit = computeHit(attacker, MELEE, {}, avg);
+    const rng = Rng.fromSeed("roll-mult");
+    let bleeds = 0;
+    for (let i = 0; i < 10000; i++) {
+      if (
+        rollAilments({
+          db,
+          view: attacker.view,
+          hit,
+          tags: MELEE.tags,
+          extraChance: 0.1,
+          chanceMultiplier: 0.5,
+          rng,
+        }).some((a) => a.tag === "TAG-AIL-BLEED")
+      )
+        bleeds++;
+    }
+    // (0.3 + 0.1) × 0.5 = 0.2
+    expect(bleeds / 10000).toBeGreaterThan(0.17);
+    expect(bleeds / 10000).toBeLessThan(0.23);
+  });
 });
 
 const app = (

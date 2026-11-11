@@ -114,6 +114,9 @@ const MAX_COOLDOWN_REDUCTION = 0.9;
 /** 職紋盤「素早い手」の対象の技。 */
 const FLURRY_SKILL = "SKL-ROGUE-FLURRY";
 const BASIC_ATTACK = "SKL-BASIC-ATTACK";
+/** 武具連携（仕様書v0.2 3.13）：双牙の2撃目の付与率（加算）・双斧の付与率（-25% は相対で ×0.75。D-DUAL-3）。 */
+const TWIN_FANGS_CHANCE = 0.2;
+const TWIN_AXES_CHANCE_MULTIPLIER = 0.75;
 /** 千変：臨界になる状態異常の種類の数・同じ敵に臨界が起きる間隔（仕様書v0.2 4.7）。 */
 const CRITICAL_TYPES = 3;
 const CRITICAL_INTERVAL = 2;
@@ -2411,6 +2414,23 @@ export class ArenaSimulation {
     }
   }
 
+  /**
+   * 武具連携（主手×副手。仕様書v0.2 3.13）のうち、MVPで成り立つもの：短剣＋短剣「双牙」（2撃目＝副手の
+   * ヒットの付与率+20%）、片手斧＋片手斧「双斧」（出血のスタックが2つずつ・付与率-25%）。
+   * 剣盾の型・槍衾はパリィ・ガードが前提なので MVP には無い。
+   */
+  weaponPairing(): "twinFangs" | "twinAxes" | undefined {
+    const tagsOf = (slot: "mainHand" | "offHand"): readonly string[] => {
+      const i = this.equipment.get(slot);
+      return i === undefined ? [] : (this.db.itemBases.get(i.base)?.tags ?? []);
+    };
+    const main = tagsOf("mainHand");
+    const off = tagsOf("offHand");
+    if (main.includes("TAG-WPN-DAGGER") && off.includes("TAG-WPN-DAGGER")) return "twinFangs";
+    if (main.includes("TAG-WPN-AXE") && off.includes("TAG-WPN-AXE")) return "twinAxes";
+    return undefined;
+  }
+
   /** 二刀流で左右交互に出る技か（通常攻撃と、連撃の技）。 */
   private alternates(skill: ResolvedSkill): boolean {
     if (this.sheetValue.offAttacker === undefined || skill.damage.kind !== "weapon") return false;
@@ -2474,6 +2494,8 @@ export class ArenaSimulation {
     if (silent > 0 && this.elapsed - this.lastCombatAt >= OUT_OF_COMBAT_SECONDS)
       extraTaken *= silent;
     const allBackstab = view.stat("STAT-JOB-ALL-BACKSTAB").value > 0;
+    // 武具連携（仕様書v0.2 3.13）：短剣＋短剣「双牙」・片手斧＋片手斧「双斧」
+    const pairing = damage.kind === "weapon" ? this.weaponPairing() : undefined;
     // 輝星「狩りの本能」：HPが50%以下の敵へのダメージ+25%
     const hunt = view.stat("STAT-NT-HUNT").value;
     if (hunt > 0 && t.health.hp <= t.health.maxHp * 0.5) extraTaken *= 1 + hunt;
@@ -2510,7 +2532,15 @@ export class ArenaSimulation {
       ...(extraTaken === 1 ? {} : { extraTakenMultiplier: extraTaken }),
       // 背向けの外套（U16）：移動の技を使った後の一定時間、全てのヒットを背面からのヒットとして扱う
       ...(this.elapsed < this.moveBackstabUntil || allBackstab ? { forceBackstab: true } : {}),
+      ...(pairing === "twinFangs" && this.lastOffHand
+        ? { extraAilmentChance: TWIN_FANGS_CHANCE }
+        : pairing === "twinAxes"
+          ? { ailmentChanceMultiplier: TWIN_AXES_CHANCE_MULTIPLIER }
+          : {}),
     });
+    // 武具連携「双斧」：出血のスタックが2つずつ溜まる
+    if (pairing === "twinAxes")
+      for (const a of report.ailments) if (a.tag === "TAG-AIL-BLEED") t.applyAilment(a);
     if (corroded) {
       const restored = { ...t.resist };
       if (physicalResist === undefined) delete restored.physical;

@@ -391,3 +391,35 @@ describe("煙玉（仕様書v0.2 5.6）", () => {
     expect(d.ailments.activeTags()).toContain("TAG-AIL-WEAKEN");
   });
 });
+
+describe("武具連携（仕様書v0.2 3.13）", () => {
+  const pair = (main: string, off: string): ArenaSimulation => {
+    const sim = rogue();
+    for (const [uid, base, slot] of [
+      ["itm_993001", main, "mainHand"],
+      ["itm_993002", off, "offHand"],
+    ] as const) {
+      sim.inventory.addItem({ uid, base, rarity: "normal", itemLevel: 1, affixes: [] });
+      expect(sim.equipFromInventory(uid, slot)).toBe(true);
+    }
+    return sim;
+  };
+
+  it("短剣＋短剣は「双牙」、片手斧＋片手斧は「双斧」、ほかの組み合わせは無し", () => {
+    expect(pair("BASE-WPN-DAGGER-T1", "BASE-WPN-DAGGER-T1").weaponPairing()).toBe("twinFangs");
+    expect(pair("BASE-UNQ-U03", "BASE-WPN-DAGGER-T1").weaponPairing()).toBe("twinFangs");
+    expect(pair("BASE-WPN-AXE-T1", "BASE-WPN-AXE-T1").weaponPairing()).toBe("twinAxes");
+    expect(pair("BASE-WPN-DAGGER-T1", "BASE-WPN-CLAW-T1").weaponPairing()).toBeUndefined();
+  });
+
+  it("双斧：出血を付けるヒットで、出血のスタックが2つずつ溜まる", () => {
+    const sim = pair("BASE-WPN-AXE-T1", "BASE-WPN-AXE-T1");
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+    const d = sim.dummy as Combatant;
+    // 片手斧の基本刻印（出血の付与率+10%）で、出血が付くまで叩く
+    for (let i = 0; i < 1200 && d.ailments.stacks("AIL-BLEED") === 0; i++)
+      sim.frame(STEP, input(["skill1"]));
+    expect(d.ailments.stacks("AIL-BLEED")).toBe(2);
+  });
+});

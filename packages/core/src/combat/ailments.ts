@@ -180,6 +180,8 @@ export interface AilmentRollInput {
   readonly weaponUid?: string;
   /** 全ての種類の付与率に足す値（例：盗賊の背面判定の+25%。仕様書5.6）。 */
   readonly extraChance?: number;
+  /** 全ての種類の付与率に掛ける倍率（武器連携「双斧」の付与率-25%＝×0.75。足した後に掛ける）。 */
+  readonly chanceMultiplier?: number;
   readonly rng: Rng;
 }
 
@@ -225,12 +227,13 @@ export function ailmentCandidates(input: Omit<AilmentRollInput, "rng">): Ailment
     const flag = view.flag("ailmentApply", def.tag, hitTags, scope).resolution;
     // 付与率は、強制・禁止の印の有無にかかわらず検証する（印で NaN・Infinity を見逃さないため。U-04a の会心率と同じ）
     // extraChance：全ての付与率への加算（盗賊の背面判定の補正・毒塗りなど。U-10）
-    const rawChance = finite(
-      finite(skillChance?.[def.tag] ?? 0, `${def.id} の技の基本付与率`) +
-        chanceSums.added +
-        finite(input.extraChance ?? 0, `${def.id} の付与率への加算`),
-      `${def.id} の付与率`,
-    );
+    const rawChance =
+      finite(
+        finite(skillChance?.[def.tag] ?? 0, `${def.id} の技の基本付与率`) +
+          chanceSums.added +
+          finite(input.extraChance ?? 0, `${def.id} の付与率への加算`),
+        `${def.id} の付与率`,
+      ) * finite(input.chanceMultiplier ?? 1, `${def.id} の付与率の倍率`);
     const chance =
       flag === "forbid" ? 0 : flag === "force" ? 1 : Math.min(1, Math.max(0, rawChance));
 

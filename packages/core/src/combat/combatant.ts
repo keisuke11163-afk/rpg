@@ -216,6 +216,10 @@ export interface HitInput {
   readonly forceCrit?: boolean;
   /** このヒットだけの受けるダメージの倍率（母樹の根冠の毒・背向けの外套など。省略で1）。 */
   readonly extraTakenMultiplier?: number;
+  /** このヒットの全ての付与率への加算（武具連携「双牙」の2撃目+20%など）。 */
+  readonly extraAilmentChance?: number;
+  /** このヒットの全ての付与率に掛ける倍率（武具連携「双斧」の-25%＝×0.75）。 */
+  readonly ailmentChanceMultiplier?: number;
   /** 背面からのヒットとして扱う（背向けの外套の移動の技の後）。 */
   readonly forceBackstab?: boolean;
   /** 背面からのヒットの補正（メインジョブの職能。盗賊は会心率+10%・付与率+25%。仕様書5.6）。 */
@@ -286,9 +290,17 @@ export function resolveHit(input: HitInput): HitReport {
     tags,
     ...(input.skillChance === undefined ? {} : { skillChance: input.skillChance }),
     ...(weaponUid === undefined ? {} : { weaponUid }),
-    ...(backstab && input.backstabBonus !== undefined
-      ? { extraChance: input.backstabBonus.ailmentChance }
+    ...((backstab && input.backstabBonus !== undefined) || input.extraAilmentChance !== undefined
+      ? {
+          extraChance:
+            (backstab && input.backstabBonus !== undefined
+              ? input.backstabBonus.ailmentChance
+              : 0) + (input.extraAilmentChance ?? 0),
+        }
       : {}),
+    ...(input.ailmentChanceMultiplier === undefined
+      ? {}
+      : { chanceMultiplier: input.ailmentChanceMultiplier }),
     rng,
   });
   for (const a of ailments) target.ailments.apply(a);
