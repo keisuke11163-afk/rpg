@@ -52,5 +52,6 @@ export const FACTS = [
   "mainHand.empty",
   "dualWield",
   "twoHanded",
+  "enhance.total",
 ] as const;
 export type FactId = (typeof FACTS)[number];

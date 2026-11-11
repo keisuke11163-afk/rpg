@@ -76,6 +76,8 @@ export const constellationSchema = z.strictObject({
   text: textKeySchema,
   nodes: z.array(idSchema).min(2),
   completionEffect: idSchema,
+  /** 完成ボーナスを、この事実の数だけ重ねる（鍛冶座：装備の強化値の合計）。省略すると1つ。 */
+  completionStacks: z.enum(FACTS).optional(),
   ...provisionalFields,
 });
 export type ConstellationDef = z.infer<typeof constellationSchema>;

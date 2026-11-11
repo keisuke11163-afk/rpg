@@ -47,5 +47,23 @@
     "completionEffect": "EFF-CONST-TWIN",
     "provisional": true,
     "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "CONST-SMITH",
+    "text": "constellation.smith",
+    "nodes": [
+      "STAR-SMITH-01",
+      "STAR-SMITH-02",
+      "STAR-SMITH-03",
+      "STAR-SMITH-04",
+      "STAR-SMITH-05",
+      "STAR-SMITH-06",
+      "STAR-SMITH-07",
+      "STAR-SMITH-08"
+    ],
+    "completionEffect": "EFF-CONST-SMITH",
+    "completionStacks": "enhance.total",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
   }
 ]

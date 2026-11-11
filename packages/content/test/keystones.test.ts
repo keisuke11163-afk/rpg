@@ -154,3 +154,22 @@ describe("天極の効果", () => {
     expect(s.evaluated.view.stat("STAT-KEY-BLOOD-PACT-REFUND").value).toBe(0);
   });
 });
+
+describe("鍛冶座（仕様書v0.2 4.4。開発計画書4.2 の MVP の星座）", () => {
+  it("小星8個を全て取ると完成し、装備の強化値の合計×0.4%だけ与ダメージが増える", () => {
+    const W = startNodeOf(db, "JOB-WARRIOR") as string;
+    const path = pathTo(W, "STAR-SMITH-08");
+    const withGear = (enhance: number) =>
+      sheet(WARRIOR, path, (e) => {
+        e.equip({ ...item("w", "BASE-WPN-GREATSWORD-T1"), enhance }, "mainHand", true);
+        e.equip({ ...item("b", "BASE-ARM-IRON-BODY-T1"), enhance }, "body", true);
+      });
+    const a = withGear(0);
+    const b = withGear(5);
+    expect(b.board?.constellations).toContain("CONST-SMITH");
+    const dmg = (s: typeof a) => s.evaluated.view.stat("STAT-DAMAGE", ["TAG-ELEM-FIRE"]).increased;
+    // 強化値の合計10 → +4%（物理でない文脈で比べる。小星の物理ダメージ+5%を除くため）
+    expect(dmg(b) - dmg(a)).toBeCloseTo(0.04);
+    expect(path.length).toBeLessThanOrEqual(25);
+  });
+});

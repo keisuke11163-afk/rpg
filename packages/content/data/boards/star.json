@@ -402,7 +402,7 @@
     "id": "STAR-GOU-0202",
     "kind": "minor",
     "region": "gou",
-    "links": [],
+    "links": ["STAR-SMITH-01"],
     "position": {
       "x": -290,
       "y": 120
@@ -805,5 +805,109 @@
     },
     "provisional": true,
     "provisionalNote": "仕様書v0.2 4.5・4.7。位置・つながりは開発用の仮の盤（docs/progress D-STAR-5）"
+  },
+  {
+    "id": "STAR-SMITH-01",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SMITH-02"],
+    "effects": ["EFF-STAR-SMITH-ARMOR"],
+    "position": {
+      "x": -330,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  },
+  {
+    "id": "STAR-SMITH-02",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SMITH-03"],
+    "effects": ["EFF-STAR-SMITH-WEAPON"],
+    "position": {
+      "x": -370,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  },
+  {
+    "id": "STAR-SMITH-03",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SMITH-04"],
+    "effects": ["EFF-STAR-SMITH-ARMOR"],
+    "position": {
+      "x": -410,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  },
+  {
+    "id": "STAR-SMITH-04",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SMITH-05"],
+    "effects": ["EFF-STAR-SMITH-WEAPON"],
+    "position": {
+      "x": -450,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  },
+  {
+    "id": "STAR-SMITH-05",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SMITH-06"],
+    "effects": ["EFF-STAR-SMITH-ARMOR"],
+    "position": {
+      "x": -490,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  },
+  {
+    "id": "STAR-SMITH-06",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SMITH-07"],
+    "effects": ["EFF-STAR-SMITH-WEAPON"],
+    "position": {
+      "x": -530,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  },
+  {
+    "id": "STAR-SMITH-07",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SMITH-08"],
+    "effects": ["EFF-STAR-SMITH-ARMOR"],
+    "position": {
+      "x": -570,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  },
+  {
+    "id": "STAR-SMITH-08",
+    "kind": "minor",
+    "region": "gou",
+    "links": [],
+    "effects": ["EFF-STAR-SMITH-WEAPON"],
+    "position": {
+      "x": -610,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
   }
 ]

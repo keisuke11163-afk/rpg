@@ -409,5 +409,60 @@
     "scope": "self",
     "provisional": true,
     "provisionalNote": "延長はゲームのルールフック"
+  },
+  {
+    "id": "EFF-STAR-SMITH-ARMOR",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-SMITH-WEAPON",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.05,
+        "filter": {
+          "allOf": ["TAG-ELEM-PHYSICAL"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "「武器の物理ダメージ+5%」を、物理ダメージ+5%（全体）として扱う（docs/progress D-STAR-11）"
+  },
+  {
+    "id": "EFF-CONST-SMITH",
+    "origin": "constellation",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.004
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "装備の強化値の合計×0.4%（強化値の合計の数だけ重ねる。上限44%は10部位×10＝40%で届かない）"
   }
 ]

@@ -306,10 +306,16 @@ export function evaluateStarBoard(
       effects.push({ effectId, source: { kind: STAR_NODE_SOURCE, ref: id } });
   for (const c of constellations) {
     const def = db.constellations.get(c);
-    if (def !== undefined)
+    if (def === undefined) continue;
+    const stacks =
+      def.completionStacks === undefined
+        ? 1
+        : Math.max(0, Math.floor(input.facts?.facts?.[def.completionStacks] ?? 0));
+    if (stacks > 0)
       effects.push({
         effectId: def.completionEffect,
         source: { kind: CONSTELLATION_SOURCE, ref: c },
+        ...(stacks === 1 ? {} : { stacks }),
       });
   }
   return {
