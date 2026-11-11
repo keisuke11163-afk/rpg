@@ -24,6 +24,7 @@ import {
   bindingsToKeybinds,
   effectiveBindings,
   keybindsToBindings,
+  scaleFits,
 } from "../settings/settings.ts";
 import { loadSettings, saveSettings } from "../settings/storage.ts";
 import { SCREEN } from "../config.ts";
@@ -622,7 +623,13 @@ export class ArenaScene extends Phaser.Scene {
   private applySettings(): void {
     this.sound.volume = this.settings.volume;
     const scale = this.scale;
-    const s = this.settings.scale;
+    // 窓に収まらない整数倍（窓を小さくした後など）は、画面に合わせる
+    const s = scaleFits(this.settings.scale, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    })
+      ? this.settings.scale
+      : "fit";
     if (s === "fit") {
       if (scale.scaleMode !== Phaser.Scale.FIT || scale.zoom !== 1) {
         scale.scaleMode = Phaser.Scale.FIT;

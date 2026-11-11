@@ -18,6 +18,24 @@ export interface Settings {
   readonly scale: ScaleSetting;
 }
 
+/** 整数倍の拡大率が、その大きさの窓に収まるか（収まらない倍率は選べない・効かせない）。 */
+export function scaleFits(scale: ScaleSetting, window: { width: number; height: number }): boolean {
+  return scale === "fit" || (640 * scale <= window.width && 360 * scale <= window.height);
+}
+
+/** 次の拡大率（窓に収まらない倍率は飛ばす）。 */
+export function nextScale(
+  scale: ScaleSetting,
+  window: { width: number; height: number },
+): ScaleSetting {
+  const i = SCALES.indexOf(scale);
+  for (let k = 1; k <= SCALES.length; k++) {
+    const next = SCALES[(i + k) % SCALES.length] ?? "fit";
+    if (scaleFits(next, window)) return next;
+  }
+  return "fit";
+}
+
 export const DEFAULT_SETTINGS: Settings = { version: 1, bindings: {}, volume: 0.8, scale: "fit" };
 
 /** 設定の画面で変えられない行動（Esc：画面を閉じる・設定を開く。変えると戻せなくなるため）。 */

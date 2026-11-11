@@ -76,3 +76,15 @@ describe("割り当てとセーブデータの keybinds（開発計画書6.9）"
     expect(keybindsToBindings({ nope: "X", menu: "P", dodge: "" })).toEqual({});
   });
 });
+
+describe("画面の拡大率", () => {
+  it("窓に収まらない整数倍は飛ばす（1280×720 では 3倍を選べない）", async () => {
+    const { nextScale, scaleFits } = await import("../src/settings/settings.ts");
+    const w = { width: 1280, height: 720 };
+    expect(nextScale("fit", w)).toBe(1);
+    expect(nextScale(1, w)).toBe(2);
+    expect(nextScale(2, w)).toBe("fit");
+    expect(scaleFits(3, w)).toBe(false);
+    expect(nextScale(2, { width: 1920, height: 1080 })).toBe(3);
+  });
+});

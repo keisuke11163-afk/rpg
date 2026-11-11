@@ -28,11 +28,11 @@ import { ACTIONS, type Action, type Binding } from "../input/actions.ts";
 import {
   ACTION_NAME,
   FIXED_ACTIONS,
-  SCALES,
   type SettingsHost,
   bindingName,
   effectiveBindings,
   keyNameFromCode,
+  nextScale,
   rebind,
 } from "../settings/settings.ts";
 import {
@@ -161,25 +161,29 @@ export class EquipmentPanel {
     this.sim = sim;
     this.settingsHost = options.settings;
     // 割り当てを変える間は、次のキーを先に受け取る（Phaser より前。Esc はやめる）
-    if (typeof window !== "undefined")
-      window.addEventListener(
-        "keydown",
-        (e) => {
-          const action = this.capturing;
-          if (action === undefined || this.kind !== "settings") return;
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          this.capturing = undefined;
-          if (e.key === "Escape") return;
-          const name = keyNameFromCode(e.code);
-          if (name === undefined || !(name in Phaser.Input.Keyboard.KeyCodes)) {
-            this.say("そのキーは使えない", TEXT_COLOR.bad);
-            return;
-          }
-          this.applyBinding(action, { key: name });
-        },
-        { capture: true },
-      );
+    const onKey = (e: KeyboardEvent): void => {
+      const action = this.capturing;
+      if (action === undefined || this.kind !== "settings") return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this.capturing = undefined;
+      if (e.key === "Escape") return;
+      const name = keyNameFromCode(e.code);
+      if (name === undefined || !(name in Phaser.Input.Keyboard.KeyCodes)) {
+        this.say("そのキーは使えない", TEXT_COLOR.bad);
+        return;
+      }
+      this.applyBinding(action, { key: name });
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", onKey, { capture: true });
+      // 場面を移る（地域を移る）と新しい画面が作られるので、古い受け取りと入力欄を外す
+      scene.events.once("shutdown", () => {
+        window.removeEventListener("keydown", onKey, { capture: true });
+        this.searchBox?.remove();
+        this.searchBox = undefined;
+      });
+    }
     this.onTravel = options.onTravel;
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH);
     scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
@@ -554,6 +558,8 @@ export class EquipmentPanel {
 
   render(): void {
     this.g.clear();
+    // 検索の入力欄は星辰盤を開いている間だけ（閉じたら隠す）
+    this.placeSearchBox();
     this.used = 0;
     this.shown = [];
     if (this.kind !== undefined) {
@@ -572,7 +578,6 @@ export class EquipmentPanel {
       else if (this.kind === "settings") this.renderSettings();
       else if (this.kind === "jobBoard") this.renderJobBoard();
       else this.renderStarBoard();
-      this.placeSearchBox();
       if (this.message !== undefined && this.scene.time.now < this.message.until)
         this.line(
           PANEL.x + 8,
@@ -1436,8 +1441,10 @@ export class EquipmentPanel {
       y0: sy,
       y1: y,
       run: () => {
-        const i = SCALES.indexOf(s.scale);
-        host.set({ ...s, scale: SCALES[(i + 1) % SCALES.length] ?? "fit" });
+        host.set({
+          ...s,
+          scale: nextScale(s.scale, { width: window.innerWidth, height: window.innerHeight }),
+        });
       },
     });
     const ry = y;

@@ -885,13 +885,21 @@ try {
   await page.waitForTimeout(150);
   const setPanel = await panel();
   const se0 = await settings();
+  /** キャンバスの今の位置・大きさ（拡大率を変えると変わるので、クリックの位置はこれから求める）。 */
+  const canvasRect = () =>
+    page.evaluate(() => {
+      const r = document.querySelector("canvas")?.getBoundingClientRect();
+      return r === undefined ? null : { left: r.left, top: r.top, width: r.width };
+    });
   const clickRow = async (i: number): Promise<void> => {
     const r = (await settings()).rows[i];
-    if (r === undefined) return;
-    await page.mouse.move(r.x * 2, r.y * 2);
+    const c = await canvasRect();
+    if (r === undefined || c === null) return;
+    const k = c.width / 640;
+    await page.mouse.move(c.left + r.x * k, c.top + r.y * k);
     await page.mouse.down();
     await page.mouse.up();
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(150);
   };
   // 行の順：移動4・技6・回避（10番目）…・音量・拡大率・初期に戻す
   await clickRow(10);
@@ -901,21 +909,33 @@ try {
   await clickRow(se1.rows.length - 3);
   const se2 = await settings();
   await page.screenshot({ path: `${outDir}settings.png` });
-  await clickRow(se2.rows.length - 1);
+  // 画面の拡大率：画面に合わせる → 1倍 → 2倍 →（3倍は 1280×720 に収まらないので飛ばす）→ 画面に合わせる
+  const widths: number[] = [];
+  const scales: (string | number)[] = [];
+  for (let i = 0; i < 3; i++) {
+    await clickRow(se2.rows.length - 2);
+    scales.push((await settings()).scale);
+    widths.push((await canvasRect())?.width ?? 0);
+  }
   await page.keyboard.press("Escape");
   await page.waitForTimeout(100);
   const se3 = await settings();
   const afterPanel = await panel();
   check(
-    "Esc で設定を開き、回避を K に変えるとセーブデータの keybinds に入り、音量を上げられ、初期に戻せる（補助仕様書16章）",
+    "設定の画面の拡大率：1倍・2倍は整数倍の大きさ、窓に収まらない3倍は飛ばして「画面に合わせる」に戻る（補助仕様書16章・2章）",
+    scales.join() === "1,2,fit" && widths[0] === 640 && widths[1] === 1280 && (widths[2] ?? 0) > 0,
+    `拡大率 ${scales.join(" → ")}・キャンバスの幅 ${widths.join(" → ")}`,
+  );
+  check(
+    "Esc で設定を開き、回避を K に変えるとセーブデータの keybinds に入り、音量を上げられる（補助仕様書16章）",
     setPanel.open === "settings" &&
       se0.dodge.join() === "SPACE" &&
       se1.dodge.join() === "K" &&
       se1.keybinds["dodge"] === "K" &&
       se2.volume > se0.volume &&
-      se3.dodge.join() === "SPACE" &&
+      se3.dodge.join() === "K" &&
       afterPanel.open === null,
-    `画面 ${String(setPanel.open)}・回避 ${se0.dodge.join()} → ${se1.dodge.join()} → ${se3.dodge.join()}・音量 ${String(se0.volume)} → ${String(se2.volume)}`,
+    `画面 ${String(setPanel.open)}・回避 ${se0.dodge.join()} → ${se1.dodge.join()}・音量 ${String(se0.volume)} → ${String(se2.volume)}`,
   );
   await page.keyboard.press("KeyT");
   await page.waitForTimeout(100);
@@ -940,6 +960,11 @@ try {
   await page.screenshot({ path: `${outDir}star-board.png` });
   await page.keyboard.press("KeyT");
   await page.waitForTimeout(100);
+  const searchHidden = await page.evaluate(() => {
+    const el = document.querySelector<HTMLInputElement>("input[data-stella-search]");
+    return el === null || el.style.display === "none";
+  });
+  check("星辰盤を閉じると、検索の入力欄も消える", searchHidden, String(searchHidden));
 
   // 鍛冶屋（U-17）：B で開き、装備を選んで強化する
   await page.evaluate(() =>
@@ -1066,6 +1091,30 @@ try {
         JSON.stringify(beforeReload.stars.attributes),
     `Lv ${String(beforeReload.skills.level)} → ${String(afterReload.skills.level)}・ジョブ ${afterReload.skills.job}・武器 ${String(afterReload.skills.weapon)}・金貨 ${String(beforeReload.inv.gold)} → ${String(afterReload.inv.gold)}・持ち物 ${String(afterReload.inv.items.length)}・最大HP ${String(afterReload.hp)}`,
   );
+  // 設定のキーの割り当て（セーブデータ）：読み込み直しても回避は K のまま。K で回避し、スペースでは回避しない
+  const seR = await settings();
+  const dodgeBy = async (key: string): Promise<boolean> => {
+    // 前の回避が終わり、気力が戻るのを待つ（気力は毎秒20）
+    await page.waitForTimeout(1500);
+    await page.keyboard.down(key);
+    await page.waitForTimeout(60);
+    await page.keyboard.up(key);
+    const p = await player();
+    return p.dodging || p.dodgePending;
+  };
+  const bySpace = await dodgeBy("Space");
+  const byK = await dodgeBy("KeyK");
+  check(
+    "キーの割り当ては読み込み直しても残り、K で回避し、スペースでは回避しない（開発計画書6.9 settings.keybinds）",
+    seR.dodge.join() === "K" && seR.keybinds["dodge"] === "K" && byK && !bySpace,
+    `回避 ${seR.dodge.join()}・K ${String(byK)}・スペース ${String(bySpace)}`,
+  );
+  // 初期の割り当てに戻す（Esc で設定を開き、最後の行）
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await clickRow((await settings()).rows.length - 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
   // 壊れたデータ：タイトルで壊れていると示し、上書きしない。新しく始めると .corrupt に退避してから保存する
   await page.evaluate(() => {
     window.localStorage.setItem("stella-sigil/slot1", "壊れたデータ");
