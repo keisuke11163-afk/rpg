@@ -421,6 +421,7 @@ export class ArenaScene extends Phaser.Scene {
         return {
           open: p.open ?? null,
           lines: [...p.lines],
+          search: { query: p.search.query, hits: [...p.search.hits] },
           sheet: { hp: sim.sheet.maxHp, mp: sim.sheet.maxMp, attackSpeed: sim.sheet.attackSpeed },
         };
       },

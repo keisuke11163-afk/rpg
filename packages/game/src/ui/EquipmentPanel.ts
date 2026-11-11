@@ -45,6 +45,7 @@ import {
   nodeAt,
   nodeLines,
   nodeRadius,
+  searchStarNodes,
   toScreen,
 } from "./star-board-view.ts";
 import {
@@ -84,6 +85,8 @@ export interface PanelSnapshot {
   readonly open: PanelKind | undefined;
   readonly hovered: PanelTarget | undefined;
   readonly lines: readonly string[];
+  /** 星辰盤の検索の語と、見つかったノード。 */
+  readonly search: { readonly query: string; readonly hits: readonly string[] };
 }
 
 /**
@@ -113,6 +116,11 @@ export class EquipmentPanel {
   private jobRows: { x0: number; x1: number; y0: number; y1: number; run: () => void }[] = [];
   /** 星辰盤の視点（始点を中心にして開く）。 */
   private camera: BoardCamera = { cx: 0, cy: 0, zoom: ZOOM.initial };
+  /** 星辰盤の検索（補助仕様書16章。D-UI-1）：入力欄（HTML。日本語の入力のため）・語・見つかったノード・次に移る番号。 */
+  private searchBox: HTMLInputElement | undefined;
+  private searchQuery = "";
+  private searchHits: string[] = [];
+  private searchIndex = 0;
   /** 星辰盤をドラッグで動かしている（押した位置と、その時の視点）。 */
   private drag: { x: number; y: number; cam: BoardCamera; moved: boolean } | undefined;
 
@@ -157,6 +165,88 @@ export class EquipmentPanel {
     scene.input.on("wheel", (_p: unknown, _o: unknown, _dx: number, dy: number) => {
       if (this.kind === "starBoard") this.zoomBy(dy > 0 ? 1 / 1.15 : 1.15);
     });
+  }
+
+  /** 星辰盤の検索の語を決める（入力欄から。自動の確認でも使う）。見つかった最初のノードに視点を移す。 */
+  search(query: string): readonly string[] {
+    this.searchQuery = query;
+    this.searchHits = searchStarNodes(this.sim.db, query).map((n) => n.id);
+    this.searchIndex = 0;
+    this.nextSearchHit();
+    return this.searchHits;
+  }
+
+  /** 検索で見つかった次のノードに視点を移す（Enter）。 */
+  nextSearchHit(): void {
+    const id = this.searchHits[this.searchIndex % Math.max(1, this.searchHits.length)];
+    if (id === undefined) return;
+    this.centerOn(id);
+    this.hovered = { kind: "starNode", id };
+    this.searchIndex += 1;
+  }
+
+  /**
+   * 検索の入力欄を、星辰盤を開いている間だけ、キャンバスの上の見出しの右に置く。
+   * 入力欄に文字を打つ間は、ゲームのキー（WASD・T など）を止める（D-UI-1）。
+   */
+  private placeSearchBox(): void {
+    if (typeof document === "undefined") return;
+    const showing = this.kind === "starBoard";
+    if (!showing) {
+      if (this.searchBox !== undefined && this.searchBox.style.display !== "none") {
+        this.searchBox.blur();
+        this.searchBox.style.display = "none";
+      }
+      return;
+    }
+    const box = this.searchBox ?? this.createSearchBox();
+    const canvas = this.scene.game.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const k = rect.width / this.scene.scale.width;
+    box.style.display = "block";
+    box.style.left = `${String(rect.left + window.scrollX + (BOARD_DETAIL.x - 2) * k)}px`;
+    box.style.top = `${String(rect.top + window.scrollY + (PANEL.y + 3) * k)}px`;
+    box.style.width = `${String((BOARD_DETAIL.width - 4) * k)}px`;
+    box.style.height = `${String(14 * k)}px`;
+    box.style.fontSize = `${String(9 * k)}px`;
+  }
+
+  private createSearchBox(): HTMLInputElement {
+    const box = document.createElement("input");
+    box.type = "search";
+    box.placeholder = "検索（名前・効果。Enter で次へ）";
+    box.dataset["stellaSearch"] = "star";
+    Object.assign(box.style, {
+      position: "absolute",
+      zIndex: "10",
+      background: "#16151c",
+      color: "#e8e6f0",
+      border: "1px solid #4a4858",
+      padding: "0 4px",
+      boxSizing: "border-box",
+      display: "none",
+    });
+    const keyboard = this.scene.input.keyboard;
+    box.addEventListener("focus", () => {
+      if (keyboard === null) return;
+      keyboard.enabled = false;
+      keyboard.disableGlobalCapture();
+      keyboard.resetKeys();
+    });
+    box.addEventListener("blur", () => {
+      if (keyboard === null) return;
+      keyboard.enabled = true;
+      keyboard.enableGlobalCapture();
+    });
+    box.addEventListener("input", () => this.search(box.value));
+    box.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter" && !e.isComposing) this.nextSearchHit();
+      if (e.key === "Escape") box.blur();
+    });
+    document.body.appendChild(box);
+    this.searchBox = box;
+    return box;
   }
 
   /** 星辰盤の拡大率を変える（自動の確認でも使う）。 */
@@ -208,7 +298,12 @@ export class EquipmentPanel {
   }
 
   snapshot(): PanelSnapshot {
-    return { open: this.kind, hovered: this.hovered, lines: this.shown };
+    return {
+      open: this.kind,
+      hovered: this.hovered,
+      lines: this.shown,
+      search: { query: this.searchQuery, hits: this.searchHits },
+    };
   }
 
   /** 画面の位置を指す（マウスを動かしたとき。自動の確認でも使う）。 */
@@ -396,6 +491,7 @@ export class EquipmentPanel {
       else if (this.kind === "altar") this.renderAltar();
       else if (this.kind === "jobBoard") this.renderJobBoard();
       else this.renderStarBoard();
+      this.placeSearchBox();
       if (this.message !== undefined && this.scene.time.now < this.message.until)
         this.line(
           PANEL.x + 8,
@@ -602,7 +698,7 @@ export class EquipmentPanel {
       PANEL.x + 8,
       PANEL.y + 6,
       {
-        text: `星辰盤（T で閉じる）　ポイント ${String(sim.stars.spent)}／${String(sim.starPoints)}・還星の灯 ${String(lamps)}　左クリック：取る／右クリック：返す／ドラッグ：動かす／ホイール：拡大・縮小`,
+        text: `星辰盤（T で閉じる）　ポイント ${String(sim.stars.spent)}／${String(sim.starPoints)}・還星の灯 ${String(lamps)}`,
         color: TEXT_COLOR.dim,
       },
       0,
@@ -613,6 +709,7 @@ export class EquipmentPanel {
       p.x >= a.x && p.y >= a.y && p.x <= a.x + a.width && p.y <= a.y + a.height;
     const active = new Set(board?.active ?? []);
     const allocated = new Set(sim.stars.nodes);
+    const hits = new Set(this.searchHits);
     // タグの強調：今の技に効く効果を持つノード（仕様書v0.2 11章「タグが一致すると光る」）
     const contexts = sim.skillContexts();
     const matches = (id: string): boolean =>
@@ -648,6 +745,7 @@ export class EquipmentPanel {
       g.lineStyle(1, stroke, 1).strokeCircle(p.x, p.y, r);
       if (n.kind === "start" && !isRoot) g.lineStyle(1, 0x8c88a0, 1).strokeCircle(p.x, p.y, r + 2);
       if (matches(n.id)) g.lineStyle(1, 0xffe08a, 0.9).strokeCircle(p.x, p.y, r + 2);
+      if (hits.has(n.id)) g.lineStyle(2, 0x6fd3ff, 1).strokeCircle(p.x, p.y, r + 4);
       if (this.hovered?.kind === "starNode" && this.hovered.id === n.id)
         g.lineStyle(1, 0xffffff, 1).strokeCircle(p.x, p.y, r + 3);
     }
@@ -656,11 +754,32 @@ export class EquipmentPanel {
     const target = this.hovered;
     const node = target?.kind === "starNode" ? db.starNodes.get(target.id) : undefined;
     let y = d.y;
+    if (this.searchQuery.trim() !== "")
+      y = this.lines(
+        d.x,
+        y,
+        [
+          {
+            text:
+              this.searchHits.length === 0
+                ? `検索「${this.searchQuery}」：見つからない`
+                : `検索「${this.searchQuery}」：${String(this.searchHits.length)}件（Enter で次へ）`,
+            color: this.searchHits.length === 0 ? TEXT_COLOR.bad : TEXT_COLOR.good,
+          },
+        ],
+        d.width,
+      );
     if (node === undefined)
       y = this.lines(
         d.x,
         y,
-        [{ text: "ノードを指すと、効果と状態を出す", color: TEXT_COLOR.dim }],
+        [
+          { text: "ノードを指すと、効果と状態を出す", color: TEXT_COLOR.dim },
+          {
+            text: "左クリック：取る／右クリック：返す／ドラッグ：動かす／ホイール：拡大・縮小",
+            color: TEXT_COLOR.dim,
+          },
+        ],
         d.width,
       );
     else

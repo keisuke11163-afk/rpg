@@ -150,3 +150,32 @@ export function nodeLines(
     );
   return lines;
 }
+
+/**
+ * 星辰盤の検索（補助仕様書16章）：名前・種類・効果の説明に、空白で区切った全ての語を含むノード。
+ * 大文字と小文字・全角と半角の英数字は区別しない。空の検索は何も返さない。並びは盤のデータの順。
+ */
+export function searchStarNodes(db: ContentDb, query: string): StarNodeDef[] {
+  const words = normalizeSearch(query)
+    .split(/\s+/)
+    .filter((w) => w !== "");
+  if (words.length === 0) return [];
+  const out: StarNodeDef[] = [];
+  for (const n of db.starNodes.values()) {
+    const hay = normalizeSearch(
+      [nodeName(db, n), KIND_NAME[n.kind], ...(n.effects ?? []).map((e) => effectText(db, e))].join(
+        " ",
+      ),
+    );
+    if (words.every((w) => hay.includes(w))) out.push(n);
+  }
+  return out;
+}
+
+/** 検索の比較の形（全角の英数字・空白を半角に、英字を小文字に）。 */
+function normalizeSearch(s: string): string {
+  return s
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/　/g, " ")
+    .toLowerCase();
+}

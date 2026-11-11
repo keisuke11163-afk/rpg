@@ -18,6 +18,7 @@ interface Keyboard {
   down(key: string): Promise<void>;
   up(key: string): Promise<void>;
   press(key: string): Promise<void>;
+  type(text: string): Promise<void>;
 }
 interface Page {
   mouse: Mouse;
@@ -38,6 +39,7 @@ interface Page {
   evaluate<T, A>(fn: (arg: A) => T, arg: A): Promise<T>;
   waitForTimeout(ms: number): Promise<void>;
   screenshot(options: { path: string }): Promise<unknown>;
+  click(selector: string): Promise<void>;
 }
 interface Browser {
   newPage(options: {
@@ -207,6 +209,7 @@ interface SavesInfo {
 interface PanelInfo {
   open: string | null;
   lines: string[];
+  search: { query: string; hits: string[] };
   sheet: { hp: number; mp: number; attackSpeed: number };
 }
 
@@ -864,6 +867,23 @@ try {
       st1.attributes.jin === st0.attributes.jin + 10 &&
       boardPanel.lines.some((l) => l.startsWith("取得済み")),
     `取得 ${st1.allocated.join(",")}・迅 ${String(st0.attributes.jin)} → ${String(st1.attributes.jin)}・ポイント ${String(st1.allocated.length)}／${String(st1.points)}`,
+  );
+  // 星辰盤の検索（補助仕様書16章・D-UI-1）：入力欄に打つと、見つかったノードが光る。打つ間はゲームのキーが効かない
+  await page.click("input[data-stella-search]");
+  await page.keyboard.type("t");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.type("断ち切る");
+  await page.waitForTimeout(150);
+  const searched = await panel();
+  await page.screenshot({ path: `${outDir}star-search.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(50);
+  check(
+    "星辰盤の検索欄に「断ち切る」と打つと、断ち切る刃が見つかり、打つ間は T で画面が閉じない（補助仕様書16章）",
+    searched.open === "starBoard" &&
+      searched.search.hits.includes("STAR-NT-SEVERING") &&
+      searched.lines.some((l) => l.startsWith("検索「断ち切る」")),
+    `検索「${searched.search.query}」：${searched.search.hits.join(",")}・画面 ${String(searched.open)}`,
   );
   await page.screenshot({ path: `${outDir}star-board.png` });
   await page.keyboard.press("KeyT");
