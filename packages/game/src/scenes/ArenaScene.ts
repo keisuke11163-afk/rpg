@@ -16,7 +16,7 @@ import { text, type TextKey } from "@stella/content";
 import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
 import { EquipmentPanel } from "../ui/EquipmentPanel.ts";
 import { itemName } from "../ui/item-text.ts";
-import { MINIMAP, type MinimapMarkKind, minimapMarks } from "../ui/minimap.ts";
+import { BIG_MAP, MINIMAP, type MinimapMarkKind, minimapMarks } from "../ui/minimap.ts";
 import {
   DEFAULT_SETTINGS,
   type Settings,
@@ -108,6 +108,8 @@ export class ArenaScene extends Phaser.Scene {
   private controls!: InputSystem;
   /** 設定（補助仕様書16章。端末ごと。D-UI-2）。 */
   private settings: Settings = DEFAULT_SETTINGS;
+  /** M で開く大きな地図を開いているか。 */
+  private bigMap = false;
   private keyJob!: Phaser.Input.Keyboard.Key;
   private jobPressed = false;
   private body!: Phaser.GameObjects.Image;
@@ -214,7 +216,8 @@ export class ArenaScene extends Phaser.Scene {
     camera.startFollow(this.body, true, 0.2, 0.2);
     camera.setRoundPixels(true);
 
-    this.bars = this.add.graphics().setScrollFactor(0);
+    // 棒・地図は世界の絵（敵・プレイヤー）より上、画面（深さ1000）より下
+    this.bars = this.add.graphics().setScrollFactor(0).setDepth(900);
     this.hud = this.add
       .text(8, 8, "", {
         fontFamily: "sans-serif",
@@ -460,6 +463,7 @@ export class ArenaScene extends Phaser.Scene {
           open: p.open ?? null,
           lines: [...p.lines],
           search: { query: p.search.query, hits: [...p.search.hits] },
+          bigMap: this.bigMap,
           sheet: { hp: sim.sheet.maxHp, mp: sim.sheet.maxMp, attackSpeed: sim.sheet.attackSpeed },
         };
       },
@@ -591,9 +595,12 @@ export class ArenaScene extends Phaser.Scene {
     if (raw.pressed.has("character")) this.panel.toggle("character");
     if (raw.pressed.has("starBoard")) this.panel.toggle("starBoard");
     if (raw.pressed.has("jobBoard")) this.panel.toggle("jobBoard");
-    // Esc：画面を開いていれば閉じる。何も開いていなければ設定を開く
+    // M：大きな地図を開く・閉じる（補助仕様書1.1。D-UI-4）
+    if (raw.pressed.has("map")) this.bigMap = !this.bigMap;
+    // Esc：大きな地図・画面を開いていれば閉じる。何も開いていなければ設定を開く
     if (raw.pressed.has("menu")) {
-      if (this.panel.open === undefined) this.panel.show("settings");
+      if (this.bigMap) this.bigMap = false;
+      else if (this.panel.open === undefined) this.panel.show("settings");
       else this.panel.close();
     }
     const pointer = this.input.activePointer;
@@ -660,33 +667,40 @@ export class ArenaScene extends Phaser.Scene {
 
   /** 小さな地図（補助仕様書16章）：右下に、地域の全体と自分・敵・宝箱・出口などの点。 */
   private drawMinimap(): void {
+    // 画面（インベントリなど）を開いている間は描かない（画面の下からはみ出さないように）
+    if (this.panel.open !== undefined) return;
+    const frame = this.bigMap ? BIG_MAP : MINIMAP;
+    const zoom = this.bigMap ? 2 : 1;
     const sim = this.sim;
     const r = sim.region;
     const center = (x: { x: number; y: number; width: number; height: number }) => ({
       x: x.x + x.width / 2,
       y: x.y + x.height / 2,
     });
-    const marks = minimapMarks({
-      size: sim.size,
-      player: sim.motion.position,
-      enemies: (sim.field?.enemies ?? [])
-        .filter((e) => e.state !== "dead" && !e.underground)
-        .map((e) => ({
-          x: e.position.x,
-          y: e.position.y,
-          boss: e.def.boss !== undefined,
-          elite: e.rank.id === "RANK-ELITE",
-        })),
-      chests: sim.chests.filter((c) => !c.opened).map((c) => c.at),
-      exits: (r?.exits ?? []).map((x) => ({ ...center(x.rect), open: sim.exitOpen(x) })),
-      stone: r?.kind === "dungeon" ? r.teleportStone : undefined,
-      facilities: (r?.facilities ?? []).filter((f) => f.kind !== "dummy").map((f) => f.at),
-    });
+    const marks = minimapMarks(
+      {
+        size: sim.size,
+        player: sim.motion.position,
+        enemies: (sim.field?.enemies ?? [])
+          .filter((e) => e.state !== "dead" && !e.underground)
+          .map((e) => ({
+            x: e.position.x,
+            y: e.position.y,
+            boss: e.def.boss !== undefined,
+            elite: e.rank.id === "RANK-ELITE",
+          })),
+        chests: sim.chests.filter((c) => !c.opened).map((c) => c.at),
+        exits: (r?.exits ?? []).map((x) => ({ ...center(x.rect), open: sim.exitOpen(x) })),
+        stone: r?.kind === "dungeon" ? r.teleportStone : undefined,
+        facilities: (r?.facilities ?? []).filter((f) => f.kind !== "dummy").map((f) => f.at),
+      },
+      frame,
+    );
     const g = this.bars;
-    g.fillStyle(0x16151c, 0.75)
-      .fillRect(MINIMAP.x, MINIMAP.y, MINIMAP.width, MINIMAP.height)
+    g.fillStyle(0x16151c, this.bigMap ? 0.9 : 0.75)
+      .fillRect(frame.x, frame.y, frame.width, frame.height)
       .lineStyle(1, 0x4a4858, 1)
-      .strokeRect(MINIMAP.x, MINIMAP.y, MINIMAP.width, MINIMAP.height);
+      .strokeRect(frame.x, frame.y, frame.width, frame.height);
     const STYLE: Readonly<Record<MinimapMarkKind, { color: number; size: number }>> = {
       facility: { color: 0x8c88a0, size: 2 },
       exit: { color: 0x7bd389, size: 3 },
@@ -700,11 +714,12 @@ export class ArenaScene extends Phaser.Scene {
     };
     for (const m of marks) {
       const s = STYLE[m.kind];
+      const size = s.size * zoom;
       g.fillStyle(s.color, 1).fillRect(
-        Math.round(m.x - s.size / 2),
-        Math.round(m.y - s.size / 2),
-        s.size,
-        s.size,
+        Math.round(m.x - size / 2),
+        Math.round(m.y - size / 2),
+        size,
+        size,
       );
     }
   }

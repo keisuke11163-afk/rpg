@@ -52,12 +52,21 @@ export function activeInteractions(s: InteractionState): string[] {
   )
     out.push("I-01");
   if ((board?.resonating.length ?? 0) > 0) out.push("I-02");
-  if ((board?.gates.size ?? 0) > 0) out.push("I-03");
+  // I-03：星門が開いている（装備する武器種で点いた）
+  if ([...(board?.gates.values() ?? [])].some((open) => open)) out.push("I-03");
   if (sheet.latents.some((l) => l.active)) out.push("I-09");
   const bareHands = has("STAR-KEY-BARE-HANDS") && equipment.get("mainHand") === undefined;
   if (bareHands) out.push("I-11");
   if (board?.constellations.includes("CONST-SMITH") === true) out.push("I-12");
-  if (has("STAR-NT-LAYERS")) out.push("I-13");
+  // I-13：重ね着の妙を取り、3種類の防具種を全て装備している
+  const facts = equipment.facts();
+  if (
+    has("STAR-NT-LAYERS") &&
+    (facts["armor.heavy.count"] ?? 0) > 0 &&
+    (facts["armor.light.count"] ?? 0) > 0 &&
+    (facts["armor.robe.count"] ?? 0) > 0
+  )
+    out.push("I-13");
   if (sheet.weapon !== undefined && sheet.affinity === "S") out.push("I-16");
   const mainJobTag = s.mainJobTag;
   if (

@@ -56,3 +56,12 @@ describe("小さな地図", () => {
     expect(me?.y).toBeLessThanOrEqual(MINIMAP.y + MINIMAP.height);
   });
 });
+
+describe("大きな地図（M）", () => {
+  it("同じ印を大きな枠に描く（枠の真ん中に自分）", async () => {
+    const { BIG_MAP } = await import("../src/ui/minimap.ts");
+    const [me] = minimapMarks(base, BIG_MAP);
+    expect(me?.x).toBeCloseTo(BIG_MAP.x + BIG_MAP.width / 2);
+    expect(me?.y).toBeCloseTo(BIG_MAP.y + BIG_MAP.height / 2);
+  });
+});

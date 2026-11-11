@@ -217,6 +217,7 @@ interface PanelInfo {
   open: string | null;
   lines: string[];
   search: { query: string; hits: string[] };
+  bigMap: boolean;
   sheet: { hp: number; mp: number; attackSpeed: number };
 }
 
@@ -965,6 +966,19 @@ try {
     return el === null || el.style.display === "none";
   });
   check("星辰盤を閉じると、検索の入力欄も消える", searchHidden, String(searchHidden));
+  // M：大きな地図（補助仕様書1.1・D-UI-4）。Esc は先に地図を閉じる（設定は開かない）
+  await page.keyboard.press("KeyM");
+  await page.waitForTimeout(100);
+  const mapOpen = await panel();
+  await page.screenshot({ path: `${outDir}map.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  const mapClosed = await panel();
+  check(
+    "M で大きな地図を開き、Esc で閉じる（設定は開かない）",
+    mapOpen.bigMap && !mapClosed.bigMap && mapClosed.open === null,
+    `開く ${String(mapOpen.bigMap)}・閉じる ${String(mapClosed.bigMap)}・画面 ${String(mapClosed.open)}`,
+  );
 
   // 鍛冶屋（U-17）：B で開き、装備を選んで強化する
   await page.evaluate(() =>

@@ -31,19 +31,33 @@ export interface MinimapInput {
   readonly facilities: readonly { readonly x: number; readonly y: number }[];
 }
 
+/** 地図の枠（画面のピクセル）。 */
+export interface MapFrame {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** M で開く大きな地図の枠（画面の真ん中。補助仕様書1.1 の M＝地図。D-UI-4）。 */
+export const BIG_MAP: MapFrame = { x: 120, y: 60, width: 400, height: 240 };
+
 /** 地域の縦横の比を保ったまま枠に収める倍率と、枠の中の余白。 */
-export function minimapScale(size: MinimapInput["size"]): { k: number; ox: number; oy: number } {
-  const k = Math.min(MINIMAP.width / size.width, MINIMAP.height / size.height);
+export function minimapScale(
+  size: MinimapInput["size"],
+  frame: MapFrame = MINIMAP,
+): { k: number; ox: number; oy: number } {
+  const k = Math.min(frame.width / size.width, frame.height / size.height);
   return {
     k,
-    ox: MINIMAP.x + (MINIMAP.width - size.width * k) / 2,
-    oy: MINIMAP.y + (MINIMAP.height - size.height * k) / 2,
+    ox: frame.x + (frame.width - size.width * k) / 2,
+    oy: frame.y + (frame.height - size.height * k) / 2,
   };
 }
 
 /** 地図の印（描く順：施設・出口・宝箱・敵・ボス・自分）。地域の外の点は枠に収める。 */
-export function minimapMarks(input: MinimapInput): MinimapMark[] {
-  const { k, ox, oy } = minimapScale(input.size);
+export function minimapMarks(input: MinimapInput, frame: MapFrame = MINIMAP): MinimapMark[] {
+  const { k, ox, oy } = minimapScale(input.size, frame);
   const at = (kind: MinimapMarkKind, p: { x: number; y: number }): MinimapMark => ({
     kind,
     x: ox + Math.min(input.size.width, Math.max(0, p.x)) * k,
