@@ -21,7 +21,7 @@ import {
 } from "../effects/evaluate.ts";
 import type { TagIndex } from "../effects/tag-index.ts";
 import { type JobBoardAllocation, jobBoardPoints } from "../board/job-board.ts";
-import type { Equipment } from "../items/equipment.ts";
+import { DEFENSE_EFFECTS, type Equipment } from "../items/equipment.ts";
 import { requirementMet } from "../items/equipment.ts";
 import type { ItemInstance } from "../items/generate.ts";
 import { ATTRIBUTE_EFFECTS, type Attributes, type Character } from "./progression.ts";
@@ -263,8 +263,16 @@ export function buildCharacterSheet(
     db.stats.has(BARE_HANDS_STAT) &&
     evaluated.view.stat(BARE_HANDS_STAT).value > 0
   ) {
+    // 2倍にするのは、基礎性能（防具値など）・詞・固有効果だけ。基本刻印と潜在効果は上がらない
+    // （仕様書v0.2 3.9 の基礎性能の定義：基本刻印は上がらない。docs/progress D-STAR-7）
+    const basePerformance = new Set<string>(Object.values(DEFENSE_EFFECTS));
+    const latentIds = new Set(latentEffects.map((l) => l.effectId));
     const extra = instances.filter(
-      (i) => i.source.kind === "equipment" && i.source.ref === offItem.uid,
+      (i) =>
+        i.source.kind === "equipment" &&
+        i.source.ref === offItem.uid &&
+        !latentIds.has(i.effectId) &&
+        (basePerformance.has(i.effectId) || db.effects.get(i.effectId)?.origin !== "implicit"),
     );
     instances.push(...extra);
     evaluated = evaluateEffects(db, tags, instances, facts);

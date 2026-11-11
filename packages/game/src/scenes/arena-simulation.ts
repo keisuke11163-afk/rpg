@@ -1098,7 +1098,7 @@ export class ArenaSimulation {
       for (const t of this.field?.targets() ?? []) {
         const d = Math.hypot(t.position.x - p.center.x, t.position.y - p.center.y);
         if (d > p.radius + t.radius || p.total <= 0) continue;
-        t.ailments.apply({
+        t.applyAilment({
           ailmentId: poison.id,
           tag: poison.tag,
           total: p.total,
@@ -2180,7 +2180,7 @@ export class ArenaSimulation {
               : enemy.combatant.health.dead
                 ? []
                 : [enemy];
-          for (const v of victims) v.combatant.ailments.apply(app);
+          for (const v of victims) v.combatant.applyAilment(app);
         }
         this.hitsTakenCount += 1;
         this.lastHitBy = enemy.def.id;
@@ -2225,7 +2225,7 @@ export class ArenaSimulation {
             : strongest === undefined
               ? []
               : [strongest];
-          if (to !== undefined) for (const b of moving) to.combatant.ailments.apply(b);
+          if (to !== undefined) for (const b of moving) to.combatant.applyAilment(b);
         }
         // 薬瓶の充填（補助仕様書6章。HP瓶とMP瓶は別にたまる）
         const fill = FLASK_FILL[enemy.def.dropSource ?? enemy.rank.rank];
@@ -2413,6 +2413,9 @@ export class ArenaSimulation {
       this.ailmentTypeCount(t) >= CRITICAL_TYPES &&
       this.elapsed - (this.lastCritical.get(t.id) ?? -Infinity) >= CRITICAL_INTERVAL;
     const wasBroken = t.stagger.broken;
+    // ダメージを受けない相手（ボスの段階の切り替え・根渡り）へのヒットは、後処理（臨界・分かれたヒット・
+    // 吸収・延長など）を全て行わない（docs/progress Q-U19-2 の確定）
+    const invulnerable = t.health.invulnerable;
     const report = resolveHit({
       db: this.db,
       attacker,
@@ -2444,6 +2447,7 @@ export class ArenaSimulation {
     if (t !== this.dummy) this.field?.onEnemyHit(t);
     if (t === this.dummy) this.lastReport = report;
     if (report.hit.evaded) return false;
+    if (invulnerable) return false;
     // 爪の基本刻印「ヒットでHP吸収0.5%」：与えたダメージの割合だけHPを回復する（その武器のヒットだけ）
     const leech = view.stat("STAT-LIFE-LEECH", [], scope).value;
     const dealt = report.applied.toHp + report.applied.toWard;
@@ -2546,8 +2550,8 @@ export class ArenaSimulation {
       }
       if (nearest !== undefined) {
         // 潜在効果（双刃座の完成・二刀流のとき）：分かれたヒットも、元のヒットと同じ状態異常を付与する
-        if (view.stat("STAT-UNQ-SPLIT-AILMENT").value > 0 && !nearest.health.invulnerable)
-          for (const a of report.ailments) nearest.ailments.apply(a);
+        if (view.stat("STAT-UNQ-SPLIT-AILMENT").value > 0)
+          for (const a of report.ailments) nearest.applyAilment(a);
         nearest.health.takeDamage(report.hit.total * split);
         if (nearest !== this.dummy) this.field?.onEnemyHit(nearest);
       }
@@ -2567,7 +2571,7 @@ export class ArenaSimulation {
         if (dist > z.radius + t.radius) continue;
         for (const e of z.enemyEffects) t.statuses.add(e, dt + ZONE_REFRESH, z.skill);
         if (pulse && def !== undefined && (def.kind === "debuff" || def.kind === "dot")) {
-          t.ailments.apply({
+          t.applyAilment({
             ailmentId: def.id,
             tag: def.tag,
             total: 0,

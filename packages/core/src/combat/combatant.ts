@@ -105,6 +105,16 @@ export class Combatant {
    */
   ownReceived: ReceivedMultipliers = { damage: 1, stagger: 1 };
 
+  /**
+   * 状態異常を付ける入口（ヒット以外：毒だまり・煙玉・反撃・出血の移動など）。
+   * ダメージを受けない間（ボスの段階の切り替え・根渡り）は付けずに false（docs/progress Q-U19-2 の確定）。
+   */
+  applyAilment(app: AilmentApplication): boolean {
+    if (this.health.invulnerable || this.health.dead) return false;
+    this.ailments.apply(app);
+    return true;
+  }
+
   /** 受けるダメージの倍率（崩れている間・一定時間の効果・自分の能力値）。 */
   get takenMultiplier(): number {
     return this.stagger.takenMultiplier * this.receivedMultipliers().damage;

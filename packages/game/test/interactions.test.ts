@@ -214,6 +214,35 @@ describe("天極・輝星のルールフック（仕様書v0.2 4.5・4.7）", ()
     expect(awake.dots).toBeLessThan(plain.dots);
   });
 
+  it("ダメージを受けない相手（ボスの段階の切り替えなど）へのヒットでは、臨界が起きず、持続ダメージも消えない", () => {
+    const sim = rogue({ u03: true, poisonBlood: true });
+    take(sim, "STAR-KEY-MYRIAD");
+    const d = sim.dummy as Combatant;
+    bleed(sim, d, 3);
+    weaken(sim, d);
+    const before = d.ailments.remainingDotTotal();
+    d.health.invulnerable = true;
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+    for (let i = 0; i < 120; i++) sim.frame(STEP, input(["skill1"]));
+    expect(sim.criticals).toBe(0);
+    expect(d.ailments.remainingDotTotal()).toBeGreaterThan(0);
+    expect(d.ailments.remainingDotTotal()).toBeLessThanOrEqual(before);
+    // ヒット以外の付与（毒だまり・反撃など）も、無敵の相手には付かない
+    const poison = sim.db.ailments.get("AIL-POISON");
+    if (poison?.kind !== "dot") throw new Error("毒が無い");
+    expect(
+      d.applyAilment({
+        ailmentId: poison.id,
+        tag: poison.tag,
+        total: 10,
+        duration: 3,
+        maxStacks: undefined,
+      }),
+    ).toBe(false);
+    expect(d.ailments.stacks("AIL-POISON")).toBe(0);
+  });
+
   it("千変：同じ敵への臨界は2秒に1回まで", () => {
     const sim = rogue({ u03: true, poisonBlood: true });
     take(sim, "STAR-KEY-MYRIAD");

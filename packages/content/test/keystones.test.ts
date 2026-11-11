@@ -112,7 +112,8 @@ describe("天極の効果", () => {
     const withK = sheet(WARRIOR, path, shield);
     // 大盾：防具値24、移動-5%
     expect(withK.defense.armor - without.defense.armor).toBeCloseTo(24);
-    expect(withK.moveSpeed).toBeCloseTo(0.9);
+    // 大盾の基本刻印（移動-5%）は2倍にならない（仕様書v0.2 3.9：基本刻印は上がらない）
+    expect(withK.moveSpeed).toBeCloseTo(0.95);
     const dual = sheet(WARRIOR, path, (e) =>
       e.equip(item("o", "BASE-WPN-AXE-T1"), "offHand", true),
     );
