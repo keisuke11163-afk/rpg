@@ -227,13 +227,20 @@ export function evaluateStarBoard(
   const instancesOf = (ids: Iterable<string>): EffectInstance[] => {
     const out: EffectInstance[] = [];
     for (const id of ids) {
-      const double = boosted.has(id) && node(id)?.kind === "minor";
-      for (const effectId of node(id)?.effects ?? [])
+      const n = node(id);
+      const double = boosted.has(id) && n?.kind === "minor";
+      for (const effectId of n?.effects ?? [])
         out.push({
           effectId,
           source: { kind: STAR_NODE_SOURCE, ref: id },
           ...(double ? { stacks: 2 } : {}),
         });
+      // 事実の数だけ重ねる効果（重荷の誇り）
+      const fs = n?.factStacked;
+      const count = fs === undefined ? 0 : Math.max(0, input.facts?.facts?.[fs.fact] ?? 0);
+      if (fs !== undefined && count > 0)
+        for (const effectId of fs.effects)
+          out.push({ effectId, source: { kind: STAR_NODE_SOURCE, ref: id }, stacks: count });
     }
     return out;
   };

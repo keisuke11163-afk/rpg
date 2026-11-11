@@ -446,5 +446,58 @@
     "text": "stat.unq-split-ailment",
     "unit": "flat",
     "min": 0
+  },
+  {
+    "id": "STAT-KEY-BLOOD-PACT",
+    "text": "stat.key-blood-pact",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-HP-RECOVERY",
+    "text": "stat.hp-recovery",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-KEY-BARE-HANDS",
+    "text": "stat.key-bare-hands",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-KEY-CRITICAL",
+    "text": "stat.key-critical",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-KEY-SHADOW-DELAY",
+    "text": "stat.key-shadow-delay",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NOTABLE-REOPEN",
+    "text": "stat.notable-reopen",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-RETALIATE-AREA",
+    "text": "stat.unq-retaliate-area",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-UNQ-BLEED-TRANSFER-ALL",
+    "text": "stat.unq-bleed-transfer-all",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-KEY-BLOOD-PACT-REFUND",
+    "text": "stat.key-blood-pact-refund",
+    "unit": "ratio",
+    "min": 0
   }
 ]

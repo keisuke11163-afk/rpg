@@ -73,6 +73,7 @@ import {
   skillBlock,
   staggerProfiles,
   UNIFORM_EFFECTS,
+  type Element,
   countAilmentTypes,
   OUT_OF_COMBAT_SECONDS,
   JobBoardAllocation,
@@ -113,6 +114,12 @@ const MAX_COOLDOWN_REDUCTION = 0.9;
 /** 職紋盤「素早い手」の対象の技。 */
 const FLURRY_SKILL = "SKL-ROGUE-FLURRY";
 const BASIC_ATTACK = "SKL-BASIC-ATTACK";
+/** 千変：臨界になる状態異常の種類の数・同じ敵に臨界が起きる間隔（仕様書v0.2 4.7）。 */
+const CRITICAL_TYPES = 3;
+const CRITICAL_INTERVAL = 2;
+/** 影写し：遅れて受ける秒数・敵を倒したときに消える割合（仕様書v0.2 4.7）。 */
+const SHADOW_SECONDS = 4;
+const SHADOW_KILL_CLEAR = 0.2;
 /**
  * 母樹の根冠（U18）の受けるダメージの倍率：毒10スタックにつき ×(1＋step)（乗算）、上限は 1＋cap。
  */
@@ -479,6 +486,13 @@ export class ArenaSimulation {
   private demonLeft = 0;
   /** 背面からのヒットでコンボ点を得た時刻（背向けの外套の潜在効果。1秒に1回まで）。 */
   private lastBackstabCombo = -Infinity;
+  /** 血の盟約の共鳴変化：戻るHP。 */
+  private pactRefunds: { at: number; amount: number }[] = [];
+  /** 千変：敵ごとの最後の臨界の時刻と、臨界の回数。 */
+  private readonly lastCritical = new Map<string, number>();
+  private criticalCount = 0;
+  /** 影写し：遅れて受けるダメージ。 */
+  private shadowQueue: { remaining: number; perSecond: number }[] = [];
   /** 二刀流の通常攻撃の回数（奇数回目は主手・偶数回目は副手）と、直前のヒットの手。 */
   private basicSwings = 0;
   private lastOffHand = false;
@@ -1005,6 +1019,44 @@ export class ArenaSimulation {
     )
       tags.push("TAG-AIL-POISON");
     return countAilmentTypes(tags);
+  }
+
+  /** HPの回復効果の倍率（血の盟約の+30%など）。 */
+  private get hpRecovery(): number {
+    return Math.max(0, 1 + this.view.stat("STAT-HP-RECOVERY").increased);
+  }
+
+  /** 千変の臨界：持続ダメージの残りの割合を即座に与え、持続ダメージを消す（耐性と受けるダメージの倍率をかける）。 */
+  private triggerCritical(t: Combatant): void {
+    const ratio = this.view.stat("STAT-KEY-CRITICAL").value;
+    const out = t.ailments.consumeDots(ratio);
+    let total = 0;
+    for (const [el, amount] of Object.entries(out) as [Element, number][])
+      total += amount * (1 - (t.resist[el] ?? 0)) * t.takenMultiplier;
+    if (total > 0) t.health.takeDamage(total);
+    this.lastCritical.set(t.id, this.elapsed);
+    this.criticalCount += 1;
+    this.onText?.(`臨界 ${total.toFixed(0)}`, t.position, "#c3a6ff");
+  }
+
+  /** 千変の臨界が起きた回数（確認用）。 */
+  get criticals(): number {
+    return this.criticalCount;
+  }
+
+  /** 影写し：遅れて受けるダメージの残りの合計（表示・確認用）。 */
+  get shadowDelayed(): number {
+    return this.shadowQueue.reduce((s, q) => s + q.remaining, 0);
+  }
+
+  /** 影写し（K15）：遅れて受けるダメージを、4秒かけて受ける。 */
+  private updateShadowDelay(dt: number): void {
+    for (const q of this.shadowQueue) {
+      const amount = Math.min(q.remaining, q.perSecond * dt);
+      q.remaining -= amount;
+      if (amount > 0 && !this.playerValue.health.dead) this.playerValue.health.takeDamage(amount);
+    }
+    this.shadowQueue = this.shadowQueue.filter((q) => q.remaining > 1e-9);
   }
 
   /** 毒蛇座の毒だまり（表示・確認用）。 */
@@ -1728,9 +1780,12 @@ export class ArenaSimulation {
     // 職奥義「鬼神化」を選ぶと、解放技は使えなくなる
     if (def.tags.includes("TAG-FORM-RELEASE") && this.view.stat("STAT-JOB-DEMON").value > 0)
       return "locked";
+    // 天極「血の盟約」：コストをHPで払う（MPコスト×1.5。払うと倒れるなら使えない）
+    const pact = this.view.stat("STAT-KEY-BLOOD-PACT").value;
+    if (pact > 0 && def.mpCost > 0 && this.playerValue.health.hp <= def.mpCost * pact) return "mp";
     return skillBlock(def, {
       cooldown: this.cooldowns.remaining(skillId),
-      mp: this.mpValue,
+      mp: pact > 0 ? Infinity : this.mpValue,
       gauge: this.jobGaugeValue.value,
       affinity: this.affinity,
     });
@@ -1794,6 +1849,9 @@ export class ArenaSimulation {
     c.evasion = d.evasion;
     c.resist = { ...d.resist };
     c.ownReceived = { damage: d.damageTaken, stagger: d.staggerTaken };
+    // 崩されない（重荷の誇りの4部位など）
+    c.staggerImmune =
+      this.sheetValue.evaluated.view.flag("beStaggered", undefined).resolution === "forbid";
   }
 
   /** メインジョブの職能ゲージ（メインジョブのものだけが有効。仕様書5章）。 */
@@ -1898,7 +1956,14 @@ export class ArenaSimulation {
       if (t === undefined) return;
       teleportTo = this.behind(t, def.action.behind);
     }
-    this.mpValue -= def.mpCost;
+    const pact = this.view.stat("STAT-KEY-BLOOD-PACT").value;
+    if (pact > 0 && def.mpCost > 0) {
+      const paid = def.mpCost * pact;
+      if (!this.playerValue.health.payHp(paid)) return;
+      // 共鳴変化：支払ったHPの一部が2秒後に戻る（装備の共鳴紋が無いので、まだ働かない）
+      const refund = this.view.stat("STAT-KEY-BLOOD-PACT-REFUND").value;
+      if (refund > 0) this.pactRefunds.push({ at: this.elapsed + 2, amount: paid * refund });
+    } else this.mpValue -= def.mpCost;
     // クールダウン短縮（詞・怒涛）。短縮は90%まで（仮値。docs/progress D-U15-6）
     const cdr = Math.min(MAX_COOLDOWN_REDUCTION, this.view.stat("STAT-COOLDOWN-REDUCTION").value);
     this.cooldowns.start(def.id, Math.max(def.cooldown, endlessCd) * (1 - cdr));
@@ -2075,22 +2140,46 @@ export class ArenaSimulation {
     // 敵の行動と攻撃
     this.field?.update(dt, this.playerValue, this.motion.invulnerable, this.motion.facing, {
       // 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージ-15%
-      playerTakenMultiplier: (enemy) => this.behindGuardMultiplier(enemy),
+      playerTakenMultiplier: (enemy) =>
+        this.behindGuardMultiplier(enemy) *
+        (1 - Math.min(0.99, this.view.stat("STAT-KEY-SHADOW-DELAY").value)),
       onPlayerHit: (report, enemy) => {
         this.lastCombatAt = this.elapsed;
         if (report.hit.evaded) return;
+        // 影写し（K15）：受けるダメージの35%を、4秒かけて遅れて受ける（即時の分は65%に減っている）
+        const delay = Math.min(0.99, this.view.stat("STAT-KEY-SHADOW-DELAY").value);
+        const now = report.applied.toHp + report.applied.toWard;
+        if (delay > 0 && now > 0) {
+          const later = (now * delay) / (1 - delay);
+          this.shadowQueue.push({ remaining: later, perSecond: later / SHADOW_SECONDS });
+        }
         // 樹皮の盾（U13）：攻撃を受けると、攻撃してきた敵に毒を1スタック（基準値は受けたダメージの30%）
         const retaliate = this.sheetValue.evaluated.view.stat("STAT-UNQ-RETALIATE-POISON").value;
         const taken = report.applied.toHp + report.applied.toWard;
         const poison = this.db.ailments.get(POISON_AILMENT);
-        if (retaliate > 0 && taken > 0 && poison?.kind === "dot" && !enemy.combatant.health.dead)
-          enemy.combatant.ailments.apply({
+        if (retaliate > 0 && taken > 0 && poison?.kind === "dot") {
+          const app = {
             ailmentId: poison.id,
             tag: poison.tag,
             total: taken * retaliate * poison.totalRatio,
             duration: poison.duration,
             maxStacks: poison.stacking.mode === "stack" ? poison.stacking.maxStacks : undefined,
-          });
+          };
+          // 潜在効果（徒手の極意）：攻撃してきた敵の周囲3mの全ての敵に
+          const area = this.view.stat("STAT-UNQ-RETALIATE-AREA").value;
+          const victims =
+            area > 0
+              ? (this.field?.enemies ?? []).filter(
+                  (e) =>
+                    e.state !== "dead" &&
+                    Math.hypot(e.position.x - enemy.position.x, e.position.y - enemy.position.y) <=
+                      area + e.combatant.radius,
+                )
+              : enemy.combatant.health.dead
+                ? []
+                : [enemy];
+          for (const v of victims) v.combatant.ailments.apply(app);
+        }
         this.hitsTakenCount += 1;
         this.lastHitBy = enemy.def.id;
         this.jobGaugeValue.onDamageTaken(
@@ -2118,11 +2207,23 @@ export class ArenaSimulation {
         );
         this.progressQuests({ type: "defeat", id: enemy.def.id });
         if (enemy.def.boss !== undefined) this.onBossKilled(enemy);
+        // 影写し：敵を倒すと、溜まっている分の20%が消える
+        for (const q of this.shadowQueue) {
+          q.remaining *= 1 - SHADOW_KILL_CLEAR;
+          q.perSecond *= 1 - SHADOW_KILL_CLEAR;
+        }
         // 狼牙の首飾り（U14）：倒した敵に残っていた出血が、最も近い敵1体に移る（1スタックになる）
         if (this.sheetValue.evaluated.view.stat("STAT-UNQ-BLEED-TRANSFER").value > 0) {
-          const bleed = enemy.combatant.ailments.strongestDot(BLEED_AILMENT);
           const to = this.field?.nearestEnemy(enemy.position, enemy);
-          if (bleed !== undefined && to !== undefined) to.combatant.ailments.apply(bleed);
+          // 潜在効果（輝星「傷口を抉る」）：移るときにスタック数を保つ
+          const all = this.view.stat("STAT-UNQ-BLEED-TRANSFER-ALL").value > 0;
+          const strongest = enemy.combatant.ailments.strongestDot(BLEED_AILMENT);
+          const moving = all
+            ? enemy.combatant.ailments.allDots(BLEED_AILMENT)
+            : strongest === undefined
+              ? []
+              : [strongest];
+          if (to !== undefined) for (const b of moving) to.combatant.ailments.apply(b);
         }
         // 薬瓶の充填（補助仕様書6章。HP瓶とMP瓶は別にたまる）
         const fill = FLASK_FILL[enemy.def.dropSource ?? enemy.rank.rank];
@@ -2179,7 +2280,14 @@ export class ArenaSimulation {
     }
     this.mpValue = Math.min(this.maxMp, this.mpValue + this.maxMp * 0.06 * dt);
     const flaskHp = this.hpFlask.update(dt);
-    if (flaskHp > 0 && !this.playerValue.health.dead) this.playerValue.health.heal(flaskHp);
+    if (flaskHp > 0 && !this.playerValue.health.dead)
+      this.playerValue.health.heal(flaskHp * this.hpRecovery);
+    // 血の盟約の共鳴変化：支払ったHPが2秒後に戻る
+    for (const r of this.pactRefunds)
+      if (r.at <= this.elapsed && !this.playerValue.health.dead)
+        this.playerValue.health.heal(r.amount * this.hpRecovery);
+    this.pactRefunds = this.pactRefunds.filter((r) => r.at > this.elapsed);
+    this.updateShadowDelay(dt);
     this.mpValue = Math.min(this.maxMp, this.mpValue + this.mpFlask.update(dt));
     this.cooldowns.update(dt);
     this.buffs.update(dt);
@@ -2297,6 +2405,11 @@ export class ArenaSimulation {
     if (silent > 0 && this.elapsed - this.lastCombatAt >= OUT_OF_COMBAT_SECONDS)
       extraTaken *= silent;
     const allBackstab = view.stat("STAT-JOB-ALL-BACKSTAB").value > 0;
+    // 千変の臨界は、このヒットの前の状態で判定する（敵1体につき2秒に1回まで）
+    const critical =
+      view.stat("STAT-KEY-CRITICAL").value > 0 &&
+      this.ailmentTypeCount(t) >= CRITICAL_TYPES &&
+      this.elapsed - (this.lastCritical.get(t.id) ?? -Infinity) >= CRITICAL_INTERVAL;
     const wasBroken = t.stagger.broken;
     const report = resolveHit({
       db: this.db,
@@ -2332,7 +2445,12 @@ export class ArenaSimulation {
     // 爪の基本刻印「ヒットでHP吸収0.5%」：与えたダメージの割合だけHPを回復する（その武器のヒットだけ）
     const leech = view.stat("STAT-LIFE-LEECH", [], scope).value;
     const dealt = report.applied.toHp + report.applied.toWard;
-    if (leech > 0 && dealt > 0) this.playerValue.health.heal(dealt * leech);
+    if (leech > 0 && dealt > 0) this.playerValue.health.heal(dealt * leech * this.hpRecovery);
+    // 輝星「傷口を抉る」：出血している敵へのヒットは、出血の持続を延ばす（最大で元の2倍まで）
+    const reopen = view.stat("STAT-NOTABLE-REOPEN").value;
+    if (reopen > 0) t.ailments.extendDots(BLEED_AILMENT, reopen);
+    // 天極「千変」：3種類以上の状態異常を受けた敵（臨界）へのヒットで、持続ダメージの残りの60%を即座に与えて消す
+    if (critical) this.triggerCritical(t);
     this.uniqueOnHit(t, report, skill, wasBroken, scope);
     this.hitStopLeft = HIT_STOP;
     if (t === this.dummy) {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { conditionSchema } from "./effect.ts";
+import { FACTS } from "./registries.ts";
 import { idSchema, provisionalFields, textKeySchema } from "./ids.ts";
 
 /** 星辰盤のノードの種類（仕様書v0.2 4.3）。start は始点（ポイントを使わない）。 */
@@ -58,6 +59,13 @@ export const starNodeSchema = z.strictObject({
     .optional(),
   /** 画面の上の位置（星辰盤の座標。表示だけに使う）。 */
   position: z.strictObject({ x: z.number(), y: z.number() }),
+  /**
+   * 事実の数だけ重ねる効果（天極「重荷の誇り」：重装の防具1部位につき）。0なら効かない。
+   * 盤の評価に渡す事実（装備の事実）で数える。effects とは別に効く。
+   */
+  factStacked: z
+    .strictObject({ fact: z.enum(FACTS), effects: z.array(idSchema).min(1) })
+    .optional(),
   ...provisionalFields,
 });
 export type StarNodeDef = z.infer<typeof starNodeSchema>;

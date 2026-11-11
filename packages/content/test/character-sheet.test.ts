@@ -53,15 +53,20 @@ function sheetOf(origin: JobDef, equipment?: Equipment) {
 }
 
 describe("キャラクターの能力値（U-12）", () => {
-  it("素手：武器なし・素手のタグ・適性A・攻撃速度は素手の値", () => {
+  it("素手：素手の基礎ダメージ（1–3・会心率6%）・素手のタグ・適性A・攻撃速度1.6（仕様書v0.2 3.2）", () => {
     const s = sheetOf(WARRIOR);
     expect(s.weapon).toBeUndefined();
-    expect(s.attacker.weapon).toBeUndefined();
+    expect(s.attacker.weapon).toEqual({
+      uid: "unarmed",
+      tags: [UNARMED_WEAPON_TAG],
+      base: { physical: { min: 1, max: 3 } },
+      critChance: 0.06,
+    });
     expect(s.weaponTags).toEqual([UNARMED_WEAPON_TAG]);
     expect(s.affinity).toBe("A");
-    // 素手の攻撃速度1 ×（1＋迅の攻撃速度の増加）
+    // 素手の攻撃速度1.6 ×（1＋迅の攻撃速度の増加）
     const inc = sheetRows(db, s, ["STAT-ATTACK-SPEED"])[0]?.result.increased ?? NaN;
-    expect(s.attackSpeed).toBeCloseTo(1 + inc, 12);
+    expect(s.attackSpeed).toBeCloseTo(1.6 * (1 + inc), 12);
   });
 
   it("装備の基本刻印と詞が、能力値の行と内訳（出どころは装備の uid）に出る", () => {

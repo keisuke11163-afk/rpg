@@ -1181,6 +1181,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     for (const [key, list] of [
       ["effects", n.effects ?? []],
       ["resonance.effects", n.resonance?.effects ?? []],
+      ["factStacked.effects", n.factStacked?.effects ?? []],
     ] as const)
       list.forEach((e, i) => {
         const at = `${key}.${String(i)}`;

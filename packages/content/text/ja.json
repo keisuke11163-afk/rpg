@@ -357,5 +357,20 @@
   "jobnode.rogue.m-silent.desc": "戦闘外からの最初の一撃×3（乗算）",
   "jobnode.rogue.m-shadow": "影法師",
   "jobnode.rogue.m-shadow.desc": "背面判定が全方向になる",
-  "stat.unq-split-ailment": "分かれたヒットも状態異常を付与する"
+  "stat.unq-split-ailment": "分かれたヒットも状態異常を付与する",
+  "stat.key-blood-pact": "技のコストをHPで支払う（MPコストの倍率）",
+  "stat.hp-recovery": "HPの回復効果",
+  "stat.key-bare-hands": "徒手の極意",
+  "stat.key-critical": "臨界で与える持続ダメージの残り",
+  "stat.key-shadow-delay": "受けるダメージのうち、遅れて受ける割合",
+  "stat.notable-reopen": "出血している敵へのヒットで、出血の持続を延ばす（秒）",
+  "stat.unq-retaliate-area": "反撃の毒が届く、攻撃してきた敵の周囲（m）",
+  "stat.unq-bleed-transfer-all": "出血が移るとき、スタック数を保つ",
+  "stat.key-blood-pact-refund": "支払ったHPが2秒後に戻る割合",
+  "star.key.blood-pact": "血の盟約",
+  "star.key.burden": "重荷の誇り",
+  "star.key.bare-hands": "徒手の極意",
+  "star.key.myriad": "千変",
+  "star.key.shadow-copy": "影写し",
+  "star.notable.reopen": "傷口を抉る"
 }

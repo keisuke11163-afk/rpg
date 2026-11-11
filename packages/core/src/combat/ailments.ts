@@ -297,6 +297,8 @@ interface DotInstance {
   remainingTime: number;
   /** 残りの総量（補正の前の、付与した時点の値）。 */
   remaining: number;
+  /** 延ばした秒数の合計（輝星「傷口を抉る」。元の持続の分まで）。 */
+  extended?: number;
 }
 
 interface DebuffInstance {
@@ -461,6 +463,44 @@ export class AilmentState {
       debuff.remainingTime -= plan.dt;
       if (debuff.remainingTime <= 1e-9) this.debuffs.delete(id);
     }
+  }
+
+  /**
+   * 持続ダメージの持続を延ばす（輝星「傷口を抉る」：ヒットのたびに1秒、最大で元の持続の2倍まで）。
+   * 毎秒の量（総量÷元の持続）は変えず、延ばした分だけ残りの総量も増やす（延ばしても弱くならない）。
+   * 延ばしたスタックの数を返す。
+   */
+  extendDots(ailmentId: string, seconds: number, maxFactor = 2): number {
+    if (!(Number.isFinite(seconds) && seconds >= 0 && Number.isFinite(maxFactor) && maxFactor >= 1))
+      throw new RangeError("延ばす秒数は0以上、上限の倍率は1以上の有限の数");
+    let n = 0;
+    for (const inst of this.dots.get(ailmentId) ?? []) {
+      const room = inst.duration * (maxFactor - 1) - (inst.extended ?? 0);
+      const add = Math.min(seconds, Math.max(0, room));
+      if (add <= 0) continue;
+      inst.extended = (inst.extended ?? 0) + add;
+      inst.remainingTime += add;
+      inst.remaining += (inst.total / inst.duration) * add;
+      n += 1;
+    }
+    return n;
+  }
+
+  /**
+   * 持続ダメージの全てのスタックを、付与し直せる形で返す（狼牙の首飾りの潜在効果「スタック数を保つ」）。
+   * 状態は変えない。
+   */
+  allDots(ailmentId: string): AilmentApplication[] {
+    return (this.dots.get(ailmentId) ?? [])
+      .filter((inst) => inst.remainingTime > 1e-9 && inst.remaining > 1e-12)
+      .map((inst) => ({
+        ailmentId: inst.def.id,
+        tag: inst.def.tag,
+        // 毎秒の量を保つため、総量と持続は「残りの総量・残り時間」にする
+        total: inst.remaining,
+        duration: inst.remainingTime,
+        maxStacks: inst.def.stacking.mode === "stack" ? inst.def.stacking.maxStacks : undefined,
+      }));
   }
 
   /**

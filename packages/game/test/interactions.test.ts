@@ -152,3 +152,197 @@ describe("千の小傷の固有効果（戦闘で）", () => {
     expect(d.ailments.stacks("AIL-BLEED")).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("天極・輝星のルールフック（仕様書v0.2 4.5・4.7）", () => {
+  /** 始点から、そのノードまでの最短の取り方。 */
+  const pathTo = (sim: ArenaSimulation, goal: string): string[] => {
+    const db = sim.db;
+    const root = sim.starRoot as string;
+    const prev = new Map<string, string>();
+    const queue = [root];
+    const seen = new Set([root]);
+    while (queue.length > 0) {
+      const cur = queue.shift() as string;
+      for (const n of db.starLinks.get(cur) ?? []) {
+        if (seen.has(n) || db.starNodes.get(n)?.kind === "start") continue;
+        seen.add(n);
+        prev.set(n, cur);
+        queue.push(n);
+      }
+    }
+    const out: string[] = [];
+    for (let c = goal; c !== root; c = prev.get(c) as string) out.unshift(c);
+    return out;
+  };
+  const take = (sim: ArenaSimulation, goal: string): void => {
+    for (const id of pathTo(sim, goal))
+      if (!sim.stars.has(id)) expect(sim.allocateStar(id), id).toBe(true);
+  };
+  const weaken = (sim: ArenaSimulation, c: Combatant): void => {
+    const def = sim.db.ailments.get("AIL-WEAKEN");
+    if (def === undefined) throw new Error("衰弱が無い");
+    c.ailments.apply({
+      ailmentId: def.id,
+      tag: def.tag,
+      total: 0,
+      duration: 10,
+      maxStacks: undefined,
+    });
+  };
+  const hitDummy = (sim: ArenaSimulation, n = 1): void => {
+    const p = sim.motion.position;
+    sim.motion.displace({ x: 19 - p.x, y: 12 - p.y });
+    const start = sim.hitCount;
+    for (let i = 0; i < 400 && sim.hitCount < start + n; i++) sim.frame(STEP, input(["skill1"]));
+  };
+
+  it("I-30：千変の臨界は、出血＋衰弱だけでは起きず、毒血同源（出血を毒としても数える）のときだけ起きる", () => {
+    const run = (poisonBlood: boolean): { crit: number; dots: number } => {
+      const sim = rogue({ u03: true, poisonBlood });
+      take(sim, "STAR-KEY-MYRIAD");
+      const d = sim.dummy as Combatant;
+      bleed(sim, d, 3);
+      weaken(sim, d);
+      hitDummy(sim);
+      return { crit: sim.criticals, dots: d.ailments.remainingDotTotal() };
+    };
+    const plain = run(false);
+    expect(plain.crit).toBe(0);
+    const awake = run(true);
+    expect(awake.crit).toBe(1);
+    // 臨界で持続ダメージは消える（このヒットで付いた出血は、消えた後に付くので残りうる）
+    expect(awake.dots).toBeLessThan(plain.dots);
+  });
+
+  it("千変：同じ敵への臨界は2秒に1回まで", () => {
+    const sim = rogue({ u03: true, poisonBlood: true });
+    take(sim, "STAR-KEY-MYRIAD");
+    const d = sim.dummy as Combatant;
+    bleed(sim, d, 3);
+    weaken(sim, d);
+    hitDummy(sim);
+    expect(sim.criticals).toBe(1);
+    weaken(sim, d);
+    hitDummy(sim); // 千の小傷で出血が付くので、3種類（出血・毒・衰弱）のまま
+    expect(sim.criticals).toBe(1);
+  });
+
+  it("傷口を抉る：出血している敵へのヒットで、出血の持続が1秒延びる（毎秒の量は変わらない）", () => {
+    const sim = rogue();
+    take(sim, "STAR-NOTABLE-REOPEN");
+    const d = sim.dummy as Combatant;
+    bleed(sim, d, 1);
+    const before = d.ailments.remainingDotTotal();
+    hitDummy(sim);
+    // 1秒分（総量40÷持続5秒＝毎秒8）だけ残りが増える（ヒットまでに減った分を除いて）
+    expect(d.ailments.remainingDotTotal()).toBeGreaterThan(before);
+  });
+
+  it("影写し：受けるダメージの35%は4秒かけて遅れて受ける", () => {
+    const sim = rogue({ enemies: true });
+    take(sim, "STAR-KEY-SHADOW-COPY");
+    const id = sim.spawnEnemy("ENM-BARK-BEAR");
+    const bear = sim.field?.enemies.find((e) => e.id === id);
+    bear?.notice();
+    let delayed = 0;
+    for (let i = 0; i < 600 && delayed === 0; i++) {
+      sim.frame(STEP, input());
+      delayed = sim.shadowDelayed;
+    }
+    expect(delayed).toBeGreaterThan(0);
+    const hp = sim.player.health.hp;
+    // 熊から離して、遅れた分だけを受ける
+    if (bear !== undefined) bear.combatant.health.takeDamage(bear.combatant.health.hp);
+    for (let i = 0; i < Math.ceil(4.5 / STEP); i++) sim.frame(STEP, input());
+    expect(sim.shadowDelayed).toBe(0);
+    expect(sim.player.health.hp).toBeLessThan(hp);
+  });
+
+  it("血の盟約：技のコストをHPで払う（MPは減らない）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    take(sim, "STAR-KEY-BLOOD-PACT");
+    const charge = sim.db.skills.get("SKL-WARRIOR-CHARGE");
+    const hp = sim.player.health.hp;
+    const mp = sim.mp;
+    sim.frame(STEP, { ...input(), pressed: new Set<Action>(["skill3"]) });
+    expect(sim.lastSkill?.id).toBe("SKL-WARRIOR-CHARGE");
+    expect(hp - sim.player.health.hp).toBeCloseTo((charge?.mpCost ?? 0) * 1.5, 5);
+    expect(sim.mp).toBeGreaterThanOrEqual(mp);
+  });
+
+  it("狼牙の首飾りの潜在効果（傷口を抉る）：出血が移るとき、スタック数を保つ", () => {
+    const run = (latent: boolean): number => {
+      const sim = rogue({ enemies: true });
+      if (latent) take(sim, "STAR-NOTABLE-REOPEN");
+      sim.inventory.addItem({
+        uid: "itm_970010",
+        base: "BASE-UNQ-U14",
+        rarity: "unique",
+        itemLevel: 10,
+        affixes: [],
+      });
+      expect(sim.equipFromInventory("itm_970010")).toBe(true);
+      const spawn = (id: string, dx: number) => {
+        const eid = sim.spawnEnemy(id);
+        const e = sim.field?.enemies.find((x) => x.id === eid);
+        if (e === undefined) throw new Error("敵がいない");
+        e.combatant.position = { x: sim.motion.position.x + dx, y: sim.motion.position.y };
+        return e.combatant;
+      };
+      const dying = spawn("ENM-THORN-RAT", 6);
+      const other = spawn("ENM-BARK-BEAR", 9);
+      bleed(sim, dying, 3);
+      dying.health.takeDamage(dying.health.hp);
+      sim.frame(STEP, input());
+      return other.ailments.stacks("AIL-BLEED");
+    };
+    expect(run(false)).toBe(1);
+    expect(run(true)).toBe(3);
+  });
+
+  it("樹皮の盾の潜在効果（徒手の極意）：反撃の毒が、攻撃してきた敵の周囲3mの全ての敵に付く", () => {
+    const sim = new ArenaSimulation();
+    sim.gainXp(1e7);
+    take(sim, "STAR-KEY-BARE-HANDS");
+    expect(sim.unequip("mainHand")).toBe(true);
+    sim.inventory.addItem({
+      uid: "itm_970011",
+      base: "BASE-UNQ-U13",
+      rarity: "unique",
+      itemLevel: 18,
+      affixes: [],
+    });
+    expect(sim.equipFromInventory("itm_970011", "offHand")).toBe(true);
+    expect(sim.sheet.latents.find((l) => l.base === "BASE-UNQ-U13")?.active).toBe(true);
+    const p = sim.motion.position;
+    const spawn = (id: string, dx: number, dy: number) => {
+      const eid = sim.spawnEnemy(id);
+      const e = sim.field?.enemies.find((x) => x.id === eid);
+      if (e === undefined) throw new Error("敵がいない");
+      e.combatant.position = { x: p.x + dx, y: p.y + dy };
+      return e;
+    };
+    const wolf = spawn("ENM-FOREST-WOLF", 1.2, 0);
+    const near = spawn("ENM-ROT-SAPLING", 2.5, 1.5);
+    wolf.notice();
+    for (let i = 0; i < 600 && near.combatant.ailments.stacks("AIL-POISON") === 0; i++)
+      sim.frame(STEP, input());
+    expect(near.combatant.ailments.stacks("AIL-POISON")).toBeGreaterThanOrEqual(1);
+  });
+
+  it("重荷の誇り：重装4部位で崩されない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    take(sim, "STAR-KEY-BURDEN");
+    ["HEAD", "BODY", "HANDS", "FEET"].forEach((p, i) => {
+      sim.inventory.addItem({
+        uid: `itm_98000${String(i)}`,
+        base: `BASE-ARM-IRON-${p}-T1`,
+        rarity: "normal",
+        itemLevel: 1,
+        affixes: [],
+      });
+      expect(sim.equipFromInventory(`itm_98000${String(i)}`)).toBe(true);
+    });
+    expect(sim.player.staggerImmune).toBe(true);
+  });
+});

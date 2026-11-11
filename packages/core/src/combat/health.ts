@@ -104,6 +104,17 @@ export class Health {
     return healed;
   }
 
+  /**
+   * HPでコストを払う（天極「血の盟約」）。魔障は使わず、被弾にも数えない。
+   * 払うと死ぬ（HPが amount 以下）なら、払わずに false。
+   */
+  payHp(amount: number): boolean {
+    requireNonNegativeFinite(amount, "支払うHP");
+    if (this.dead || this.hpValue <= amount) return false;
+    this.hpValue -= amount;
+    return true;
+  }
+
   /** 全回復（町に入ったとき・死亡して戻ったとき。補助仕様書6・7章）。 */
   restoreFull(): void {
     this.hpValue = this.maxHp;

@@ -44,7 +44,7 @@
     "id": "STAR-GOU-0002",
     "kind": "minor",
     "region": "gou",
-    "links": ["STAR-GOU-0003"],
+    "links": ["STAR-GOU-0003", "STAR-KEY-BURDEN"],
     "position": {
       "x": -200,
       "y": 80
@@ -158,7 +158,7 @@
     "id": "STAR-GOUJIN-0003",
     "kind": "minor",
     "region": "goujin",
-    "links": ["STAR-GOUJIN-0004"],
+    "links": ["STAR-GOUJIN-0004", "STAR-KEY-BARE-HANDS"],
     "position": {
       "x": -80,
       "y": -137
@@ -249,7 +249,7 @@
     "id": "STAR-JIN-0011",
     "kind": "minor",
     "region": "jin",
-    "links": ["STAR-JIN-START"],
+    "links": ["STAR-JIN-START", "STAR-JIN-0012"],
     "position": {
       "x": 200,
       "y": -40
@@ -275,7 +275,7 @@
     "id": "STAR-JIN-0002",
     "kind": "minor",
     "region": "jin",
-    "links": ["STAR-JIN-0003"],
+    "links": ["STAR-JIN-0003", "STAR-NOTABLE-REOPEN"],
     "position": {
       "x": 200,
       "y": 80
@@ -363,7 +363,7 @@
     "id": "STAR-JIN-0201",
     "kind": "minor",
     "region": "jin",
-    "links": ["STAR-JIN-0001", "STAR-JIN-0202"],
+    "links": ["STAR-JIN-0001", "STAR-JIN-0202", "STAR-KEY-SHADOW-COPY"],
     "position": {
       "x": 250,
       "y": 80
@@ -389,7 +389,7 @@
     "id": "STAR-GOU-0201",
     "kind": "minor",
     "region": "gou",
-    "links": ["STAR-GOU-0001", "STAR-GOU-0202"],
+    "links": ["STAR-GOU-0001", "STAR-GOU-0202", "STAR-KEY-BLOOD-PACT"],
     "position": {
       "x": -250,
       "y": 80
@@ -696,5 +696,114 @@
     },
     "provisional": true,
     "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-KEY-BLOOD-PACT",
+    "text": "star.key.blood-pact",
+    "kind": "keystone",
+    "region": "gou",
+    "links": [],
+    "effects": ["EFF-KEY-BLOOD-PACT"],
+    "position": {
+      "x": -330,
+      "y": 80
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.7。位置・つながりは開発用の仮の盤（docs/progress D-STAR-5）",
+    "resonance": {
+      "threshold": 3,
+      "effects": ["EFF-KEY-BLOOD-PACT-RES"]
+    }
+  },
+  {
+    "id": "STAR-KEY-BURDEN",
+    "text": "star.key.burden",
+    "kind": "keystone",
+    "region": "gou",
+    "links": [],
+    "effects": ["EFF-KEY-BURDEN", "EFF-KEY-BURDEN-IMMUNE"],
+    "position": {
+      "x": -250,
+      "y": 40
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.7。位置・つながりは開発用の仮の盤（docs/progress D-STAR-5）",
+    "factStacked": {
+      "fact": "armor.heavy.count",
+      "effects": ["EFF-KEY-BURDEN-PIECE"]
+    },
+    "resonance": {
+      "threshold": 3,
+      "effects": ["EFF-KEY-BURDEN-RES"]
+    }
+  },
+  {
+    "id": "STAR-KEY-BARE-HANDS",
+    "text": "star.key.bare-hands",
+    "kind": "keystone",
+    "region": "goujin",
+    "links": [],
+    "effects": ["EFF-KEY-BARE-HANDS"],
+    "position": {
+      "x": -80,
+      "y": -180
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.7。位置・つながりは開発用の仮の盤（docs/progress D-STAR-5）"
+  },
+  {
+    "id": "STAR-JIN-0012",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-KEY-MYRIAD"],
+    "effects": ["EFF-STAR-JIN-10"],
+    "position": {
+      "x": 250,
+      "y": -40
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.7。位置・つながりは開発用の仮の盤（docs/progress D-STAR-5）"
+  },
+  {
+    "id": "STAR-KEY-MYRIAD",
+    "text": "star.key.myriad",
+    "kind": "keystone",
+    "region": "jin",
+    "links": [],
+    "effects": ["EFF-KEY-MYRIAD"],
+    "position": {
+      "x": 300,
+      "y": -40
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.7。位置・つながりは開発用の仮の盤（docs/progress D-STAR-5）"
+  },
+  {
+    "id": "STAR-KEY-SHADOW-COPY",
+    "text": "star.key.shadow-copy",
+    "kind": "keystone",
+    "region": "jin",
+    "links": [],
+    "effects": ["EFF-KEY-SHADOW-COPY"],
+    "position": {
+      "x": 250,
+      "y": 40
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.7。位置・つながりは開発用の仮の盤（docs/progress D-STAR-5）"
+  },
+  {
+    "id": "STAR-NOTABLE-REOPEN",
+    "text": "star.notable.reopen",
+    "kind": "notable",
+    "region": "jin",
+    "links": [],
+    "effects": ["EFF-NOTABLE-REOPEN"],
+    "position": {
+      "x": 160,
+      "y": 80
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.7。位置・つながりは開発用の仮の盤（docs/progress D-STAR-5）"
   }
 ]

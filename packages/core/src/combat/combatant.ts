@@ -67,6 +67,8 @@ export class Combatant {
   evasion: number;
   /** 移動しているか（出血の2倍に使う）。 */
   moving = false;
+  /** 崩されない（天極「重荷の誇り」の4部位など。印 beStaggered の禁止）。崩し値を受けない。 */
+  staggerImmune = false;
   /** 一定時間だけかかっている効果（戦吼の威圧など）。 */
   readonly statuses = new TimedEffects();
   private readonly db: ContentDb;
@@ -287,6 +289,7 @@ export function resolveHit(input: HitInput): HitReport {
     tags,
     ...(input.staggerCoefficient === undefined ? {} : { coefficient: input.staggerCoefficient }),
     ...(weaponUid === undefined ? {} : { weaponUid }),
+    targetImmune: target.staggerImmune,
   });
   const scaled = value * target.receivedMultipliers().stagger;
   const staggerBroke =

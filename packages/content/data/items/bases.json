@@ -645,11 +645,10 @@
       "effects": ["EFF-UNQ-U13-BARK"],
       "latent": {
         "text": "item.unique.u13.latent",
-        "effects": [],
+        "effects": ["EFF-UNQ-U13-LATENT"],
         "condition": {
           "type": "starNode",
-          "id": "KEY-BARE-HANDS",
-          "pending": true
+          "id": "STAR-KEY-BARE-HANDS"
         }
       },
       "source": "exclusive",
@@ -670,11 +669,10 @@
       "effects": ["EFF-UNQ-U14-FANG"],
       "latent": {
         "text": "item.unique.u14.latent",
-        "effects": [],
+        "effects": ["EFF-UNQ-U14-LATENT"],
         "condition": {
           "type": "starNode",
-          "id": "NOTABLE-REOPEN-WOUNDS",
-          "pending": true
+          "id": "STAR-NOTABLE-REOPEN"
         }
       },
       "source": "anywhere",

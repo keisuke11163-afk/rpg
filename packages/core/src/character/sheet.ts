@@ -6,6 +6,7 @@ import {
   type DamageAttacker,
   type DamageDefender,
   type DamageSkill,
+  type DamageWeapon,
   computeHit,
 } from "../combat/damage.ts";
 import type { Rng } from "../random/rng.ts";
@@ -44,8 +45,18 @@ export const MIN_MOVE_SPEED_FACTOR = 0.1;
 
 /** 素手のタグ（仕様書v0.2 3.2：全ジョブの適性はA）。 */
 export const UNARMED_WEAPON_TAG = "TAG-WPN-UNARMED";
-/** 素手の攻撃速度（回/秒）。仮値: 仕様書に素手の攻撃速度の記載がないため（docs/progress D-U12-4）。 */
-export const UNARMED_ATTACK_SPEED = 1;
+/** 素手の攻撃速度（回/秒。仕様書v0.2 3.2 の素手の行：1.60）。 */
+export const UNARMED_ATTACK_SPEED = 1.6;
+/** 素手の基礎ダメージと会心率（仕様書v0.2 3.2：1–3・6%）。 */
+export const UNARMED_DAMAGE = { min: 1, max: 3 } as const;
+export const UNARMED_CRIT_CHANCE = 0.06;
+/** 素手の「武器」の uid（局所の効果の出どころの判定に使う。装備の uid とは重ならない）。 */
+export const UNARMED_UID = "unarmed";
+/**
+ * 天極「徒手の極意」（K09）の素手の基礎ダメージ：キャラLv×1.0〜×1.8（仕様書v0.2 4.7）。
+ * 能力値 STAT-KEY-BARE-HANDS が1以上のとき。
+ */
+export const BARE_HANDS_STAT = "STAT-KEY-BARE-HANDS";
 /** 攻撃速度の倍率の下限（加算の増加が大きく負になっても、0や負にしない）。 */
 export const MIN_ATTACK_SPEED_FACTOR = 0.1;
 
@@ -241,6 +252,23 @@ export function buildCharacterSheet(
     ...latentEffects,
   ];
   let evaluated = evaluateEffects(db, tags, instances, facts);
+  // 天極「徒手の極意」（K09）：主手が空のとき、副手（盾など。片手武器は除く）の基礎性能・詞・固有効果が2倍。
+  // 盤の評価（星門の判定）は2倍の前の値で行う（docs/progress D-STAR-7）
+  const offItem = equipment?.get("offHand");
+  const offBase = offItem === undefined ? undefined : db.itemBases.get(offItem.base);
+  if (
+    offItem !== undefined &&
+    offBase !== undefined &&
+    offBase.category !== "weapon" &&
+    db.stats.has(BARE_HANDS_STAT) &&
+    evaluated.view.stat(BARE_HANDS_STAT).value > 0
+  ) {
+    const extra = instances.filter(
+      (i) => i.source.kind === "equipment" && i.source.ref === offItem.uid,
+    );
+    instances.push(...extra);
+    evaluated = evaluateEffects(db, tags, instances, facts);
+  }
   // 盲目の賢者の目隠し（U06）：会心率の増加1%ごとに、ダメージ+0.5%（加算）。会心率の増加を見てから足す
   if (db.stats.has(CRIT_TO_DAMAGE_STAT) && db.effects.has(CRIT_TO_DAMAGE_EFFECT)) {
     const ratio = evaluated.view.stat(CRIT_TO_DAMAGE_STAT).value;
@@ -262,6 +290,21 @@ export function buildCharacterSheet(
   }
   const view = evaluated.view;
   const main = equipment?.mainWeapon(attributes);
+  // 素手（主手が空）：仕様書v0.2 3.2 の素手の行。徒手の極意では キャラLv×1.0〜×1.8
+  const bareHands = db.stats.has(BARE_HANDS_STAT) && view.stat(BARE_HANDS_STAT).value > 0;
+  const unarmed: DamageWeapon | undefined =
+    main === undefined
+      ? {
+          uid: UNARMED_UID,
+          tags: [UNARMED_WEAPON_TAG],
+          base: {
+            physical: bareHands
+              ? { min: character.level * 1, max: character.level * 1.8 }
+              : { ...UNARMED_DAMAGE },
+          },
+          critChance: UNARMED_CRIT_CHANCE,
+        }
+      : undefined;
   const off = main === undefined ? undefined : equipment?.offWeapon(attributes);
   const item = equipment?.get("mainHand");
   const base = item === undefined ? undefined : db.itemBases.get(item.base);
@@ -289,7 +332,11 @@ export function buildCharacterSheet(
       db,
       view,
       characterLevel: character.level,
-      ...(main === undefined ? {} : { weapon: main.weapon }),
+      ...(main !== undefined
+        ? { weapon: main.weapon }
+        : unarmed !== undefined
+          ? { weapon: unarmed }
+          : {}),
     },
     weapon,
     offAttacker:

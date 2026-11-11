@@ -444,7 +444,7 @@ describe("ArenaSimulation：装備の着替え（U-12）", () => {
     expect(sim.equipment.get("offHand")).toBeUndefined();
     expect(sim.unequip("mainHand")).toBe(true);
     expect(sim.weapon).toBeUndefined();
-    expect(sim.attacker.weapon).toBeUndefined();
+    expect(sim.attacker.weapon?.uid).toBe("unarmed"); // 素手（仕様書v0.2 3.2）
     expect(sim.affinity).toBe("A");
   });
 
