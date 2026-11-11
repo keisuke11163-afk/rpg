@@ -50,5 +50,6 @@ export const FACTS = [
   "armor.light.count",
   "armor.robe.count",
   "mainHand.empty",
+  "dualWield",
 ] as const;
 export type FactId = (typeof FACTS)[number];

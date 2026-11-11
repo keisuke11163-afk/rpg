@@ -543,8 +543,7 @@
         "effects": ["EFF-UNQ-U02-LATENT"],
         "condition": {
           "type": "constellation",
-          "id": "CONST-WEATHERVANE",
-          "pending": true
+          "id": "CONST-WEATHERVANE"
         }
       },
       "source": "anywhere",
@@ -779,8 +778,7 @@
         "effects": [],
         "condition": {
           "type": "constellation",
-          "id": "CONST-TWIN-BLADES",
-          "pending": true
+          "id": "CONST-TWIN-BLADES"
         }
       },
       "source": "anywhere",
@@ -811,8 +809,7 @@
         "effects": ["EFF-UNQ-U18-LATENT"],
         "condition": {
           "type": "constellation",
-          "id": "CONST-VIPER",
-          "pending": true
+          "id": "CONST-VIPER"
         }
       },
       "source": "exclusive",

@@ -728,6 +728,12 @@ export class ArenaScene extends Phaser.Scene {
     // 地面の物（名前は近くの物だけ。Alt を押している間は全て）
     this.lootView.render(sim.loot, g, motion.position, this.showLoot);
     // 煙玉と罠
+    for (const p of sim.poisonPuddles)
+      g.fillStyle(0x7bd389, 0.22).fillCircle(
+        toPixels(p.center.x),
+        toPixels(p.center.y),
+        p.radius * PIXELS_PER_METER,
+      );
     for (const z of sim.smokes)
       g.fillStyle(0x8c88a0, 0.25).fillCircle(
         toPixels(z.center.x),

@@ -2,7 +2,7 @@ import type { Attributes } from "../character/progression.ts";
 import type { DamageWeapon } from "../combat/damage.ts";
 import type { ArmorType, ItemBaseDef } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
-import type { EquipSlot } from "../content/registries.ts";
+import type { EquipSlot, FactId } from "../content/registries.ts";
 import type { EffectInstance } from "../effects/evaluate.ts";
 import { type ItemInstance, itemEffectInstances } from "./generate.ts";
 import type { Inventory } from "./inventory.ts";
@@ -195,6 +195,27 @@ export class Equipment {
     const uniform = this.uniformType();
     if (uniform !== undefined && uniform !== "light")
       out.push({ effectId: UNIFORM_EFFECTS[uniform], source: { kind: "uniform", ref: uniform } });
+    return out;
+  }
+
+  /**
+   * 条件・数に使う事実（仕様書の「重装4部位以上」「主手が空」「二刀流」など）：防具種ごとの部位の数・
+   * 主手が空なら1・副手に武器（二刀流）なら1。
+   */
+  facts(): Partial<Record<FactId, number>> {
+    const out: Partial<Record<FactId, number>> = {
+      "armor.heavy.count": 0,
+      "armor.light.count": 0,
+      "armor.robe.count": 0,
+      "mainHand.empty": this.slots.has("mainHand") ? 0 : 1,
+    };
+    for (const slot of ARMOR_SLOTS) {
+      const item = this.slots.get(slot);
+      const t = item === undefined ? undefined : this.baseOf(item).defense?.type;
+      if (t !== undefined) out[`armor.${t}.count`] = (out[`armor.${t}.count`] ?? 0) + 1;
+    }
+    const off = this.slots.get("offHand");
+    out.dualWield = off !== undefined && this.baseOf(off).category === "weapon" ? 1 : 0;
     return out;
   }
 

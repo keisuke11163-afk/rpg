@@ -345,5 +345,17 @@
     "text": "stat.unq-poison-amp-cap",
     "unit": "ratio",
     "min": 0
+  },
+  {
+    "id": "STAT-CONST-VIPER-PUDDLE",
+    "text": "stat.const-viper-puddle",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-CONST-TWIN-STAGGER",
+    "text": "stat.const-twin-stagger",
+    "unit": "ratio",
+    "min": 0
   }
 ]

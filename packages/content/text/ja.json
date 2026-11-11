@@ -307,5 +307,10 @@
   "item.unique.u17.latent": "【星座：双刃座を完成】二刀流のとき、分かれたヒットも状態異常を付与する",
   "item.unique.u18": "母樹の根冠",
   "item.unique.u18.desc": "敵の毒10スタックにつき、その敵が受けるダメージ×1.04（乗算。最大×1.20）",
-  "item.unique.u18.latent": "【星座：毒蛇座を完成】上限が×1.30になる"
+  "item.unique.u18.latent": "【星座：毒蛇座を完成】上限が×1.30になる",
+  "constellation.viper": "毒蛇座",
+  "constellation.weathervane": "風見座",
+  "constellation.twin-blades": "双刃座",
+  "stat.const-viper-puddle": "毒の敵が通った場所の毒だまり",
+  "stat.const-twin-stagger": "二刀流の2撃目の崩し値"
 }

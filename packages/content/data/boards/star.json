@@ -184,7 +184,7 @@
     "id": "STAR-GOUJIN-0005",
     "kind": "minor",
     "region": "goujin",
-    "links": ["STAR-GOUJIN-0006"],
+    "links": ["STAR-GOUJIN-0006", "STAR-TWIN-01"],
     "position": {
       "x": 0,
       "y": -160
@@ -236,7 +236,7 @@
     "id": "STAR-GOUJIN-0009",
     "kind": "minor",
     "region": "jin",
-    "links": ["STAR-JIN-0011"],
+    "links": ["STAR-JIN-0011", "STAR-VANE-01"],
     "position": {
       "x": 160,
       "y": -77
@@ -376,7 +376,7 @@
     "id": "STAR-JIN-0202",
     "kind": "minor",
     "region": "jin",
-    "links": [],
+    "links": ["STAR-VIPER-01"],
     "position": {
       "x": 290,
       "y": 120
@@ -410,5 +410,291 @@
     "provisional": true,
     "provisionalNote": "開発用の仮の盤（MVPの星辰盤の配置・ノードの一覧が仕様書に無いため。docs/progress Q-U14-1）",
     "effects": ["EFF-STAR-GOJIN-5"]
+  },
+  {
+    "id": "STAR-VIPER-01",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-02"],
+    "effects": ["EFF-STAR-VIPER-DMG"],
+    "position": {
+      "x": 330,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VIPER-02",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-03"],
+    "effects": ["EFF-STAR-VIPER-DUR"],
+    "position": {
+      "x": 370,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VIPER-03",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-04"],
+    "effects": ["EFF-STAR-VIPER-DMG"],
+    "position": {
+      "x": 410,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VIPER-04",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-05"],
+    "effects": ["EFF-STAR-VIPER-DUR"],
+    "position": {
+      "x": 450,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VIPER-05",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-06"],
+    "effects": ["EFF-STAR-VIPER-DMG"],
+    "position": {
+      "x": 490,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VIPER-06",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-07"],
+    "effects": ["EFF-STAR-VIPER-DUR"],
+    "position": {
+      "x": 530,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VIPER-07",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-08"],
+    "effects": ["EFF-STAR-VIPER-DMG"],
+    "position": {
+      "x": 570,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VIPER-08",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-09"],
+    "effects": ["EFF-STAR-VIPER-DUR"],
+    "position": {
+      "x": 610,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VIPER-09",
+    "kind": "minor",
+    "region": "jin",
+    "links": [],
+    "effects": ["EFF-STAR-VIPER-DMG"],
+    "position": {
+      "x": 650,
+      "y": 150
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VANE-01",
+    "kind": "minor",
+    "region": "jinri",
+    "links": ["STAR-VANE-02"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": 200,
+      "y": -120
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VANE-02",
+    "kind": "minor",
+    "region": "jinri",
+    "links": ["STAR-VANE-03"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": 200,
+      "y": -160
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VANE-03",
+    "kind": "minor",
+    "region": "jinri",
+    "links": ["STAR-VANE-04"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": 200,
+      "y": -200
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VANE-04",
+    "kind": "minor",
+    "region": "jinri",
+    "links": ["STAR-VANE-05"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": 200,
+      "y": -240
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VANE-05",
+    "kind": "minor",
+    "region": "jinri",
+    "links": ["STAR-VANE-06"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": 200,
+      "y": -280
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-VANE-06",
+    "kind": "minor",
+    "region": "jinri",
+    "links": [],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": 200,
+      "y": -320
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-TWIN-01",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-TWIN-02"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": 0,
+      "y": -200
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-TWIN-02",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-TWIN-03"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": 0,
+      "y": -240
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-TWIN-03",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-TWIN-04"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": 0,
+      "y": -280
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-TWIN-04",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-TWIN-05"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": 0,
+      "y": -320
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-TWIN-05",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-TWIN-06"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": 0,
+      "y": -360
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-TWIN-06",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-TWIN-07"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": 0,
+      "y": -400
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "STAR-TWIN-07",
+    "kind": "minor",
+    "region": "goujin",
+    "links": [],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": 0,
+      "y": -440
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
   }
 ]

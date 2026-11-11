@@ -162,6 +162,7 @@ export function buildCharacterSheet(
     baseStats,
     equippedTags: equipment?.equippedTags() ?? {},
     mainJob: job.tag,
+    facts: equipment?.facts() ?? { "mainHand.empty": 1 },
   };
   const gear = [...(input.extraEffects ?? []), ...(equipment?.effects() ?? [])];
   // 星辰盤：星門の条件は、第1段階の値（基礎・装備・星門を通らないノード）で判定する

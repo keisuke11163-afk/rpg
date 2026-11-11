@@ -1389,3 +1389,73 @@ describe("ArenaSimulation：ユニークの固有効果（U-16 のルールフ�
     expect(view.stat("STAT-UNQ-POISON-AMP-CAP").value).toBeCloseTo(0.2);
   });
 });
+
+describe("ArenaSimulation：毒蛇座の完成ボーナス（毒だまり。仕様書v0.2 4.4）", () => {
+  it("毒が10スタック以上の敵が移動すると毒だまりができ、中の別の敵に毒が付く", () => {
+    const sim = new ArenaSimulation();
+    sim.changeJob();
+    expect(sim.job.id).toBe("JOB-ROGUE");
+    for (const id of [
+      "STAR-JIN-0001",
+      "STAR-JIN-0201",
+      "STAR-JIN-0202",
+      ...Array.from({ length: 9 }, (_, i) => `STAR-VIPER-0${String(i + 1)}`),
+    ])
+      expect(sim.allocateStar(id), id).toBe(true);
+    expect(sim.sheet.board?.constellations).toContain("CONST-VIPER");
+    const poison = sim.db.ailments.get("AIL-POISON");
+    if (poison?.kind !== "dot") throw new Error("毒が無い");
+    const spawn = (id: string) => {
+      const eid = sim.spawnEnemy(id);
+      const e = sim.field?.enemies.find((x) => x.id === eid);
+      if (e === undefined) throw new Error("敵がいない");
+      return e;
+    };
+    // 狼（動く）に毒を10スタック。動かない苗を、狼のすぐ隣に置く
+    const wolf = spawn("ENM-FOREST-WOLF");
+    const sapling = spawn("ENM-ROT-SAPLING");
+    sapling.combatant.position = { x: wolf.position.x + 0.5, y: wolf.position.y };
+    for (let i = 0; i < 10; i++)
+      wolf.combatant.ailments.apply({
+        ailmentId: poison.id,
+        tag: poison.tag,
+        total: 30,
+        duration: 30,
+        maxStacks: undefined,
+      });
+    wolf.notice();
+    let made = false;
+    for (let i = 0; i < 180 && !made; i++) {
+      sim.frame(STEP, input());
+      made = sim.poisonPuddles.length > 0;
+    }
+    expect(made).toBe(true);
+    // できた毒だまりの上に苗を置く（毒だまりの毒は、狼の毒の残りの20%）
+    const puddle = sim.poisonPuddles[0];
+    if (puddle === undefined) throw new Error("毒だまりが無い");
+    sapling.combatant.position = { ...puddle.center };
+    expect(puddle.total).toBeGreaterThan(0);
+    expect(puddle.total).toBeLessThanOrEqual(30 * 0.2);
+    for (let i = 0; i < 90; i++) sim.frame(STEP, input());
+    expect(sapling.combatant.ailments.stacks("AIL-POISON")).toBeGreaterThanOrEqual(1);
+  });
+
+  it("毒蛇座が無ければ、毒だまりはできない", () => {
+    const sim = new ArenaSimulation();
+    const poison = sim.db.ailments.get("AIL-POISON");
+    if (poison?.kind !== "dot") throw new Error("毒が無い");
+    const eid = sim.spawnEnemy("ENM-FOREST-WOLF");
+    const wolf = sim.field?.enemies.find((x) => x.id === eid);
+    for (let i = 0; i < 10; i++)
+      wolf?.combatant.ailments.apply({
+        ailmentId: poison.id,
+        tag: poison.tag,
+        total: 30,
+        duration: 30,
+        maxStacks: undefined,
+      });
+    wolf?.notice();
+    for (let i = 0; i < 120; i++) sim.frame(STEP, input());
+    expect(sim.poisonPuddles).toHaveLength(0);
+  });
+});

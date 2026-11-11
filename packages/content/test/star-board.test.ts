@@ -116,6 +116,24 @@ function testDb(nodes: unknown[] = NODES, consts: unknown[] = CONSTS): ContentDb
     collections: {
       ...rawContent.collections,
       effects: [...rawContent.collections.effects, { file: "test-effects.json", entries: FX }],
+      // テスト用の盤に置き換えるので、本データの盤を参照するユニークの潜在効果は「まだ無い」扱いにする
+      itemBases: (rawContent.collections.itemBases ?? []).map((src) => ({
+        ...src,
+        entries: (src.entries as { unique?: { latent: { condition: object } } }[]).map((b) =>
+          b.unique === undefined
+            ? b
+            : {
+                ...b,
+                unique: {
+                  ...b.unique,
+                  latent: {
+                    ...b.unique.latent,
+                    condition: { ...b.unique.latent.condition, pending: true },
+                  },
+                },
+              },
+        ),
+      })),
       starNodes: [{ file: "test-nodes.json", entries: nodes }],
       constellations: [{ file: "test-consts.json", entries: consts }],
     },

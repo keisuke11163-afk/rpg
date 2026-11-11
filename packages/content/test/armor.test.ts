@@ -222,3 +222,76 @@ describe("ユニークの潜在効果の条件（U-16）", () => {
     ).toEqual(["BASE-UNQ-U03", "BASE-UNQ-U13", "BASE-UNQ-U18"]);
   });
 });
+
+describe("星座と、ユニークの潜在効果の発動（星辰盤の仮の盤。仕様書v0.2 4.4・3.7）", () => {
+  const ROGUE = job("JOB-ROGUE");
+  const viperPath = [
+    "STAR-JIN-0001",
+    "STAR-JIN-0201",
+    "STAR-JIN-0202",
+    ...Array.from({ length: 9 }, (_, i) => `STAR-VIPER-0${String(i + 1)}`),
+  ];
+  const sheet = (
+    allocation: readonly string[],
+    equip: (e: Equipment) => void = () => undefined,
+  ) => {
+    const equipment = new Equipment(db);
+    equip(equipment);
+    return buildCharacterSheet(db, tags, {
+      character: new Character({ origin: ROGUE, level: 15 }),
+      job: ROGUE,
+      equipment,
+      starBoard: { allocation },
+    });
+  };
+  const crown = (e: Equipment): void => {
+    e.equip(
+      { uid: "crown", base: "BASE-UNQ-U18", rarity: "unique", itemLevel: 18, affixes: [] },
+      "head",
+      true,
+    );
+  };
+
+  it("毒蛇座（小星9個）を全て取ると完成し、毒だまりの完成ボーナスが効く。1つ欠けると効かない", () => {
+    const done = sheet(viperPath);
+    expect(done.board?.constellations).toEqual(["CONST-VIPER"]);
+    expect(done.evaluated.view.stat("STAT-CONST-VIPER-PUDDLE").value).toBeCloseTo(0.2);
+    // 小星：毒ダメージ+8%が5個・毒の持続+0.2秒が4個
+    expect(
+      done.evaluated.view.stat("STAT-AILMENT-DAMAGE", ["TAG-AIL-POISON"]).increased,
+    ).toBeCloseTo(0.4);
+    const partial = sheet(viperPath.slice(0, -1));
+    expect(partial.board?.constellations).toEqual([]);
+    expect(partial.evaluated.view.stat("STAT-CONST-VIPER-PUDDLE").value).toBe(0);
+  });
+
+  it("母樹の根冠の潜在効果：毒蛇座を完成すると、上限が×1.20から×1.30になる", () => {
+    const before = sheet(viperPath.slice(0, -1), crown);
+    expect(before.latents).toEqual([{ uid: "crown", base: "BASE-UNQ-U18", active: false }]);
+    expect(before.evaluated.view.stat("STAT-UNQ-POISON-AMP-CAP").value).toBeCloseTo(0.2);
+    const after = sheet(viperPath, crown);
+    expect(after.latents).toEqual([{ uid: "crown", base: "BASE-UNQ-U18", active: true }]);
+    expect(after.evaluated.view.stat("STAT-UNQ-POISON-AMP-CAP").value).toBeCloseTo(0.3);
+  });
+
+  it("双刃座の小星（二刀流時の攻撃速度+3%）は、副手に武器を持っているときだけ効く", () => {
+    const eff = db.effects.get("EFF-STAR-TWIN-SPEED");
+    expect(eff?.conditions).toEqual([{ type: "factAtLeast", fact: "dualWield", value: 1 }]);
+    const e = new Equipment(db);
+    expect(e.facts()).toMatchObject({ "mainHand.empty": 1, dualWield: 0 });
+    e.equip(item("m", "BASE-WPN-DAGGER-T1"), "mainHand", true);
+    e.equip(item("o", "BASE-WPN-CLAW-T1"), "offHand", true);
+    expect(e.facts()).toMatchObject({ "mainHand.empty": 0, dualWield: 1 });
+    e.equip(item("s", "BASE-SHD-BUCKLER-T1"), "offHand", true);
+    expect(e.facts().dualWield).toBe(0);
+    for (const p of ["HEAD", "BODY", "HANDS"])
+      e.equip(item(p, `BASE-ARM-IRON-${p}-T1`), p.toLowerCase() as "head", true);
+    expect(e.facts()["armor.heavy.count"]).toBe(3);
+  });
+
+  it("3つの星座（毒蛇座9・風見座6・双刃座7）のデータ", () => {
+    expect(db.constellations.get("CONST-VIPER")?.nodes).toHaveLength(9);
+    expect(db.constellations.get("CONST-WEATHERVANE")?.nodes).toHaveLength(6);
+    expect(db.constellations.get("CONST-TWIN-BLADES")?.nodes).toHaveLength(7);
+  });
+});

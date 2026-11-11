@@ -110,6 +110,23 @@ export function poisonAmplifier(stacks: number, step: number, cap: number): numb
   return step > 0 && tens > 0 ? Math.min(1 + cap, (1 + step) ** tens) : 1;
 }
 
+/** 毒蛇座の毒だまり（仮値。docs/progress D-STAR-2）：置く間隔・必要な毒のスタック・半径・持続・毒を付ける間隔。 */
+const PUDDLE_DROP_INTERVAL = 0.5;
+const PUDDLE_MIN_STACKS = 10;
+const PUDDLE_RADIUS = 1.5;
+const PUDDLE_SECONDS = 3;
+const PUDDLE_TICK = 1;
+
+/** 毒蛇座の毒だまり。 */
+export interface PoisonPuddle {
+  readonly center: Vec2;
+  readonly radius: number;
+  remaining: number;
+  untilTick: number;
+  /** 中の敵に付ける毒1スタックの総量。 */
+  readonly total: number;
+}
+
 /** 毒の状態異常（母樹の根冠・樹皮の盾）。 */
 const POISON_AILMENT = "AIL-POISON";
 /** 出血の状態異常（狼牙の首飾り）。 */
@@ -442,6 +459,9 @@ export class ArenaSimulation {
   private questPoints: number;
   private explorationPoints: number;
   private lastHitBy: string | null = null;
+  /** 毒蛇座の毒だまりと、次に置くまでの秒数。 */
+  private puddleList: PoisonPuddle[] = [];
+  private puddleDropTimer = 0;
   /** 潜在効果を見つけたユニーク（ベースのID。セーブの discoveries.latent_revealed）。 */
   readonly revealedLatents: Set<string>;
   /** 背向けの外套：全てのヒットを背面として扱う期限（経過時間）。 */
@@ -933,6 +953,57 @@ export class ArenaSimulation {
   get sheet(): CharacterSheet {
     return this.sheetValue;
   }
+  /** 毒蛇座の毒だまり（表示・確認用）。 */
+  get poisonPuddles(): readonly PoisonPuddle[] {
+    return this.puddleList;
+  }
+
+  /**
+   * 毒蛇座の完成ボーナス（仕様書v0.2 4.4）：毒が10スタック以上の敵が移動すると、通った場所に毒だまりができる。
+   * 毒だまりの中の敵は、間隔ごとに毒を1スタック受ける（基準値の割合は完成ボーナスの値。docs/progress D-STAR-2）。
+   */
+  private updatePuddles(dt: number): void {
+    const ratio = this.sheetValue.evaluated.view.stat("STAT-CONST-VIPER-PUDDLE").value;
+    const poison = this.db.ailments.get(POISON_AILMENT);
+    if (poison?.kind !== "dot") return;
+    const maxStacks = poison.stacking.mode === "stack" ? poison.stacking.maxStacks : undefined;
+    this.puddleDropTimer -= dt;
+    if (ratio > 0 && this.puddleDropTimer <= 0) {
+      this.puddleDropTimer = PUDDLE_DROP_INTERVAL;
+      for (const e of this.field?.enemies ?? []) {
+        if (e.state === "dead" || !e.combatant.moving) continue;
+        if (e.combatant.ailments.stacks(POISON_AILMENT) < PUDDLE_MIN_STACKS) continue;
+        const strongest = e.combatant.ailments.strongestDot(POISON_AILMENT);
+        if (strongest === undefined) continue;
+        this.puddleList.push({
+          center: { ...e.position },
+          radius: PUDDLE_RADIUS,
+          remaining: PUDDLE_SECONDS,
+          untilTick: 0,
+          total: strongest.total * ratio,
+        });
+      }
+    }
+    for (const p of this.puddleList) {
+      p.remaining -= dt;
+      p.untilTick -= dt;
+      if (p.untilTick > 1e-9) continue;
+      p.untilTick += PUDDLE_TICK;
+      for (const t of this.field?.targets() ?? []) {
+        const d = Math.hypot(t.position.x - p.center.x, t.position.y - p.center.y);
+        if (d > p.radius + t.radius || p.total <= 0) continue;
+        t.ailments.apply({
+          ailmentId: poison.id,
+          tag: poison.tag,
+          total: p.total,
+          duration: poison.duration,
+          maxStacks,
+        });
+      }
+    }
+    this.puddleList = this.puddleList.filter((p) => p.remaining > 1e-9);
+  }
+
   get smokes(): readonly SmokeZone[] {
     return this.smokeList;
   }
@@ -1814,6 +1885,7 @@ export class ArenaSimulation {
     for (const z of this.zoneRuns) this.resolveStrikes(z, (z.exec as LingeringZone).update(dt));
     this.updateSmokes(dt);
     this.updateTraps(dt);
+    this.updatePuddles(dt);
     this.zoneRuns = this.zoneRuns.filter((z) => !(z.exec as LingeringZone).done);
 
     const wasDodging = this.motion.dodging;
