@@ -64,3 +64,15 @@ describe("キーの位置 → キーの名前", () => {
     expect(keyNameFromCode("IntlRo")).toBeUndefined();
   });
 });
+
+describe("割り当てとセーブデータの keybinds（開発計画書6.9）", () => {
+  it("行き来しても同じ。知らない行動・Esc は読まない", async () => {
+    const { bindingsToKeybinds, keybindsToBindings } = await import("../src/settings/settings.ts");
+    const s = rebind(rebind(DEFAULT_SETTINGS, "dodge", { key: "K" }), "skill3", { mouse: "right" });
+    const kb = bindingsToKeybinds(s.bindings);
+    expect(kb["dodge"]).toBe("K");
+    expect(kb["skill3"]).toBe("MOUSE_RIGHT");
+    expect(keybindsToBindings(kb)).toEqual(s.bindings);
+    expect(keybindsToBindings({ nope: "X", menu: "P", dodge: "" })).toEqual({});
+  });
+});

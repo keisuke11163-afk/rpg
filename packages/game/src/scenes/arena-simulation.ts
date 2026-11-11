@@ -495,6 +495,8 @@ export class ArenaSimulation {
   readonly revealedLatents: Set<string>;
   /** 初めて効いた相互作用（仕様書6.6 の I-xx。セーブの discoveries.interactions_seen。D-UI-3）。 */
   readonly interactionsSeen: Set<string>;
+  /** キーの割り当てを変えた分（行動 → キーの名前。セーブの settings.keybinds。開発計画書6.9・D-UI-2）。 */
+  keybinds: Readonly<Record<string, string>>;
   /** 背向けの外套：全てのヒットを背面として扱う期限（経過時間）。 */
   private moveBackstabUntil = -1;
   /** 旅人の古靴：短縮の分の移動距離と、この1秒の短縮の量。 */
@@ -606,6 +608,7 @@ export class ArenaSimulation {
     this.bossTokens = new Map(Object.entries(profile.kept.bossTokens));
     this.revealedLatents = new Set(profile.kept.discoveries.latent_revealed);
     this.interactionsSeen = new Set(profile.kept.discoveries.interactions_seen);
+    this.keybinds = { ...profile.kept.settings.keybinds };
     for (const [jobId, b] of Object.entries(profile.kept.boards))
       if (b.board.length > 0)
         this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId, b.board));
@@ -1618,6 +1621,7 @@ export class ArenaSimulation {
         },
         questPoints: this.questPoints,
         explorationPoints: this.explorationPoints,
+        settings: { ...this.kept.settings, keybinds: { ...this.keybinds } },
       },
     };
   }

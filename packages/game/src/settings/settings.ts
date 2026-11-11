@@ -1,6 +1,7 @@
 /**
- * 設定（補助仕様書16章：キーの割り当て・音量・画面の拡大率）。端末ごとの設定なので、セーブデータには入れない
- * （ブラウザの localStorage に保存する。docs/progress D-UI-2）。Phaser に依存しない。
+ * 設定（補助仕様書16章：キーの割り当て・音量・画面の拡大率）。キーの割り当てはキャラクターのセーブデータ
+ * （settings.keybinds。開発計画書6.9）、音量・拡大率は端末ごと（ブラウザの localStorage）に保存する
+ * （docs/progress D-UI-2）。Phaser に依存しない。
  */
 import { ACTIONS, type Action, type Binding, DEFAULT_BINDINGS } from "../input/actions.ts";
 
@@ -171,4 +172,40 @@ export function keyNameFromCode(code: string): string | undefined {
   if (digit !== null) return DIGITS[Number(digit[1])];
   if (/^F([1-9]|1[0-2])$/.test(code)) return code;
   return CODE_NAMES[code];
+}
+
+/** マウスのボタンを、セーブデータの keybinds の文字にするときの名前。 */
+const MOUSE_NAMES = { left: "MOUSE_LEFT", right: "MOUSE_RIGHT" } as const;
+
+/**
+ * 変えた割り当てを、セーブデータの settings.keybinds（行動 → キーの名前。開発計画書6.9）にする。
+ * 1つの行動に1つのキー（設定の画面で変えた割り当ては1つ）。
+ */
+export function bindingsToKeybinds(bindings: Settings["bindings"]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const a of ACTIONS) {
+    const b = bindings[a]?.[0];
+    if (b === undefined) continue;
+    out[a] = "key" in b ? b.key : MOUSE_NAMES[b.mouse];
+  }
+  return out;
+}
+
+/** セーブデータの keybinds から、変えた割り当てを読む（知らない行動・空の名前は無視する）。 */
+export function keybindsToBindings(
+  keybinds: Readonly<Record<string, string>>,
+): Settings["bindings"] {
+  const out: Partial<Record<Action, readonly Binding[]>> = {};
+  for (const a of ACTIONS) {
+    const v = keybinds[a];
+    if (v === undefined || v === "" || FIXED_ACTIONS.includes(a)) continue;
+    out[a] = [
+      v === MOUSE_NAMES.left
+        ? { mouse: "left" }
+        : v === MOUSE_NAMES.right
+          ? { mouse: "right" }
+          : { key: v },
+    ];
+  }
+  return out;
 }

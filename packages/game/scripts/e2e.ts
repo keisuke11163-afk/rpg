@@ -173,6 +173,7 @@ type DebugWindow = {
       dodge: string[];
       volume: number;
       scale: string | number;
+      keybinds: Record<string, string>;
       rows: { x: number; y: number }[];
     };
     saves: () => SavesInfo;
@@ -899,7 +900,6 @@ try {
   const se1 = await settings();
   await clickRow(se1.rows.length - 3);
   const se2 = await settings();
-  const stored = await page.evaluate(() => localStorage.getItem("stella-sigil.settings") ?? "");
   await page.screenshot({ path: `${outDir}settings.png` });
   await clickRow(se2.rows.length - 1);
   await page.keyboard.press("Escape");
@@ -907,11 +907,11 @@ try {
   const se3 = await settings();
   const afterPanel = await panel();
   check(
-    "Esc で設定を開き、回避を K に変えると保存され、音量を上げられ、初期に戻せる（補助仕様書16章）",
+    "Esc で設定を開き、回避を K に変えるとセーブデータの keybinds に入り、音量を上げられ、初期に戻せる（補助仕様書16章）",
     setPanel.open === "settings" &&
       se0.dodge.join() === "SPACE" &&
       se1.dodge.join() === "K" &&
-      stored.includes('"K"') &&
+      se1.keybinds["dodge"] === "K" &&
       se2.volume > se0.volume &&
       se3.dodge.join() === "SPACE" &&
       afterPanel.open === null,

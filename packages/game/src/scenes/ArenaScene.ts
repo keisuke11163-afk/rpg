@@ -21,7 +21,9 @@ import {
   DEFAULT_SETTINGS,
   type Settings,
   bindingName,
+  bindingsToKeybinds,
   effectiveBindings,
+  keybindsToBindings,
 } from "../settings/settings.ts";
 import { loadSettings, saveSettings } from "../settings/storage.ts";
 import { SCREEN } from "../config.ts";
@@ -191,7 +193,8 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.body = this.add.image(0, 0, TEXTURES.player).setOrigin(0.5, 0.5);
     this.facing = this.add.image(0, 0, TEXTURES.facing).setOrigin(-0.6, 0.5);
-    this.settings = loadSettings();
+    // 音量・拡大率は端末ごと（localStorage）、キーの割り当てはキャラクターのセーブ（開発計画書6.9）
+    this.settings = { ...loadSettings(), bindings: keybindsToBindings(this.sim.keybinds) };
     this.controls = new InputSystem(this, effectiveBindings(this.settings));
     this.applySettings();
     const keyboard = this.input.keyboard;
@@ -228,8 +231,12 @@ export class ArenaScene extends Phaser.Scene {
         set: (s) => {
           const bindingsChanged = s.bindings !== this.settings.bindings;
           this.settings = s;
-          saveSettings(s);
-          if (bindingsChanged) this.controls.setBindings(effectiveBindings(s));
+          saveSettings({ ...s, bindings: {} });
+          if (bindingsChanged) {
+            this.controls.setBindings(effectiveBindings(s));
+            this.sim.keybinds = bindingsToKeybinds(s.bindings);
+            this.saveNow();
+          }
           this.applySettings();
         },
       },
@@ -416,6 +423,7 @@ export class ArenaScene extends Phaser.Scene {
         dodge: effectiveBindings(this.settings).dodge.map((b) => ("key" in b ? b.key : b.mouse)),
         volume: this.settings.volume,
         scale: this.settings.scale,
+        keybinds: this.sim.saveData().settings.keybinds,
         rows: [...this.panel.settingsRowBoxes()],
       }),
       // ロードアウト（U-20）
