@@ -82,7 +82,7 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       { slot: "ring1", base: "BASE-ACC-SILVER-RING-T1", affixes: ["AFX-SUF-ATTACK-SPEED"] },
       { slot: "ring2", base: "BASE-ACC-RUBY-RING-T1", affixes: ["AFX-SUF-ACCURACY"] },
     ],
-    stars: ["STAR-KEY-BURDEN", "STAR-GOU-0102"],
+    stars: ["STAR-KEY-BURDEN", "STAR-SMITH-08"],
     jobNodes: [
       "JBN-WARRIOR-FORGE",
       "JBN-WARRIOR-TWOHAND",

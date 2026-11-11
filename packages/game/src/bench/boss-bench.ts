@@ -40,6 +40,8 @@ export interface BenchBuild {
   readonly stars: readonly string[];
   /** 取る職紋盤のノード（始点からの最短の道も取る）。 */
   readonly jobNodes: readonly string[];
+  /** 技の枠（1〜6。省略するとジョブの初期の並び）。破軍・罠設置は初期の枠に無いので、ここで入れる。 */
+  readonly skills?: readonly (string | undefined)[];
 }
 
 export interface BenchOptions {
@@ -70,6 +72,8 @@ export interface BenchResult {
   /** 倒れた回数（invincible でなければ）。 */
   readonly deaths: number;
   readonly criticals: number;
+  /** 技ごとの使った回数。 */
+  readonly uses: Readonly<Record<string, number>>;
 }
 
 const STEP = FIXED_STEP_SECONDS;
@@ -175,6 +179,11 @@ export function prepareBench(
         throw new RangeError(
           `星辰盤の ${id} を取れない（${String(sim.stars.spent)}／${String(sim.starPoints)}）`,
         );
+  // 技の枠
+  build.skills?.forEach((skill, i) => {
+    if (!sim.setSlotSkill(i, skill))
+      throw new RangeError(`技の枠 ${String(i + 1)} に ${String(skill)} を入れられない`);
+  });
   // 職紋盤
   const jroot = sim.jobBoard.root;
   if (jroot === undefined) throw new RangeError("職紋盤の始点が無い");
@@ -199,10 +208,20 @@ function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Action } | 
   const def = (id: string) => db.skills.get(id);
   const full = sim.jobGauge.value >= sim.jobGauge.max - 1e-9;
   const spender = (id: string): boolean => def(id)?.gauge?.cost === "all";
+  // CD のある技が2秒以内に使えるようになるなら、その MP を残す（CD の無い技で使い切らない）
+  const reserve = Math.max(
+    0,
+    ...sim.loadout
+      .filter((l) => (def(l.skill)?.cooldown ?? 0) > 0 && sim.cooldowns.remaining(l.skill) <= 2)
+      .map((l) => def(l.skill)?.mpCost ?? 0),
+  );
+  const affordable = (id: string): boolean => sim.mp - (def(id)?.mpCost ?? 0) >= reserve;
   return (
     usable.find((l) => (def(l.skill)?.cooldown ?? 0) > 0 && !spender(l.skill)) ??
     usable.find((l) => spender(l.skill) && full) ??
-    usable.find((l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill))
+    usable.find(
+      (l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill) && affordable(l.skill),
+    )
   );
 }
 
@@ -303,5 +322,6 @@ export function runBossBench(
     jobNodesSpent: sim.jobBoard.spent,
     deaths,
     criticals: sim.criticals,
+    uses: Object.fromEntries(sim.uses),
   };
 }
