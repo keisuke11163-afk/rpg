@@ -2,6 +2,7 @@
   {
     "id": "SKL-ROGUE-FLURRY",
     "text": "skill.rogue.flurry",
+    "speedStat": "STAT-JOB-FLURRY-SPEED",
     "job": "JOB-ROGUE",
     "tags": ["TAG-FORM-MELEE"],
     "kind": "weapon",

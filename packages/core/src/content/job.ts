@@ -143,6 +143,8 @@ export const skillSchema = z.strictObject({
   cooldown: z.number().nonnegative(),
   /** 動作の時間の倍率（1＝1回の攻撃の時間）。 */
   useTimeMultiplier: z.number().positive().optional(),
+  /** この技の動作の速さに足す能力値（例：連刃に職紋盤「素早い手」の STAT-JOB-FLURRY-SPEED）。 */
+  speedStat: idSchema.optional(),
   action: skillActionSchema,
   /** 崩し係数（補助仕様書3.6）。省略すると崩しの定義の既定値。 */
   staggerCoefficient: z.number().nonnegative().optional(),
@@ -232,6 +234,10 @@ export const jobSchema = z.strictObject({
       kon: z.number().int().nonnegative(),
     })
     .optional(),
+  /** 技の枠の初期の並び（枠1から。補助仕様書1.1・3.5。docs/progress D-U12-9）。省略すると通常攻撃だけ。 */
+  defaultSlots: z.array(idSchema).max(6).optional(),
+  /** 出自にしたときの初期の武器のベース（補助仕様書3.4）。 */
+  startingWeapon: idSchema.optional(),
   /** 背面からのヒットの補正（メインジョブのときだけ。盗賊：会心率+10%（固定値）・付与率+25%。仕様書5.6）。 */
   backstabBonus: z
     .strictObject({ critChance: z.number().min(0).max(1), ailmentChance: z.number().min(0).max(1) })

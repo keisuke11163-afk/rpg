@@ -111,8 +111,6 @@ const LIGHT_UNIFORM_SECONDS = 0.5;
 const BEAST_HUNT_SECONDS = 3;
 /** クールダウン短縮の上限（仮値）。 */
 const MAX_COOLDOWN_REDUCTION = 0.9;
-/** 職紋盤「素早い手」の対象の技。 */
-const FLURRY_SKILL = "SKL-ROGUE-FLURRY";
 const BASIC_ATTACK = "SKL-BASIC-ATTACK";
 /** 武具連携（仕様書v0.2 3.13）：双牙の2撃目の付与率（加算）・双斧の付与率（-25% は相対で ×0.75。D-DUAL-3）。 */
 const TWIN_FANGS_CHANCE = 0.2;
@@ -215,28 +213,6 @@ export const SKILL_SLOTS = ["skill1", "skill2", "skill3", "skill4", "skill5", "s
 export type SkillSlot = (typeof SKILL_SLOTS)[number];
 
 export type Loadout = readonly { readonly action: SkillSlot; readonly skill: string }[];
-/**
- * 技の枠の初期の並び（ジョブごと）。枠1は通常攻撃（補助仕様書1.1）、残りは覚える順（補助仕様書3.5）。
- * 6つ目より後に覚える技（破軍・罠設置）は、キャラクターの画面で枠に入れる（docs/progress D-U12-9）。
- */
-export const DEFAULT_SKILL_SLOTS: Readonly<Record<string, readonly string[]>> = {
-  "JOB-WARRIOR": [
-    "SKL-BASIC-ATTACK",
-    "SKL-WARRIOR-SWEEP",
-    "SKL-WARRIOR-CHARGE",
-    "SKL-WARRIOR-WARCRY",
-    "SKL-WARRIOR-EARTHSPLITTER",
-    "SKL-WARRIOR-WHIRLWIND",
-  ],
-  "JOB-ROGUE": [
-    "SKL-BASIC-ATTACK",
-    "SKL-ROGUE-FLURRY",
-    "SKL-ROGUE-PIERCE",
-    "SKL-ROGUE-SHADOWSTEP",
-    "SKL-ROGUE-POISON",
-    "SKL-ROGUE-SMOKE",
-  ],
-};
 // 開発用の機能：試験用の初期の状態（戦士の出自・キャラLv15・戦士のジョブLv15）
 const TEST_START = { level: 15, jobLevel: 15 } as const;
 
@@ -382,7 +358,7 @@ export function newCharacterProfile(db: ContentDb, originId: string, name: strin
   if (origin === undefined) throw new RangeError(`ジョブ ${originId} がない`);
   const character = new Character({ origin, level: 1 });
   const equipment = new Equipment(db);
-  const base = NEW_CHARACTER_WEAPON[originId];
+  const base = origin.startingWeapon;
   if (base !== undefined)
     equipment.equip(
       { uid: "itm_000001", base, rarity: "normal", itemLevel: 1, affixes: [] },
@@ -407,12 +383,6 @@ export function newCharacterProfile(db: ContentDb, originId: string, name: strin
     kept: emptyKeptFields(),
   };
 }
-
-/** 出自の初期装備の武器（補助仕様書3.4）。 */
-const NEW_CHARACTER_WEAPON: Readonly<Record<string, string>> = {
-  "JOB-WARRIOR": "BASE-WPN-GREATSWORD-T1",
-  "JOB-ROGUE": "BASE-WPN-DAGGER-T1",
-};
 
 /** 開発用の機能：試験用の初期の状態（キャラLv15・試験用の武器一式。タイトルの「開発用」から始める）。 */
 export function testStartProfile(db: ContentDb): PlayerProfile {
@@ -968,7 +938,7 @@ export class ArenaSimulation {
   private slotSkills(jobId: string): (string | undefined)[] {
     let slots = this.skillSlotsByJob.get(jobId);
     if (slots === undefined) {
-      const init = DEFAULT_SKILL_SLOTS[jobId] ?? ["SKL-BASIC-ATTACK"];
+      const init = this.db.jobs.get(jobId)?.defaultSlots ?? [BASIC_ATTACK];
       slots = SKILL_SLOTS.map((_, i) => init[i]);
       this.skillSlotsByJob.set(jobId, slots);
     }
@@ -2049,8 +2019,8 @@ export class ArenaSimulation {
     for (const e of def.selfEffects ?? [])
       this.buffs.add(e.effect, e.duration * this.sheetValue.effectDuration, def.id);
     this.lastSkillValue = { id: def.id, variants: resolved.variants };
-    // 職紋盤「素早い手」：連刃の速度+15%
-    const flurry = def.id === FLURRY_SKILL ? 1 + this.view.stat("STAT-JOB-FLURRY-SPEED").value : 1;
+    // 技ごとの動作の速さの能力値（例：職紋盤「素早い手」の連刃の速度+15%）
+    const flurry = def.speedStat === undefined ? 1 : 1 + this.view.stat(def.speedStat).value;
     this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
     this.current = {
       slot,

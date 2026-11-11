@@ -317,6 +317,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
 
   const tagMap = new Map(tags.map((t) => [t.value.id, t.value]));
   const statMap = new Map(stats.map((s) => [s.value.id, s.value]));
+  const itemBaseMap = new Map(itemBases.map((b) => [b.value.id, b.value]));
   const effectMap = new Map(effects.map((e) => [e.value.id, e.value]));
 
   const checkText = (key: string, file: string, id: string): void => {
@@ -725,6 +726,20 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     for (const tagId of Object.keys(job.affinity))
       tagOf(tagId, ["weapon"], file, job.id, "affinity");
+    (job.defaultSlots ?? []).forEach((id, i) => {
+      if (!refCheck(skillMap, "技", id, file, job.id, `defaultSlots.${String(i)}`)) return;
+      const skill = skillMap.get(id);
+      if (skill?.job !== undefined && skill.job !== job.id)
+        err({
+          code: "schema",
+          file,
+          id: job.id,
+          path: `defaultSlots.${String(i)}`,
+          message: `技 ${id} は、ジョブ ${skill.job} の技`,
+        });
+    });
+    if (job.startingWeapon !== undefined)
+      refCheck(itemBaseMap, "装備のベース", job.startingWeapon, file, job.id, "startingWeapon");
   }
 
   for (const { value: skill, file } of skills) {
@@ -735,6 +750,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     for (const tagId of Object.keys(skill.ailmentChance ?? {}))
       tagOf(tagId, ["ailment"], file, skill.id, "ailmentChance");
+    if (skill.speedStat !== undefined)
+      refCheck(statMap, "能力値", skill.speedStat, file, skill.id, "speedStat");
     if (skill.kind === "spell" && skill.base === undefined)
       err({
         code: "schema",

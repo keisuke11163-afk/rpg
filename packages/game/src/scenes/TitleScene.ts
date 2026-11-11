@@ -14,11 +14,9 @@ import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
 import { newCharacterProfile, testStartProfile } from "./arena-simulation.ts";
 import { type ArenaSceneData, TOWN_REGION } from "./ArenaScene.ts";
 
-/** 新しいキャラクターの出自（MVP：戦士・盗賊）。 */
-const ORIGINS = ["JOB-WARRIOR", "JOB-ROGUE"] as const;
-
 /** 選んだスロットで、どう始めるか。 */
-export type SlotStart = "continue" | "backup" | "new-JOB-WARRIOR" | "new-JOB-ROGUE" | "dev";
+/** new-<ジョブのID>：そのジョブを出自にして新しく作る（出自にできるのは、データに初期能力値があるジョブ）。 */
+export type SlotStart = "continue" | "backup" | `new-${string}` | "dev";
 
 /**
  * タイトル：キャラクターの選択・作成（補助仕様書15・16章：3スロット）。
@@ -122,10 +120,11 @@ export class TitleScene extends Phaser.Scene {
     if (sel.state === "ok") opt("続きから（町から再開する）", "continue");
     if (sel.state === "corrupt" && this.store.loadBackup(sel.slot).ok)
       opt("1つ前の保存から再開する", "backup");
-    for (const o of ORIGINS) {
-      const job = this.db.jobs.get(o);
+    for (const job of this.db.jobs.values()) {
+      if (job.originAttributes === undefined) continue;
+      const o = job.id;
       opt(
-        `新しく作る：出自 ${job === undefined ? o : text(job.text as TextKey)}${sel.state === "ok" ? "（今のデータを上書きする）" : ""}`,
+        `新しく作る：出自 ${text(job.text as TextKey)}${sel.state === "ok" ? "（今のデータを上書きする）" : ""}`,
         `new-${o}`,
         sel.state === "ok" ? "#ffd166" : "#7bd389",
       );
