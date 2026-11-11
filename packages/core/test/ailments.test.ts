@@ -1142,3 +1142,29 @@ describe("AilmentState.apply の最大スタックと定義データの整合性
     expect(state.stacks("AIL-BLEED")).toBe(1);
   });
 });
+
+describe("V-26：付与は種類ごとに独立して判定する（仕様書v0.2 2.7）", () => {
+  it("汎用の付与率25%で、出血と毒はそれぞれ約25%、両方は約6%（独立）", () => {
+    const { db, attacker } = setup(["EFF-GENERIC-CHANCE"]);
+    const hit = computeHit(attacker, MELEE, {}, avg);
+    const rng = Rng.fromSeed("v26");
+    let bleed = 0;
+    let poison = 0;
+    let both = 0;
+    const n = 20000;
+    for (let i = 0; i < n; i++) {
+      const tags = rollAilments({ db, view: attacker.view, hit, tags: MELEE.tags, rng }).map(
+        (a) => a.tag,
+      );
+      const b = tags.includes("TAG-AIL-BLEED");
+      const p = tags.includes("TAG-AIL-POISON");
+      if (b) bleed++;
+      if (p) poison++;
+      if (b && p) both++;
+    }
+    expect(bleed / n).toBeCloseTo(0.25, 1);
+    expect(poison / n).toBeCloseTo(0.25, 1);
+    expect(both / n).toBeGreaterThan(0.05);
+    expect(both / n).toBeLessThan(0.075);
+  });
+});

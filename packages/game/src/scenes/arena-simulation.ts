@@ -112,6 +112,18 @@ const LIGHT_UNIFORM_SECONDS = 0.5;
 const BEAST_HUNT_SECONDS = 3;
 /** クールダウン短縮の上限（仮値）。 */
 const MAX_COOLDOWN_REDUCTION = 0.9;
+/** CDの最低値（仕様書v0.2 9章 V-11・M-07：短縮してもCDは0.25秒より短くならない）。 */
+export const MIN_COOLDOWN = 0.25;
+
+/**
+ * 短縮した後のCD（秒）。短縮は90%まで（D-U15-6）、CDは0.25秒より短くならない（V-11。元のCDが
+ * 0.25秒より短い技は元のまま）。CDの無い技は0。
+ */
+export function effectiveCooldown(base: number, reduction: number): number {
+  if (!(base > 0)) return 0;
+  const cdr = Math.min(MAX_COOLDOWN_REDUCTION, Math.max(0, reduction));
+  return Math.max(Math.min(base, MIN_COOLDOWN), base * (1 - cdr));
+}
 const BASIC_ATTACK = "SKL-BASIC-ATTACK";
 /** 武具連携（仕様書v0.2 3.13）：双牙の2撃目の付与率（加算）・双斧の付与率（-25% は相対で ×0.75。D-DUAL-3）。 */
 const TWIN_FANGS_CHANCE = 0.2;
@@ -2028,9 +2040,14 @@ export class ArenaSimulation {
         }
       }
     }
-    // クールダウン短縮（詞・怒涛）。短縮は90%まで（仮値。docs/progress D-U15-6）
-    const cdr = Math.min(MAX_COOLDOWN_REDUCTION, this.view.stat("STAT-COOLDOWN-REDUCTION").value);
-    this.cooldowns.start(def.id, Math.max(def.cooldown, endlessCd) * (1 - cdr));
+    // クールダウン短縮（詞・怒涛）。短縮は90%まで（仮値。D-U15-6）、CDの最低は0.25秒（V-11）
+    this.cooldowns.start(
+      def.id,
+      effectiveCooldown(
+        Math.max(def.cooldown, endlessCd),
+        this.view.stat("STAT-COOLDOWN-REDUCTION").value,
+      ),
+    );
     if (def.gauge?.cost !== undefined && !(endlessCd > 0)) this.jobGaugeValue.spend(def.gauge.cost);
     // 職奥義「怒涛」：解放技の後の一定時間、職技のCD-50%
     const surge = this.view.stat("STAT-JOB-SURGE").value;
