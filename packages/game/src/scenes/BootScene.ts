@@ -1,15 +1,19 @@
 import Phaser from "phaser";
 import { CORE_API_VERSION } from "@stella/core";
-import { text } from "@stella/content";
+import { loadContent, text } from "@stella/content";
 import { SCREEN } from "../config.ts";
 
-/** 起動の画面。U-01 では、ゲームが起動することを確かめるための表示だけを行う。 */
+/**
+ * 起動の画面。データを読み込んで検証する（開発環境構築計画 8章）。
+ * データが壊れていれば ContentError が投げられ、起動しない（誤りの一覧はコンソールに出る）。
+ */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super("boot");
   }
 
   create(): void {
+    const content = loadContent();
     const centerX = SCREEN.width / 2;
     this.add
       .text(centerX, 140, text("game.title"), {
@@ -28,7 +32,7 @@ export class BootScene extends Phaser.Scene {
     this.add.text(
       8,
       SCREEN.height - 18,
-      `Phaser ${Phaser.VERSION} / core API v${String(CORE_API_VERSION)}`,
+      `Phaser ${Phaser.VERSION} / core API v${String(CORE_API_VERSION)} / data v${String(content.schemaVersion)} (tags ${String(content.tags.size)})`,
       {
         fontFamily: "monospace",
         fontSize: "10px",

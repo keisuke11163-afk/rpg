@@ -3,7 +3,7 @@
 見下ろし型 2D ドット絵ファンタジー ARPG（ハック＆スラッシュ）。
 装備収集・巨大なパッシブツリー・ジョブの3システムの相互作用で、ビルドを発見する楽しさを中心にしたゲーム。
 
-> 現在の状態：**MVPの開発中**（U-01 開発環境の構築）。
+> 現在の状態：**MVPの開発中**（U-01 開発環境の構築：完了／U-02 データの基盤：完了）。
 
 ## 開発の始め方
 
@@ -21,7 +21,7 @@ pnpm smoke        # ビルドしたゲームをブラウザで開いて起動を
 | 場所 | 内容 |
 |---|---|
 | `packages/core` | ルールの中核。ブラウザの機能・Phaser・Node.js に依存しない |
-| `packages/content` | コンテンツのデータ（JSON）と表示の文章 |
+| `packages/content` | コンテンツのデータ（JSON）と表示の文章。データの決まりは [data/README.md](packages/content/data/README.md) |
 | `packages/game` | Phaser を使う表示層 |
 | `tools/sim` | DPSシミュレーター（U-05） |
 | `tools/scripts` | データの検証・仮実装の一覧などの道具 |

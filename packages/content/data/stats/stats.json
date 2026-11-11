@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "kind": "stats",
+  "entries": [
+    {
+      "id": "STAT-MIGHT",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-SWIFTNESS",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-REASON",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-SOUL",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-MAX-HP",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-MAX-MP",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-MP-REGEN",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-MAX-STAMINA",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-DAMAGE",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-AILMENT-DAMAGE",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-AILMENT-CHANCE",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-AILMENT-DURATION",
+      "unit": "seconds"
+    },
+    {
+      "id": "STAT-EFFECT-DURATION",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-ATTACK-SPEED",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-CAST-SPEED",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-MOVE-SPEED",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-CRIT-CHANCE",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-CRIT-MULTIPLIER",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-ACCURACY",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-ARMOR",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-EVASION",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-WARD",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-RESISTANCE",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-RESISTANCE-MAX",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-BREAK",
+      "unit": "number"
+    },
+    {
+      "id": "STAT-AREA",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-RANGE",
+      "unit": "ratio"
+    },
+    {
+      "id": "STAT-MINION-HP",
+      "unit": "ratio"
+    }
+  ]
+}

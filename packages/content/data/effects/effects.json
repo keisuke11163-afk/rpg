@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "effects",
+  "entries": [
+    {
+      "id": "MUT-PRJ-001",
+      "source": "mutation",
+      "targetTags": {
+        "allOf": ["TAG-FORM-PROJECTILE"]
+      },
+      "modifiers": [
+        {
+          "kind": "behavior",
+          "hook": "HOOK-EXTRA-PROJECTILES",
+          "params": {
+            "count": 2,
+            "spreadDeg": 40
+          }
+        },
+        {
+          "kind": "more",
+          "stat": "STAT-DAMAGE",
+          "value": 0.8
+        }
+      ],
+      "scope": "self_skills",
+      "affects": {
+        "hit": true,
+        "base": true
+      },
+      "note": "転変「分裂の理」（本仕様書 4.6・10.1）"
+    }
+  ]
+}
