@@ -8,7 +8,7 @@ import { InputSystem } from "../input/InputSystem.ts";
 import { EnemyFieldView } from "../world/EnemyFieldView.ts";
 import { TEXTURES } from "../world/placeholders.ts";
 import { PIXELS_PER_METER, toPixels } from "../world/units.ts";
-import { ARENA, ArenaSimulation, DUMMY_POSITION, HAZARD, LOADOUT } from "./arena-simulation.ts";
+import { ARENA, ArenaSimulation, DUMMY_POSITION, HAZARD } from "./arena-simulation.ts";
 
 const SLOT_LABEL: Readonly<Record<string, string>> = {
   skill1: "左",
@@ -27,8 +27,10 @@ export class ArenaScene extends Phaser.Scene {
   private controls!: InputSystem;
   private keyTab!: Phaser.Input.Keyboard.Key;
   private keyRout!: Phaser.Input.Keyboard.Key;
+  private keyJob!: Phaser.Input.Keyboard.Key;
   private routPressed = false;
   private tabPressed = false;
+  private jobPressed = false;
   private body!: Phaser.GameObjects.Image;
   private facing!: Phaser.GameObjects.Image;
   private dummyImage!: Phaser.GameObjects.Image;
@@ -53,6 +55,9 @@ export class ArenaScene extends Phaser.Scene {
         if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
         this.popDamage(report, at);
       },
+      onText: (label, at, color) => {
+        this.popText(label, at, color);
+      },
     });
     if (this.sim.field !== undefined) this.enemyView = new EnemyFieldView(this, this.sim.field);
     // 位置は体の中心（照準を合わせた所に当たるように。docs/progress D-U07-4）
@@ -74,6 +79,9 @@ export class ArenaScene extends Phaser.Scene {
     this.keyRout = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R, true);
     this.keyTab.on("down", () => (this.tabPressed = true));
     this.keyRout.on("down", () => (this.routPressed = true));
+    // 仮実装: U-18a feature/town-and-dungeon-base で、町の転職神殿に置き換える（G で転職。キャラLv15から）
+    this.keyJob = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G, true);
+    this.keyJob.on("down", () => (this.jobPressed = true));
 
     const camera = this.cameras.main;
     camera.setBounds(0, 0, toPixels(ARENA.width), toPixels(ARENA.height));
@@ -130,6 +138,11 @@ export class ArenaScene extends Phaser.Scene {
       // 確認用：闘志の量を決める（開発版だけ。自動の確認で、激化・解放を短い時間で試すため）
       setFervor: (value?: number | string) => sim.setFervor(Number(value ?? 0)),
       enemies: () => sim.field?.debug() ?? [],
+      // 確認用：経験値を得る（開発版だけ）
+      grantXp: (value?: number | string) => {
+        sim.gainXp(Number(value ?? 0));
+        return sim.character.level;
+      },
       playerState: () => ({
         hp: sim.player.health.hp,
         maxHp: sim.player.health.maxHp,
@@ -148,16 +161,25 @@ export class ArenaScene extends Phaser.Scene {
         affinity: sim.affinity,
         attackSpeed: sim.attackSpeed,
         mp: sim.mp,
-        fervor: sim.fervor.value,
-        stages: sim.fervor.stages,
+        fervor: sim.jobGauge.value,
+        stages: sim.jobGauge.stages,
         executing: sim.executing ?? null,
         lastSkill: sim.lastSkill?.id ?? null,
         lastVariants: sim.lastSkill?.variants ?? [],
         uses: Object.fromEntries(sim.uses),
         buffs: sim.buffs.active.map((b) => b.effectId),
         cooldowns: Object.fromEntries(
-          LOADOUT.map((l) => [l.skill, sim.cooldowns.remaining(l.skill)]),
+          sim.loadout.map((l) => [l.skill, sim.cooldowns.remaining(l.skill)]),
         ),
+        job: sim.job.id,
+        jobLevel: sim.character.jobLevel(sim.job.id),
+        jobLevels: Object.fromEntries(
+          [...sim.db.jobs.keys()].map((j) => [j, sim.character.jobLevel(j)]),
+        ),
+        level: sim.character.level,
+        xp: sim.character.progress.xp,
+        traps: sim.traps.length,
+        smokes: sim.smokes.length,
       }),
       // 刻みが0のフレームを再現するため（pnpm e2e）。null で元に戻す
       setFrameDeltaMs: (ms: number | null) => {
@@ -174,15 +196,36 @@ export class ArenaScene extends Phaser.Scene {
       routPressed: this.routPressed,
       routHeld: this.keyRout.isDown,
       switchWeapon: this.tabPressed,
+      changeJob: this.jobPressed,
     });
     this.routPressed = false;
     this.tabPressed = false;
+    this.jobPressed = false;
     this.render();
   }
 
   private skillName(id: string): string {
     const def = this.sim.db.skills.get(id);
     return def === undefined ? id : text(def.text as TextKey);
+  }
+
+  private popText(label: string, at: Vec2, color: string): void {
+    const t = this.add
+      .text(toPixels(at.x), toPixels(at.y) - 24, label, {
+        fontFamily: "sans-serif",
+        fontSize: "11px",
+        color,
+      })
+      .setOrigin(0.5, 1);
+    this.tweens.add({
+      targets: t,
+      y: t.y - 20,
+      alpha: 0,
+      duration: 1200,
+      onComplete: () => {
+        t.destroy();
+      },
+    });
   }
 
   private popDamage(report: HitReport, at: Vec2): void {
@@ -273,6 +316,19 @@ export class ArenaScene extends Phaser.Scene {
       this.enemyView?.render(sim.field, g, (shape, origin, facing) => {
         this.drawShape(g, shape, origin, facing);
       });
+    // 煙玉と罠
+    for (const z of sim.smokes)
+      g.fillStyle(0x8c88a0, 0.25).fillCircle(
+        toPixels(z.center.x),
+        toPixels(z.center.y),
+        z.radius * PIXELS_PER_METER,
+      );
+    for (const tr of sim.traps)
+      g.lineStyle(1, 0xffd166, 0.9).strokeCircle(
+        toPixels(tr.center.x),
+        toPixels(tr.center.y),
+        tr.radius * PIXELS_PER_METER,
+      );
     // 残っている亀裂
     for (const z of sim.zones) {
       g.fillStyle(0xff9f43, 0.18);
@@ -310,36 +366,42 @@ export class ArenaScene extends Phaser.Scene {
     bar(0, sim.playerHealth.hp / sim.playerHealth.maxHp, 0xff6b6b);
     bar(1, sim.mp / sim.maxMp, 0x6fa8ff);
     bar(2, motion.currentStamina / motion.config.maxStamina, 0x7bd389);
-    bar(
-      3,
-      sim.fervor.value / sim.fervor.max,
-      sim.fervor.hasStage("empowered") ? 0xff9f43 : 0xb5651d,
-    );
+    const gauge = sim.jobGauge;
+    bar(3, gauge.value / gauge.max, gauge.hasStage("empowered") ? 0xff9f43 : 0xb5651d);
 
     const last = sim.lastHit;
-    const stageText = sim.fervor.def.stages
-      .filter((s) => sim.fervor.hasStage(s.id))
+    const stageText = gauge.def.stages
+      .filter((s) => gauge.hasStage(s.id))
       .map((s) => text(s.text as TextKey))
       .join("・");
-    const slots = LOADOUT.map((l) => {
-      const name = this.skillName(l.skill);
-      const block = sim.blockOf(l.skill);
-      const cd = sim.cooldowns.remaining(l.skill);
-      const state =
-        block === undefined
-          ? ""
-          : block === "cooldown"
-            ? `（${cd.toFixed(1)}秒）`
-            : block === "mp"
-              ? "（MP不足）"
-              : block === "gauge"
-                ? "（闘志不足）"
-                : "（使えない）";
-      return `${SLOT_LABEL[l.action] ?? l.action}:${name}${state}`;
-    }).join(" ");
+    const gaugeName = text(gauge.def.text as TextKey);
+    const c = sim.character;
+    const slots = sim.loadout
+      .map((l) => {
+        const name = this.skillName(l.skill);
+        const block = sim.blockOf(l.skill);
+        const cd = sim.cooldowns.remaining(l.skill);
+        const state =
+          block === undefined
+            ? ""
+            : block === "cooldown"
+              ? `（${cd.toFixed(1)}秒）`
+              : block === "mp"
+                ? "（MP不足）"
+                : block === "gauge"
+                  ? `（${gaugeName}不足）`
+                  : block === "target"
+                    ? "（対象なし）"
+                    : block === "locked"
+                      ? "（未習得）"
+                      : "（使えない）";
+        return `${SLOT_LABEL[l.action] ?? l.action}:${name}${state}`;
+      })
+      .join(" ");
     const lastSkill = sim.lastSkill;
     this.hud.setText([
-      "試験用の場（WASD移動・マウス照準・スペース回避・Tabで武器を替える）",
+      "試験用の場（WASD移動・マウス照準・スペース回避・Tabで武器を替える・Gで転職）",
+      `Lv${String(c.level)}（経験値 ${c.progress.xp.toFixed(0)}／${String(c.progress.toNext)}）・${text(sim.job.text as TextKey)} ジョブLv${String(c.jobLevel(sim.job.id))}（${c.jobTrack(sim.job.id).xp.toFixed(0)}／${String(c.jobTrack(sim.job.id).toNext)}）${c.catchingUp ? "・追いつき補正×2" : ""}`,
       slots,
       `武器：${sim.weapon.name}（適性${sim.affinity}・攻撃速度 ${sim.attackSpeed.toFixed(2)}回/秒）${sim.buffs.active.length > 0 ? `・効果：${sim.buffs.active.map((b) => `${this.skillName(b.ref)}（${b.remaining.toFixed(1)}秒）`).join("・")}` : ""}`,
       `人形：HP ${dummy.health.hp.toFixed(0)}／${dummy.health.maxHp.toFixed(0)}・DPS ${sim.dps().toFixed(1)}・ヒット ${String(sim.hitCount)}${dummy.stagger.broken ? "・崩れ" : ""}${dummy.statuses.active.length > 0 ? "・威圧" : ""}`,
@@ -348,7 +410,7 @@ export class ArenaScene extends Phaser.Scene {
         : `最後のヒット：${last.hit.evaded ? "回避された" : `${last.hit.total.toFixed(1)}${last.hit.crit ? "・会心" : ""}${last.backstab ? "・背面" : ""}${last.ailments.length > 0 ? "・出血" : ""}`}${lastSkill === undefined ? "" : `（${lastSkill.variants.join("・") || "変化なし"}）`}`,
       `危険地帯：被弾 ${String(sim.hazardHits)}／回避で無効 ${String(sim.hazardAvoided)}`,
       `敵：倒した数 ${String(sim.field?.kills ?? 0)}・被弾 ${String(sim.hitsTaken)}・回避で無効 ${String(sim.attacksAvoided)}・倒れた回数 ${String(sim.deaths)}${sim.player.ailments.stacks("AIL-POISON") > 0 ? `・毒 ${String(sim.player.ailments.stacks("AIL-POISON"))}` : ""}${sim.player.stagger.broken ? "・よろめき" : ""}`,
-      `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・気力 ${motion.currentStamina.toFixed(0)}・闘志 ${sim.fervor.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
+      `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・気力 ${motion.currentStamina.toFixed(0)}・${gaugeName} ${gauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
     ]);
   }
 }

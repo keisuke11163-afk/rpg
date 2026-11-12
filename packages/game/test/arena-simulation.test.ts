@@ -291,6 +291,40 @@ describe("ArenaSimulation：試験用の敵（U-09）", () => {
   });
 });
 
+describe("ArenaSimulation：転職・経験値（U-10）", () => {
+  it("G で転職すると、技の並び・職能ゲージ・武器が盗賊のものになり、ジョブLvは混ざらない", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.job.id).toBe("JOB-WARRIOR");
+    expect(sim.character.jobLevel("JOB-WARRIOR")).toBe(15);
+    sim.frame(STEP, input(), { changeJob: true });
+    expect(sim.job.id).toBe("JOB-ROGUE");
+    expect(sim.loadout[1]?.skill).toBe("SKL-ROGUE-FLURRY");
+    expect(sim.weapon.uid).toBe("test-dagger");
+    expect(sim.jobGauge.def.id).not.toBe("GAU-FERVOR");
+    expect(sim.character.jobLevel("JOB-WARRIOR")).toBe(15);
+    // 盗賊の連刃（右クリック）は、刻みが0のフレームで押しても保持され、次の刻みで使う
+    sim.frame(0, input({ pressed: ["skill2"] }));
+    expect(sim.pending("skill2")).toBe(true);
+    sim.frame(STEP, input());
+    expect(sim.uses.get("SKL-ROGUE-FLURRY")).toBe(1);
+  });
+
+  it("経験値でLvが上がると、HPを全回復する", () => {
+    const texts: string[] = [];
+    const sim = new ArenaSimulation(undefined, {
+      enemies: false,
+      onText: (label) => texts.push(label),
+    });
+    const before = sim.character.level;
+    sim.player.health.takeDamage(10);
+    sim.gainXp(1e6);
+    expect(sim.character.level).toBeGreaterThan(before);
+    expect(sim.player.health.hp).toBe(sim.player.health.maxHp);
+    expect(sim.levelUps).toBeGreaterThan(0);
+    expect(texts.length).toBe(1);
+  });
+});
+
 describe("EnemyField.update：経過時間の検証", () => {
   it.each([Infinity, NaN, -1])("%s は、敵を1体も動かす前に RangeError", (bad) => {
     const sim = new ArenaSimulation();
@@ -303,7 +337,7 @@ describe("EnemyField.update：経過時間の検証", () => {
       facing: e.facing,
       hp: e.combatant.health.hp,
     }));
-    const hooks = { onPlayerHit: vi.fn(), onAvoided: vi.fn() };
+    const hooks = { onPlayerHit: vi.fn(), onAvoided: vi.fn(), onEnemyKilled: vi.fn() };
     expect(() => {
       field.update(bad, sim.player, false, 0, hooks);
     }).toThrow(RangeError);

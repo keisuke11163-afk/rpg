@@ -134,5 +134,15 @@
   "enemy.attack.tusk": "牙",
   "enemy.attack.claw": "爪",
   "enemy.attack.slam": "叩きつけ",
-  "enemy.attack.spores": "胞子"
+  "enemy.attack.spores": "胞子",
+  "stat.minion-hp": "召喚物のHP",
+  "stat.effect-duration": "効果時間",
+  "gauge.combo": "コンボ点",
+  "job.rogue": "盗賊",
+  "skill.rogue.flurry": "連刃",
+  "skill.rogue.shadowstep": "影走り",
+  "skill.rogue.pierce": "急所穿ち",
+  "skill.rogue.poison": "毒塗り",
+  "skill.rogue.smoke": "煙玉",
+  "skill.rogue.trap": "罠設置"
 }

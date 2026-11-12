@@ -1,0 +1,117 @@
+[
+  {
+    "id": "EFF-ATTR-GO",
+    "origin": "attribute",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-HP-MAX",
+        "value": 2
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.002,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE", "TAG-ELEM-PHYSICAL"]
+        }
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.002
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-ATTR-JIN",
+    "origin": "attribute",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ACCURACY",
+        "value": 3
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-EVASION",
+        "value": 0.002
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-ATTACK-SPEED",
+        "value": 0.001
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-ATTR-RI",
+    "origin": "attribute",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-MP-MAX",
+        "value": 1.5
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.002,
+        "filter": {
+          "allOf": ["TAG-FORM-SPELL"]
+        }
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-CHANCE",
+        "value": 0.001
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "「状態異常付与率+0.1%」は、付与率に足す値（仕様書v0.2 2.7 の付与率の式）として扱う（docs/progress D-U10-4）"
+  },
+  {
+    "id": "EFF-ATTR-KON",
+    "origin": "attribute",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MINION-HP",
+        "value": 0.003
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.002,
+        "filter": {
+          "anyOf": ["TAG-ELEM-HOLY", "TAG-ELEM-DARK"]
+        }
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-EFFECT-DURATION",
+        "value": 0.001
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  }
+]

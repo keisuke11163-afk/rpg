@@ -676,21 +676,58 @@ export class EnemyAttackers {
     this.tags = new TagIndex(db.tags);
   }
 
-  private view(level: number): ModifierView {
-    const cached = this.views.get(level);
-    if (cached !== undefined) return cached;
-    const { view } = evaluateEffects(this.db, this.tags, [], {
-      baseStats: { "STAT-ACCURACY": enemyAccuracy(level) },
+  /**
+   * 一定時間の効果がかかっている敵ごとの評価（敵の ID → 効果の版と評価）。
+   * 効果が切れた敵の分はその場で、倒れた・消えた敵の分は retain で消す（溜まり続けないように）。
+   */
+  private readonly statusViews = new Map<string, { version: number; view: ModifierView }>();
+
+  /** 敵のLvの命中と、敵にかかっている一定時間の効果（煙玉の命中-30%など）を評価した値。 */
+  private view(enemy: Enemy): ModifierView {
+    const statuses = enemy.combatant.statuses;
+    if (statuses.active.length === 0) {
+      this.statusViews.delete(enemy.id);
+      const cached = this.views.get(enemy.level);
+      if (cached !== undefined) return cached;
+      const { view } = evaluateEffects(this.db, this.tags, [], {
+        baseStats: { "STAT-ACCURACY": enemyAccuracy(enemy.level) },
+      });
+      this.views.set(enemy.level, view);
+      return view;
+    }
+    const hit = this.statusViews.get(enemy.id);
+    if (hit?.version === statuses.version) return hit.view;
+    const { view } = evaluateEffects(this.db, this.tags, statuses.instances(), {
+      baseStats: { "STAT-ACCURACY": enemyAccuracy(enemy.level) },
     });
-    this.views.set(level, view);
+    this.statusViews.set(enemy.id, { version: statuses.version, view });
     return view;
   }
 
+  /**
+   * 一定時間の効果の評価を、渡した敵（場に出ていて倒れていない敵）の分だけ残し、他を消す。
+   * Map の削除だけで、例外は起きない。
+   */
+  retain(enemies: Iterable<Enemy>): void {
+    if (this.statusViews.size === 0) return;
+    const keep = new Set<string>();
+    for (const e of enemies) if (e.state !== "dead") keep.add(e.id);
+    for (const id of this.statusViews.keys()) if (!keep.has(id)) this.statusViews.delete(id);
+  }
+
+  /** 一定時間の効果の評価を残している敵の ID（確認用）。 */
+  cachedStatusViews(): readonly string[] {
+    return [...this.statusViews.keys()];
+  }
+
+  /** 攻撃する側。攻撃の強さには、敵にかかっている衰弱（与えるダメージの低下）を含める。 */
   attacker(enemy: Enemy, attack: EnemyAttackDef): DamageAttacker {
-    const amount = enemyAttackDamage(attack, enemy.rank, enemy.level);
+    const amount =
+      enemyAttackDamage(attack, enemy.rank, enemy.level) *
+      enemy.combatant.ailments.dealtMultiplier(enemy.combatant.isBoss);
     return {
       db: this.db,
-      view: this.view(enemy.level),
+      view: this.view(enemy),
       characterLevel: 1,
       weapon: {
         uid: `${enemy.id}:${attack.id}`,

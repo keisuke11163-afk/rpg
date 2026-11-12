@@ -93,6 +93,13 @@ interface SkillState {
   uses: Record<string, number>;
   buffs: string[];
   cooldowns: Record<string, number>;
+  job: string;
+  jobLevel: number;
+  jobLevels: Record<string, number>;
+  level: number;
+  xp: number;
+  traps: number;
+  smokes: number;
 }
 interface EnemyInfo {
   id: string;
@@ -127,6 +134,7 @@ type DebugWindow = {
     enemies: () => EnemyInfo[];
     playerState: () => PlayerCombat;
     spawnEnemy: (id: string) => string;
+    grantXp: (value: number) => number;
     setFrameDeltaMs: (ms: number | null) => void;
   };
 };
@@ -323,8 +331,8 @@ try {
   await clickDummy();
   const d1 = await dummy();
   check(
-    "通常攻撃で人形のHPが減る（下級の大剣 14–24、会心で×1.5）",
-    d1.hits === d0.hits + 1 && d1.lastDamage >= 14 && d1.lastDamage <= 36 && d1.hp < d0.hp,
+    "通常攻撃で人形のHPが減る（下級の大剣 14–24、技レベル3・剛20、会心で×1.5）",
+    d1.hits === d0.hits + 1 && d1.lastDamage >= 14 && d1.lastDamage <= 39 && d1.hp < d0.hp,
     `ヒット ${String(d1.hits - d0.hits)}回・ダメージ ${d1.lastDamage.toFixed(1)}・HP ${d0.hp.toFixed(0)} → ${d1.hp.toFixed(0)}`,
   );
   check("正面からのヒットは背面ではない", !d1.lastBackstab, `背面 ${String(d1.lastBackstab)}`);
@@ -446,6 +454,62 @@ try {
   const charged = afterCharge.x - beforeCharge.x;
   check("1キーで突進（右へ約8m）", charged > 7 && charged < 8.6, `右へ ${charged.toFixed(2)}m`);
 
+  // 転職と盗賊（仕様書5.1・5.6）
+  await waitIdle();
+  const sw = await skills();
+  await page.keyboard.press("KeyG");
+  await page.waitForTimeout(100);
+  const sr = await skills();
+  check(
+    "Gで転職：盗賊になり、ジョブLvは混ざらない（戦士はLv15のまま、盗賊はLv1から）",
+    sr.job === "JOB-ROGUE" &&
+      sr.jobLevel === 1 &&
+      sr.jobLevels["JOB-WARRIOR"] === sw.jobLevel &&
+      sr.weapon === "test-dagger",
+    `ジョブ ${sw.job} → ${sr.job}・ジョブLv ${JSON.stringify(sr.jobLevels)}・武器 ${sr.weapon}`,
+  );
+  await page.evaluate(
+    (v: number) => (window as unknown as DebugWindow).__STELLA_DEBUG__.grantXp(v),
+    30000,
+  );
+  const sg = await skills();
+  check(
+    "経験値は、キャラLvとメインジョブだけに入る（追いつき補正で盗賊は×2）",
+    sg.level > sr.level &&
+      sg.jobLevels["JOB-WARRIOR"] === sw.jobLevel &&
+      sg.jobLevel > sg.level - 5,
+    `キャラLv ${String(sr.level)} → ${String(sg.level)}・ジョブLv ${JSON.stringify(sg.jobLevels)}`,
+  );
+  await walkTo(d0.x - 1.2, d0.y);
+  await waitIdle();
+  const r0 = await dummy();
+  await clickDummy("right");
+  await waitIdle();
+  const r1 = await dummy();
+  const sc = await skills();
+  check(
+    "右クリックで連刃：短剣は3連撃、コンボ点+1",
+    r1.hits === r0.hits + 3 && sc.fervor === 1,
+    `ヒット ${String(r1.hits - r0.hits)}回・コンボ点 ${String(sc.fervor)}`,
+  );
+  await keyAtDummy("Digit1");
+  await waitIdle();
+  const r2 = await dummy();
+  const sp = await skills();
+  check(
+    "1キーで急所穿ち：コンボ点を全て使う",
+    r2.hits === r1.hits + 1 && sp.fervor === 0 && sp.lastSkill === "SKL-ROGUE-PIERCE",
+    `ヒット ${String(r2.hits - r1.hits)}回・コンボ点 ${String(sp.fervor)}・ダメージ ${r2.lastDamage.toFixed(1)}`,
+  );
+  await keyAtDummy("Digit2", 600);
+  const pt = await player();
+  const dd = await dummy();
+  check(
+    "2キーで影走り：人形の背後（右側）へ瞬間移動",
+    pt.x > dd.x + 0.5 && Math.abs(pt.y - dd.y) < 0.5,
+    `プレイヤー (${pt.x.toFixed(2)}, ${pt.y.toFixed(2)})・人形 (${dd.x.toFixed(1)}, ${dd.y.toFixed(1)})`,
+  );
+
   // 16〜19. 敵（補助仕様書10章）
   const enemies = (): Promise<EnemyInfo[]> =>
     page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.enemies());
@@ -474,6 +538,8 @@ try {
 
   // 棘鼠：気づいて近づいてくる → 通常攻撃で倒す
   await waitIdle();
+  const xpBeforeRat = (await skills()).xp;
+  const levelBeforeRat = (await skills()).level;
   const ratId = await spawn("ENM-THORN-RAT");
   await page.waitForTimeout(500);
   const rat0 = await enemy(ratId);
@@ -489,8 +555,11 @@ try {
   await page.waitForTimeout(700);
   const afterRat = await combat();
   check(
-    "敵は視界に入ると気づいて追い、攻撃を受けると倒れる",
-    rat0 !== undefined && rat0.state !== "idle" && afterRat.kills > before.kills,
+    "敵は視界に入ると気づいて追い、攻撃を受けると倒れる（経験値を得る）",
+    rat0 !== undefined &&
+      rat0.state !== "idle" &&
+      afterRat.kills > before.kills &&
+      ((await skills()).xp > xpBeforeRat || (await skills()).level > levelBeforeRat),
     `気づいた後の状態 ${rat0?.state ?? "なし"}・倒した数 ${String(before.kills)} → ${String(afterRat.kills)}・プレイヤーのヒット ${String(afterRat.enemyHits - before.enemyHits)}`,
   );
 

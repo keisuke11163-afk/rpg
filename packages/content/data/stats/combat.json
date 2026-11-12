@@ -182,5 +182,15 @@
     "id": "STAT-STAGGER-TAKEN",
     "text": "stat.stagger-taken",
     "unit": "ratio"
+  },
+  {
+    "id": "STAT-MINION-HP",
+    "text": "stat.minion-hp",
+    "unit": "ratio"
+  },
+  {
+    "id": "STAT-EFFECT-DURATION",
+    "text": "stat.effect-duration",
+    "unit": "ratio"
   }
 ]

@@ -85,6 +85,8 @@ export interface FieldEnemy {
 export interface FieldHooks {
   onPlayerHit(report: HitReport, enemy: Enemy, attack: EnemyAttackDef): void;
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
+  /** 敵が倒れた（経験値を得る）。1体につき1回だけ、場の更新を全て反映した後に呼ぶ。 */
+  onEnemyKilled(enemy: Enemy): void;
 }
 
 /**
@@ -214,8 +216,10 @@ export class EnemyField {
    *    投射物の更新（相手の位置・半径の合計）と、敵が出しうる投射物・雲の値を検証する。
    *    どれかが失敗すれば RangeError で、何も変わらない（後ろの敵の失敗で前の敵が進むことはない）。
    * 2. 場の反映：検証済みの計画と値だけを使い、例外は起きない。
-   * 3. プレイヤーへの影響：場を全て反映し終えてから、攻撃のヒット（resolveHit と hooks）と雲の状態異常を、
-   *    起きた順（敵の順の攻撃 → 投射物 → 雲）にプレイヤーへ与える。ここ（プレイヤーの計算や hooks）で
+   *    この刻みで倒れる敵（まだ倒れた状態でなく、計画の HP が0以下）も、ここで決める。
+   * 3. プレイヤーへの影響：場を全て反映し終えてから、攻撃のヒット（resolveHit と hooks）・敵が倒れたこと
+   *    （hooks.onEnemyKilled。経験値）・雲の状態異常を、起きた順（敵の順の攻撃と倒れたこと → 投射物 → 雲）に
+   *    プレイヤーへ与える。段階1で失敗すれば、onEnemyKilled も呼ばれない（経験値も入らない）。ここ（プレイヤーの計算や hooks）で
    *    例外になった場合も、場はこの刻みを全て終えた状態で、それより後のプレイヤーへの影響だけが与えられない。
    *
    * 敵の行動はプレイヤーの状態を刻みの始めの値（target）でしか見ないので、プレイヤーへの影響を後に回しても
@@ -230,7 +234,17 @@ export class EnemyField {
   ): void {
     const plan = this.plan(dt, player);
     const effects = this.commit(plan, player, facing);
-    this.applyToPlayer(effects, player, invulnerable, hooks);
+    try {
+      this.applyToPlayer(effects, player, invulnerable, hooks);
+    } finally {
+      // 倒れた・消えた敵の、攻撃の命中の評価を消す（倒れた敵の投射物が段階3で当たって作った分も含む）
+      this.attackers.retain(this.enemies);
+    }
+  }
+
+  /** 攻撃の命中の評価を残している敵の ID（確認用）。 */
+  cachedStatusViews(): readonly string[] {
+    return this.attackers.cachedStatusViews();
   }
 
   /** 1. 計画と検証（場もプレイヤーも変えない）。 */
@@ -244,7 +258,9 @@ export class EnemyField {
       const enemy = v.enemy.planUpdate(dt);
       const deadFor = requireFinite(v.deadFor + dt, `敵 ${v.enemy.id} の倒れてからの時間`);
       checkAttacks(v.enemy, player);
-      return { enemy, deadFor };
+      // この刻みで倒れるか（倒れた状態になるのは、計画の HP が0以下のときだけ。Enemy.commitUpdate を参照）
+      const killed = v.enemy.state !== "dead" && enemy.combatant.health.hp <= 0;
+      return { enemy, deadFor, killed };
     });
     // 胞子の雲：残り時間と、次に状態異常を付けるまでの時間
     const clouds = this.cloudList.map((c) => {
@@ -321,6 +337,7 @@ export class EnemyField {
         }
       }
       if (e.state === "dead") v.deadFor = p.deadFor;
+      if (p.killed) effects.push({ type: "killed", enemy: e });
     });
     separate(this.enemies);
 
@@ -389,6 +406,10 @@ export class EnemyField {
         player.ailments.apply(ef.application);
         continue;
       }
+      if (ef.type === "killed") {
+        hooks.onEnemyKilled(ef.enemy);
+        continue;
+      }
       if (invulnerable) {
         hooks.onAvoided(ef.enemy, ef.attack);
         continue;
@@ -433,7 +454,12 @@ export class EnemyField {
 interface FieldPlan {
   readonly dt: number;
   /** views と同じ順。 */
-  readonly enemies: readonly { readonly enemy: EnemyUpdatePlan; readonly deadFor: number }[];
+  readonly enemies: readonly {
+    readonly enemy: EnemyUpdatePlan;
+    readonly deadFor: number;
+    /** この刻みで倒れる（hooks.onEnemyKilled を1回呼ぶ）。 */
+    readonly killed: boolean;
+  }[];
   /** cloudList と同じ順（この刻みの前からある雲）。 */
   readonly clouds: readonly {
     readonly remaining: number;
@@ -445,6 +471,7 @@ interface FieldPlan {
 /** 場を反映した後に、プレイヤーへ与えるもの。 */
 type PlayerEffect =
   | { readonly type: "hit"; readonly enemy: Enemy; readonly attack: EnemyAttackDef }
+  | { readonly type: "killed"; readonly enemy: Enemy }
   | { readonly type: "ailment"; readonly application: AilmentApplication };
 
 function playerTarget(player: Combatant): ProjectileTarget {

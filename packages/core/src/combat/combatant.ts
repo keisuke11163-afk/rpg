@@ -207,6 +207,10 @@ export interface HitInput {
   readonly roll?: "random" | "average";
   /** 当てたら、崩しゲージを満タンにする（激化した突進）。 */
   readonly fullStagger?: boolean;
+  /** 必ず会心にする（急所穿ちの5点）。 */
+  readonly forceCrit?: boolean;
+  /** 背面からのヒットの補正（メインジョブの職能。盗賊は会心率+10%・付与率+25%。仕様書5.6）。 */
+  readonly backstabBonus?: { readonly critChance: number; readonly ailmentChance: number };
 }
 
 /** 1回のヒットの結果（表示・記録用）。 */
@@ -244,7 +248,14 @@ export function resolveHit(input: HitInput): HitReport {
       evasion: target.evasion,
       takenMultiplier: target.takenMultiplier,
     },
-    { rng, ...(input.roll === undefined ? {} : { roll: input.roll }) },
+    {
+      rng,
+      ...(input.roll === undefined ? {} : { roll: input.roll }),
+      ...(backstab && input.backstabBonus !== undefined
+        ? { extraCritChance: input.backstabBonus.critChance }
+        : {}),
+      ...(input.forceCrit === true ? { forceCrit: true } : {}),
+    },
   );
   // 1. 計算と検証（受ける側の状態は変えない）
   // 経過時間0で進めるのは、takeDamage(hit.total) と同じ結果（Health.planUpdate を参照）
@@ -258,6 +269,9 @@ export function resolveHit(input: HitInput): HitReport {
     tags,
     ...(input.skillChance === undefined ? {} : { skillChance: input.skillChance }),
     ...(weaponUid === undefined ? {} : { weaponUid }),
+    ...(backstab && input.backstabBonus !== undefined
+      ? { extraChance: input.backstabBonus.ailmentChance }
+      : {}),
     rng,
   });
   const ailmentPlans = ailments.map((a) => target.ailments.planApply(a));

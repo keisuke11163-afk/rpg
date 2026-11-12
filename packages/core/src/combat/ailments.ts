@@ -178,6 +178,8 @@ export interface AilmentRollInput {
   /** 技の基本付与率（状態異常のタグのID → 0〜1）。書かれていない種類は0（仕様書v0.2 2.7）。 */
   readonly skillChance?: Readonly<Partial<Record<string, number>>>;
   readonly weaponUid?: string;
+  /** 全ての種類の付与率に足す値（例：盗賊の背面判定の+25%。仕様書5.6）。 */
+  readonly extraChance?: number;
   readonly rng: Rng;
 }
 
@@ -222,8 +224,11 @@ export function ailmentCandidates(input: Omit<AilmentRollInput, "rng">): Ailment
     const chanceSums = sums(view.stat(AILMENT_STATS.chance, context, scope), `${def.id} の付与率`);
     const flag = view.flag("ailmentApply", def.tag, hitTags, scope).resolution;
     // 付与率は、強制・禁止の印の有無にかかわらず検証する（印で NaN・Infinity を見逃さないため。U-04a の会心率と同じ）
+    // extraChance：全ての付与率への加算（盗賊の背面判定の補正・毒塗りなど。U-10）
     const rawChance = finite(
-      finite(skillChance?.[def.tag] ?? 0, `${def.id} の技の基本付与率`) + chanceSums.added,
+      finite(skillChance?.[def.tag] ?? 0, `${def.id} の技の基本付与率`) +
+        chanceSums.added +
+        finite(input.extraChance ?? 0, `${def.id} の付与率への加算`),
       `${def.id} の付与率`,
     );
     const chance =

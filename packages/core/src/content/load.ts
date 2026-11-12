@@ -671,6 +671,28 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         refCheck(effectMap, "効果", e, file, skill.id, `action.enemyEffects.${String(i)}`);
       });
     }
+    if (skill.action.type === "selfBuff") {
+      skill.action.effects.forEach((e, i) => {
+        refCheck(effectMap, "効果", e, file, skill.id, `action.effects.${String(i)}`);
+      });
+    }
+    if (skill.action.type === "zone") {
+      (skill.action.enemyEffects ?? []).forEach((e, i) => {
+        refCheck(effectMap, "効果", e, file, skill.id, `action.enemyEffects.${String(i)}`);
+      });
+      const tagId = skill.action.ailment;
+      if (tagId !== undefined) {
+        tagOf(tagId, ["ailment"], file, skill.id, "action.ailment");
+        if (tagMap.has(tagId) && !ailmentsByTag.has(tagId))
+          err({
+            code: "unknown-ref",
+            file,
+            id: skill.id,
+            path: "action.ailment",
+            message: `状態異常 ${tagId} の定義がない`,
+          });
+      }
+    }
     (skill.selfEffects ?? []).forEach((e, i) => {
       refCheck(effectMap, "効果", e.effect, file, skill.id, `selfEffects.${String(i)}.effect`);
     });
