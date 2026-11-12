@@ -1,0 +1,7 @@
+{
+  "note": "性能の目標（開発計画書 T16）。仕様書9章に目標が無いので、暫定の値（docs/progress D-FIN-6）。値はここだけで変える",
+  "targetFps": 60,
+  "logicShareOfFrame": 0.25,
+  "browserMinFpsRatio": 0.95,
+  "browserMaxSlowFrameRatio": 0.01
+}

@@ -1,6 +1,6 @@
 /**
  * 性能の計測（pnpm perf。開発計画書 T16）：投射物・敵・状態異常が多い場面で、ゲームの計算の1刻みにかかる時間を測る。
- * 描画の時間は含まない。目標のフレームレートは仕様書9章に無いので、数値を出すだけで合否は決めない。
+ * 描画の時間は含まない。目標（src/bench/perf-targets.json。暫定で60fps。D-FIN-6）に対する合否も出し、不合格なら終了コード1。
  *
  *   pnpm perf                     … 敵30体を足して60秒
  *   pnpm perf -- --enemies 60     … 足す敵の数
@@ -8,7 +8,7 @@
  */
 import { loadGameContent } from "@stella/content";
 import { BENCH_BUILDS } from "../src/bench/builds.ts";
-import { runPerfBench } from "../src/bench/perf-bench.ts";
+import { PERF_TARGETS, logicVerdict, runPerfBench } from "../src/bench/perf-bench.ts";
 
 function arg(name: string, fallback: number): number {
   const i = process.argv.indexOf(`--${name}`);
@@ -23,7 +23,7 @@ if (build === undefined) throw new Error("ビルド rogue-bleed-myriad が無い
 const extraEnemies = arg("enemies", 30);
 const seconds = arg("seconds", 60);
 const r = runPerfBench(db, build, { extraEnemies, seconds });
-const FRAME_MS = 1000 / 60;
+const FRAME_MS = 1000 / PERF_TARGETS.targetFps;
 const f = (n: number): string => n.toFixed(3);
 console.log(
   `■ 性能（深淵の母樹の間＋敵${String(extraEnemies)}体・${String(seconds)}秒・${build.name}）`,
@@ -37,3 +37,8 @@ console.log(
 console.log(
   `  場面の重さ（最大）：敵 ${String(r.peakEnemies)}体・敵の投射物 ${String(r.peakProjectiles)}個・状態異常の種類の合計 ${String(r.peakAilmentTypes)}・胞子の雲 ${String(r.peakClouds)}個`,
 );
+const verdict = logicVerdict(r.p99Ms);
+console.log(
+  `  合否（目標 ${String(PERF_TARGETS.targetFps)}fps・計算は1フレームの${String(PERF_TARGETS.logicShareOfFrame * 100)}%＝${verdict.budgetMs.toFixed(2)}ms 以内〔99%の刻み〕）：${verdict.ok ? "合格" : "不合格"}`,
+);
+if (!verdict.ok) process.exitCode = 1;

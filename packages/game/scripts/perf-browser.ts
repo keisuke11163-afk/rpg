@@ -3,7 +3,7 @@
  * 開発サーバーでゲームを開き、開発用の試験用の場に敵をまとめて出して、フレームの間隔を測る。
  *
  * 注意：この環境のブラウザは画面の無い Chromium（GPU を使わないソフトウェアの描画）なので、
- * 実際の PC より遅めに出る。比べるための目安で、合否は決めない（目標のフレームレートは仕様書9章に無い）。
+ * 実際の PC より遅めに出る。目標（src/bench/perf-targets.json。暫定で60fps。D-FIN-6）に対する合否も出す。
  * Playwright は、この開発環境に入っているものを使う。CI では実行しない。
  *
  *   pnpm perf:browser                  … 敵40体
@@ -12,6 +12,7 @@
 import { createRequire } from "node:module";
 import { createServer } from "vite";
 import { fileURLToPath } from "node:url";
+import { PERF_TARGETS, browserVerdict } from "../src/bench/perf-bench.ts";
 
 interface Page {
   goto(url: string): Promise<unknown>;
@@ -135,6 +136,14 @@ try {
     () => (window as unknown as Debug).__STELLA_DEBUG__.region().id,
   );
   summary(`敵を${String(count)}体足した後（場の敵 ${String(alive)}体・地域 ${region}）`, frames);
+  // 敵をまとめて出した直後の1秒は、出現の処理の重さなので合否に入れない
+  let skipped = 0;
+  const judged = frames.filter((f) => (skipped += f) > 1000);
+  const v = browserVerdict(judged);
+  console.log(
+    `  合否（目標 ${String(PERF_TARGETS.targetFps)}fps の${String(PERF_TARGETS.browserMinFpsRatio * 100)}%以上・30fps 未満のフレーム ${String(PERF_TARGETS.browserMaxSlowFrameRatio * 100)}%以下。出した直後の1秒を除く）：${v.ok ? "合格" : "不合格"}（${v.fps.toFixed(1)}fps・${(v.slowRatio * 100).toFixed(1)}%）`,
+  );
+  if (!v.ok) process.exitCode = 1;
   if (errors.length > 0) {
     console.error(`ページのエラー：\n${errors.join("\n")}`);
     process.exitCode = 1;

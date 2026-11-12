@@ -14,6 +14,44 @@ import type { InputFrame } from "../input/frame.ts";
 import type { ArenaSimulation } from "../scenes/arena-simulation.ts";
 import { toPixels } from "../world/units.ts";
 import { type BenchBuild, chooseSkill, prepareBench } from "./boss-bench.ts";
+import targets from "./perf-targets.json" with { type: "json" };
+
+/** 性能の目標（perf-targets.json。docs/progress D-FIN-6）。 */
+export interface PerfTargets {
+  /** 目標のフレームレート。 */
+  readonly targetFps: number;
+  /** 1フレームのうち、ゲームの計算（描画を除く）に使ってよい割合（99%の刻みで判定）。 */
+  readonly logicShareOfFrame: number;
+  /** 描画を含めた平均のフレームレートが、目標の何割以上なら合格か。 */
+  readonly browserMinFpsRatio: number;
+  /** 30fps を下回ったフレームの割合の上限。 */
+  readonly browserMaxSlowFrameRatio: number;
+}
+export const PERF_TARGETS: PerfTargets = targets;
+
+/** ゲームの計算の合否：99%の刻みの時間が、1フレームの決まった割合以内か。 */
+export function logicVerdict(
+  p99Ms: number,
+  t: PerfTargets = PERF_TARGETS,
+): { readonly ok: boolean; readonly budgetMs: number } {
+  const budgetMs = (1000 / t.targetFps) * t.logicShareOfFrame;
+  return { ok: p99Ms <= budgetMs, budgetMs };
+}
+
+/** 描画を含めた合否：平均のフレームレートと、30fps を下回ったフレームの割合。 */
+export function browserVerdict(
+  frameMs: readonly number[],
+  t: PerfTargets = PERF_TARGETS,
+): { readonly ok: boolean; readonly fps: number; readonly slowRatio: number } {
+  const mean = frameMs.reduce((a, b) => a + b, 0) / Math.max(1, frameMs.length);
+  const fps = mean > 0 ? 1000 / mean : 0;
+  const slowRatio = frameMs.filter((f) => f > 1000 / 30).length / Math.max(1, frameMs.length);
+  return {
+    ok: fps >= t.targetFps * t.browserMinFpsRatio && slowRatio <= t.browserMaxSlowFrameRatio,
+    fps,
+    slowRatio,
+  };
+}
 
 export interface PerfOptions {
   /** 測る秒数（ゲームの中の時間）。 */

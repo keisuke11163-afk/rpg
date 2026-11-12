@@ -45,6 +45,32 @@ describe("ボスの撃破時間の計測", () => {
   }, 60_000);
 });
 
+describe("完成の条件3：深淵の母樹に、まったく違う3つのビルドで勝てる（ボットでの自動の確認。docs/progress D-FIN-7）", () => {
+  // 武器（短剣・大斧・素手と盾）・ジョブ（盗賊・戦士）・天極・ダメージの出し方（状態異常・重い一撃・反撃の毒）が全て違う
+  const THREE = [
+    "rogue-bleed-myriad",
+    "warrior-heavy-greataxe",
+    "warrior-bare-hands-bark",
+  ] as const;
+  for (const id of THREE)
+    it(`${id}：3つのシードで、倒れずに倒せる（180秒以内）`, () => {
+      const build = BENCH_BUILDS.find((b) => b.id === id);
+      if (build === undefined) throw new Error(`ビルド ${id} が無い`);
+      for (const seed of ["s1", "s2", "s3"]) {
+        const r = runBossBench(db, build, {
+          region: "REGION-A5-BOSS",
+          invincible: false,
+          seconds: 180,
+          seed,
+        });
+        expect(r.boss).toBe("ENM-ABYSS-MOTHER-TREE");
+        expect(r.deaths, `${id} ${seed}`).toBe(0);
+        // 撃破時間の目標（60〜120秒）は標準のビルドのもの（上の盗賊のテスト）。ここは「勝てる」だけを確かめる
+        expect(r.killTime, `${id} ${seed}`).toBeDefined();
+      }
+    }, 120_000);
+});
+
 describe("力の配分の計測（仕様書v0.2 1.4・T15）", () => {
   const build = BENCH_BUILDS.find((b) => b.id === "rogue-bleed-myriad");
   if (build === undefined) throw new Error("ビルドが無い");
