@@ -54,6 +54,8 @@ export interface BenchOptions {
   /** 予兆を見て回避する（省略すると、攻撃面だけを測るときは回避しない）。 */
   readonly dodge?: boolean;
   readonly seed?: string;
+  /** 職能ゲージを使わない（毎刻み空にする。力の配分の「ジョブなし」の計測。T15）。 */
+  readonly noGauge?: boolean;
 }
 
 export interface BenchResult {
@@ -398,6 +400,7 @@ export function runBossBench(
     const hpAfter = sim.player.health.hp + sim.player.health.ward;
     if (hpAfter < hpBefore) taken += hpBefore - hpAfter;
     if (invincible) sim.player.health.restoreFull();
+    if (options.noGauge === true) sim.jobGauge.spend("all");
     t += STEP;
     if (boss.state === "dead") {
       killTime = t;
@@ -440,4 +443,58 @@ function takenBreakdown(sim: ArenaSimulation, total: number, t: number): Record<
   }
   out["持続ほか"] = Math.max(0, total - hits) / seconds;
   return out;
+}
+
+/**
+ * ユニークのベースを、同じ分類・同じタグの下級の通常のベースに置き換える（力の配分の「装備なし」。T15）。
+ * 通常のベースはそのまま返す。
+ */
+export function plainBase(db: ContentDb, baseId: string): string {
+  const def = db.itemBases.get(baseId);
+  if (def === undefined) throw new RangeError(`ベース ${baseId} が無い`);
+  if (def.unique === undefined) return baseId;
+  const key = [...def.tags].sort().join(",");
+  for (const b of db.itemBases.values()) {
+    if (b.unique !== undefined || b.category !== def.category || b.tier !== 1) continue;
+    if ([...b.tags].sort().join(",") === key) return b.id;
+  }
+  throw new RangeError(`${baseId} の代わりの通常のベースが無い`);
+}
+
+/** 力の配分（仕様書v0.2 1.4・開発計画書 T15）を測るときの、外すもの。 */
+export type ContributionPart = "equipment" | "tree" | "job";
+
+/**
+ * 1つの力の源を外したビルドと計測の設定（仕様書v0.2 1.4【v0.2】の測り方）。
+ * - 装備（基礎＋詞＋固有）：詞・強化を外し、ユニークを同じ種類の下級の通常のベースにする。
+ *   武器・防具の種類（基礎）は残す（外すと技の形・適性そのものが変わり、別のビルドになるため）
+ * - ツリー：星辰盤を全て外す（MVPに流派盤は無い）
+ * - ジョブ（職技・職紋盤・職能ゲージ）：職紋盤を外し、技の枠を通常攻撃だけにし、職能ゲージを使わない
+ */
+export function withoutPart(
+  db: ContentDb,
+  build: BenchBuild,
+  part: ContributionPart,
+): { readonly build: BenchBuild; readonly options: BenchOptions } {
+  switch (part) {
+    case "equipment":
+      return {
+        build: {
+          ...build,
+          equipment: build.equipment.map((e) => ({ slot: e.slot, base: plainBase(db, e.base) })),
+        },
+        options: {},
+      };
+    case "tree":
+      return { build: { ...build, stars: [] }, options: {} };
+    case "job":
+      return {
+        build: {
+          ...build,
+          jobNodes: [],
+          skills: ["SKL-BASIC-ATTACK", undefined, undefined, undefined, undefined, undefined],
+        },
+        options: { noGauge: true },
+      };
+  }
 }
