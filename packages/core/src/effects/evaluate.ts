@@ -29,6 +29,11 @@ export interface EffectInstance {
    * 0のときは、その効果は何も効かない（全ての種類の修正値を無視し、有効な効果の一覧にも入れない）。
    */
   readonly stacks?: number;
+  /**
+   * 修正値ごとの値の差し替え（修正値の並びの番号 → 値）。詞の値はアイテムごとに抽選で決まるため、
+   * データの効果は値の型だけを持ち、アイテムの値をここで渡す（U-11）。
+   */
+  readonly values?: readonly (number | Range | undefined)[];
 }
 
 /** 条件の判定に使う、効果の外の事実（装備・ジョブなど）。呼び出す側が数えて渡す。 */
@@ -273,6 +278,33 @@ function mid(r: Range): number {
 }
 
 /** 修正値の集まりに対する問い合わせ。 */
+/**
+ * 修正値の値を、効果の実体ごとの値（詞の値。U-11）で差し替える。差し替えは、値を持つ修正値だけで、
+ * 元の値と同じ形（1つの数か、最小・最大の範囲か）のときだけ受け付ける（形が違えば RangeError）。
+ * 値の有限性などの検証は、差し替えた後の値に対して scaledValue が行う。
+ */
+function withOverride(
+  original: Modifier,
+  override: number | Range | undefined,
+  effectId: string,
+  index: number,
+): Modifier {
+  if (override === undefined) return original;
+  if (!("value" in original))
+    throw new RangeError(
+      `効果 ${effectId} の修正値 ${String(index)} は値を持たないので、差し替えられない`,
+    );
+  if (typeof original.value !== typeof override)
+    throw new RangeError(
+      `効果 ${effectId} の修正値 ${String(index)} の差し替えの値の形が違う（${typeof original.value} と ${typeof override}）`,
+    );
+  if (typeof override === "object" && !(override.min <= override.max))
+    throw new RangeError(
+      `効果 ${effectId} の修正値 ${String(index)} の差し替えの範囲が正しくない（${String(override.min)}〜${String(override.max)}）`,
+    );
+  return { ...original, value: override } as Modifier;
+}
+
 export class ModifierView {
   private readonly db: ContentDb;
   private readonly tags: TagIndex;
@@ -300,7 +332,8 @@ export class ModifierView {
       // 重ねた数が0の効果は、どの種類の修正値も登録しない（印・置き換え・上書き・挙動・付け替え・上限も含めて、
       // 何も効かない。上限が0になるなどの副作用も起きない）
       if (stacks === 0) continue;
-      for (const mod of effect.modifiers) {
+      for (const [index, original] of effect.modifiers.entries()) {
+        const mod = withOverride(original, instance.values?.[index], effect.id, index);
         const entry: Entry = {
           mod,
           effect,

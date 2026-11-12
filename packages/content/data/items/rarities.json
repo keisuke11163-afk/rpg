@@ -1,0 +1,52 @@
+[
+  {
+    "id": "RARITY-NORMAL",
+    "rarity": "normal",
+    "text": "item.rarity.normal",
+    "weight": 66,
+    "affixes": {
+      "min": 0,
+      "max": 0
+    }
+  },
+  {
+    "id": "RARITY-MAGIC",
+    "rarity": "magic",
+    "text": "item.rarity.magic",
+    "weight": 26,
+    "affixes": {
+      "min": 1,
+      "max": 2
+    }
+  },
+  {
+    "id": "RARITY-RARE",
+    "rarity": "rare",
+    "text": "item.rarity.rare",
+    "weight": 7,
+    "affixes": {
+      "min": 3,
+      "max": 6
+    }
+  },
+  {
+    "id": "RARITY-UNIQUE",
+    "rarity": "unique",
+    "text": "item.rarity.unique",
+    "weight": 0.8,
+    "affixes": {
+      "min": 0,
+      "max": 0
+    }
+  },
+  {
+    "id": "RARITY-SET",
+    "rarity": "set",
+    "text": "item.rarity.set",
+    "weight": 0.2,
+    "affixes": {
+      "min": 0,
+      "max": 0
+    }
+  }
+]

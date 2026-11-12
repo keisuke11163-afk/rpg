@@ -12,7 +12,14 @@ import enemyRanks from "../data/enemies/ranks.json" with { type: "json" };
 import attributeEffects from "../data/effects/attributes.json" with { type: "json" };
 import rogueEffects from "../data/effects/rogue.json" with { type: "json" };
 import warriorEffects from "../data/effects/warrior.json" with { type: "json" };
+import affixEffects from "../data/effects/affixes.json" with { type: "json" };
+import implicitEffects from "../data/effects/implicits.json" with { type: "json" };
 import gauges from "../data/gauges/gauges.json" with { type: "json" };
+import affixes from "../data/items/affixes.json" with { type: "json" };
+import itemBases from "../data/items/bases.json" with { type: "json" };
+import dropProfiles from "../data/items/drops.json" with { type: "json" };
+import materials from "../data/items/materials.json" with { type: "json" };
+import rarities from "../data/items/rarities.json" with { type: "json" };
 import jobDefs from "../data/jobs/jobs.json" with { type: "json" };
 import manifest from "../data/manifest.json" with { type: "json" };
 import commonSkills from "../data/skills/common.json" with { type: "json" };
@@ -46,6 +53,8 @@ export const rawContent: RawContent = {
       { file: "data/effects/attributes.json", entries: attributeEffects },
       { file: "data/effects/warrior.json", entries: warriorEffects },
       { file: "data/effects/rogue.json", entries: rogueEffects },
+      { file: "data/effects/implicits.json", entries: implicitEffects },
+      { file: "data/effects/affixes.json", entries: affixEffects },
     ],
     ailments: [{ file: "data/ailments/ailments.json", entries: ailmentDefs }],
     skills: [
@@ -57,6 +66,11 @@ export const rawContent: RawContent = {
     jobs: [{ file: "data/jobs/jobs.json", entries: jobDefs }],
     enemies: [{ file: "data/enemies/chapter1.json", entries: chapter1Enemies }],
     enemyRanks: [{ file: "data/enemies/ranks.json", entries: enemyRanks }],
+    rarities: [{ file: "data/items/rarities.json", entries: rarities }],
+    itemBases: [{ file: "data/items/bases.json", entries: itemBases }],
+    affixes: [{ file: "data/items/affixes.json", entries: affixes }],
+    materials: [{ file: "data/items/materials.json", entries: materials }],
+    dropProfiles: [{ file: "data/items/drops.json", entries: dropProfiles }],
   },
 };
 
@@ -75,6 +89,11 @@ export function registeredDataFiles(): string[] {
       ...(c.jobs ?? []),
       ...(c.enemies ?? []),
       ...(c.enemyRanks ?? []),
+      ...(c.rarities ?? []),
+      ...(c.itemBases ?? []),
+      ...(c.affixes ?? []),
+      ...(c.materials ?? []),
+      ...(c.dropProfiles ?? []),
     ].map((s) => s.file),
   ];
 }

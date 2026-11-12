@@ -1,0 +1,92 @@
+[
+  {
+    "id": "EFF-IMP-ACCURACY-40",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ACCURACY",
+        "value": 40
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-STAGGER-15",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.15
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-IMP-STAGGER-30",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.3
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-IMP-BLEED-CHANCE-10",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-CHANCE",
+        "value": 0.1,
+        "filter": {
+          "allOf": ["TAG-AIL-BLEED"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  },
+  {
+    "id": "EFF-IMP-BLEED-DAMAGE-15",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 0.15,
+        "filter": {
+          "allOf": ["TAG-AIL-BLEED"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "locality": "local"
+  }
+]
