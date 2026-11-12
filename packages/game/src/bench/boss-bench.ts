@@ -210,7 +210,7 @@ export function prepareBench(
  * 使う技を選ぶ：①CDのある技（強化・弱体化・設置など）で使えるもの、②ゲージを全て使う技（終結技・解放技）は
  * ゲージが最大のときだけ、③CDの無い技、④通常攻撃。同じ区分の中は枠の順。
  */
-function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Action } | undefined {
+export function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Action } | undefined {
   const def = (id: string) => db.skills.get(id);
   // 近接の距離では、瞬間移動の技（影走り）は使わない。背面を取る意味が無いとき（影法師など）は無駄になる。
   // 背向けの外套（移動の技の後は全てのヒットが背面）を着ているときだけは使う

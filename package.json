@@ -21,6 +21,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm validate:data && pnpm build && pnpm report:provisional",
     "e2e": "pnpm --filter @stella/game e2e",
     "bench": "pnpm --filter @stella/game bench",
+    "perf": "pnpm --filter @stella/game perf",
+    "perf:browser": "pnpm --filter @stella/game perf:browser",
     "gen:star": "node tools/scripts/gen-star-mvp.ts",
     "drops": "node tools/scripts/drop-rates.ts"
   },
