@@ -319,6 +319,7 @@ export {
   UNMET_REQUIREMENT_MULTIPLIER,
   basePerformanceMultiplier,
   equipFromInventory,
+  levelMet,
   requirementMet,
   slotsFor,
   unequipToInventory,

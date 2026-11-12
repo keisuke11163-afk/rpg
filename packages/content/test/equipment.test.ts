@@ -16,6 +16,7 @@ import {
   computeHit,
   equipFromInventory,
   evaluateEffects,
+  levelMet,
   requirementMet,
   slotsFor,
   unequipToInventory,
@@ -149,10 +150,10 @@ describe("インベントリとの出し入れ", () => {
     inv.addItem(item("a", "BASE-WPN-LONGSWORD-T1"));
     inv.addItem(item("b", "BASE-WPN-AXE-T1"));
     inv.addItem(item("g", "BASE-WPN-GREATSWORD-T1"));
-    expect(equipFromInventory(inv, eq, "a", "mainHand", true)).toBe(true);
-    expect(equipFromInventory(inv, eq, "b", "offHand", true)).toBe(true);
+    expect(equipFromInventory(inv, eq, "a", "mainHand", true, 1)).toBe(true);
+    expect(equipFromInventory(inv, eq, "b", "offHand", true, 1)).toBe(true);
     expect(inv.items.map((i) => i.uid)).toEqual(["g"]);
-    expect(equipFromInventory(inv, eq, "g", "mainHand", true)).toBe(true);
+    expect(equipFromInventory(inv, eq, "g", "mainHand", true, 1)).toBe(true);
     expect(inv.items.map((i) => i.uid).sort()).toEqual(["a", "b"]);
     expect(eq.get("mainHand")?.uid).toBe("g");
   });
@@ -167,7 +168,7 @@ describe("インベントリとの出し入れ", () => {
       inv.addItem(item(`f${String(i)}`, "BASE-WPN-CLAW-T1"));
     expect(inv.full).toBe(true);
     // 両手武器：1枠空くが、2つ外れる
-    expect(equipFromInventory(inv, eq, "g", "mainHand", true)).toBe(false);
+    expect(equipFromInventory(inv, eq, "g", "mainHand", true, 1)).toBe(false);
     expect(eq.get("mainHand")?.uid).toBe("a");
     expect(eq.get("offHand")?.uid).toBe("b");
     expect(inv.items).toHaveLength(INVENTORY_SLOTS);
@@ -175,14 +176,58 @@ describe("インベントリとの出し入れ", () => {
     expect(unequipToInventory(inv, eq, "mainHand")).toBe(false);
     expect(eq.get("mainHand")?.uid).toBe("a");
     // 片手武器どうしの入れ替えは1枠空いて1つ外れるので、できる
-    expect(equipFromInventory(inv, eq, "f1", "mainHand", true)).toBe(true);
+    expect(equipFromInventory(inv, eq, "f1", "mainHand", true, 1)).toBe(true);
     expect(eq.get("mainHand")?.uid).toBe("f1");
     expect(inv.items.some((i) => i.uid === "a")).toBe(true);
   });
 
   it("インベントリに無い物は RangeError", () => {
     expect(() =>
-      equipFromInventory(new Inventory(), new Equipment(db), "none", "mainHand", true),
+      equipFromInventory(new Inventory(), new Equipment(db), "none", "mainHand", true, 1),
     ).toThrow(RangeError);
+  });
+});
+
+describe("必要Lv（ItemBaseDef.requiredLevel）", () => {
+  // 実際のデータのベースは今は全て必要Lv1なので、長剣を必要Lv10にしたベースを足した db で確かめる
+  const LEVEL10_ID = "BASE-TEST-LONGSWORD-LV10";
+  const level10: ItemBaseDef = {
+    ...base("BASE-WPN-LONGSWORD-T1"),
+    id: LEVEL10_ID,
+    requiredLevel: 10,
+  };
+  const dbLv: ContentDb = {
+    ...db,
+    itemBases: new Map([...db.itemBases, [LEVEL10_ID, level10]]),
+  };
+
+  it("levelMet の境界：必要Lv−1 は届かない、ちょうど・+1 は届く", () => {
+    expect(levelMet(level10, 9)).toBe(false);
+    expect(levelMet(level10, 10)).toBe(true);
+    expect(levelMet(level10, 11)).toBe(true);
+  });
+
+  it("必要Lvに届いていない装備は equipFromInventory で着られず、持ち物も装備も変わらない", () => {
+    const inv = new Inventory();
+    const eq = new Equipment(dbLv);
+    eq.equip(item("a", "BASE-WPN-AXE-T1"), "mainHand", true);
+    inv.addItem(item("h", LEVEL10_ID));
+    inv.addItem(item("x", "BASE-WPN-CLAW-T1"));
+    const invBefore = inv.items.map((i) => i.uid);
+    const eqBefore = eq.entries().map(([s, i]) => [s, i.uid]);
+    expect(equipFromInventory(inv, eq, "h", "mainHand", true, 9)).toBe(false);
+    expect(equipFromInventory(inv, eq, "h", "offHand", true, 9)).toBe(false);
+    expect(inv.items.map((i) => i.uid)).toEqual(invBefore);
+    expect(eq.entries().map(([s, i]) => [s, i.uid])).toEqual(eqBefore);
+  });
+
+  it("必要Lvちょうどなら着られる", () => {
+    const inv = new Inventory();
+    const eq = new Equipment(dbLv);
+    eq.equip(item("a", "BASE-WPN-AXE-T1"), "mainHand", true);
+    inv.addItem(item("h", LEVEL10_ID));
+    expect(equipFromInventory(inv, eq, "h", "mainHand", true, 10)).toBe(true);
+    expect(eq.get("mainHand")?.uid).toBe("h");
+    expect(inv.items.map((i) => i.uid)).toEqual(["a"]);
   });
 });
