@@ -1,0 +1,32 @@
+[
+  {
+    "id": "TAG-FAMILY-BEAST",
+    "category": "enemyFamily",
+    "text": "tag.enemy-family.beast"
+  },
+  {
+    "id": "TAG-FAMILY-UNDEAD",
+    "category": "enemyFamily",
+    "text": "tag.enemy-family.undead"
+  },
+  {
+    "id": "TAG-FAMILY-FIEND",
+    "category": "enemyFamily",
+    "text": "tag.enemy-family.fiend"
+  },
+  {
+    "id": "TAG-FAMILY-CONSTRUCT",
+    "category": "enemyFamily",
+    "text": "tag.enemy-family.construct"
+  },
+  {
+    "id": "TAG-FAMILY-SPIRIT",
+    "category": "enemyFamily",
+    "text": "tag.enemy-family.spirit"
+  },
+  {
+    "id": "TAG-FAMILY-ECLIPSED",
+    "category": "enemyFamily",
+    "text": "tag.enemy-family.eclipsed"
+  }
+]

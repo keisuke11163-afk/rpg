@@ -1,0 +1,900 @@
+[
+  {
+    "id": "STAR-SM-BLADE-01",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOU-0102"],
+    "effects": ["EFF-SM-GOU-MELEE"],
+    "position": {
+      "x": -200,
+      "y": 320
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-SWORD-AURA",
+    "text": "star.mvp.nt-sword-aura",
+    "kind": "notable",
+    "region": "gou",
+    "links": ["STAR-SM-BLADE-01"],
+    "effects": ["EFF-NT-SWORD-AURA"],
+    "position": {
+      "x": -200,
+      "y": 360
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-BEAST-01",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-0102"],
+    "effects": ["EFF-SM-JIN-CRIT"],
+    "position": {
+      "x": 200,
+      "y": 320
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-HUNT",
+    "text": "star.mvp.nt-hunt",
+    "kind": "notable",
+    "region": "jin",
+    "links": ["STAR-SM-BEAST-01"],
+    "effects": ["EFF-NT-HUNT"],
+    "position": {
+      "x": 200,
+      "y": 360
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-A-01",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SMITH-08"],
+    "effects": ["EFF-SM-GOU-HP"],
+    "position": {
+      "x": -610,
+      "y": 110
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-A-02",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-01"],
+    "effects": ["EFF-SM-GOU-MELEE"],
+    "position": {
+      "x": -610,
+      "y": 70
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-A-03",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-02"],
+    "effects": ["EFF-SM-GOU-ARMOR"],
+    "position": {
+      "x": -610,
+      "y": 30
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-A-04",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-03"],
+    "effects": ["EFF-SM-GOU-STAGGER"],
+    "position": {
+      "x": -610,
+      "y": -10
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-A-05",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-04"],
+    "effects": ["EFF-STAR-GO-10"],
+    "position": {
+      "x": -610,
+      "y": -50
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-A-06",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-05"],
+    "effects": ["EFF-SM-GOU-HP"],
+    "position": {
+      "x": -610,
+      "y": -90
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-A-07",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-06"],
+    "effects": ["EFF-SM-GOU-MELEE"],
+    "position": {
+      "x": -610,
+      "y": -130
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-SEVERING",
+    "text": "star.mvp.nt-severing",
+    "kind": "notable",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-07"],
+    "effects": ["EFF-NT-SEVERING"],
+    "position": {
+      "x": -610,
+      "y": -170
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-B-01",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-03"],
+    "effects": ["EFF-SM-GOU-ARMOR"],
+    "position": {
+      "x": -650,
+      "y": 30
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-B-02",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-B-01"],
+    "effects": ["EFF-SM-GOU-HP"],
+    "position": {
+      "x": -690,
+      "y": 30
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-B-03",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-B-02"],
+    "effects": ["EFF-SM-GOU-ARMOR"],
+    "position": {
+      "x": -730,
+      "y": 30
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-IRON-SKIN",
+    "text": "star.mvp.nt-iron-skin",
+    "kind": "notable",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-B-03"],
+    "effects": ["EFF-NT-IRON-SKIN"],
+    "position": {
+      "x": -770,
+      "y": 30
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-C-01",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-A-06"],
+    "effects": ["EFF-SM-GOU-STAGGER"],
+    "position": {
+      "x": -570,
+      "y": -90
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-C-02",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-C-01"],
+    "effects": ["EFF-SM-GOU-MELEE"],
+    "position": {
+      "x": -530,
+      "y": -90
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-C-03",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-C-02"],
+    "effects": ["EFF-SM-GOU-STAGGER"],
+    "position": {
+      "x": -490,
+      "y": -90
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-MUT-HEAVY",
+    "text": "star.mvp.mut-heavy",
+    "kind": "mutation",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-C-03"],
+    "effects": ["EFF-MUT-HEAVY"],
+    "position": {
+      "x": -450,
+      "y": -90
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-D-01",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-NT-SEVERING"],
+    "effects": ["EFF-SM-GOU-HP"],
+    "position": {
+      "x": -610,
+      "y": -210
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-D-02",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-D-01"],
+    "effects": ["EFF-SM-GOU-ARMOR"],
+    "position": {
+      "x": -610,
+      "y": -250
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-D-03",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-D-02"],
+    "effects": ["EFF-STAR-GO-10"],
+    "position": {
+      "x": -610,
+      "y": -290
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-D-04",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-D-03"],
+    "effects": ["EFF-SM-GOU-MELEE"],
+    "position": {
+      "x": -610,
+      "y": -330
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-D-05",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-D-04"],
+    "effects": ["EFF-SM-GOU-HP"],
+    "position": {
+      "x": -610,
+      "y": -370
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-D-06",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-D-05"],
+    "effects": ["EFF-SM-GOU-ARMOR"],
+    "position": {
+      "x": -610,
+      "y": -410
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-LAYERS",
+    "text": "star.mvp.nt-layers",
+    "kind": "notable",
+    "region": "gou",
+    "links": ["STAR-SM-GOU-D-06"],
+    "effects": ["EFF-NT-LAYERS"],
+    "position": {
+      "x": -610,
+      "y": -450
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-A-01",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-VIPER-09"],
+    "effects": ["EFF-SM-JIN-CRIT"],
+    "position": {
+      "x": 690,
+      "y": 110
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-A-02",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-01"],
+    "effects": ["EFF-SM-JIN-POISON"],
+    "position": {
+      "x": 690,
+      "y": 70
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-A-03",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-02"],
+    "effects": ["EFF-SM-JIN-SPEED"],
+    "position": {
+      "x": 690,
+      "y": 30
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-A-04",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-03"],
+    "effects": ["EFF-STAR-BLEED-6"],
+    "position": {
+      "x": 690,
+      "y": -10
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-A-05",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-04"],
+    "effects": ["EFF-SM-JIN-EVASION"],
+    "position": {
+      "x": 690,
+      "y": -50
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-A-06",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-05"],
+    "effects": ["EFF-SM-JIN-CRIT"],
+    "position": {
+      "x": 690,
+      "y": -90
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-A-07",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-06"],
+    "effects": ["EFF-SM-JIN-POISON"],
+    "position": {
+      "x": 690,
+      "y": -130
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-FOCUS",
+    "text": "star.mvp.nt-focus",
+    "kind": "notable",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-07"],
+    "effects": ["EFF-NT-FOCUS"],
+    "position": {
+      "x": 690,
+      "y": -170
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-B-01",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-02"],
+    "effects": ["EFF-SM-JIN-EVASION"],
+    "position": {
+      "x": 730,
+      "y": 70
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-B-02",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-B-01"],
+    "effects": ["EFF-SM-JIN-SPEED"],
+    "position": {
+      "x": 770,
+      "y": 70
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-B-03",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-B-02"],
+    "effects": ["EFF-SM-JIN-EVASION"],
+    "position": {
+      "x": 810,
+      "y": 70
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-SHADOW-STEP",
+    "text": "star.mvp.nt-shadow-step",
+    "kind": "notable",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-B-03"],
+    "effects": ["EFF-NT-SHADOW-STEP"],
+    "position": {
+      "x": 850,
+      "y": 70
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-C-01",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-A-05"],
+    "effects": ["EFF-SM-JIN-POISON"],
+    "position": {
+      "x": 650,
+      "y": -50
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-C-02",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-C-01"],
+    "effects": ["EFF-STAR-BLEED-6"],
+    "position": {
+      "x": 610,
+      "y": -50
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-C-03",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-C-02"],
+    "effects": ["EFF-SM-JIN-POISON"],
+    "position": {
+      "x": 570,
+      "y": -50
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-CORRODE",
+    "text": "star.mvp.nt-corrode",
+    "kind": "notable",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-C-03"],
+    "effects": ["EFF-NT-CORRODE"],
+    "position": {
+      "x": 530,
+      "y": -50
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-D-01",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-NT-FOCUS"],
+    "effects": ["EFF-STAR-BLEED-6"],
+    "position": {
+      "x": 690,
+      "y": -210
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-D-02",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-D-01"],
+    "effects": ["EFF-SM-JIN-CRIT"],
+    "position": {
+      "x": 690,
+      "y": -250
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-D-03",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-D-02"],
+    "effects": ["EFF-STAR-JIN-10"],
+    "position": {
+      "x": 690,
+      "y": -290
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-MUT-BLOOD-BLADE",
+    "text": "star.mvp.mut-blood-blade",
+    "kind": "mutation",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-D-03"],
+    "effects": ["EFF-MUT-BLOOD-BLADE"],
+    "position": {
+      "x": 690,
+      "y": -330
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-E-01",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-MUT-BLOOD-BLADE"],
+    "effects": ["EFF-SM-JIN-SPEED"],
+    "position": {
+      "x": 730,
+      "y": -330
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-E-02",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-E-01"],
+    "effects": ["EFF-SM-JIN-EVASION"],
+    "position": {
+      "x": 770,
+      "y": -330
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-E-03",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-E-02"],
+    "effects": ["EFF-STAR-JIN-10"],
+    "position": {
+      "x": 810,
+      "y": -330
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-JIN-E-04",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-E-03"],
+    "effects": ["EFF-SM-JIN-SPEED"],
+    "position": {
+      "x": 850,
+      "y": -330
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-VESSEL-JIN",
+    "text": "star.mvp.nt-vessel-jin",
+    "kind": "notable",
+    "region": "jin",
+    "links": ["STAR-SM-JIN-E-04"],
+    "effects": ["EFF-NT-VESSEL"],
+    "position": {
+      "x": 890,
+      "y": -330
+    },
+    "resonanceCapBonus": 0.1,
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-A-01",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-TWIN-07"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": -40,
+      "y": -480
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-A-02",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-A-01"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": -80,
+      "y": -480
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-A-03",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-A-02"],
+    "effects": ["EFF-STAR-GOJIN-5"],
+    "position": {
+      "x": -120,
+      "y": -480
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-A-04",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-A-03"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": -160,
+      "y": -480
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-A-05",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-A-04"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": -200,
+      "y": -480
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-A-06",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-A-05"],
+    "effects": ["EFF-STAR-GOJIN-5"],
+    "position": {
+      "x": -240,
+      "y": -480
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-A-07",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-A-06"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": -280,
+      "y": -480
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-GALE",
+    "text": "star.mvp.nt-gale",
+    "kind": "notable",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-A-07"],
+    "effects": ["EFF-NT-GALE"],
+    "position": {
+      "x": -320,
+      "y": -480
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-B-01",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-A-04"],
+    "effects": ["EFF-STAR-GOJIN-5"],
+    "position": {
+      "x": -160,
+      "y": -520
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-B-02",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-B-01"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": -160,
+      "y": -560
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-B-03",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-B-02"],
+    "effects": ["EFF-STAR-GOJIN-5"],
+    "position": {
+      "x": -160,
+      "y": -600
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-NT-CYCLE",
+    "text": "star.mvp.nt-cycle",
+    "kind": "notable",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-B-03"],
+    "effects": ["EFF-NT-CYCLE"],
+    "position": {
+      "x": -160,
+      "y": -640
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-C-01",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-NT-GALE"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": -320,
+      "y": -440
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-C-02",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-C-01"],
+    "effects": ["EFF-STAR-VANE-MOVE"],
+    "position": {
+      "x": -320,
+      "y": -400
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-C-03",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-C-02"],
+    "effects": ["EFF-STAR-GOJIN-5"],
+    "position": {
+      "x": -320,
+      "y": -360
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GJ-C-04",
+    "kind": "minor",
+    "region": "goujin",
+    "links": ["STAR-SM-GJ-C-03"],
+    "effects": ["EFF-STAR-TWIN-SPEED"],
+    "position": {
+      "x": -320,
+      "y": -320
+    },
+    "provisional": true,
+    "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  }
+]

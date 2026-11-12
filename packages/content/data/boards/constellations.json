@@ -1,0 +1,69 @@
+[
+  {
+    "id": "CONST-VIPER",
+    "text": "constellation.viper",
+    "nodes": [
+      "STAR-VIPER-01",
+      "STAR-VIPER-02",
+      "STAR-VIPER-03",
+      "STAR-VIPER-04",
+      "STAR-VIPER-05",
+      "STAR-VIPER-06",
+      "STAR-VIPER-07",
+      "STAR-VIPER-08",
+      "STAR-VIPER-09"
+    ],
+    "completionEffect": "EFF-CONST-VIPER",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "CONST-WEATHERVANE",
+    "text": "constellation.weathervane",
+    "nodes": [
+      "STAR-VANE-01",
+      "STAR-VANE-02",
+      "STAR-VANE-03",
+      "STAR-VANE-04",
+      "STAR-VANE-05",
+      "STAR-VANE-06"
+    ],
+    "completionEffect": "EFF-CONST-VANE",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "CONST-TWIN-BLADES",
+    "text": "constellation.twin-blades",
+    "nodes": [
+      "STAR-TWIN-01",
+      "STAR-TWIN-02",
+      "STAR-TWIN-03",
+      "STAR-TWIN-04",
+      "STAR-TWIN-05",
+      "STAR-TWIN-06",
+      "STAR-TWIN-07"
+    ],
+    "completionEffect": "EFF-CONST-TWIN",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress Q-U14-1）"
+  },
+  {
+    "id": "CONST-SMITH",
+    "text": "constellation.smith",
+    "nodes": [
+      "STAR-SMITH-01",
+      "STAR-SMITH-02",
+      "STAR-SMITH-03",
+      "STAR-SMITH-04",
+      "STAR-SMITH-05",
+      "STAR-SMITH-06",
+      "STAR-SMITH-07",
+      "STAR-SMITH-08"
+    ],
+    "completionEffect": "EFF-CONST-SMITH",
+    "completionStacks": "enhance.total",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  }
+]

@@ -1,19 +1,16 @@
 import Phaser from "phaser";
 import { CORE_API_VERSION } from "@stella/core";
-import { loadContent, text } from "@stella/content";
+import { loadGameContent, text } from "@stella/content";
 import { SCREEN } from "../config.ts";
+import { createPlaceholderTextures } from "../world/placeholders.ts";
 
-/**
- * 起動の画面。データを読み込んで検証する（開発環境構築計画 8章）。
- * データが壊れていれば ContentError が投げられ、起動しない（誤りの一覧はコンソールに出る）。
- */
+/** 起動の画面：データを読み込み・検証し、仮素材を作ってから、次の場面へ進む。 */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super("boot");
   }
 
   create(): void {
-    const content = loadContent();
     const centerX = SCREEN.width / 2;
     this.add
       .text(centerX, 140, text("game.title"), {
@@ -32,7 +29,7 @@ export class BootScene extends Phaser.Scene {
     this.add.text(
       8,
       SCREEN.height - 18,
-      `Phaser ${Phaser.VERSION} / core API v${String(CORE_API_VERSION)} / data v${String(content.schemaVersion)} (tags ${String(content.tags.size)})`,
+      `Phaser ${Phaser.VERSION} / core API v${String(CORE_API_VERSION)}`,
       {
         fontFamily: "monospace",
         fontSize: "10px",
@@ -40,7 +37,24 @@ export class BootScene extends Phaser.Scene {
       },
     );
 
-    // 起動の確認（pnpm smoke）が、描画まで終わったことを知るための印
-    document.body.dataset["stellaReady"] = "true";
+    // データを読み込み、検証する（誤りがあれば例外になり、起動の確認で検出される）
+    const content = loadGameContent();
+    this.add
+      .text(
+        SCREEN.width - 8,
+        SCREEN.height - 18,
+        `データ v${content.manifest.contentVersion}・タグ${String(content.tags.size)}`,
+        { fontFamily: "monospace", fontSize: "10px", color: "#5c5870" },
+      )
+      .setOrigin(1, 0);
+
+    createPlaceholderTextures(
+      this,
+      [...content.enemies.values()].map((e) => ({ id: e.id, radius: e.radius })),
+    );
+    // 少しだけ表題を見せてから、タイトル（キャラクターの選択）へ進む
+    this.time.delayedCall(800, () => {
+      this.scene.start("title");
+    });
   }
 }

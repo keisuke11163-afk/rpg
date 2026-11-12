@@ -1,0 +1,827 @@
+[
+  {
+    "id": "BASE-WPN-LONGSWORD-T1",
+    "text": "item.base.longsword-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-SWORD"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 6,
+          "max": 11
+        }
+      },
+      "attackSpeed": 1.4,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-ACCURACY-40"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-GREATSWORD-T1",
+    "text": "item.base.greatsword-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-GREATSWORD"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 14,
+          "max": 24
+        }
+      },
+      "attackSpeed": 1.05,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-STAGGER-15"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-AXE-T1",
+    "text": "item.base.axe-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-AXE"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 7,
+          "max": 13
+        }
+      },
+      "attackSpeed": 1.3,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-BLEED-CHANCE-10"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-GREATAXE-T1",
+    "text": "item.base.greataxe-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-GREATAXE"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 16,
+          "max": 28
+        }
+      },
+      "attackSpeed": 0.95,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-BLEED-DAMAGE-15"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-GREATMACE-T1",
+    "text": "item.base.greatmace-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-GREATMACE"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 18,
+          "max": 27
+        }
+      },
+      "attackSpeed": 0.9,
+      "critChance": 0.04
+    },
+    "implicitEffects": ["EFF-IMP-STAGGER-30"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値"
+  },
+  {
+    "id": "BASE-WPN-DAGGER-T1",
+    "text": "item.base.dagger-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-DAGGER"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 4,
+          "max": 9
+        }
+      },
+      "attackSpeed": 1.6,
+      "critChance": 0.08
+    },
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値",
+    "implicitEffects": ["EFF-IMP-BACKSTAB-CRIT-5"]
+  },
+  {
+    "id": "BASE-WPN-CLAW-T1",
+    "text": "item.base.claw-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-CLAW"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 5,
+          "max": 8
+        }
+      },
+      "attackSpeed": 1.7,
+      "critChance": 0.06
+    },
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値",
+    "implicitEffects": ["EFF-IMP-LIFE-LEECH-05"]
+  },
+  {
+    "id": "BASE-ARM-IRON-HEAD-T1",
+    "text": "item.base.iron-head-1",
+    "category": "head",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 18
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-IRON-BODY-T1",
+    "text": "item.base.iron-body-1",
+    "category": "body",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 40
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-IRON-HANDS-T1",
+    "text": "item.base.iron-hands-1",
+    "category": "hands",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 12
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-IRON-FEET-T1",
+    "text": "item.base.iron-feet-1",
+    "category": "feet",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 12
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-IRON-BELT-T1",
+    "text": "item.base.iron-belt-1",
+    "category": "belt",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 8
+    },
+    "implicitEffects": ["EFF-IMP-HEAVY-CHAIN"],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）。重鎖の帯・革の帯の基本刻印は仕様書v0.2 3.4"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-HEAD-T1",
+    "text": "item.base.leather-head-1",
+    "category": "head",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 18
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-BODY-T1",
+    "text": "item.base.leather-body-1",
+    "category": "body",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 40
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-HANDS-T1",
+    "text": "item.base.leather-hands-1",
+    "category": "hands",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 12
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-FEET-T1",
+    "text": "item.base.leather-feet-1",
+    "category": "feet",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 12
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LEATHER-BELT-T1",
+    "text": "item.base.leather-belt-1",
+    "category": "belt",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 8
+    },
+    "implicitEffects": ["EFF-IMP-FLASK-15"],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）。重鎖の帯・革の帯の基本刻印は仕様書v0.2 3.4"
+  },
+  {
+    "id": "BASE-ARM-LINEN-HEAD-T1",
+    "text": "item.base.linen-head-1",
+    "category": "head",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 7
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LINEN-BODY-T1",
+    "text": "item.base.linen-body-1",
+    "category": "body",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 15
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LINEN-HANDS-T1",
+    "text": "item.base.linen-hands-1",
+    "category": "hands",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 4
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LINEN-FEET-T1",
+    "text": "item.base.linen-feet-1",
+    "category": "feet",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 4
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ARM-LINEN-BELT-T1",
+    "text": "item.base.linen-belt-1",
+    "category": "belt",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 3
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.3 は胴の下級の値だけ。他の部位は胴に対する割合（頭45%・手30%・足30%・腰20%）の仮値（docs/progress D-U11-16）。重鎖の帯・革の帯の基本刻印は仕様書v0.2 3.4"
+  },
+  {
+    "id": "BASE-SHD-BUCKLER-T1",
+    "text": "item.base.buckler-1",
+    "category": "shield",
+    "tags": ["TAG-WPN-SHIELD"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 12
+    },
+    "defense": {
+      "armor": 12
+    },
+    "shield": {
+      "guard": 0.5
+    },
+    "provisional": true,
+    "provisionalNote": "ガード率は仕様書v0.2 3.2。防具値は記載が無い仮値（胴の30%）。ガードの操作はMVPに無い（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-SHD-TOWER-T1",
+    "text": "item.base.tower-shield-1",
+    "category": "shield",
+    "tags": ["TAG-WPN-SHIELD"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "defense": {
+      "armor": 24
+    },
+    "shield": {
+      "guard": 0.7
+    },
+    "implicitEffects": ["EFF-IMP-TOWER-SHIELD"],
+    "provisional": true,
+    "provisionalNote": "ガード率・移動-5%は仕様書v0.2 3.2。防具値は記載が無い仮値（胴の60%）。ガードの操作はMVPに無い（docs/progress D-U11-16）"
+  },
+  {
+    "id": "BASE-ACC-SILVER-RING-T1",
+    "text": "item.base.silver-ring",
+    "category": "ring",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "implicitEffects": ["EFF-IMP-ALL-ELEM-RESIST-5"]
+  },
+  {
+    "id": "BASE-ACC-RUBY-RING-T1",
+    "text": "item.base.ruby-ring",
+    "category": "ring",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "implicitEffects": ["EFF-IMP-FIRE-DAMAGE-10"]
+  },
+  {
+    "id": "BASE-ACC-AMBER-NECK-T1",
+    "text": "item.base.amber-neck",
+    "category": "neck",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "implicitEffects": ["EFF-IMP-ALL-ATTR-8"]
+  },
+  {
+    "id": "BASE-UNQ-U02",
+    "text": "item.unique.u02",
+    "category": "feet",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 2,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 12
+    },
+    "unique": {
+      "effects": ["EFF-UNQ-U02-MOVE", "EFF-UNQ-U02-STRIDE"],
+      "latent": {
+        "text": "item.unique.u02.latent",
+        "effects": ["EFF-UNQ-U02-LATENT"],
+        "condition": {
+          "type": "constellation",
+          "id": "CONST-WEATHERVANE"
+        }
+      },
+      "source": "anywhere",
+      "description": "item.unique.u02.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-UNQ-U03",
+    "text": "item.unique.u03",
+    "category": "weapon",
+    "tags": ["TAG-WPN-DAGGER"],
+    "tier": 1,
+    "requiredLevel": 14,
+    "requirement": {
+      "attribute": "jin",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 4,
+          "max": 9
+        }
+      },
+      "attackSpeed": 1.6,
+      "critChance": 0.08
+    },
+    "implicitEffects": ["EFF-IMP-BACKSTAB-CRIT-5"],
+    "unique": {
+      "effects": ["EFF-UNQ-U03-PENALTY", "EFF-UNQ-U03-BLEED", "EFF-UNQ-U03-STACKS"],
+      "latent": {
+        "text": "item.unique.u03.latent",
+        "effects": ["EFF-UNQ-U03-LATENT"],
+        "condition": {
+          "type": "jobNode",
+          "id": "JBN-ROGUE-POISON-BLOOD"
+        }
+      },
+      "source": "exclusive",
+      "description": "item.unique.u03.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-UNQ-U06",
+    "text": "item.unique.u06",
+    "category": "head",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 20,
+    "requirement": {
+      "attribute": "ri",
+      "value": 10
+    },
+    "defense": {
+      "type": "robe",
+      "ward": 7
+    },
+    "unique": {
+      "effects": ["EFF-UNQ-U06-SURE", "EFF-UNQ-U06-INSIGHT"],
+      "latent": {
+        "text": "item.unique.u06.latent",
+        "effects": [],
+        "condition": {
+          "type": "jobNode",
+          "id": "JOBNODE-ARCHER-MIND-EYE",
+          "pending": true
+        }
+      },
+      "source": "anywhere",
+      "description": "item.unique.u06.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-UNQ-U13",
+    "text": "item.unique.u13",
+    "category": "shield",
+    "tags": ["TAG-WPN-SHIELD"],
+    "tier": 1,
+    "requiredLevel": 12,
+    "requirement": {
+      "attribute": "go",
+      "value": 18
+    },
+    "defense": {
+      "armor": 24
+    },
+    "shield": {
+      "guard": 0.7
+    },
+    "implicitEffects": ["EFF-IMP-TOWER-SHIELD"],
+    "unique": {
+      "effects": ["EFF-UNQ-U13-BARK"],
+      "latent": {
+        "text": "item.unique.u13.latent",
+        "effects": ["EFF-UNQ-U13-LATENT"],
+        "condition": {
+          "type": "starNode",
+          "id": "STAR-KEY-BARE-HANDS"
+        }
+      },
+      "source": "exclusive",
+      "description": "item.unique.u13.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-UNQ-U14",
+    "text": "item.unique.u14",
+    "category": "neck",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 6,
+    "implicitEffects": [],
+    "unique": {
+      "effects": ["EFF-UNQ-U14-FANG"],
+      "latent": {
+        "text": "item.unique.u14.latent",
+        "effects": ["EFF-UNQ-U14-LATENT"],
+        "condition": {
+          "type": "starNode",
+          "id": "STAR-NOTABLE-REOPEN"
+        }
+      },
+      "source": "anywhere",
+      "description": "item.unique.u14.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-UNQ-U15",
+    "text": "item.unique.u15",
+    "category": "hands",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 10,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 12
+    },
+    "unique": {
+      "effects": ["EFF-UNQ-U15-RING"],
+      "latent": {
+        "text": "item.unique.u15.latent",
+        "effects": ["EFF-UNQ-U15-LATENT"],
+        "condition": {
+          "type": "jobMastery",
+          "id": "JBN-WARRIOR-M-DEMON"
+        }
+      },
+      "source": "anywhere",
+      "description": "item.unique.u15.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-UNQ-U16",
+    "text": "item.unique.u16",
+    "category": "body",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 16,
+    "requirement": {
+      "attribute": "jin",
+      "value": 10
+    },
+    "defense": {
+      "type": "light",
+      "evasion": 40
+    },
+    "unique": {
+      "effects": ["EFF-UNQ-U16-CLOAK"],
+      "latent": {
+        "text": "item.unique.u16.latent",
+        "effects": ["EFF-UNQ-U16-LATENT"],
+        "condition": {
+          "type": "jobMastery",
+          "id": "JBN-ROGUE-M-SHADOW"
+        }
+      },
+      "source": "anywhere",
+      "description": "item.unique.u16.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-UNQ-U17",
+    "text": "item.unique.u17",
+    "category": "weapon",
+    "tags": ["TAG-WPN-AXE"],
+    "tier": 1,
+    "requiredLevel": 4,
+    "requirement": {
+      "attribute": "go",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 7,
+          "max": 13
+        }
+      },
+      "attackSpeed": 1.3,
+      "critChance": 0.05
+    },
+    "implicitEffects": [],
+    "unique": {
+      "effects": ["EFF-UNQ-U17-FORK"],
+      "latent": {
+        "text": "item.unique.u17.latent",
+        "effects": ["EFF-UNQ-U17-LATENT"],
+        "condition": {
+          "type": "constellation",
+          "id": "CONST-TWIN-BLADES"
+        }
+      },
+      "source": "anywhere",
+      "description": "item.unique.u17.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-UNQ-U18",
+    "text": "item.unique.u18",
+    "category": "head",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 14,
+    "requirement": {
+      "attribute": "go",
+      "value": 10
+    },
+    "defense": {
+      "type": "heavy",
+      "armor": 18
+    },
+    "unique": {
+      "effects": ["EFF-UNQ-U18-CROWN"],
+      "latent": {
+        "text": "item.unique.u18.latent",
+        "effects": ["EFF-UNQ-U18-LATENT"],
+        "condition": {
+          "type": "constellation",
+          "id": "CONST-VIPER"
+        }
+      },
+      "source": "exclusive",
+      "description": "item.unique.u18.desc"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.7 のユニーク。基礎性能は同じ種類の下級のベース、潜在効果の条件のデータが無いものは pending（docs/progress U-16）"
+  },
+  {
+    "id": "BASE-ACC-STAR-IRON-NECK-T1",
+    "text": "item.base.star-iron-neck",
+    "category": "neck",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 1,
+    "guaranteedResonance": true,
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.4：共鳴紋が確定で付く（その代わり詞の枠-1）"
+  }
+]

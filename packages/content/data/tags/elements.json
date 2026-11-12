@@ -1,0 +1,32 @@
+[
+  {
+    "id": "TAG-ELEM-PHYSICAL",
+    "category": "element",
+    "text": "tag.element.physical"
+  },
+  {
+    "id": "TAG-ELEM-FIRE",
+    "category": "element",
+    "text": "tag.element.fire"
+  },
+  {
+    "id": "TAG-ELEM-COLD",
+    "category": "element",
+    "text": "tag.element.cold"
+  },
+  {
+    "id": "TAG-ELEM-LIGHTNING",
+    "category": "element",
+    "text": "tag.element.lightning"
+  },
+  {
+    "id": "TAG-ELEM-HOLY",
+    "category": "element",
+    "text": "tag.element.holy"
+  },
+  {
+    "id": "TAG-ELEM-DARK",
+    "category": "element",
+    "text": "tag.element.dark"
+  }
+]

@@ -1,0 +1,172 @@
+/**
+ * シード付きの乱数（開発環境構築計画 5章：core では Math.random を使わない）。
+ *
+ * アルゴリズムは sfc32（32ビットの状態を4つ持つ）。状態を保存・復元でき、
+ * 用途ごとに独立した乱数の列を fork で作れる（例：ドロップと戦闘で列を分ける）。
+ */
+
+/** 乱数の状態（保存・復元に使う）。 */
+export type RngState = readonly [number, number, number, number];
+
+const UINT32 = 0x1_0000_0000;
+
+/** 文字列を32ビットの値に変換する（FNV-1a）。 */
+function hashString(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/** シードから初期状態を作る（splitmix32 で4つの値を作る）。 */
+function seedState(seed: number): [number, number, number, number] {
+  let x = seed >>> 0;
+  const next = (): number => {
+    x = (x + 0x9e3779b9) >>> 0;
+    let z = x;
+    z = Math.imul(z ^ (z >>> 16), 0x85ebca6b) >>> 0;
+    z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35) >>> 0;
+    return (z ^ (z >>> 16)) >>> 0;
+  };
+  return [next(), next(), next(), next()];
+}
+
+/**
+ * 保存した状態を、実行時に検証する（型の readonly だけに頼らない。セーブデータなど外から来る値のため）。
+ * 4要素の配列で、各要素が0以上 2^32 未満の整数であること。全てが0の状態は乱数にならないので拒否する。
+ */
+function validateState(state: unknown): [number, number, number, number] {
+  if (!Array.isArray(state) || state.length !== 4) {
+    throw new RangeError("乱数の状態は4要素の配列");
+  }
+  const values = state as unknown[];
+  // forEach などは空要素（sparse array の穴）を飛ばすので、0〜3番目を1つずつ必ず確かめる。
+  // 空要素は undefined として読まれ、数でないので拒否される
+  for (let i = 0; i < 4; i++) {
+    const v = values[i];
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v >= UINT32) {
+      throw new RangeError(`乱数の状態の${String(i)}番目は0以上 2^32 未満の整数（${String(v)}）`);
+    }
+  }
+  const [a, b, c, d] = values as [number, number, number, number];
+  if (a === 0 && b === 0 && c === 0 && d === 0) {
+    throw new RangeError("乱数の状態が全て0（この状態からは乱数が出ない）");
+  }
+  return [a, b, c, d];
+}
+
+export class Rng {
+  private a: number;
+  private b: number;
+  private c: number;
+  private d: number;
+
+  private constructor(state: RngState) {
+    [this.a, this.b, this.c, this.d] = state;
+  }
+
+  /** シード（数値または文字列）から作る。同じシードからは同じ列が出る。 */
+  static fromSeed(seed: number | string): Rng {
+    const n = typeof seed === "string" ? hashString(seed) : seed;
+    // splitmix32 の出力は、違う入力に対して違う値になる（全単射）ので、4つが全て0になることはない
+    const rng = new Rng(seedState(n));
+    // 最初の数回は状態が十分に混ざっていないので捨てる
+    for (let i = 0; i < 12; i++) rng.nextUint32();
+    return rng;
+  }
+
+  /** 保存した状態から作り直す。正しくない状態は RangeError（状態を書き換えて受け入れることはしない）。 */
+  static fromState(state: RngState): Rng {
+    return new Rng(validateState(state));
+  }
+
+  /** 現在の状態（保存用）。 */
+  getState(): RngState {
+    return [this.a, this.b, this.c, this.d];
+  }
+
+  /** 0以上 2^32 未満の整数。 */
+  nextUint32(): number {
+    const t = (((this.a + this.b) >>> 0) + this.d) >>> 0;
+    this.d = (this.d + 1) >>> 0;
+    this.a = (this.b ^ (this.b >>> 9)) >>> 0;
+    this.b = (this.c + (this.c << 3)) >>> 0;
+    this.c = ((this.c << 21) | (this.c >>> 11)) >>> 0;
+    this.c = (this.c + t) >>> 0;
+    return t;
+  }
+
+  /** 0以上1未満の数。 */
+  next(): number {
+    return this.nextUint32() / UINT32;
+  }
+
+  /** min以上max以下の整数（両端を含む）。偏りが出ないように、範囲外の値は引き直す。 */
+  int(min: number, max: number): number {
+    if (!Number.isInteger(min) || !Number.isInteger(max) || max < min) {
+      throw new RangeError(`int(${String(min)}, ${String(max)}) の範囲が正しくない`);
+    }
+    const span = max - min + 1;
+    if (span > UINT32) throw new RangeError("範囲が広すぎる（2^32 まで）");
+    const limit = UINT32 - (UINT32 % span);
+    let value = this.nextUint32();
+    while (value >= limit) value = this.nextUint32();
+    return min + (value % span);
+  }
+
+  /** min以上max未満の数（min と max が同じなら min）。min・max は有限の数で、max ≧ min。 */
+  float(min: number, max: number): number {
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max < min) {
+      throw new RangeError(`float(${String(min)}, ${String(max)}) の範囲が正しくない`);
+    }
+    const span = max - min;
+    if (!Number.isFinite(span)) throw new RangeError("範囲が広すぎる（差が有限の数にならない）");
+    return min + this.next() * span;
+  }
+
+  /** 確率 p（0以上1以下の有限の数）で true。 */
+  chance(p: number): boolean {
+    if (!Number.isFinite(p) || p < 0 || p > 1) {
+      throw new RangeError(`chance(${String(p)}) の確率は0以上1以下`);
+    }
+    if (p <= 0) return false;
+    if (p >= 1) return true;
+    return this.next() < p;
+  }
+
+  /** 配列から1つを等しい確率で選ぶ。 */
+  pick<T>(items: readonly T[]): T {
+    if (items.length === 0) throw new RangeError("空の配列からは選べない");
+    return items[this.int(0, items.length - 1)] as T;
+  }
+
+  /** 重みに比例した確率で1つを選ぶ。重みは0以上で、合計は0より大きいこと。 */
+  weighted<T>(entries: readonly { readonly item: T; readonly weight: number }[]): T {
+    let total = 0;
+    for (const entry of entries) {
+      if (!(entry.weight >= 0) || !Number.isFinite(entry.weight)) {
+        throw new RangeError("重みは0以上の有限の数");
+      }
+      total += entry.weight;
+    }
+    if (total <= 0) throw new RangeError("重みの合計が0");
+    let roll = this.next() * total;
+    for (const entry of entries) {
+      roll -= entry.weight;
+      if (roll < 0) return entry.item;
+    }
+    // 浮動小数点の誤差で最後まで来た場合は、重みが正の最後の要素
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const entry = entries[i];
+      if (entry !== undefined && entry.weight > 0) return entry.item;
+    }
+    throw new RangeError("重みの合計が0");
+  }
+
+  /** 用途ごとの、独立した乱数の列を作る。元の列は1回分だけ進む。 */
+  fork(label: string): Rng {
+    return Rng.fromSeed((this.nextUint32() ^ hashString(label)) >>> 0);
+  }
+}

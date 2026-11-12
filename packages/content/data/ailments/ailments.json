@@ -1,0 +1,109 @@
+[
+  {
+    "id": "AIL-BURN",
+    "tag": "TAG-AIL-BURN",
+    "kind": "dot",
+    "sourceElements": ["fire"],
+    "dotElement": "fire",
+    "totalRatio": 0.5,
+    "duration": 4,
+    "stacking": {
+      "mode": "strongest"
+    }
+  },
+  {
+    "id": "AIL-BLEED",
+    "tag": "TAG-AIL-BLEED",
+    "kind": "dot",
+    "sourceElements": ["physical"],
+    "dotElement": "physical",
+    "totalRatio": 1.5,
+    "duration": 5,
+    "stacking": {
+      "mode": "stack",
+      "maxStacks": 8
+    },
+    "movingMultiplier": 2,
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 2.7・付録A.4 F-05。BL-2で調整"
+  },
+  {
+    "id": "AIL-POISON",
+    "tag": "TAG-AIL-POISON",
+    "kind": "dot",
+    "sourceElements": ["physical", "dark"],
+    "dotElement": "dark",
+    "totalRatio": 0.6,
+    "duration": 3,
+    "stacking": {
+      "mode": "stack"
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 2.7・付録A.4 F-05。BL-2で調整。耐性に使う属性（闇）は docs/progress D-U04b-1"
+  },
+  {
+    "id": "AIL-WEAKEN",
+    "tag": "TAG-AIL-WEAKEN",
+    "kind": "debuff",
+    "sourceElements": ["dark"],
+    "duration": 4,
+    "dealtMultiplier": 0.85,
+    "bossDealtMultiplier": 0.92
+  },
+  {
+    "id": "AIL-STAGGER",
+    "tag": "TAG-AIL-STAGGER",
+    "kind": "stagger",
+    "defaultCoefficient": 0.3,
+    "enemy": {
+      "gaugeRatio": 0.2,
+      "decayDelay": 3,
+      "decayPerSecond": 0.1,
+      "breakDuration": 2,
+      "takenMultiplier": 1.25,
+      "growthPerBreak": 1
+    },
+    "boss": {
+      "gaugeRatio": 0.15,
+      "decayDelay": 3,
+      "decayPerSecond": 0.1,
+      "breakDuration": 1,
+      "takenMultiplier": 1.15,
+      "growthPerBreak": 1.5
+    },
+    "player": {
+      "gaugeRatio": 0.5,
+      "decayDelay": 2,
+      "decayPerSecond": 0.2,
+      "breakDuration": 0.6,
+      "takenMultiplier": 1,
+      "growthPerBreak": 1
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 2.7・補助仕様書3.3 の仮値"
+  },
+  {
+    "id": "AIL-CHILL",
+    "tag": "TAG-AIL-CHILL",
+    "kind": "pending",
+    "note": "冷却はMVPの範囲外。対応する属性の職を実装するときに、仕様書v0.2 2.7 の式で計算を実装する"
+  },
+  {
+    "id": "AIL-FREEZE",
+    "tag": "TAG-AIL-FREEZE",
+    "kind": "pending",
+    "note": "凍結はMVPの範囲外。対応する属性の職を実装するときに、仕様書v0.2 2.7 の式で計算を実装する"
+  },
+  {
+    "id": "AIL-SHOCK",
+    "tag": "TAG-AIL-SHOCK",
+    "kind": "pending",
+    "note": "感電はMVPの範囲外。対応する属性の職を実装するときに、仕様書v0.2 2.7 の式で計算を実装する"
+  },
+  {
+    "id": "AIL-STIGMA",
+    "tag": "TAG-AIL-STIGMA",
+    "kind": "pending",
+    "note": "聖痕はMVPの範囲外。対応する属性の職を実装するときに、仕様書v0.2 2.7 の式で計算を実装する"
+  }
+]

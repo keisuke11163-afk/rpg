@@ -1,90 +1,125 @@
-/** 実際のデータの検証（開発計画書 T17）。 */
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
-import { fileURLToPath } from "node:url";
-import { DATA_SCHEMA_VERSION } from "@stella/core";
+import { COMBAT_STATS, ELEMENTS, formatContentError, loadContent } from "@stella/core";
 import { describe, expect, it } from "vitest";
-import { DATA_FILES, loadContent, nameOf, validateContentFiles } from "../src/index.ts";
+import { loadGameContent, rawContent } from "../src/index.ts";
 
-const dataRoot = fileURLToPath(new URL("../data", import.meta.url));
-
-function jsonFilesOnDisk(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) return jsonFilesOnDisk(path);
-    return name.endsWith(".json") ? [relative(dataRoot, path).split(sep).join("/")] : [];
-  });
-}
-
-describe("コンテンツのデータ", () => {
-  it("全てのデータが検証を通る", () => {
-    const result = validateContentFiles(DATA_FILES);
-    expect(result.errors).toEqual([]);
+describe("ゲームのデータ", () => {
+  it("誤りなく読み込める", () => {
+    const r = loadContent(rawContent);
+    expect(r.ok ? [] : r.errors.map(formatContentError)).toEqual([]);
   });
 
-  it("data/ の全ての JSON が、読み込む一覧（src/files.ts）に載っている", () => {
-    expect(DATA_FILES.map((f) => f.path).sort()).toEqual(jsonFilesOnDisk(dataRoot).sort());
-  });
-
-  it("一覧の内容は、ディスクのファイルと同じ", () => {
-    for (const file of DATA_FILES) {
-      expect(file.content).toEqual(JSON.parse(readFileSync(join(dataRoot, file.path), "utf-8")));
-    }
-  });
-
-  it("本仕様書 1.5 の星紋タグが揃っていて、武器は系統の親タグを持つ", () => {
-    const data = loadContent();
-    expect(data.schemaVersion).toBe(DATA_SCHEMA_VERSION);
+  it("星紋タグが仕様書1.5の分類で揃っている", () => {
+    const db = loadGameContent();
     const byCategory = new Map<string, number>();
-    for (const tag of data.tags.values()) {
+    for (const tag of db.tags.values())
       byCategory.set(tag.category, (byCategory.get(tag.category) ?? 0) + 1);
-    }
     expect(Object.fromEntries(byCategory)).toEqual({
-      form: 14,
+      form: 14, // 仕様書1.5の13種類＋重撃（v0.2）
       element: 6,
       ailment: 9,
-      weapon: 21,
-      weapon_group: 4,
+      weapon: 21, // 仕様書1.5の20種類＋素手（v0.2）
+      weaponGroup: 4, // 剣系・斧系・槌系・弓系（v0.2）
       job: 6,
       region: 9,
-      enemy_family: 6,
+      enemyFamily: 6,
     });
-    expect(data.tags.get("TAG-WPN-GREATSWORD")?.parents).toEqual(["TAG-WPNGRP-SWORD"]);
-    expect(data.tags.get("TAG-WPN-CROSSBOW")?.parents).toEqual(["TAG-WPNGRP-BOW"]);
-    expect(data.tags.get("TAG-WPN-DAGGER")?.parents).toBeUndefined();
-    expect(nameOf("TAG-WPNGRP-SWORD")).toBe("剣系");
   });
 
-  it("変換の順番は 物理 → 雷 → 氷 → 火 → 闇 で、聖は順番を持たない（本仕様書 2.5）", () => {
-    const tags = loadContent().tags;
-    const order = [...tags.values()]
-      .filter((t) => t.conversionRank !== undefined)
-      .sort((a, b) => (a.conversionRank ?? 0) - (b.conversionRank ?? 0))
-      .map((t) => t.id);
-    expect(order).toEqual([
-      "TAG-ELM-PHYSICAL",
-      "TAG-ELM-LIGHTNING",
-      "TAG-ELM-COLD",
-      "TAG-ELM-FIRE",
-      "TAG-ELM-CHAOS",
-    ]);
-    expect(tags.get("TAG-ELM-HOLY")?.conversionRank).toBeUndefined();
+  it("武器の系統の親タグが仕様書v0.2 1.5のとおり", () => {
+    const db = loadGameContent();
+    const parentOf = (id: string): string[] | undefined => db.tags.get(id)?.parents;
+    expect(parentOf("TAG-WPN-SWORD")).toEqual(["TAG-WPNGRP-SWORD"]);
+    expect(parentOf("TAG-WPN-GREATSWORD")).toEqual(["TAG-WPNGRP-SWORD"]);
+    expect(parentOf("TAG-WPN-GREATAXE")).toEqual(["TAG-WPNGRP-AXE"]);
+    expect(parentOf("TAG-WPN-GREATMACE")).toEqual(["TAG-WPNGRP-MACE"]);
+    expect(parentOf("TAG-WPN-CROSSBOW")).toEqual(["TAG-WPNGRP-BOW"]);
+    expect(parentOf("TAG-WPN-DAGGER")).toBeUndefined();
+  });
+});
+
+describe("ダメージの計算に使う能力値", () => {
+  it("core が使う能力値のIDが、全てデータにある", () => {
+    const db = loadGameContent();
+    const ids = [
+      COMBAT_STATS.damage,
+      COMBAT_STATS.critChance,
+      COMBAT_STATS.critMultiplier,
+      COMBAT_STATS.accuracy,
+      COMBAT_STATS.skillLevel,
+      ...Object.values(COMBAT_STATS.added),
+    ];
+    expect(ids.filter((id) => !db.stats.has(id))).toEqual([]);
   });
 
-  it("表示名がないIDを検出する", () => {
-    const result = validateContentFiles([
-      ...DATA_FILES,
-      {
-        path: "stats/extra.json",
-        content: {
-          schemaVersion: DATA_SCHEMA_VERSION,
-          kind: "stats",
-          entries: [{ id: "STAT-NO-NAME", unit: "number" }],
-        },
+  it("耐性は75%が上限で、効果で90%まで上げられる（仕様書2.6）", () => {
+    const db = loadGameContent();
+    for (const element of ELEMENTS) {
+      const s = db.stats.get(`STAT-RESIST-${element.toUpperCase()}`);
+      expect(s?.baseCap).toBe(0.75);
+      expect(s?.capLimit).toBe(0.9);
+    }
+  });
+});
+
+describe("状態異常のデータ（仕様書v0.2 2.7・補助仕様書3.3）", () => {
+  const byTag = (tag: string) => loadGameContent().ailmentsByTag.get(tag);
+
+  it("9種類の状態異常の定義がある（MVPの範囲外の4種類は未実装の印）", () => {
+    const db = loadGameContent();
+    expect(db.ailments.size).toBe(9);
+    const pending = [...db.ailments.values()]
+      .filter((a) => a.kind === "pending")
+      .map((a) => a.tag)
+      .sort();
+    expect(pending).toEqual(["TAG-AIL-CHILL", "TAG-AIL-FREEZE", "TAG-AIL-SHOCK", "TAG-AIL-STIGMA"]);
+  });
+
+  it("出血：総量150%・5秒・8スタック・移動中2倍／毒：総量60%・3秒・無制限／燃焼：総量50%・4秒・最も強いもの", () => {
+    expect(byTag("TAG-AIL-BLEED")).toMatchObject({
+      kind: "dot",
+      totalRatio: 1.5,
+      duration: 5,
+      stacking: { mode: "stack", maxStacks: 8 },
+      movingMultiplier: 2,
+    });
+    expect(byTag("TAG-AIL-POISON")).toMatchObject({
+      kind: "dot",
+      sourceElements: ["physical", "dark"],
+      totalRatio: 0.6,
+      duration: 3,
+      stacking: { mode: "stack" },
+    });
+    expect(byTag("TAG-AIL-BURN")).toMatchObject({
+      kind: "dot",
+      totalRatio: 0.5,
+      duration: 4,
+      stacking: { mode: "strongest" },
+    });
+  });
+
+  it("衰弱：-15%（ボス-8%）・4秒", () => {
+    expect(byTag("TAG-AIL-WEAKEN")).toMatchObject({
+      kind: "debuff",
+      duration: 4,
+      dealtMultiplier: 0.85,
+      bossDealtMultiplier: 0.92,
+    });
+  });
+
+  it("崩し：敵0.2・ダウン2秒・×1.25／ボス0.15・怯み1秒・×1.15・毎回1.5倍／プレイヤー0.5・0.6秒", () => {
+    expect(byTag("TAG-AIL-STAGGER")).toMatchObject({
+      kind: "stagger",
+      defaultCoefficient: 0.3,
+      enemy: {
+        gaugeRatio: 0.2,
+        decayDelay: 3,
+        decayPerSecond: 0.1,
+        breakDuration: 2,
+        takenMultiplier: 1.25,
+        growthPerBreak: 1,
       },
-    ]);
-    expect(result.errors.map((e) => [e.code, e.path])).toEqual([
-      ["unknown_reference", "STAT-NO-NAME"],
-    ]);
+      boss: { gaugeRatio: 0.15, breakDuration: 1, takenMultiplier: 1.15, growthPerBreak: 1.5 },
+      player: { gaugeRatio: 0.5, decayDelay: 2, decayPerSecond: 0.2, breakDuration: 0.6 },
+    });
   });
 });

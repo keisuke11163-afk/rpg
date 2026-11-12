@@ -1,0 +1,140 @@
+[
+  {
+    "id": "SKL-WARRIOR-SWEEP",
+    "text": "skill.warrior.sweep",
+    "job": "JOB-WARRIOR",
+    "tags": ["TAG-FORM-MELEE", "TAG-FORM-AREA"],
+    "kind": "weapon",
+    "pct": 1.3,
+    "mpCost": 4,
+    "cooldown": 0,
+    "action": { "type": "strike", "shape": { "type": "sector", "radius": 2.2, "angleDeg": 120 } },
+    "staggerCoefficient": 0.4,
+    "stageVariants": [
+      { "stage": "empowered", "mods": { "angleDeg": 180, "staggerIncreased": 0.3 } }
+    ],
+    "weaponVariants": [
+      { "weaponTag": "TAG-WPN-GREATSWORD", "mods": { "areaMultiplier": 1.2 } },
+      { "weaponTag": "TAG-WPNGRP-AXE", "mods": { "ailmentChance": { "TAG-AIL-BLEED": 0.3 } } },
+      {
+        "weaponTag": "TAG-WPNGRP-MACE",
+        "mods": {
+          "behaviors": [
+            { "hook": "shockwave", "params": { "ratio": 0.5, "length": 4, "width": 1.2 } }
+          ]
+        }
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "槌の衝撃波の数値（技倍率の50%・長さ4m・幅1.2m）は仕様書に記載がない（docs/progress D-U08-2）"
+  },
+  {
+    "id": "SKL-WARRIOR-CHARGE",
+    "text": "skill.warrior.charge",
+    "job": "JOB-WARRIOR",
+    "tags": ["TAG-FORM-MOVEMENT", "TAG-FORM-MELEE"],
+    "kind": "weapon",
+    "pct": 1.5,
+    "mpCost": 8,
+    "cooldown": 5,
+    "action": { "type": "dash", "distance": 8, "duration": 0.4, "width": 1.2 },
+    "staggerCoefficient": 0.5,
+    "stageVariants": [
+      { "stage": "empowered", "mods": { "behaviors": [{ "hook": "fullStagger" }] } }
+    ],
+    "weaponVariants": [{ "weaponTag": "TAG-WPN-SPEAR", "mods": { "distanceAdd": 4 } }],
+    "provisional": true,
+    "provisionalNote": "突進の当たり判定の幅1.2mは仕様書に記載がない（docs/progress D-U08-2）"
+  },
+  {
+    "id": "SKL-WARRIOR-WARCRY",
+    "text": "skill.warrior.warcry",
+    "job": "JOB-WARRIOR",
+    "tags": ["TAG-FORM-WARCRY"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 12,
+    "cooldown": 12,
+    "action": {
+      "type": "warcry",
+      "radius": 6,
+      "duration": 8,
+      "allyEffects": ["EFF-WARRIOR-WARCRY-ATTACK"],
+      "enemyEffects": ["EFF-WARRIOR-INTIMIDATE"]
+    },
+    "gauge": { "gainOnUse": 20 },
+    "stageVariants": [{ "stage": "empowered", "mods": { "radiusMultiplier": 1.5 } }]
+  },
+  {
+    "id": "SKL-WARRIOR-EARTHSPLITTER",
+    "text": "skill.warrior.earthsplitter",
+    "job": "JOB-WARRIOR",
+    "tags": ["TAG-FORM-MELEE", "TAG-FORM-AREA", "TAG-AIL-STAGGER", "TAG-FORM-HEAVY"],
+    "kind": "weapon",
+    "pct": 2.2,
+    "mpCost": 10,
+    "cooldown": 4,
+    "action": { "type": "strike", "shape": { "type": "line", "length": 6, "width": 1.5 } },
+    "staggerCoefficient": 0.8,
+    "stageVariants": [
+      {
+        "stage": "empowered",
+        "mods": {
+          "behaviors": [
+            { "hook": "lingeringFissure", "params": { "ratio": 0.5, "duration": 2, "interval": 1 } }
+          ]
+        }
+      }
+    ],
+    "weaponVariants": [
+      {
+        "weaponTag": "TAG-WPN-GREATMACE",
+        "mods": { "behaviors": [{ "hook": "crossFissure", "params": { "length": 4 } }] }
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "亀裂の再びのダメージ（技倍率の50%を1秒ごと）と、十字の長さ4mは仕様書に記載がない（docs/progress D-U08-2）"
+  },
+  {
+    "id": "SKL-WARRIOR-WHIRLWIND",
+    "text": "skill.warrior.whirlwind",
+    "job": "JOB-WARRIOR",
+    "tags": ["TAG-FORM-MELEE", "TAG-FORM-AREA", "TAG-FORM-DURATION"],
+    "kind": "weapon",
+    "pct": 0.9,
+    "mpCost": 0,
+    "cooldown": 0,
+    "action": {
+      "type": "channel",
+      "shape": { "type": "circle", "radius": 2 },
+      "hitsPerSecond": 4,
+      "mpInterval": 0.25,
+      "mpPerInterval": 3,
+      "moveSpeedMultiplier": 0.8
+    },
+    "staggerCoefficient": 0.2,
+    "stageVariants": [
+      {
+        "stage": "empowered",
+        "mods": { "behaviors": [{ "hook": "pullIn", "params": { "radius": 4, "speed": 2 } }] }
+      }
+    ],
+    "dualWieldVariant": { "hitsPerSecond": 6, "pct": 0.7 },
+    "provisional": true,
+    "provisionalNote": "旋風の間の移動の速さ（×0.8）と、吸い寄せ（半径4m・毎秒2m）は仕様書に記載がない（docs/progress D-U08-2）"
+  },
+  {
+    "id": "SKL-WARRIOR-ROUT",
+    "text": "skill.warrior.rout",
+    "job": "JOB-WARRIOR",
+    "tags": ["TAG-FORM-MELEE", "TAG-FORM-AREA", "TAG-FORM-RELEASE", "TAG-FORM-HEAVY"],
+    "kind": "weapon",
+    "pct": 8.0,
+    "mpCost": 0,
+    "cooldown": 0,
+    "action": { "type": "strike", "shape": { "type": "sector", "radius": 4, "angleDeg": 180 } },
+    "staggerCoefficient": 2.0,
+    "gauge": { "requires": 100, "cost": "all" },
+    "selfEffects": [{ "effect": "EFF-WARRIOR-ROUT-GUARD", "duration": 8 }]
+  }
+]

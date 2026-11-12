@@ -1,0 +1,151 @@
+[
+  {
+    "id": "SKL-ROGUE-FLURRY",
+    "text": "skill.rogue.flurry",
+    "speedStat": "STAT-JOB-FLURRY-SPEED",
+    "job": "JOB-ROGUE",
+    "tags": ["TAG-FORM-MELEE"],
+    "kind": "weapon",
+    "pct": 0.6,
+    "mpCost": 4,
+    "cooldown": 0,
+    "action": {
+      "type": "strike",
+      "shape": {
+        "type": "sector",
+        "radius": 1.4,
+        "angleDeg": 70
+      },
+      "hits": 3,
+      "hitInterval": 0.12
+    },
+    "staggerCoefficient": 0.15,
+    "gauge": {
+      "gainOnHit": 1
+    },
+    "weaponVariants": [
+      {
+        "weaponTag": "TAG-WPN-CLAW",
+        "mods": {
+          "hits": 4,
+          "ailmentChance": {
+            "TAG-AIL-BLEED": 0.25
+          }
+        }
+      },
+      {
+        "weaponTag": "TAG-WPN-SWORD",
+        "mods": {
+          "hits": 2,
+          "angleDeg": 150,
+          "areaMultiplier": 1.3
+        }
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "連撃の間隔0.12秒、片手剣の範囲（150°・1.3倍）は仕様書に記載がない（docs/progress D-U10-3）"
+  },
+  {
+    "id": "SKL-ROGUE-SHADOWSTEP",
+    "text": "skill.rogue.shadowstep",
+    "job": "JOB-ROGUE",
+    "tags": ["TAG-FORM-MOVEMENT"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 8,
+    "cooldown": 4,
+    "useTimeMultiplier": 0.5,
+    "action": {
+      "type": "teleport",
+      "range": 8,
+      "behind": 0.6
+    },
+    "provisional": true,
+    "provisionalNote": "動作の時間（攻撃1回の半分）と、背後の距離0.6mは仕様書に記載がない（docs/progress D-U10-3）"
+  },
+  {
+    "id": "SKL-ROGUE-PIERCE",
+    "text": "skill.rogue.pierce",
+    "job": "JOB-ROGUE",
+    "tags": ["TAG-FORM-MELEE", "TAG-FORM-FINISHER"],
+    "kind": "weapon",
+    "pct": 1.0,
+    "mpCost": 6,
+    "cooldown": 0,
+    "action": {
+      "type": "strike",
+      "shape": {
+        "type": "sector",
+        "radius": 1.4,
+        "angleDeg": 60
+      }
+    },
+    "staggerCoefficient": 0.3,
+    "gauge": {
+      "cost": "all"
+    },
+    "finisher": {
+      "pctPerPoint": 0.8,
+      "forceCritAt": 5
+    }
+  },
+  {
+    "id": "SKL-ROGUE-POISON",
+    "text": "skill.rogue.poison",
+    "job": "JOB-ROGUE",
+    "tags": [],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 10,
+    "cooldown": 15,
+    "action": {
+      "type": "selfBuff",
+      "effects": ["EFF-ROGUE-POISON-COATING"],
+      "duration": 12
+    }
+  },
+  {
+    "id": "SKL-ROGUE-SMOKE",
+    "text": "skill.rogue.smoke",
+    "job": "JOB-ROGUE",
+    "tags": ["TAG-FORM-AREA", "TAG-FORM-DEFENSE"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 12,
+    "cooldown": 10,
+    "action": {
+      "type": "zone",
+      "range": 6,
+      "radius": 3,
+      "duration": 4,
+      "interval": 1,
+      "enemyEffects": ["EFF-ROGUE-SMOKE"],
+      "ailment": "TAG-AIL-WEAKEN"
+    },
+    "provisional": true,
+    "provisionalNote": "煙の4秒・毎秒の衰弱は仕様書v0.2 5.6の仮値"
+  },
+  {
+    "id": "SKL-ROGUE-TRAP",
+    "text": "skill.rogue.trap",
+    "job": "JOB-ROGUE",
+    "tags": ["TAG-FORM-TRAP"],
+    "kind": "weapon",
+    "pct": 1.2,
+    "mpCost": 10,
+    "cooldown": 0,
+    "action": {
+      "type": "trap",
+      "range": 5,
+      "radius": 1,
+      "duration": 10,
+      "max": 3
+    },
+    "staggerCoefficient": 0.3,
+    "ailmentChance": {
+      "TAG-AIL-BLEED": 1
+    },
+    "provisional": true,
+    "provisionalNote": "罠が消えるまでの10秒は仕様書v0.2 5.6の仮値"
+  }
+]

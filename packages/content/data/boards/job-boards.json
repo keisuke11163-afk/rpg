@@ -1,0 +1,669 @@
+[
+  {
+    "id": "JBN-WARRIOR-START",
+    "job": "JOB-WARRIOR",
+    "kind": "start",
+    "links": ["JBN-WARRIOR-T1"],
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-T1",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T2"],
+    "position": {
+      "x": 0,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-T2",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T3"],
+    "position": {
+      "x": 0,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-T3",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T4"],
+    "position": {
+      "x": 0,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-WAR-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-T4",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T5"],
+    "position": {
+      "x": 0,
+      "y": 160
+    },
+    "effects": ["EFF-JBN-WAR-GAIN"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-T5",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T6"],
+    "position": {
+      "x": 0,
+      "y": 200
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-T6",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T7"],
+    "position": {
+      "x": 0,
+      "y": 240
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-T7",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": [],
+    "position": {
+      "x": 0,
+      "y": 280
+    },
+    "effects": ["EFF-JBN-WAR-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-B1A",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T1"],
+    "position": {
+      "x": -40,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-B1B",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-B1A"],
+    "position": {
+      "x": -80,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-WAR-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-FORGE",
+    "job": "JOB-WARRIOR",
+    "kind": "notable",
+    "links": ["JBN-WARRIOR-B1B"],
+    "position": {
+      "x": -120,
+      "y": 40
+    },
+    "text": "jobnode.warrior.forge",
+    "description": "jobnode.warrior.forge.desc",
+    "effects": ["EFF-JBN-WAR-FORGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-B2A",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T2"],
+    "position": {
+      "x": 40,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-WAR-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-B2B",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-B2A"],
+    "position": {
+      "x": 80,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-WAR-GAIN"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-BLOOD",
+    "job": "JOB-WARRIOR",
+    "kind": "notable",
+    "links": ["JBN-WARRIOR-B2B"],
+    "position": {
+      "x": 120,
+      "y": 80
+    },
+    "text": "jobnode.warrior.blood",
+    "description": "jobnode.warrior.blood.desc",
+    "effects": ["EFF-JBN-WAR-BLOOD"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-B3A",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T3"],
+    "position": {
+      "x": -40,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-WAR-GAIN"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-B3B",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-B3A"],
+    "position": {
+      "x": -80,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-TWOHAND",
+    "job": "JOB-WARRIOR",
+    "kind": "notable",
+    "links": ["JBN-WARRIOR-B3B"],
+    "position": {
+      "x": -120,
+      "y": 120
+    },
+    "text": "jobnode.warrior.twohand",
+    "description": "jobnode.warrior.twohand.desc",
+    "effects": ["EFF-JBN-WAR-TWOHAND"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-B4A",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T4"],
+    "position": {
+      "x": 40,
+      "y": 160
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-B4B",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-B4A"],
+    "position": {
+      "x": 80,
+      "y": 160
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-BREAKER",
+    "job": "JOB-WARRIOR",
+    "kind": "notable",
+    "links": ["JBN-WARRIOR-B4B"],
+    "position": {
+      "x": 120,
+      "y": 160
+    },
+    "text": "jobnode.warrior.breaker",
+    "description": "jobnode.warrior.breaker.desc",
+    "effects": ["EFF-JBN-WAR-BREAKER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-C1",
+    "job": "JOB-WARRIOR",
+    "kind": "connector",
+    "links": ["JBN-WARRIOR-T5"],
+    "position": {
+      "x": 40,
+      "y": 200
+    },
+    "text": "jobnode.warrior.c1",
+    "description": "jobnode.warrior.c1.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-C2",
+    "job": "JOB-WARRIOR",
+    "kind": "connector",
+    "links": ["JBN-WARRIOR-C1"],
+    "position": {
+      "x": 80,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
+    "text": "jobnode.warrior.c1",
+    "description": "jobnode.warrior.c1.desc"
+  },
+  {
+    "id": "JBN-WARRIOR-C3",
+    "job": "JOB-WARRIOR",
+    "kind": "connector",
+    "links": ["JBN-WARRIOR-C2"],
+    "position": {
+      "x": 120,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
+    "text": "jobnode.warrior.c1",
+    "description": "jobnode.warrior.c1.desc"
+  },
+  {
+    "id": "JBN-WARRIOR-M-UNYIELDING",
+    "job": "JOB-WARRIOR",
+    "kind": "mastery",
+    "links": ["JBN-WARRIOR-T7"],
+    "position": {
+      "x": -60,
+      "y": 330
+    },
+    "text": "jobnode.warrior.m-unyielding",
+    "description": "jobnode.warrior.m-unyielding.desc",
+    "effects": ["EFF-JBM-WAR-UNYIELDING"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-M-SURGE",
+    "job": "JOB-WARRIOR",
+    "kind": "mastery",
+    "links": ["JBN-WARRIOR-T7"],
+    "position": {
+      "x": 0,
+      "y": 330
+    },
+    "text": "jobnode.warrior.m-surge",
+    "description": "jobnode.warrior.m-surge.desc",
+    "effects": ["EFF-JBM-WAR-SURGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-M-DEMON",
+    "job": "JOB-WARRIOR",
+    "kind": "mastery",
+    "links": ["JBN-WARRIOR-T7"],
+    "position": {
+      "x": 60,
+      "y": 330
+    },
+    "text": "jobnode.warrior.m-demon",
+    "description": "jobnode.warrior.m-demon.desc",
+    "effects": ["EFF-JBM-WAR-DEMON"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-START",
+    "job": "JOB-ROGUE",
+    "kind": "start",
+    "links": ["JBN-ROGUE-T1"],
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-T1",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T2"],
+    "position": {
+      "x": 0,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-ROG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-T2",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T3"],
+    "position": {
+      "x": 0,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-ROG-AILMENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-T3",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T4"],
+    "position": {
+      "x": 0,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-ROG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-T4",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T5"],
+    "position": {
+      "x": 0,
+      "y": 160
+    },
+    "effects": ["EFF-JBN-ROG-BACKSTAB"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-T5",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T6"],
+    "position": {
+      "x": 0,
+      "y": 200
+    },
+    "effects": ["EFF-JBN-ROG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-T6",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T7"],
+    "position": {
+      "x": 0,
+      "y": 240
+    },
+    "effects": ["EFF-JBN-ROG-AILMENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-T7",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": [],
+    "position": {
+      "x": 0,
+      "y": 280
+    },
+    "effects": ["EFF-JBN-ROG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-B1A",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T1"],
+    "position": {
+      "x": -40,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-ROG-AILMENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-B1B",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-B1A"],
+    "position": {
+      "x": -80,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-ROG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-POISON-BLOOD",
+    "job": "JOB-ROGUE",
+    "kind": "notable",
+    "links": ["JBN-ROGUE-B1B"],
+    "position": {
+      "x": -120,
+      "y": 40
+    },
+    "text": "jobnode.rogue.poison-blood",
+    "description": "jobnode.rogue.poison-blood.desc",
+    "effects": ["EFF-JBN-ROG-POISON-BLOOD"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-B2A",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T2"],
+    "position": {
+      "x": 40,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-ROG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-B2B",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-B2A"],
+    "position": {
+      "x": 80,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-ROG-BACKSTAB"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-VITALS",
+    "job": "JOB-ROGUE",
+    "kind": "notable",
+    "links": ["JBN-ROGUE-B2B"],
+    "position": {
+      "x": 120,
+      "y": 80
+    },
+    "text": "jobnode.rogue.vitals",
+    "description": "jobnode.rogue.vitals.desc",
+    "effects": ["EFF-JBN-ROG-VITALS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-B3A",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T3"],
+    "position": {
+      "x": -40,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-ROG-BACKSTAB"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-B3B",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-B3A"],
+    "position": {
+      "x": -80,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-ROG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-QUICK",
+    "job": "JOB-ROGUE",
+    "kind": "notable",
+    "links": ["JBN-ROGUE-B3B"],
+    "position": {
+      "x": -120,
+      "y": 120
+    },
+    "text": "jobnode.rogue.quick",
+    "description": "jobnode.rogue.quick.desc",
+    "effects": ["EFF-JBN-ROG-QUICK"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-C1",
+    "job": "JOB-ROGUE",
+    "kind": "connector",
+    "links": ["JBN-ROGUE-T5"],
+    "position": {
+      "x": 40,
+      "y": 200
+    },
+    "text": "jobnode.rogue.c1",
+    "description": "jobnode.rogue.c1.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-C2",
+    "job": "JOB-ROGUE",
+    "kind": "connector",
+    "links": ["JBN-ROGUE-C1"],
+    "position": {
+      "x": 80,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
+    "text": "jobnode.rogue.c1",
+    "description": "jobnode.rogue.c1.desc"
+  },
+  {
+    "id": "JBN-ROGUE-C3",
+    "job": "JOB-ROGUE",
+    "kind": "connector",
+    "links": ["JBN-ROGUE-C2"],
+    "position": {
+      "x": 120,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
+    "text": "jobnode.rogue.c1",
+    "description": "jobnode.rogue.c1.desc"
+  },
+  {
+    "id": "JBN-ROGUE-M-ENDLESS",
+    "job": "JOB-ROGUE",
+    "kind": "mastery",
+    "links": ["JBN-ROGUE-T7"],
+    "position": {
+      "x": -60,
+      "y": 330
+    },
+    "text": "jobnode.rogue.m-endless",
+    "description": "jobnode.rogue.m-endless.desc",
+    "effects": ["EFF-JBM-ROG-ENDLESS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-M-SILENT",
+    "job": "JOB-ROGUE",
+    "kind": "mastery",
+    "links": ["JBN-ROGUE-T7"],
+    "position": {
+      "x": 0,
+      "y": 330
+    },
+    "text": "jobnode.rogue.m-silent",
+    "description": "jobnode.rogue.m-silent.desc",
+    "effects": ["EFF-JBM-ROG-SILENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ROGUE-M-SHADOW",
+    "job": "JOB-ROGUE",
+    "kind": "mastery",
+    "links": ["JBN-ROGUE-T7"],
+    "position": {
+      "x": 60,
+      "y": 330
+    },
+    "text": "jobnode.rogue.m-shadow",
+    "description": "jobnode.rogue.m-shadow.desc",
+    "effects": ["EFF-JBM-ROG-SHADOW"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  }
+]

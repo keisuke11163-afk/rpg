@@ -3,7 +3,7 @@
 見下ろし型 2D ドット絵ファンタジー ARPG（ハック＆スラッシュ）。
 装備収集・巨大なパッシブツリー・ジョブの3システムの相互作用で、ビルドを発見する楽しさを中心にしたゲーム。
 
-> 現在の状態：**MVPの開発中**（U-01 開発環境の構築：完了／U-02 データの基盤：完了）。
+> 現在の状態：**MVPの開発中**（作業ブランチで U-19 母樹まで完了・U-21 数値の調整を作業中。進み具合は [開発進捗](docs/progress/開発進捗.md)）。
 
 ## 開発の始め方
 
@@ -14,6 +14,7 @@ pnpm install
 pnpm dev          # 開発サーバー（http://localhost:5173/）
 pnpm check        # 型の検査・リント・整形・テスト・データの検証・ビルド・仮実装の一覧（ブランチを完了させる前に必ず実行）
 pnpm smoke        # ビルドしたゲームをブラウザで開いて起動を確かめ、artifacts/smoke/ に撮影する（Playwright が必要）
+pnpm e2e          # 開発サーバーで、実際のキー・マウスの入力で操作を確かめる（Playwright が必要）
 ```
 
 ## 構成
@@ -21,7 +22,7 @@ pnpm smoke        # ビルドしたゲームをブラウザで開いて起動を
 | 場所 | 内容 |
 |---|---|
 | `packages/core` | ルールの中核。ブラウザの機能・Phaser・Node.js に依存しない |
-| `packages/content` | コンテンツのデータ（JSON）と表示の文章。データの決まりは [data/README.md](packages/content/data/README.md) |
+| `packages/content` | コンテンツのデータ（JSON）と表示の文章 |
 | `packages/game` | Phaser を使う表示層 |
 | `tools/sim` | DPSシミュレーター（U-05） |
 | `tools/scripts` | データの検証・仮実装の一覧などの道具 |

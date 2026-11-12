@@ -1,0 +1,34 @@
+{
+  "id": "lv1-rogue-dagger",
+  "name": "Lv1・盗賊・下級の短剣（連刃＋通常攻撃）",
+  "note": "仕様書5.6 の連刃（3連撃・1撃60%）。爪の出血付与（25%）は含まない。職技のデータは U-08・U-10 で正式に作る",
+  "characterLevel": 1,
+  "weapon": {
+    "uid": "sim-dagger",
+    "tags": ["TAG-WPN-DAGGER"],
+    "base": { "physical": { "min": 4, "max": 9 } },
+    "critChance": 0.08,
+    "attackSpeed": 1.6
+  },
+  "rotation": [
+    {
+      "name": "連刃",
+      "tags": ["TAG-FORM-MELEE"],
+      "kind": "weapon",
+      "pct": 0.6,
+      "hits": 3,
+      "mpCost": 4,
+      "cooldown": 0,
+      "staggerCoefficient": 0.15
+    },
+    {
+      "name": "通常攻撃",
+      "tags": ["TAG-FORM-MELEE"],
+      "kind": "weapon",
+      "pct": 1.0,
+      "mpCost": 0,
+      "cooldown": 0,
+      "staggerCoefficient": 0.3
+    }
+  ]
+}

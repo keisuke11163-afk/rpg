@@ -1,0 +1,50 @@
+[
+  {
+    "id": "MAT-AWAKENING-DUST",
+    "text": "item.material.awakening-dust"
+  },
+  {
+    "id": "MAT-INSIGHT-CRYSTAL",
+    "text": "item.material.insight-crystal"
+  },
+  {
+    "id": "MAT-TRANSMUTE-STONE",
+    "text": "item.material.transmute-stone"
+  },
+  {
+    "id": "MAT-ERASE-BLADE",
+    "text": "item.material.erase-blade"
+  },
+  {
+    "id": "MAT-TUNING-FORK",
+    "text": "item.material.tuning-fork"
+  },
+  {
+    "id": "MAT-SEAL-WAX",
+    "text": "item.material.seal-wax"
+  },
+  {
+    "id": "MAT-RETURN-LAMP",
+    "text": "item.material.return-lamp"
+  },
+  {
+    "id": "MAT-BEAST-FANG",
+    "text": "item.material.beast-fang"
+  },
+  {
+    "id": "MAT-MAGIC-DUST",
+    "text": "item.material.magic-dust"
+  },
+  {
+    "id": "MAT-STAR-SAND",
+    "text": "item.material.star-sand"
+  },
+  {
+    "id": "MAT-GLOW-STONE",
+    "text": "item.material.glow-stone"
+  },
+  {
+    "id": "MAT-BOSS-CORE-CH1",
+    "text": "item.material.boss-core-ch1"
+  }
+]

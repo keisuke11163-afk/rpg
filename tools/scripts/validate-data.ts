@@ -1,19 +1,16 @@
 /**
- * データの検証（開発計画書 T17、MVP実装単位 U-02）。
- * - data/ の JSON を全てディスクから読み、読めることを確かめる
- * - 読み込む一覧（packages/content/src/files.ts）と、ディスクのファイルが一致することを確かめる
- * - 形・版・ID参照・値の範囲・乗算の出どころなどを検証する（core の validateContent）
- * - text/ja.json が読め、全てのIDの表示名があることを確かめる
+ * データの検証（pnpm validate:data）。
+ * - スキーマ・ID参照・値の範囲・乗算の出どころ・上書きの優先度などを、core の loadContent で検証する
+ * - data/ にあるのに raw.ts に登録されていない JSON のファイル（登録し忘れ）を誤りにする
+ * - 仮値の一覧を出す
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatDataErrors, type RawDataFile } from "../../packages/core/src/index.ts";
-import { DATA_FILES, validateContentFiles } from "../../packages/content/src/index.ts";
+import { formatContentError, loadContent } from "../../packages/core/src/index.ts";
+import { rawContent, registeredDataFiles } from "../../packages/content/src/index.ts";
 
-const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
-const contentRoot = join(repoRoot, "packages", "content");
-const dataRoot = join(contentRoot, "data");
+const contentRoot = fileURLToPath(new URL("../../packages/content", import.meta.url));
 
 function jsonFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -23,43 +20,32 @@ function jsonFiles(dir: string): string[] {
   });
 }
 
-const failures: string[] = [];
-const files: RawDataFile[] = [];
+const problems: string[] = [];
 
-for (const file of [...jsonFiles(dataRoot), ...jsonFiles(join(contentRoot, "text"))]) {
-  try {
-    const content: unknown = JSON.parse(readFileSync(file, "utf-8"));
-    if (file.startsWith(dataRoot)) {
-      files.push({ path: relative(dataRoot, file).split(sep).join("/"), content });
-    }
-  } catch (error) {
-    failures.push(
-      `${relative(repoRoot, file)}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+const registered = new Set(registeredDataFiles());
+for (const file of jsonFiles(join(contentRoot, "data"))) {
+  const rel = relative(contentRoot, file).split("\\").join("/");
+  if (!registered.has(rel))
+    problems.push(`[unregistered] ${rel}: packages/content/src/raw.ts に登録されていない`);
 }
 
-const listed = new Set(DATA_FILES.map((f) => f.path));
-for (const { path } of files) {
-  if (!listed.has(path))
-    failures.push(`${path}: packages/content/src/files.ts の一覧に載っていない`);
-}
-for (const path of listed) {
-  if (!files.some((f) => f.path === path))
-    failures.push(`${path}: 一覧に載っているが、ファイルがない`);
-}
+const result = loadContent(rawContent);
+if (!result.ok) problems.push(...result.errors.map(formatContentError));
 
-const result = validateContentFiles(files);
-if (!result.ok) failures.push(formatDataErrors(result.errors));
-
-if (failures.length > 0) {
-  console.error(`データの検証：失敗\n${failures.join("\n")}`);
+if (problems.length > 0) {
+  console.error(`データの検証：失敗（${String(problems.length)}件）\n${problems.join("\n")}`);
   process.exit(1);
 }
+
+const c = result.ok ? result.content : undefined;
+console.log(
+  `データの検証：問題なし（タグ${String(c?.tags.size ?? 0)}・能力値${String(c?.stats.size ?? 0)}・効果${String(c?.effects.size ?? 0)}・状態異常${String(c?.ailments.size ?? 0)}・技${String(c?.skills.size ?? 0)}・職能ゲージ${String(c?.gauges.size ?? 0)}・ジョブ${String(c?.jobs.size ?? 0)}・敵${String(c?.enemies.size ?? 0)}・格${String(c?.enemyRanks.size ?? 0)}、データの形の版 ${String(c?.manifest.schemaVersion)}、コンテンツの版 ${c?.manifest.contentVersion ?? "?"}）`,
+);
 if (result.ok) {
-  const { tags, stats, hooks, effects, schemaVersion } = result.data;
-  console.log(
-    `データの検証：${String(files.length)}ファイル（データの版 ${String(schemaVersion)}）、問題なし` +
-      `（タグ ${String(tags.size)}・能力値 ${String(stats.size)}・ルールフック ${String(hooks.size)}・効果 ${String(effects.size)}）`,
-  );
+  console.log(`仮値：${String(result.provisional.length)}件`);
+  for (const p of result.provisional) {
+    console.log(
+      `  ${p.collection} ${p.id}（${p.file}）${p.note === undefined ? "" : `：${p.note}`}`,
+    );
+  }
 }

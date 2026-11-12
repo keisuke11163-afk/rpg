@@ -1,0 +1,468 @@
+[
+  {
+    "id": "EFF-STAR-GO-10",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-GO",
+        "value": 10
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-JIN-10",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-JIN",
+        "value": 10
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-GOJIN-5",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-GO",
+        "value": 5
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-JIN",
+        "value": 5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-BLEED-6",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 0.06,
+        "filter": {
+          "allOf": ["TAG-AIL-BLEED"]
+        }
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-DURATION",
+        "value": 0.3,
+        "filter": {
+          "allOf": ["TAG-AIL-BLEED"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-VIPER-DMG",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 0.08,
+        "filter": {
+          "allOf": ["TAG-AIL-POISON"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-VIPER-DUR",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-DURATION",
+        "value": 0.2,
+        "filter": {
+          "allOf": ["TAG-AIL-POISON"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-CONST-VIPER",
+    "origin": "constellation",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-CONST-VIPER-PUDDLE",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "毒だまりの挙動はゲームのルールフック（docs/progress D-STAR-2）"
+  },
+  {
+    "id": "EFF-STAR-VANE-MOVE",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.02
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "投射物速度の小星は、MVPにプレイヤーの投射物が無いので移動速度にした（docs/progress D-STAR-3）"
+  },
+  {
+    "id": "EFF-CONST-VANE",
+    "origin": "constellation",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "「移動中は投射物速度+20%・移動速度+5%」のうち移動速度（移動速度は移動中だけ意味を持つ。D-STAR-3）"
+  },
+  {
+    "id": "EFF-STAR-TWIN-SPEED",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ATTACK-SPEED",
+        "value": 0.03
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "factAtLeast",
+        "fact": "dualWield",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "id": "EFF-CONST-TWIN",
+    "origin": "constellation",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-CONST-TWIN-STAGGER",
+        "value": 0.3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "2撃目の崩し値+30%。二刀流の交互の攻撃が未実装のため、まだ効かない（docs/progress D-STAR-4）"
+  },
+  {
+    "id": "EFF-KEY-BLOOD-PACT",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-KEY-BLOOD-PACT",
+        "value": 1.5
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-HP-RECOVERY",
+        "value": 0.3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "コストの支払いはゲームのルールフック（docs/progress D-STAR-6）"
+  },
+  {
+    "id": "EFF-KEY-BLOOD-PACT-RES",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-KEY-BLOOD-PACT-REFUND",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "共鳴変化。装備の共鳴紋がまだ無いので効かない（docs/progress D-STAR-5）"
+  },
+  {
+    "id": "EFF-KEY-BARE-HANDS",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-KEY-BARE-HANDS",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "factAtLeast",
+        "fact": "mainHand.empty",
+        "value": 1
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "素手の基礎ダメージと副手の2倍は、能力値の計算のルールフック（docs/progress D-STAR-7）"
+  },
+  {
+    "id": "EFF-KEY-BURDEN-PIECE",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.05
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.08
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-KEY-BURDEN",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": -0.12
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-KEY-BURDEN-IMMUNE",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "flag",
+        "flag": "beStaggered",
+        "mode": "forbid"
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "factAtLeast",
+        "fact": "armor.heavy.count",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "id": "EFF-KEY-BURDEN-RES",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.06
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "共鳴変化（移動速度の低下が-6%）。装備の共鳴紋がまだ無いので効かない"
+  },
+  {
+    "id": "EFF-KEY-MYRIAD",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-KEY-CRITICAL",
+        "value": 0.6
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "臨界はゲームのルールフック（docs/progress D-STAR-8）"
+  },
+  {
+    "id": "EFF-KEY-SHADOW-COPY",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-KEY-SHADOW-DELAY",
+        "value": 0.35
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "遅延はゲームのルールフック（docs/progress D-STAR-9）"
+  },
+  {
+    "id": "EFF-NOTABLE-REOPEN",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-NOTABLE-REOPEN",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "延長はゲームのルールフック"
+  },
+  {
+    "id": "EFF-STAR-SMITH-ARMOR",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-STAR-SMITH-WEAPON",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.05,
+        "filter": {
+          "allOf": ["TAG-ELEM-PHYSICAL"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "「武器の物理ダメージ+5%」を、物理ダメージ+5%（全体）として扱う（docs/progress D-STAR-11）"
+  },
+  {
+    "id": "EFF-CONST-SMITH",
+    "origin": "constellation",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.004
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "装備の強化値の合計×0.4%（強化値の合計の数だけ重ねる。上限44%は10部位×10＝40%で届かない）"
+  }
+]

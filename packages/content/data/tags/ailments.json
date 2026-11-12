@@ -1,0 +1,47 @@
+[
+  {
+    "id": "TAG-AIL-BURN",
+    "category": "ailment",
+    "text": "tag.ailment.burn"
+  },
+  {
+    "id": "TAG-AIL-CHILL",
+    "category": "ailment",
+    "text": "tag.ailment.chill"
+  },
+  {
+    "id": "TAG-AIL-FREEZE",
+    "category": "ailment",
+    "text": "tag.ailment.freeze"
+  },
+  {
+    "id": "TAG-AIL-SHOCK",
+    "category": "ailment",
+    "text": "tag.ailment.shock"
+  },
+  {
+    "id": "TAG-AIL-BLEED",
+    "category": "ailment",
+    "text": "tag.ailment.bleed"
+  },
+  {
+    "id": "TAG-AIL-POISON",
+    "category": "ailment",
+    "text": "tag.ailment.poison"
+  },
+  {
+    "id": "TAG-AIL-WEAKEN",
+    "category": "ailment",
+    "text": "tag.ailment.weaken"
+  },
+  {
+    "id": "TAG-AIL-STIGMA",
+    "category": "ailment",
+    "text": "tag.ailment.stigma"
+  },
+  {
+    "id": "TAG-AIL-STAGGER",
+    "category": "ailment",
+    "text": "tag.ailment.stagger"
+  }
+]

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@stella/content": "workspace:*",
-    "@stella/core": "workspace:*"
+    "@stella/core": "workspace:*",
+    "zod": "4.6.7"
   }
 }

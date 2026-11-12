@@ -1,0 +1,68 @@
+[
+  {
+    "id": "EFF-INSCR-HP-3",
+    "origin": "inscription",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-HP-MAX",
+        "value": 0.03
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-INSCR-AILMENT-DURATION-8",
+    "origin": "inscription",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DURATION",
+        "value": 0.08
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-INSCR-STAGGER-10",
+    "origin": "inscription",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.1
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-CRACK-MOVE-SPEED-3",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": -0.03
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "亀裂の一覧が仕様書に無いため、仕様書v0.2 3.11.1 の例（移動速度-3%）だけ（docs/progress Q-U17-2）"
+  }
+]
