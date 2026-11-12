@@ -465,6 +465,12 @@
     "min": 0
   },
   {
+    "id": "STAT-KEY-BARE-HANDS-MAX",
+    "text": "stat.key-bare-hands-max",
+    "unit": "flat",
+    "min": 0
+  },
+  {
     "id": "STAT-KEY-CRITICAL",
     "text": "stat.key-critical",
     "unit": "ratio",

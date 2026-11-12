@@ -57,6 +57,18 @@ export const UNARMED_UID = "unarmed";
  * 能力値 STAT-KEY-BARE-HANDS が1以上のとき。
  */
 export const BARE_HANDS_STAT = "STAT-KEY-BARE-HANDS";
+/**
+ * 徒手の極意の素手の最大ダメージの上限（docs/progress D-FIN-5。仕様書に無い）。0なら上限なし。
+ * 式（キャラLv×1.0〜×1.8）は変えず、最大が上限を超えたら、最小も同じ比（1:1.8）で抑える。
+ */
+export const BARE_HANDS_MAX_STAT = "STAT-KEY-BARE-HANDS-MAX";
+
+/** 徒手の極意の素手の基礎ダメージ（仕様書v0.2 3.2：キャラLv×1.0〜×1.8。cap が正なら最大を cap までにする）。 */
+export function bareHandsDamage(level: number, cap: number): { min: number; max: number } {
+  const max = level * 1.8;
+  if (!(cap > 0) || max <= cap) return { min: level * 1, max };
+  return { min: cap / 1.8, max: cap };
+}
 /** 攻撃速度の倍率の下限（加算の増加が大きく負になっても、0や負にしない）。 */
 export const MIN_ATTACK_SPEED_FACTOR = 0.1;
 
@@ -308,7 +320,10 @@ export function buildCharacterSheet(
           tags: [UNARMED_WEAPON_TAG],
           base: {
             physical: bareHands
-              ? { min: character.level * 1, max: character.level * 1.8 }
+              ? bareHandsDamage(
+                  character.level,
+                  db.stats.has(BARE_HANDS_MAX_STAT) ? view.stat(BARE_HANDS_MAX_STAT).value : 0,
+                )
               : { ...UNARMED_DAMAGE },
           },
           critChance: UNARMED_CRIT_CHANCE,

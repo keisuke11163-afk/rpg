@@ -404,5 +404,6 @@
   "stat.mut-heavy": "重撃化",
   "stat.mut-blood-blade": "血の刃",
   "stat.const-shadow-set": "影縫いの装束の仮想部位",
-  "constellation.shadow": "影法師座"
+  "constellation.shadow": "影法師座",
+  "stat.key-bare-hands-max": "徒手の極意：素手の最大ダメージの上限"
 }

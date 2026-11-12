@@ -291,6 +291,8 @@ export {
   type SheetStat,
   type SheetWeapon,
   buildCharacterSheet,
+  bareHandsDamage,
+  BARE_HANDS_MAX_STAT,
   BASE_WARD_DELAY,
   latentConditionMet,
   sheetRows,

@@ -12,6 +12,7 @@ import {
   generateItem,
   TagIndex,
   buildCharacterSheet,
+  bareHandsDamage,
   startNodeOf,
 } from "@stella/core";
 import { describe, expect, it } from "vitest";
@@ -65,6 +66,18 @@ function sheet(origin: JobDef, allocation: readonly string[], equip?: (e: Equipm
   });
 }
 
+describe("bareHandsDamage（徒手の極意の素手の基礎ダメージ。D-FIN-5）", () => {
+  it("上限より下では式のまま（キャラLv×1.0〜×1.8）、上では最大を上限に・最小を同じ比で抑える", () => {
+    expect(bareHandsDamage(10, 30)).toEqual({ min: 10, max: 18 });
+    expect(bareHandsDamage(16, 30)).toEqual({ min: 16, max: 28.8 });
+    const capped = bareHandsDamage(20, 30);
+    expect(capped.max).toBe(30);
+    expect(capped.min).toBeCloseTo(16.667, 3);
+    // 上限0は上限なし
+    expect(bareHandsDamage(20, 0)).toEqual({ min: 20, max: 36 });
+  });
+});
+
 describe("MVPの星辰盤のポイント（25＝Lv20の19＋クエスト4＋探索2）で、ビルドが成り立つ", () => {
   it("盗賊：毒蛇座（完成）＋千変＋傷口を抉るを、25ポイント以内で取れる（I-30 のビルド）", () => {
     const root = startNodeOf(db, "JOB-ROGUE") as string;
@@ -96,10 +109,14 @@ describe("MVPの星辰盤のポイント（25＝Lv20の19＋クエスト4＋探�
 describe("天極の効果", () => {
   const W = startNodeOf(db, "JOB-WARRIOR") as string;
 
-  it("K09 徒手の極意：主手が空なら素手の基礎ダメージが キャラLv×1.0〜×1.8。武器を持つと無効", () => {
+  it("K09 徒手の極意：主手が空なら素手の基礎ダメージが キャラLv×1.0〜×1.8（最大の上限30。D-FIN-5）。武器を持つと無効", () => {
     const path = pathTo(W, "STAR-KEY-BARE-HANDS");
     const bare = sheet(WARRIOR, path);
-    expect(bare.attacker.weapon?.base.physical).toEqual({ min: 20, max: 36 });
+    // Lv20：式では 20〜36。上限30で最大を抑え、最小も同じ比（1:1.8）で抑える
+    expect(bare.evaluated.view.stat("STAT-KEY-BARE-HANDS-MAX").value).toBe(30);
+    const physical = bare.attacker.weapon?.base.physical;
+    expect(physical?.max).toBe(30);
+    expect(physical?.min).toBeCloseTo(30 / 1.8, 10);
     const armed = sheet(WARRIOR, path, (e) =>
       e.equip(item("w", "BASE-WPN-LONGSWORD-T1"), "mainHand", true),
     );

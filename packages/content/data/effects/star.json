@@ -261,6 +261,11 @@
         "kind": "added",
         "stat": "STAT-KEY-BARE-HANDS",
         "value": 1
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-KEY-BARE-HANDS-MAX",
+        "value": 30
       }
     ],
     "affects": {
@@ -276,7 +281,7 @@
       }
     ],
     "provisional": true,
-    "provisionalNote": "素手の基礎ダメージと副手の2倍は、能力値の計算のルールフック（docs/progress D-STAR-7）"
+    "provisionalNote": "素手の基礎ダメージと副手の2倍は、能力値の計算のルールフック（docs/progress D-STAR-7）。素手の最大ダメージの上限（STAT-KEY-BARE-HANDS-MAX。仕様書に無い。docs/progress D-FIN-5）"
   },
   {
     "id": "EFF-KEY-BURDEN-PIECE",
