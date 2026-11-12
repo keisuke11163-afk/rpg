@@ -321,6 +321,7 @@ export class ArenaSimulation {
     if (origin === undefined) throw new Error("戦士のデータがない");
     this.character = new Character({
       origin,
+      jobs: this.db.jobs,
       level: TEST_START.level,
       jobLevels: { [origin.id]: TEST_START.jobLevel },
     });

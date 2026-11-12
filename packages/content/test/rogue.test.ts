@@ -59,7 +59,7 @@ describe("盗賊（仕様書v0.2 5.6）", () => {
 
 describe("能力値の効果（仕様書2.2）", () => {
   it("戦士の出自（剛20・迅10・理5・魂5）のLv1：HP 60＋40、MP 60＋7.5、命中 2＋30", () => {
-    const c = new Character({ origin: job("JOB-WARRIOR") });
+    const c = new Character({ origin: job("JOB-WARRIOR"), jobs: db.jobs });
     const { view } = evaluateEffects(db, tags, c.attributeEffects(), { baseStats: c.baseStats() });
     expect(view.stat("STAT-HP-MAX").value).toBe(100);
     expect(view.stat("STAT-MP-MAX").value).toBe(67.5);

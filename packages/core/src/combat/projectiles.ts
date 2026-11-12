@@ -168,6 +168,15 @@ export class ProjectilePool<P> {
    */
   update(dt: number, targets: readonly ProjectileTarget[]): ProjectileHit<P>[] {
     // 投射物の状態を変える前に検証する（NaN・負の数・無限大は位置や射程を壊すため）
+    this.checkUpdate(dt, targets);
+    return this.advance(dt, targets);
+  }
+
+  /**
+   * update が RangeError になる入力かを、状態を変えずに確かめる（なる場合は同じ RangeError）。
+   * 他の状態と合わせて「全て検証してから全て反映する」ために使う（EnemyField.update）。
+   */
+  checkUpdate(dt: number, targets: readonly ProjectileTarget[]): void {
     if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
     for (const t of targets) validateTarget(t);
     // 判定に使う「相手の半径＋投射物の半径」が有限であることも先に確かめる
@@ -179,6 +188,9 @@ export class ProjectilePool<P> {
         requireFinite(t.radius + slot.radius, `相手「${t.id}」の半径と投射物の半径の合計`);
       }
     }
+  }
+
+  private advance(dt: number, targets: readonly ProjectileTarget[]): ProjectileHit<P>[] {
     const hits: ProjectileHit<P>[] = [];
     const contacts: Contact[] = [];
     this.slots.forEach((slot, index) => {

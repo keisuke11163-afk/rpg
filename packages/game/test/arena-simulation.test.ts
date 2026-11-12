@@ -324,3 +324,32 @@ describe("ArenaSimulation：転職・経験値（U-10）", () => {
     expect(texts.length).toBe(1);
   });
 });
+
+describe("EnemyField.update：経過時間の検証", () => {
+  it.each([Infinity, NaN, -1])("%s は、敵を1体も動かす前に RangeError", (bad) => {
+    const sim = new ArenaSimulation();
+    const field = sim.field;
+    if (field === undefined) throw new Error("敵の場がない");
+    const before = field.enemies.map((e) => ({
+      state: e.state,
+      time: e.timeInState,
+      position: e.position,
+      facing: e.facing,
+      hp: e.combatant.health.hp,
+    }));
+    const hooks = { onPlayerHit: vi.fn(), onAvoided: vi.fn(), onEnemyKilled: vi.fn() };
+    expect(() => {
+      field.update(bad, sim.player, false, 0, hooks);
+    }).toThrow(RangeError);
+    expect(
+      field.enemies.map((e) => ({
+        state: e.state,
+        time: e.timeInState,
+        position: e.position,
+        facing: e.facing,
+        hp: e.combatant.health.hp,
+      })),
+    ).toEqual(before);
+    expect(hooks.onPlayerHit).not.toHaveBeenCalled();
+  });
+});
