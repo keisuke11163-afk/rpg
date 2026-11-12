@@ -377,5 +377,35 @@
     },
     "scope": "self",
     "locality": "local"
+  },
+  {
+    "id": "EFF-IMP-DUAL-ONEHAND",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ATTACK-SPEED",
+        "value": 0.05
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "factAtLeast",
+        "fact": "dualWield",
+        "value": 1
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書に無い（仕様からの変更）。片手武器の二刀流と両手武器の差を縮める小さなボーナス：片手武器1本につき、二刀流のとき攻撃速度+5%・ダメージ+5%（2本で+10%ずつ。docs/progress D-FIN-4）"
   }
 ]

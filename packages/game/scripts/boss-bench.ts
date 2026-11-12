@@ -5,10 +5,11 @@
 import { loadGameContent } from "@stella/content";
 import { runBossBench, withoutPart } from "../src/bench/boss-bench.ts";
 import { BENCH_BUILDS } from "../src/bench/builds.ts";
+import type { BenchBuild } from "../src/bench/boss-bench.ts";
 
 const db = loadGameContent();
 const fmt = (n: number | undefined): string => (n === undefined ? "—" : n.toFixed(1));
-for (const region of ["REGION-A4-BOSS", "REGION-A5-BOSS"]) {
+for (const region of process.argv.includes("--hands") ? [] : ["REGION-A4-BOSS", "REGION-A5-BOSS"]) {
   console.log(`\n■ ${region}`);
   for (const build of BENCH_BUILDS) {
     const atk = runBossBench(db, build, { region, invincible: true });
@@ -59,4 +60,67 @@ if (process.argv.includes("--contrib")) {
       `  ${b.name}：全部 ${full.toFixed(1)}／低下 装備 ${(eq * 100).toFixed(0)}%・ツリー ${(tree * 100).toFixed(0)}%・ジョブ ${(job * 100).toFixed(0)}% → 配分 ${share.join("／")}`,
     );
   }
+}
+
+// 片手と両手の武器の比較（pnpm bench -- --hands。docs/progress D-FIN-4）：同じビルドで武器だけを替え、
+// 深淵の母樹の攻撃面のDPS（120秒・3シードの平均）を比べる。詞・強化は同じものを両方の手に付ける
+if (process.argv.includes("--hands")) {
+  const find = (id: string): BenchBuild => {
+    const b = BENCH_BUILDS.find((x) => x.id === id);
+    if (b === undefined) throw new Error(`ビルド ${id} が無い`);
+    return b;
+  };
+  const avg = (b: BenchBuild): number => {
+    const seeds = ["a", "b", "c"];
+    return (
+      seeds
+        .map(
+          (seed) =>
+            runBossBench(db, b, { region: "REGION-A5-BOSS", invincible: true, seconds: 120, seed })
+              .dps,
+        )
+        .reduce((x, y) => x + y, 0) / seeds.length
+    );
+  };
+  const withWeapons = (b: BenchBuild, main: string, off?: string): BenchBuild => {
+    const w = b.equipment.find((e) => e.slot === "mainHand");
+    const rest = b.equipment.filter((e) => e.slot !== "mainHand" && e.slot !== "offHand");
+    const hand = (slot: "mainHand" | "offHand", base: string) => ({
+      slot,
+      base,
+      ...(w?.affixes === undefined ? {} : { affixes: w.affixes }),
+      enhance: 5,
+    });
+    return {
+      ...b,
+      equipment: [
+        hand("mainHand", main),
+        ...(off === undefined ? [] : [hand("offHand", off)]),
+        ...rest,
+      ],
+    };
+  };
+  const rows: [string, BenchBuild, string, string?][] = [
+    ["基準・戦士：大剣（両手）", find("baseline-warrior"), "BASE-WPN-GREATSWORD-T1"],
+    ["基準・戦士：長剣1本", find("baseline-warrior"), "BASE-WPN-LONGSWORD-T1"],
+    [
+      "基準・戦士：長剣の二刀流",
+      find("baseline-warrior"),
+      "BASE-WPN-LONGSWORD-T1",
+      "BASE-WPN-LONGSWORD-T1",
+    ],
+    ["基準・戦士：大斧（両手）", find("baseline-warrior"), "BASE-WPN-GREATAXE-T1"],
+    ["基準・戦士：斧の二刀流", find("baseline-warrior"), "BASE-WPN-AXE-T1", "BASE-WPN-AXE-T1"],
+    ["基準・盗賊：短剣1本", find("baseline-rogue"), "BASE-WPN-DAGGER-T1"],
+    [
+      "基準・盗賊：短剣の二刀流",
+      find("baseline-rogue"),
+      "BASE-WPN-DAGGER-T1",
+      "BASE-WPN-DAGGER-T1",
+    ],
+    ["基準・盗賊：大剣（両手）", find("baseline-rogue"), "BASE-WPN-GREATSWORD-T1"],
+  ];
+  console.log("\n■ 片手と両手（REGION-A5-BOSS・攻撃面のDPS・120秒・3シードの平均）");
+  for (const [name, b, main, off] of rows)
+    console.log(`  ${name}：${avg(withWeapons(b, main, off)).toFixed(1)}`);
 }

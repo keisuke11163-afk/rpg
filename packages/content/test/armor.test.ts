@@ -184,10 +184,34 @@ describe("詞の追加（U-11 の残り）：職詞・系統詞・一般の詞",
   });
 
   it("短剣は背面からの会心率+5%、爪はヒットでHP吸収0.5%（どちらもその武器のヒットだけ）", () => {
-    expect(base("BASE-WPN-DAGGER-T1").implicitEffects).toEqual(["EFF-IMP-BACKSTAB-CRIT-5"]);
-    expect(base("BASE-WPN-CLAW-T1").implicitEffects).toEqual(["EFF-IMP-LIFE-LEECH-05"]);
+    expect(base("BASE-WPN-DAGGER-T1").implicitEffects).toEqual([
+      "EFF-IMP-BACKSTAB-CRIT-5",
+      "EFF-IMP-DUAL-ONEHAND",
+    ]);
+    expect(base("BASE-WPN-CLAW-T1").implicitEffects).toEqual([
+      "EFF-IMP-LIFE-LEECH-05",
+      "EFF-IMP-DUAL-ONEHAND",
+    ]);
     expect(db.effects.get("EFF-IMP-BACKSTAB-CRIT-5")?.locality).toBe("local");
     expect(db.effects.get("EFF-IMP-LIFE-LEECH-05")?.locality).toBe("local");
+  });
+});
+
+describe("片手武器の二刀流のボーナス（docs/progress D-FIN-4。仕様からの変更）", () => {
+  it("片手武器だけが持ち、二刀流のときだけ効く（攻撃速度+5%・ダメージ+5%。全体の効果）", () => {
+    for (const b of db.itemBases.values()) {
+      if (b.category !== "weapon" || b.weapon === undefined) continue;
+      expect(b.implicitEffects?.includes("EFF-IMP-DUAL-ONEHAND") ?? false, b.id).toBe(
+        b.weapon.hands === 1,
+      );
+    }
+    const e = db.effects.get("EFF-IMP-DUAL-ONEHAND");
+    expect(e?.locality).not.toBe("local");
+    expect(e?.conditions).toEqual([{ type: "factAtLeast", fact: "dualWield", value: 1 }]);
+    expect(e?.modifiers).toEqual([
+      { kind: "increased", stat: "STAT-ATTACK-SPEED", value: 0.05 },
+      { kind: "increased", stat: "STAT-DAMAGE", value: 0.05 },
+    ]);
   });
 });
 
