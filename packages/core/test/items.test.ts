@@ -23,6 +23,7 @@ import {
   loadContent,
   rarityWeights,
   rollAffixValue,
+  rollDrops,
   TagIndex,
   tierWeights,
 } from "../src/index.ts";
@@ -648,5 +649,111 @@ describe("インベントリ（補助仕様書13章）", () => {
     expect(inv.gold).toBe(42);
     expect(inv.material("MAT-A")).toBe(3);
     expect(() => new Inventory(-1)).toThrow(RangeError);
+  });
+});
+
+describe("金貨の倍率と、持ち物の整数（PR #14 のレビュー指摘）", () => {
+  const goldDrop = (multiplier: number) => ({
+    id: "DROP-G",
+    source: "elite",
+    chance: 1,
+    count: { min: 1, max: 1 },
+    rareMultiplier: 1,
+    guaranteedRareOrBetter: 0,
+    itemLevelBonus: 0,
+    gold: { chance: 1, multiplier },
+    materials: [],
+  });
+
+  it("小数の金貨の倍率は、データの読み込みで弾かれる（0・負も）", () => {
+    for (const bad of [1.5, 0.5, 0, -2]) {
+      const e = errors({ itemBases: [weaponBase("BASE-W")], dropProfiles: [goldDrop(bad)] });
+      expect(e.some((x) => x.includes("DROP-G") && x.includes("multiplier"))).toBe(true);
+    }
+    expect(errors({ itemBases: [weaponBase("BASE-W")], dropProfiles: [goldDrop(3)] })).toEqual([]);
+  });
+
+  it("rollDrops の金貨は、必ず安全な整数（拾っても RangeError にならない）", () => {
+    const d = db({ itemBases: [weaponBase("BASE-W")], dropProfiles: [goldDrop(7)] });
+    const tags = new TagIndex(d.tags);
+    const rng = Rng.fromSeed("gold-int");
+    let uid = 0;
+    const inv = new Inventory();
+    for (const enemyLevel of [1, 2, 9, 50, 99, 1000]) {
+      for (let i = 0; i < 200; i++) {
+        const { gold } = rollDrops(d, rng, {
+          source: "elite",
+          enemyLevel,
+          tags,
+          nextUid: () => `u${String(++uid)}`,
+        });
+        expect(Number.isSafeInteger(gold)).toBe(true);
+        expect(gold).toBeGreaterThanOrEqual((1 + enemyLevel) * 7);
+        expect(gold).toBeLessThanOrEqual(2 * (1 + enemyLevel) * 7);
+        inv.addGold(gold);
+      }
+    }
+  });
+
+  it("最大の金貨が安全な整数に収まらない敵のLv・倍率なら、乱数を使う前に RangeError", () => {
+    const d = db({
+      itemBases: [weaponBase("BASE-W")],
+      dropProfiles: [goldDrop(Number.MAX_SAFE_INTEGER)],
+    });
+    const tags = new TagIndex(d.tags);
+    const rng = Rng.fromSeed("gold-over");
+    const before = rng.getState();
+    expect(() =>
+      rollDrops(d, rng, { source: "elite", enemyLevel: 1, tags, nextUid: () => "u" }),
+    ).toThrow(RangeError);
+    expect(rng.getState()).toEqual(before);
+  });
+});
+
+describe("Inventory.addAll（金貨と素材をまとめて足す）", () => {
+  it("全て足す。同じ素材は合計する", () => {
+    const inv = new Inventory();
+    inv.addGold(5);
+    inv.addMaterial("MAT-A", 1);
+    inv.addAll(
+      [10, 20],
+      [
+        { material: "MAT-A", count: 2 },
+        { material: "MAT-B", count: 1 },
+        { material: "MAT-A", count: 3 },
+      ],
+    );
+    expect(inv.gold).toBe(35);
+    expect(inv.material("MAT-A")).toBe(6);
+    expect(inv.material("MAT-B")).toBe(1);
+  });
+
+  it("1つでも不正・合計があふれるなら、何も変えずに RangeError", () => {
+    const inv = new Inventory();
+    inv.addGold(Number.MAX_SAFE_INTEGER - 10);
+    inv.addMaterial("MAT-A", Number.MAX_SAFE_INTEGER - 10);
+    const cases: [number[], { material: string; count: number }[]][] = [
+      [[5, 6], [{ material: "MAT-B", count: 1 }]],
+      [
+        [1],
+        [
+          { material: "MAT-B", count: 1 },
+          { material: "MAT-A", count: 5 },
+          { material: "MAT-A", count: 6 },
+        ],
+      ],
+      [[1, 1.5], []],
+      [[1], [{ material: "MAT-B", count: -1 }]],
+      [[Number.NaN], []],
+    ];
+    for (const [gold, materials] of cases) {
+      expect(() => {
+        inv.addAll(gold, materials);
+      }).toThrow(RangeError);
+      expect(inv.gold).toBe(Number.MAX_SAFE_INTEGER - 10);
+      expect(inv.material("MAT-A")).toBe(Number.MAX_SAFE_INTEGER - 10);
+      expect(inv.material("MAT-B")).toBe(0);
+      expect(inv.materials.has("MAT-B")).toBe(false);
+    }
   });
 });

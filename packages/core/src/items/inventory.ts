@@ -54,6 +54,29 @@ export class Inventory {
     requireCount(count, `素材 ${id} の数`);
     this.materialCounts.set(id, requireSafeTotal(this.material(id) + count, `素材 ${id} の合計`));
   }
+
+  /**
+   * 金貨と素材をまとめて足す。全ての数と、金貨・素材ごとの合計（今の持ち物を含む）が安全な整数に
+   * 収まるかを先に確かめ、1つでも不正なら何も変えずに RangeError。成功したときだけ全て反映する。
+   */
+  addAll(
+    gold: readonly number[],
+    materials: readonly { readonly material: string; readonly count: number }[],
+  ): void {
+    let goldTotal = this.goldValue;
+    for (const amount of gold) {
+      requireCount(amount, "金貨");
+      goldTotal = requireSafeTotal(goldTotal + amount, "金貨の合計");
+    }
+    const totals = new Map<string, number>();
+    for (const m of materials) {
+      requireCount(m.count, `素材 ${m.material} の数`);
+      const now = totals.get(m.material) ?? this.material(m.material);
+      totals.set(m.material, requireSafeTotal(now + m.count, `素材 ${m.material} の合計`));
+    }
+    this.goldValue = goldTotal;
+    for (const [id, total] of totals) this.materialCounts.set(id, total);
+  }
 }
 
 function requireCount(value: number, what: string): void {

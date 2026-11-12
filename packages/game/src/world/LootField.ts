@@ -76,17 +76,25 @@ export class LootField {
       });
   }
 
-  /** 金貨・素材のうち、半径1.5m以内のものを全て拾う。拾ったものを返す。 */
+  /**
+   * 金貨・素材のうち、半径1.5m以内のものを全て拾う。拾ったものを返す。
+   * 拾う物を全て決めてから、持ち物にまとめて足す（Inventory.addAll）。金貨・素材ごとの合計が
+   * 安全な整数に収まらないなど1つでも不正なら、持ち物も地面も何も変えずに RangeError。
+   */
   autoPickup(position: Vec2, inventory: Inventory): GroundLoot[] {
     const picked: GroundLoot[] = [];
     const left: GroundLoot[] = [];
+    const gold: number[] = [];
+    const materials: { material: string; count: number }[] = [];
     for (const d of this.list) {
       if (d.kind !== "item" && distance(position, d.position) <= AUTO_PICKUP_RADIUS) {
-        if (d.kind === "gold") inventory.addGold(d.amount);
-        else inventory.addMaterial(d.material, d.count);
+        if (d.kind === "gold") gold.push(d.amount);
+        else materials.push({ material: d.material, count: d.count });
         picked.push(d);
       } else left.push(d);
     }
+    if (picked.length === 0) return picked;
+    inventory.addAll(gold, materials);
     this.list = left;
     return picked;
   }
