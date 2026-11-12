@@ -71,3 +71,8 @@ export function hitChance(evasion: number, accuracy: number): number {
 export function baseAccuracy(characterLevel: number, jin: number): number {
   return 2 * characterLevel + 3 * jin;
 }
+
+/** 敵の命中（補助仕様書10.1）：40 ＋ 12 × 敵のLv。仮値: 補助仕様書10.1 */
+export function enemyAccuracy(level: number): number {
+  return 40 + 12 * level;
+}

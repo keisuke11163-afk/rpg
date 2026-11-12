@@ -7,7 +7,7 @@ import {
   Cooldowns,
   type DamageAttacker,
   FixedStepClock,
-  Health,
+  type Health,
   type HitReport,
   type HitShape,
   JobGauge,
@@ -39,10 +39,11 @@ import {
 import { loadGameContent } from "@stella/content";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
+import { EnemyField } from "../world/EnemyField.ts";
 import { toMeters } from "../world/units.ts";
 
 /** 試験用の場の大きさ（m）。 */
-export const ARENA = { width: 40, height: 24 } as const;
+export const ARENA = { width: 80, height: 40 } as const;
 
 /**
  * 回避の無敵時間を確かめるための「試験用の危険地帯」。
@@ -182,8 +183,10 @@ export interface ArenaExtraInput {
 export interface ArenaSimulationOptions {
   /** ゲームのデータ（既定は loadGameContent()）。 */
   db?: ContentDb;
-  /** 人形へのヒットを解決したときに呼ぶ（表示の手応え用。回避されたヒットは呼ばない）。 */
-  onHit?: (report: HitReport) => void;
+  /** 人形・敵へのヒットを解決したときに呼ぶ（表示の手応え用。回避されたヒットは呼ばない）。 */
+  onHit?: (report: HitReport, at: Vec2) => void;
+  /** 試験用の敵を出すか（既定は出す。入力の処理だけを確かめるテストでは出さない）。 */
+  enemies?: boolean;
 }
 
 /**
@@ -204,14 +207,21 @@ export class ArenaSimulation {
   readonly tags: TagIndex;
   readonly job: JobDef;
   readonly dummy: Combatant;
-  readonly playerHealth: Health;
+  /** 試験用の敵（出さない設定なら undefined）。 */
+  readonly field: EnemyField | undefined;
   readonly maxMp = MAX_MP;
   readonly fervor: JobGauge;
   readonly cooldowns = new Cooldowns();
   readonly buffs = new TimedEffects();
   private readonly stepInput = new StepInputBuffer<StepAction>();
   private readonly rng = Rng.fromSeed("arena");
-  private readonly onHit: ((report: HitReport) => void) | undefined;
+  private readonly onHit: ((report: HitReport, at: Vec2) => void) | undefined;
+  /** プレイヤーの戦う者（HP・状態異常・崩し。敵の攻撃を受ける）。 */
+  private playerValue!: Combatant;
+  private hitsTakenCount = 0;
+  private avoidedAttacks = 0;
+  private deathCount = 0;
+  private enemyHitCount = 0;
   private weaponIndex = 0;
   private attackerValue!: DamageAttacker;
   private attackerVersion = -1;
@@ -242,7 +252,6 @@ export class ArenaSimulation {
     if (job === undefined || gauge === undefined) throw new Error("戦士のデータがない");
     this.job = job;
     this.fervor = new JobGauge(gauge);
-    this.playerHealth = new Health({ maxHp: 60 });
     this.refreshAttacker();
     this.motion = new PlayerMotion({ x: 12, y: 12 }, undefined, {
       minX: 0.5,
@@ -250,6 +259,16 @@ export class ArenaSimulation {
       maxX: ARENA.width - 0.5,
       maxY: ARENA.height - 0.25,
     });
+    this.playerValue = this.newPlayer();
+    this.field =
+      options.enemies === false
+        ? undefined
+        : new EnemyField(this.db, this.rng.fork("enemies"), {
+            minX: 0.5,
+            minY: 0.5,
+            maxX: ARENA.width - 0.5,
+            maxY: ARENA.height - 0.5,
+          });
     this.dummy = new Combatant(this.db, {
       id: "dummy",
       team: "enemy",
@@ -259,6 +278,36 @@ export class ArenaSimulation {
       maxHp: 5000,
       staggerProfile: staggerProfiles(this.db).enemy,
     });
+  }
+
+  /** プレイヤーの戦う者（倒れると、作り直す）。 */
+  get player(): Combatant {
+    return this.playerValue;
+  }
+  get playerHealth(): Health {
+    return this.playerValue.health;
+  }
+  /** 敵の攻撃を受けた回数（回避されたヒットを除く）。 */
+  get hitsTaken(): number {
+    return this.hitsTakenCount;
+  }
+  /** 敵の攻撃を回避の無敵時間で無効にした回数。 */
+  get attacksAvoided(): number {
+    return this.avoidedAttacks;
+  }
+  get deaths(): number {
+    return this.deathCount;
+  }
+  /** プレイヤーの技が敵に当たった回数。 */
+  get enemyHits(): number {
+    return this.enemyHitCount;
+  }
+
+  /** 確認用：プレイヤーの右3mに敵を出す（開発版の確認用）。 */
+  spawnEnemy(id: string): string {
+    if (this.field === undefined) throw new Error("試験用の敵を出さない設定");
+    const p = this.motion.position;
+    return this.field.spawn(id, "normal", 5, { x: p.x + 3, y: p.y }, `debug-${id}`).id;
   }
 
   /** 計算を進めた時間の合計（秒）。ヒットの手応えで止まっている間は進まない。 */
@@ -389,6 +438,23 @@ export class ArenaSimulation {
     return this.recentDamage.reduce((s, d) => s + d.amount, 0) / 5;
   }
 
+  /** プレイヤーの戦う者（仮値: 最大HP60＝Lv1の標準HP。キャラクターの能力値は U-10 で入れる）。 */
+  private newPlayer(): Combatant {
+    return new Combatant(this.db, {
+      id: "player",
+      team: "player",
+      position: this.motion.position,
+      radius: 0.35,
+      maxHp: 60,
+      staggerProfile: staggerProfiles(this.db).player,
+    });
+  }
+
+  /** プレイヤーの技の対象（訓練用の人形と、生きている敵）。 */
+  private targets(): Combatant[] {
+    return [this.dummy, ...(this.field?.targets() ?? [])];
+  }
+
   /** 効果（戦吼の強化など）が変わったら、攻撃する側の能力値を計算し直す。 */
   private refreshAttacker(): void {
     if (this.attackerVersion === this.buffs.version) return;
@@ -452,14 +518,18 @@ export class ArenaSimulation {
       y: toMeters(input.pointerWorld.y) - pos.y,
     };
     // 保持している押した瞬間の入力は、最初に進んだ刻みで取り出され、以降の刻みには渡らない
-    const dodge = this.stepInput.take("dodge");
+    const dodgePressed = this.stepInput.take("dodge");
     const pressed = new Set<SkillSlot>();
     for (const a of STEP_ACTIONS) if (a !== "dodge" && this.stepInput.take(a)) pressed.add(a);
     const held = (slot: SkillSlot): boolean => (slot === "rout" ? routHeld : input.held.has(slot));
+    // よろめいている間は、移動・技・回避ができない（補助仕様書3.3）。押した回避は使われずに消える
+    const staggered = this.playerValue.stagger.broken;
+    if (staggered) this.current = undefined;
+    const dodge = dodgePressed && !staggered;
     if (dodge) this.current = undefined; // 回避で技を取り消せる
 
     // 技を使い始める（照準の方向へ）。枠の順に、使えるものを1つ。押し続けている間は繰り返し使う（補助仕様書1.1）
-    if (this.current === undefined && !this.motion.dodging && !dodge) {
+    if (this.current === undefined && !this.motion.dodging && !dodge && !staggered) {
       const use = LOADOUT.find(
         (l) => (held(l.action) || pressed.has(l.action)) && this.blockOf(l.skill) === undefined,
       );
@@ -485,21 +555,22 @@ export class ArenaSimulation {
       if (tick.warcry !== undefined) {
         const w = tick.warcry;
         for (const e of w.allyEffects) this.buffs.add(e, w.duration, exec.skill.def.id);
-        if (
-          length({
-            x: this.dummy.position.x - w.origin.x,
-            y: this.dummy.position.y - w.origin.y,
-          }) <=
-          w.radius + this.dummy.radius
-        )
-          for (const e of w.enemyEffects) this.dummy.statuses.add(e, w.duration, exec.skill.def.id);
+        for (const t of this.targets()) {
+          const dist = length({ x: t.position.x - w.origin.x, y: t.position.y - w.origin.y });
+          if (dist > w.radius + t.radius) continue;
+          for (const e of w.enemyEffects) t.statuses.add(e, w.duration, exec.skill.def.id);
+        }
         this.showShape({ type: "circle", radius: w.radius }, w.origin, 0);
       }
       if (tick.pull !== undefined) {
         const p = tick.pull;
-        const d = this.dummy.position;
-        if (!this.dummy.isBoss && length({ x: d.x - p.origin.x, y: d.y - p.origin.y }) <= p.radius)
-          this.dummy.position = pullTowards(d, p.origin, p.speed * dt, PULL_MIN_DISTANCE);
+        for (const t of this.targets()) {
+          const d = t.position;
+          const movable = this.field?.byCombatant(t)?.def.moveSpeed !== 0;
+          const inside = length({ x: d.x - p.origin.x, y: d.y - p.origin.y }) <= p.radius;
+          if (!t.isBoss && movable && inside)
+            t.position = pullTowards(d, p.origin, p.speed * dt, PULL_MIN_DISTANCE);
+        }
       }
       for (const z of tick.zones) this.zoneRuns.push({ exec: z, hit: new Map() });
       moveMultiplier = tick.moveMultiplier;
@@ -509,15 +580,38 @@ export class ArenaSimulation {
     this.zoneRuns = this.zoneRuns.filter((z) => !(z.exec as LingeringZone).done);
 
     this.motion.update(dt, {
-      move: input.move,
-      aim: this.current === undefined ? aim : ZERO,
+      move: staggered ? ZERO : input.move,
+      aim: this.current === undefined && !staggered ? aim : ZERO,
       dodge,
       speedMultiplier: moveMultiplier,
+    });
+    this.playerValue.position = this.motion.position;
+    this.playerValue.moving = length(input.move) > 0 && !staggered;
+
+    // 敵の行動と攻撃
+    this.field?.update(dt, this.playerValue, this.motion.invulnerable, this.motion.facing, {
+      onPlayerHit: (report) => {
+        if (report.hit.evaded) return;
+        this.hitsTakenCount += 1;
+        this.fervor.onDamageTaken(
+          report.applied.toHp + report.applied.toWard,
+          this.playerValue.health.maxHp,
+        );
+      },
+      onAvoided: () => {
+        this.avoidedAttacks += 1;
+      },
     });
 
     const dot = this.dummy.update(dt);
     if (dot > 0) this.recentDamage.push({ t: this.elapsed, amount: dot });
-    this.playerHealth.update(dt);
+    const playerDot = this.playerValue.update(dt);
+    if (playerDot > 0) this.fervor.onDamageTaken(playerDot, this.playerValue.health.maxHp);
+    // 仮実装: U-18b feature/death-and-return で、死亡の扱い（町に戻る）に置き換える（試験用の場では、その場で全回復する）
+    if (this.playerValue.health.dead) {
+      this.deathCount += 1;
+      this.playerValue = this.newPlayer();
+    }
     this.mpValue = Math.min(MAX_MP, this.mpValue + MAX_MP * 0.06 * dt);
     this.cooldowns.update(dt);
     this.buffs.update(dt);
@@ -533,33 +627,40 @@ export class ArenaSimulation {
     let landed = false;
     for (const s of strikes) {
       this.showShape(s.shape, s.origin, s.facing);
-      const t = this.dummy;
-      if (!overlapsShape(s.shape, s.origin, s.facing, t.position, t.radius)) continue;
-      if (s.group !== undefined) {
-        const set = run.hit.get(s.group) ?? new Set<string>();
-        if (set.has(t.id)) continue;
-        set.add(t.id);
-        run.hit.set(s.group, set);
+      for (const t of this.targets()) {
+        if (!overlapsShape(s.shape, s.origin, s.facing, t.position, t.radius)) continue;
+        if (s.group !== undefined) {
+          const set = run.hit.get(s.group) ?? new Set<string>();
+          if (set.has(t.id)) continue;
+          set.add(t.id);
+          run.hit.set(s.group, set);
+        }
+        const report = resolveHit({
+          db: this.db,
+          attacker: this.attackerValue,
+          attackerPosition: s.origin,
+          skill: s.damage,
+          skillChance: s.skill.ailmentChance,
+          staggerCoefficient: s.skill.staggerCoefficient,
+          target: t,
+          rng: this.rng,
+          fullStagger: s.fullStagger,
+        });
+        if (t !== this.dummy) this.field?.onEnemyHit(t);
+        if (report.hit.evaded) {
+          if (t === this.dummy) this.lastReport = report;
+          continue;
+        }
+        landed = true;
+        this.hitStopLeft = HIT_STOP;
+        if (t === this.dummy) {
+          this.lastReport = report;
+          this.dummyHits += 1;
+          this.recentDamage.push({ t: this.elapsed, amount: report.hit.total });
+          this.flashLeft = FLASH;
+        } else this.enemyHitCount += 1;
+        this.onHit?.(report, t.position);
       }
-      const report = resolveHit({
-        db: this.db,
-        attacker: this.attackerValue,
-        attackerPosition: s.origin,
-        skill: s.damage,
-        skillChance: s.skill.ailmentChance,
-        staggerCoefficient: s.skill.staggerCoefficient,
-        target: t,
-        rng: this.rng,
-        fullStagger: s.fullStagger,
-      });
-      this.lastReport = report;
-      if (report.hit.evaded) continue;
-      landed = true;
-      this.dummyHits += 1;
-      this.recentDamage.push({ t: this.elapsed, amount: report.hit.total });
-      this.hitStopLeft = HIT_STOP;
-      this.flashLeft = FLASH;
-      this.onHit?.(report);
     }
     // 闘志：1回の当たり判定の発生で、当たれば1回増える（docs/progress D-U08-3）
     const first = strikes[0];
@@ -584,9 +685,8 @@ export class ArenaSimulation {
     if (this.motion.invulnerable) this.avoided += 1;
     else {
       this.hits += 1;
-      const taken = this.playerHealth.takeDamage(5);
-      this.fervor.onDamageTaken(taken.toHp + taken.toWard, this.playerHealth.maxHp);
-      if (this.playerHealth.dead) this.playerHealth.restoreFull();
+      const taken = this.playerValue.health.takeDamage(5);
+      this.fervor.onDamageTaken(taken.toHp + taken.toWard, this.playerValue.health.maxHp);
     }
   }
 }

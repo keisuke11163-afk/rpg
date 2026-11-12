@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FIXED_STEP_SECONDS, FixedStepClock, type MotionInput, PlayerMotion } from "@stella/core";
 import type { Action } from "../src/input/actions.ts";
 import type { InputFrame } from "../src/input/frame.ts";
-import { ArenaSimulation } from "../src/scenes/arena-simulation.ts";
+import { ARENA, ArenaSimulation } from "../src/scenes/arena-simulation.ts";
 import { toMeters, toPixels } from "../src/world/units.ts";
 
 const STEP = FIXED_STEP_SECONDS;
@@ -223,12 +223,13 @@ describe("ArenaSimulation：回避の入力がない場合は従来どおり", (
     });
     fc.assert(
       fc.property(fc.array(frameArb, { maxLength: 80 }), (frames) => {
-        const sim = new ArenaSimulation(new FixedStepClock(STEP, 5));
+        // 入力の処理の比較なので、試験用の敵は出さない（U-09。敵の攻撃でよろめくと移動が変わるため）
+        const sim = new ArenaSimulation(new FixedStepClock(STEP, 5), { enemies: false });
         const ref = new PlayerMotion({ ...START }, undefined, {
           minX: 0.5,
           minY: 0.75,
-          maxX: 39.5,
-          maxY: 23.75,
+          maxX: ARENA.width - 0.5,
+          maxY: ARENA.height - 0.25,
         });
         for (const f of frames) {
           const frame = input({
@@ -255,5 +256,66 @@ describe("ArenaSimulation：回避の入力がない場合は従来どおり", (
       }),
       { numRuns: 200 },
     );
+  });
+});
+
+describe("ArenaSimulation：試験用の敵（U-09）", () => {
+  it("第1章の敵6種類の群れが出て、技の対象になる", () => {
+    const sim = new ArenaSimulation();
+    const groups = new Set(sim.field?.entries.map((e) => e.group));
+    expect([...groups].sort()).toEqual(["bear", "boar", "lizards", "rats", "saplings", "wolves"]);
+    expect(sim.field?.targets().length).toBeGreaterThan(0);
+  });
+
+  it("近くに出した敵に通常攻撃が当たり、敵のヒットとして数える（人形のヒットには数えない）", () => {
+    const at: { x: number; y: number }[] = [];
+    const sim = new ArenaSimulation(undefined, { onHit: (_r, p) => at.push({ ...p }) });
+    const id = sim.spawnEnemy("ENM-THORN-RAT");
+    const rat = sim.field?.enemies.find((e) => e.id === id);
+    expect(rat).toBeDefined();
+    // 照準は右（敵は右3m）。近づいてくる敵に、押し続けで通常攻撃を繰り返す
+    const held = { ...input(), held: new Set<Action>(["skill1"]) };
+    for (let i = 0; i < 240 && sim.enemyHits === 0; i++) sim.frame(STEP, held);
+    expect(sim.enemyHits).toBeGreaterThan(0);
+    expect(sim.hitCount).toBe(0);
+    expect(at.length).toBeGreaterThan(0);
+  });
+
+  it("よろめいている間は、技も回避も使えない（押した回避は保持されずに消える）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    expect(sim.player.stagger.breakNow()).toBe(true);
+    sim.frame(STEP, input({ pressed: ["dodge", "skill1"] }));
+    expect(sim.motion.dodging).toBe(false);
+    expect(sim.executing).toBeUndefined();
+    expect(sim.dodgePending).toBe(false);
+  });
+});
+
+describe("EnemyField.update：経過時間の検証", () => {
+  it.each([Infinity, NaN, -1])("%s は、敵を1体も動かす前に RangeError", (bad) => {
+    const sim = new ArenaSimulation();
+    const field = sim.field;
+    if (field === undefined) throw new Error("敵の場がない");
+    const before = field.enemies.map((e) => ({
+      state: e.state,
+      time: e.timeInState,
+      position: e.position,
+      facing: e.facing,
+      hp: e.combatant.health.hp,
+    }));
+    const hooks = { onPlayerHit: vi.fn(), onAvoided: vi.fn() };
+    expect(() => {
+      field.update(bad, sim.player, false, 0, hooks);
+    }).toThrow(RangeError);
+    expect(
+      field.enemies.map((e) => ({
+        state: e.state,
+        time: e.timeInState,
+        position: e.position,
+        facing: e.facing,
+        hp: e.combatant.health.hp,
+      })),
+    ).toEqual(before);
+    expect(hooks.onPlayerHit).not.toHaveBeenCalled();
   });
 });

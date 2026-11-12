@@ -5,6 +5,7 @@ import { text, type TextKey } from "@stella/content";
 import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import { InputSystem } from "../input/InputSystem.ts";
+import { EnemyFieldView } from "../world/EnemyFieldView.ts";
 import { TEXTURES } from "../world/placeholders.ts";
 import { PIXELS_PER_METER, toPixels } from "../world/units.ts";
 import { ARENA, ArenaSimulation, DUMMY_POSITION, HAZARD, LOADOUT } from "./arena-simulation.ts";
@@ -22,6 +23,7 @@ const SLOT_LABEL: Readonly<Record<string, string>> = {
 /** 試験用の場の描画・入力の取得（計算は ArenaSimulation）。 */
 export class ArenaScene extends Phaser.Scene {
   private sim!: ArenaSimulation;
+  private enemyView: EnemyFieldView | undefined;
   private controls!: InputSystem;
   private keyTab!: Phaser.Input.Keyboard.Key;
   private keyRout!: Phaser.Input.Keyboard.Key;
@@ -47,11 +49,12 @@ export class ArenaScene extends Phaser.Scene {
       .setOrigin(0, 0);
     this.fx = this.add.graphics();
     this.sim = new ArenaSimulation(undefined, {
-      onHit: (report) => {
+      onHit: (report, at) => {
         if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
-        this.popDamage(report);
+        this.popDamage(report, at);
       },
     });
+    if (this.sim.field !== undefined) this.enemyView = new EnemyFieldView(this, this.sim.field);
     // 位置は体の中心（照準を合わせた所に当たるように。docs/progress D-U07-4）
     this.dummyImage = this.add
       .image(toPixels(DUMMY_POSITION.x), toPixels(DUMMY_POSITION.y), TEXTURES.dummy)
@@ -125,7 +128,21 @@ export class ArenaScene extends Phaser.Scene {
         screenY: this.dummyImage.y - this.cameras.main.scrollY,
       }),
       // 確認用：闘志の量を決める（開発版だけ。自動の確認で、激化・解放を短い時間で試すため）
-      setFervor: (value?: number) => sim.setFervor(value ?? 0),
+      setFervor: (value?: number | string) => sim.setFervor(Number(value ?? 0)),
+      enemies: () => sim.field?.debug() ?? [],
+      playerState: () => ({
+        hp: sim.player.health.hp,
+        maxHp: sim.player.health.maxHp,
+        hitsTaken: sim.hitsTaken,
+        avoided: sim.attacksAvoided,
+        deaths: sim.deaths,
+        staggered: sim.player.stagger.broken,
+        poison: sim.player.ailments.stacks("AIL-POISON"),
+        enemyHits: sim.enemyHits,
+        kills: sim.field?.kills ?? 0,
+      }),
+      // 確認用：プレイヤーの右3mに敵を出す（開発版だけ）
+      spawnEnemy: (id?: number | string) => sim.spawnEnemy(String(id)),
       skills: () => ({
         weapon: sim.weapon.uid,
         affinity: sim.affinity,
@@ -168,11 +185,11 @@ export class ArenaScene extends Phaser.Scene {
     return def === undefined ? id : text(def.text as TextKey);
   }
 
-  private popDamage(report: HitReport): void {
+  private popDamage(report: HitReport, at: Vec2): void {
     const color = report.hit.crit ? "#ffd166" : report.backstab ? "#c3a6ff" : "#ffffff";
     const label = `${report.hit.total.toFixed(0)}${report.hit.crit ? "!" : ""}${report.backstab ? "（背面）" : ""}${report.staggerBroke ? "（崩し）" : ""}`;
     const t = this.add
-      .text(this.dummyImage.x, this.dummyImage.y - 18, label, {
+      .text(toPixels(at.x), toPixels(at.y) - 18, label, {
         fontFamily: "sans-serif",
         fontSize: report.hit.crit ? "12px" : "10px",
         color,
@@ -251,6 +268,11 @@ export class ArenaScene extends Phaser.Scene {
     const r = HAZARD.radius * PIXELS_PER_METER;
     if (t < HAZARD.telegraph) g.lineStyle(1, 0xff6b6b, 0.4 + t).strokeCircle(hx, hy, r);
     else if (t < HAZARD.telegraph + HAZARD.active) g.fillStyle(0xff6b6b, 0.5).fillCircle(hx, hy, r);
+    // 敵：予兆・雲・体・HP
+    if (sim.field !== undefined)
+      this.enemyView?.render(sim.field, g, (shape, origin, facing) => {
+        this.drawShape(g, shape, origin, facing);
+      });
     // 残っている亀裂
     for (const z of sim.zones) {
       g.fillStyle(0xff9f43, 0.18);
@@ -325,6 +347,7 @@ export class ArenaScene extends Phaser.Scene {
         ? "最後のヒット：なし"
         : `最後のヒット：${last.hit.evaded ? "回避された" : `${last.hit.total.toFixed(1)}${last.hit.crit ? "・会心" : ""}${last.backstab ? "・背面" : ""}${last.ailments.length > 0 ? "・出血" : ""}`}${lastSkill === undefined ? "" : `（${lastSkill.variants.join("・") || "変化なし"}）`}`,
       `危険地帯：被弾 ${String(sim.hazardHits)}／回避で無効 ${String(sim.hazardAvoided)}`,
+      `敵：倒した数 ${String(sim.field?.kills ?? 0)}・被弾 ${String(sim.hitsTaken)}・回避で無効 ${String(sim.attacksAvoided)}・倒れた回数 ${String(sim.deaths)}${sim.player.ailments.stacks("AIL-POISON") > 0 ? `・毒 ${String(sim.player.ailments.stacks("AIL-POISON"))}` : ""}${sim.player.stagger.broken ? "・よろめき" : ""}`,
       `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・気力 ${motion.currentStamina.toFixed(0)}・闘志 ${sim.fervor.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
     ]);
   }

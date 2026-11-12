@@ -118,5 +118,21 @@
   "skill.warrior.warcry": "戦吼",
   "skill.warrior.earthsplitter": "地割り",
   "skill.warrior.whirlwind": "旋風",
-  "skill.warrior.rout": "破軍"
+  "skill.warrior.rout": "破軍",
+  "enemy.rank.normal": "通常",
+  "enemy.rank.magic": "魔法",
+  "enemy.rank.elite": "精鋭",
+  "enemy.forest-wolf": "森狼",
+  "enemy.thorn-rat": "棘鼠",
+  "enemy.spine-lizard": "棘吐き蜥蜴",
+  "enemy.tusk-boar": "牙猪",
+  "enemy.bark-bear": "樹皮熊",
+  "enemy.rot-sapling": "腐根の苗",
+  "enemy.attack.bite": "噛みつき",
+  "enemy.attack.spit": "棘吐き",
+  "enemy.attack.charge": "突進",
+  "enemy.attack.tusk": "牙",
+  "enemy.attack.claw": "爪",
+  "enemy.attack.slam": "叩きつけ",
+  "enemy.attack.spores": "胞子"
 }
