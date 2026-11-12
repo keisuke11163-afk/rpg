@@ -65,5 +65,21 @@
     "completionStacks": "enhance.total",
     "provisional": true,
     "provisionalNote": "仕様書v0.2 4.4 の星座。位置・つながりは開発用の仮の盤（docs/progress D-STAR-1）"
+  },
+  {
+    "id": "CONST-SHADOW",
+    "text": "constellation.shadow",
+    "nodes": [
+      "STAR-SHADOW-01",
+      "STAR-SHADOW-02",
+      "STAR-SHADOW-03",
+      "STAR-SHADOW-04",
+      "STAR-SHADOW-05",
+      "STAR-SHADOW-06",
+      "STAR-SHADOW-07"
+    ],
+    "completionEffect": "EFF-CONST-SHADOW",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の星座（迅域・小星7つ）。完成ボーナスはセット装備（MVPの範囲の外）の仮想部位なので、MVPでは働かない（docs/progress D-FIN-3）"
   }
 ]

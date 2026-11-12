@@ -73,6 +73,8 @@ function effect(
 }
 
 // ---- 小星（星域のテーマ。仕様書v0.2 4.2 の表） ----
+// 仕様書4.3「小星は必ずタグの条件か副次効果を持つ」：能力値の小星と、4.4 に内容が書かれた星座の小星を除き、
+// 主の効果に小さな副次効果（主の効果の1/3ほど）を1つ付ける（docs/progress D-FIN-3）
 const inc = (stat: string, value: number, allOf?: string[]): Mod => ({
   kind: "increased",
   stat,
@@ -87,20 +89,50 @@ const add = (stat: string, value: number, allOf?: string[]): Mod => ({
 });
 const MINOR = {
   // 剛域：最大HP・防具値・近接・崩し・闘志
-  gouHp: effect("EFF-SM-GOU-HP", "minorStar", [add("STAT-HP-MAX", 12)], false),
-  gouArmor: effect("EFF-SM-GOU-ARMOR", "minorStar", [inc("STAT-ARMOR", 0.06)], false),
+  gouHp: effect(
+    "EFF-SM-GOU-HP",
+    "minorStar",
+    [add("STAT-HP-MAX", 12), inc("STAT-ARMOR", 0.02)],
+    false,
+  ),
+  gouArmor: effect(
+    "EFF-SM-GOU-ARMOR",
+    "minorStar",
+    [inc("STAT-ARMOR", 0.06), add("STAT-HP-MAX", 4)],
+    false,
+  ),
   gouMelee: effect(
     "EFF-SM-GOU-MELEE",
     "minorStar",
     [inc("STAT-DAMAGE", 0.06, ["TAG-FORM-MELEE"])],
     true,
   ),
-  gouStagger: effect("EFF-SM-GOU-STAGGER", "minorStar", [inc("STAT-STAGGER", 0.08)], true),
+  gouStagger: effect(
+    "EFF-SM-GOU-STAGGER",
+    "minorStar",
+    [inc("STAT-STAGGER", 0.08), inc("STAT-DAMAGE", 0.02, ["TAG-FORM-MELEE"])],
+    true,
+  ),
   gouAttr: "EFF-STAR-GO-10",
   // 迅域：会心・回避・速度・毒・出血
-  jinCrit: effect("EFF-SM-JIN-CRIT", "minorStar", [inc("STAT-CRIT-CHANCE", 0.08)], true),
-  jinEvasion: effect("EFF-SM-JIN-EVASION", "minorStar", [inc("STAT-EVASION", 0.06)], false),
-  jinSpeed: effect("EFF-SM-JIN-SPEED", "minorStar", [inc("STAT-ATTACK-SPEED", 0.03)], false),
+  jinCrit: effect(
+    "EFF-SM-JIN-CRIT",
+    "minorStar",
+    [inc("STAT-CRIT-CHANCE", 0.08), add("STAT-CRIT-MULTIPLIER", 0.04)],
+    true,
+  ),
+  jinEvasion: effect(
+    "EFF-SM-JIN-EVASION",
+    "minorStar",
+    [inc("STAT-EVASION", 0.06), inc("STAT-MOVE-SPEED", 0.01)],
+    false,
+  ),
+  jinSpeed: effect(
+    "EFF-SM-JIN-SPEED",
+    "minorStar",
+    [inc("STAT-ATTACK-SPEED", 0.03), inc("STAT-MOVE-SPEED", 0.01)],
+    false,
+  ),
   jinPoison: effect(
     "EFF-SM-JIN-POISON",
     "minorStar",
@@ -114,7 +146,12 @@ const MINOR = {
   jinAttr: "EFF-STAR-JIN-10",
   // 剛迅域：二刀流・機動
   gjDual: "EFF-STAR-TWIN-SPEED",
-  gjMove: "EFF-STAR-VANE-MOVE",
+  gjMove: effect(
+    "EFF-SM-GJ-MOVE",
+    "minorStar",
+    [inc("STAT-MOVE-SPEED", 0.02), inc("STAT-EVASION", 0.02)],
+    false,
+  ),
   gjAttr: "EFF-STAR-GOJIN-5",
 } as const;
 
@@ -419,6 +456,32 @@ chain(
   },
 );
 
+// ---- 影法師座（仕様書v0.2 4.4：迅域・小星7つ・背面からの会心率+1%〔固定値〕。docs/progress D-FIN-3） ----
+// 完成ボーナス「影縫いの装束の仮想部位になる」はセット装備（MVPの範囲の外）の部位の数に足す値で、MVPでは何も起きない
+const SHADOW_MINOR = effect(
+  "EFF-STAR-SHADOW-BACKSTAB",
+  "minorStar",
+  [add("STAT-BACKSTAB-CRIT", 0.01)],
+  true,
+  "仕様書v0.2 4.4 の影法師座の小星の値（docs/progress D-FIN-3）",
+);
+chain(
+  "STAR-SHADOW",
+  "jin",
+  jinA[2] as string,
+  { x: 730, y: 30 },
+  { x: 40, y: 0 },
+  [SHADOW_MINOR],
+  7,
+);
+effect(
+  "EFF-CONST-SHADOW",
+  "constellation",
+  [add("STAT-CONST-SHADOW-SET", 1)],
+  false,
+  "仕様書v0.2 4.4：影縫いの装束の仮想部位（セット装備は MVP の範囲の外なので、MVPでは働かない。docs/progress D-FIN-3）",
+);
+
 // ---- 剛迅域（双刃座の先から西へ） ----
 const gj = chain(
   "STAR-SM-GJ-A",
@@ -493,6 +556,12 @@ const STATS: { id: string; text: string; unit: "flat" | "ratio" | "seconds"; nam
   { id: "STAT-NT-VESSEL", text: "stat.nt-vessel", unit: "ratio", name: "星の器" },
   { id: "STAT-MUT-HEAVY", text: "stat.mut-heavy", unit: "flat", name: "重撃化" },
   { id: "STAT-MUT-BLOOD-BLADE", text: "stat.mut-blood-blade", unit: "flat", name: "血の刃" },
+  {
+    id: "STAT-CONST-SHADOW-SET",
+    text: "stat.const-shadow-set",
+    unit: "flat",
+    name: "影縫いの装束の仮想部位",
+  },
 ];
 for (const st of STATS) TEXT[st.text] = st.name;
 

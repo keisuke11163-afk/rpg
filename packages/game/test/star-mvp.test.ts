@@ -77,6 +77,37 @@ describe("星辰盤の形（MVPの範囲）", () => {
       }
   });
 
+  it("小星は必ずタグの条件か副次効果を持つ（仕様書v0.2 4.3。能力値の小星と、4.4 に内容がある星座の小星を除く。D-FIN-3）", () => {
+    const inConstellation = new Set([...db.constellations.values()].flatMap((c) => c.nodes));
+    for (const n of db.starNodes.values()) {
+      if (n.kind !== "minor" || inConstellation.has(n.id)) continue;
+      for (const id of n.effects ?? []) {
+        const e = db.effects.get(id);
+        if (e === undefined) throw new Error(`${id} が無い`);
+        const attributeOnly = e.modifiers.every(
+          (m) => "stat" in m && m.stat.startsWith("STAT-ATTR-"),
+        );
+        const tagged = e.modifiers.some((m) => "filter" in m && m.filter !== undefined);
+        const conditional = (e.conditions ?? []).length > 0;
+        const side = e.modifiers.length >= 2;
+        expect(attributeOnly || tagged || conditional || side, `${n.id}（${id}）`).toBe(true);
+      }
+    }
+  });
+
+  it("影法師座（仕様書v0.2 4.4）：迅域・小星7つ・背面からの会心率+1%（固定値）", () => {
+    const c = db.constellations.get("CONST-SHADOW");
+    expect(c?.nodes).toHaveLength(7);
+    for (const id of c?.nodes ?? []) {
+      const n = db.starNodes.get(id);
+      expect(n?.region).toBe("jin");
+      expect(n?.effects).toEqual(["EFF-STAR-SHADOW-BACKSTAB"]);
+    }
+    expect(db.effects.get("EFF-STAR-SHADOW-BACKSTAB")?.modifiers).toEqual([
+      { kind: "added", stat: "STAT-BACKSTAB-CRIT", value: 0.01 },
+    ]);
+  });
+
   it("名前つきのノードは仕様書にあるものだけ（星門の先2・輝星9・転変2）", () => {
     const named = [...db.starNodes.values()].filter(
       (n) => n.kind === "notable" || n.kind === "mutation",

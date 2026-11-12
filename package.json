@@ -24,6 +24,7 @@
     "perf": "pnpm --filter @stella/game perf",
     "perf:browser": "pnpm --filter @stella/game perf:browser",
     "gen:star": "node tools/scripts/gen-star-mvp.ts",
+    "report:star": "node tools/scripts/star-list.ts",
     "drops": "node tools/scripts/drop-rates.ts"
   },
   "devDependencies": {

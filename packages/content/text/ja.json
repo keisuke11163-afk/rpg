@@ -402,5 +402,7 @@
   "stat.nt-cycle": "循環の泉：MP100ごとの職能ゲージ",
   "stat.nt-vessel": "星の器",
   "stat.mut-heavy": "重撃化",
-  "stat.mut-blood-blade": "血の刃"
+  "stat.mut-blood-blade": "血の刃",
+  "stat.const-shadow-set": "影縫いの装束の仮想部位",
+  "constellation.shadow": "影法師座"
 }

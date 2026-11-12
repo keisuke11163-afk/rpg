@@ -64,5 +64,11 @@
     "text": "stat.mut-blood-blade",
     "unit": "flat",
     "min": 0
+  },
+  {
+    "id": "STAT-CONST-SHADOW-SET",
+    "text": "stat.const-shadow-set",
+    "unit": "flat",
+    "min": 0
   }
 ]

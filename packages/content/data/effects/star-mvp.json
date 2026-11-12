@@ -7,6 +7,11 @@
         "kind": "added",
         "stat": "STAT-HP-MAX",
         "value": 12
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.02
       }
     ],
     "affects": {
@@ -25,6 +30,11 @@
         "kind": "increased",
         "stat": "STAT-ARMOR",
         "value": 0.06
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-HP-MAX",
+        "value": 4
       }
     ],
     "affects": {
@@ -64,6 +74,14 @@
         "kind": "increased",
         "stat": "STAT-STAGGER",
         "value": 0.08
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.02,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE"]
+        }
       }
     ],
     "affects": {
@@ -82,6 +100,11 @@
         "kind": "increased",
         "stat": "STAT-CRIT-CHANCE",
         "value": 0.08
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-CRIT-MULTIPLIER",
+        "value": 0.04
       }
     ],
     "affects": {
@@ -100,6 +123,11 @@
         "kind": "increased",
         "stat": "STAT-EVASION",
         "value": 0.06
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.01
       }
     ],
     "affects": {
@@ -118,6 +146,11 @@
         "kind": "increased",
         "stat": "STAT-ATTACK-SPEED",
         "value": 0.03
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.01
       }
     ],
     "affects": {
@@ -152,6 +185,29 @@
     "affects": {
       "hit": true,
       "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-GJ-MOVE",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.02
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-EVASION",
+        "value": 0.02
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
     },
     "scope": "self",
     "provisional": true,
@@ -495,5 +551,41 @@
     "scope": "self",
     "provisional": true,
     "provisionalNote": "影踏み：回避に成功した後1秒間"
+  },
+  {
+    "id": "EFF-STAR-SHADOW-BACKSTAB",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-BACKSTAB-CRIT",
+        "value": 0.01
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の影法師座の小星の値（docs/progress D-FIN-3）"
+  },
+  {
+    "id": "EFF-CONST-SHADOW",
+    "origin": "constellation",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-CONST-SHADOW-SET",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4：影縫いの装束の仮想部位（セット装備は MVP の範囲の外なので、MVPでは働かない。docs/progress D-FIN-3）"
   }
 ]
