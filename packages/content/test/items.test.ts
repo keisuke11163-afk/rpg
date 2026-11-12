@@ -41,7 +41,7 @@ const nextUid = (): string => `itm_${String(++uidCounter)}`;
 const tolerance = (p: number, n: number): number => 5 * Math.sqrt((p * (1 - p)) / n);
 
 describe("T12：レアリティの抽選（100万回）", () => {
-  it("補正なし：通常66％・魔法26％・希少7％・固有0.8％・星座0.2％", () => {
+  it("補正なし：データの重みどおりの割合になる（仕様書v0.2 3.5 は 66／26／7／0.8／0.2。希少は D-FIN-2 で9）", () => {
     const rng = Rng.fromSeed("T12-rarity");
     const n = 1_000_000;
     const counts = new Map<ItemRarity, number>();
@@ -49,14 +49,17 @@ describe("T12：レアリティの抽選（100万回）", () => {
       const r = rollRarity(rng, { rarities: db.rarities });
       counts.set(r, (counts.get(r) ?? 0) + 1);
     }
-    const expected: Record<ItemRarity, number> = {
-      normal: 0.66,
-      magic: 0.26,
-      rare: 0.07,
-      unique: 0.008,
-      set: 0.002,
-    };
-    for (const [rarity, p] of Object.entries(expected) as [ItemRarity, number][]) {
+    const weights = rarityWeights({ rarities: db.rarities });
+    expect(Object.fromEntries(weights)).toEqual({
+      normal: 64, // 合計が100になるように、通常が残りを受け持つ（rarityWeights）
+      magic: 26,
+      rare: 9,
+      unique: 0.8,
+      set: 0.2,
+    });
+    const total = [...weights.values()].reduce((a, w) => a + w, 0);
+    for (const [rarity, w] of weights) {
+      const p = w / total;
       const actual = (counts.get(rarity) ?? 0) / n;
       expect(Math.abs(actual - p), `${rarity}: ${String(actual)}`).toBeLessThan(tolerance(p, n));
     }
@@ -72,9 +75,10 @@ describe("T12：レアリティの抽選（100万回）", () => {
       const r = rollRarity(rng, input);
       counts.set(r, (counts.get(r) ?? 0) + 1);
     }
-    expect(weights.get("rare")).toBeCloseTo(17.5, 10);
+    expect(weights.get("rare")).toBeCloseTo(22.5, 10);
+    const total = [...weights.values()].reduce((a, w) => a + w, 0);
     for (const [rarity, w] of weights) {
-      const p = w / 100;
+      const p = w / total;
       expect(Math.abs((counts.get(rarity) ?? 0) / n - p), rarity).toBeLessThan(tolerance(p, n));
     }
   });

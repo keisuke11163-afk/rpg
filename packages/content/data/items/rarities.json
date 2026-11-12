@@ -23,11 +23,13 @@
     "id": "RARITY-RARE",
     "rarity": "rare",
     "text": "item.rarity.rare",
-    "weight": 7,
+    "weight": 9,
     "affixes": {
       "min": 3,
       "max": 6
-    }
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.5 は7。希少を目安（1時間に20〜30個）に入れるため9にした（docs/progress D-FIN-2）"
   },
   {
     "id": "RARITY-UNIQUE",
