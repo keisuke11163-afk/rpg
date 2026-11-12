@@ -127,10 +127,12 @@ export {
   resolveMaxStacks,
   validateAilmentApplication,
   type AilmentApplication,
+  type AilmentApplyPlan,
   type AilmentCandidate,
   type AilmentRollInput,
   type AilmentTickPlan,
   type AilmentTickTarget,
+  type StaggerAddPlan,
   type StaggerUpdatePlan,
 } from "./combat/ailments.ts";
 
@@ -169,6 +171,7 @@ export {
   RECEIVED_STATS,
   resolveHit,
   type CombatantInit,
+  type CombatantUpdatePlan,
   type ReceivedMultipliers,
   type HitInput,
   type HitReport,
@@ -248,6 +251,7 @@ export {
   type EnemyInit,
   type EnemyState,
   type EnemyTarget,
+  type EnemyUpdatePlan,
 } from "./actor/enemy.ts";
 export {
   ATTRIBUTE_EFFECTS,
