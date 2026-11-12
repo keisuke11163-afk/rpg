@@ -189,9 +189,12 @@ export const dropProfileSchema = z.strictObject({
   guaranteedRareOrBetter: z.number().int().nonnegative(),
   /** アイテムLv ＝ 敵のLv ＋ この値（精鋭+2・ボス+4。仕様書v0.2 3.6）。 */
   itemLevelBonus: z.number().int().nonnegative(),
-  /** 金貨（補助仕様書5章）：確率と、（1＋敵のLv）×（1〜2）に掛ける倍率。中ボス・章ボスは記載が無いので省略（落とさない）。 */
+  /**
+   * 金貨（補助仕様書5章）：確率と、（1＋敵のLv）×（1〜2）に掛ける倍率。中ボス・章ボスは記載が無いので省略（落とさない）。
+   * 持ち物の金貨は整数なので、倍率は正の整数に限る（小数だと拾った瞬間に RangeError になるため）。
+   */
   gold: z
-    .strictObject({ chance: z.number().gt(0).max(1), multiplier: z.number().positive() })
+    .strictObject({ chance: z.number().gt(0).max(1), multiplier: z.number().int().positive() })
     .optional(),
   materials: z.array(materialDropSchema),
   ...provisionalFields,

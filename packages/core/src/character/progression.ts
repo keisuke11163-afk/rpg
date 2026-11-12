@@ -30,14 +30,20 @@ export function levelGapMultiplier(playerLevel: number, enemyLevel: number): num
   return Math.max(0.1, 1 - 0.2 * (gap - 3));
 }
 
-/** Lvと、そのLvの中で貯まった経験値。上限に達すると、それ以上は貯まらない。 */
+/**
+ * Lvと、そのLvの中で貯まった経験値。上限に達すると、それ以上は貯まらない。
+ * 不正な入力（NaN・負の数・無限大・整数でないLv）は、状態を変えずに RangeError（PR #11 の方針）。
+ */
 export class LevelTrack {
   readonly cap: number;
   private lv: number;
   private stored = 0;
 
   constructor(cap: number, level = 1) {
-    if (!(level >= 1 && level <= cap)) throw new RangeError(`Lvは1〜${String(cap)}`);
+    if (!(Number.isSafeInteger(cap) && cap >= 1))
+      throw new RangeError(`Lvの上限は1以上の整数（${String(cap)}）`);
+    if (!(Number.isSafeInteger(level) && level >= 1 && level <= cap))
+      throw new RangeError(`Lvは1〜${String(cap)}の整数（${String(level)}）`);
     this.cap = cap;
     this.lv = level;
   }
@@ -54,9 +60,10 @@ export class LevelTrack {
     return this.lv >= this.cap ? 0 : xpToNext(this.lv);
   }
 
-  /** 経験値を足す。上がったLvの数を返す。 */
+  /** 経験値を足す。上がったLvの数を返す。0以上の有限の数でなければ、状態を変えずに RangeError。 */
   add(amount: number): number {
-    if (!(amount >= 0)) throw new RangeError("経験値は0以上");
+    if (!(Number.isFinite(amount) && amount >= 0))
+      throw new RangeError(`経験値は0以上の有限の数（${String(amount)}）`);
     if (this.lv >= this.cap) return 0;
     this.stored += amount;
     let gained = 0;
@@ -96,6 +103,8 @@ export interface XpGain {
 export interface CharacterInit {
   /** 出自（キャラクターを作るときに選ぶ基本職。後から変えられない）。 */
   readonly origin: JobDef;
+  /** 存在するジョブ（ContentDb.jobs）。転職先の確認に使う。 */
+  readonly jobs: ReadonlyMap<string, JobDef>;
   readonly level?: number;
   /** ジョブごとのジョブLv（省略したジョブは1）。 */
   readonly jobLevels?: Readonly<Record<string, number>>;
@@ -108,11 +117,14 @@ export interface CharacterInit {
 export class Character {
   readonly origin: JobDef;
   readonly progress: LevelTrack;
+  private readonly jobDefs: ReadonlyMap<string, JobDef>;
   private readonly jobs = new Map<string, LevelTrack>();
   private main: string;
 
+  /** Lv・ジョブLvは LevelTrack と同じ検証（1〜上限の整数。NaN・負の数・無限大は RangeError）。 */
   constructor(init: CharacterInit) {
     this.origin = init.origin;
+    this.jobDefs = init.jobs;
     this.progress = new LevelTrack(LEVEL_CAP, init.level ?? 1);
     for (const [job, level] of Object.entries(init.jobLevels ?? {}))
       this.jobs.set(job, new LevelTrack(JOB_LEVEL_CAP, level));
@@ -157,6 +169,10 @@ export class Character {
   /** 敵を倒して得た経験値を、キャラLvとメインジョブのジョブLvに足す（補助仕様書4.3）。 */
   gainXp(amount: number): XpGain {
     const jobXp = amount * (this.catchingUp ? CATCH_UP.multiplier : 1);
+    // キャラLvだけ上がってジョブLvで失敗することのないよう、足す前に両方を検証する
+    for (const v of [amount, jobXp])
+      if (!(Number.isFinite(v) && v >= 0))
+        throw new RangeError(`経験値は0以上の有限の数（${String(v)}）`);
     const characterLevels = this.progress.add(amount);
     const jobLevels = this.track(this.main).add(jobXp);
     return { characterLevels, jobLevels, jobXp };
@@ -167,9 +183,14 @@ export class Character {
     return this.level >= JOB_CHANGE_LEVEL;
   }
 
-  /** 転職する。できなければ false。 */
+  /**
+   * 転職する。転職したら true。
+   * - 存在しないジョブID（ContentDb のジョブにない）は、状態を変えずに RangeError（呼ぶ側の誤り）
+   * - キャラLvが足りない、または今のメインジョブと同じジョブなら false（何も変えない）
+   */
   changeJob(jobId: string): boolean {
-    if (!this.canChangeJob) return false;
+    if (!this.jobDefs.has(jobId)) throw new RangeError(`ジョブ ${jobId} は存在しない`);
+    if (!this.canChangeJob || jobId === this.main) return false;
     this.main = jobId;
     this.track(jobId);
     return true;

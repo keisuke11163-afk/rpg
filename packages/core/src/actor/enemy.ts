@@ -1,7 +1,7 @@
 import type { EnemyAttackDef, EnemyDef, EnemyRankDef } from "../content/enemy.ts";
 import type { ContentDb } from "../content/load.ts";
 import { type AilmentApplication, staggerProfiles } from "../combat/ailments.ts";
-import { Combatant } from "../combat/combatant.ts";
+import { Combatant, type CombatantUpdatePlan } from "../combat/combatant.ts";
 import type { DamageAttacker } from "../combat/damage.ts";
 import { enemyAccuracy } from "../combat/defense.ts";
 import type { HitShape } from "../combat/shapes.ts";
@@ -150,6 +150,10 @@ export class Enemy {
   private wanderPause = 0;
   private facingAngle: number;
   private readonly db: ContentDb;
+  /** 雲の攻撃で付ける状態異常（攻撃 → 付けるもの）。作るときに計算し、検証しておく。 */
+  private readonly cloudApplications = new Map<EnemyAttackDef, AilmentApplication>();
+  /** 1秒あたりに動く距離の上限（移動・うろつき・帰還・突進のうち最も速いもの）。 */
+  private readonly maxSpeed: number;
   /** 最後の刻みで受けた持続ダメージ。 */
   dotTaken = 0;
 
@@ -177,6 +181,13 @@ export class Enemy {
       evasion: (def.defense.evasionPerLevel ?? 0) * init.level,
       staggerProfile: profiles.enemy,
     });
+    // 雲の状態異常は、データが正しくなければここで Error（update の途中で例外を起こさないため）
+    for (const a of def.attacks)
+      if (a.delivery.type === "cloud") this.cloudApplications.set(a, this.cloudApplication(a));
+    this.maxSpeed = Math.max(
+      def.moveSpeed,
+      ...def.attacks.map((a) => (a.delivery.type === "dash" ? a.delivery.speed : 0)),
+    );
   }
 
   get state(): EnemyState {
@@ -263,13 +274,91 @@ export class Enemy {
     this.setFacing(turnTowards(this.facingAngle, angle, toRad(this.def.turnRate) * dt));
   }
 
-  /** 1刻み進める。 */
+  /**
+   * 1刻み進める。
+   *
+   * 例外安全：次の場合は RangeError で、敵の状態（行動の状態・その経過時間・攻撃・位置・向き・
+   * クールダウン・HP・魔障・崩しゲージ・状態異常・うろつき・突進の距離）も乱数の状態も何も変わらない。
+   * - 経過時間が0以上の有限の数でない（NaN・負の数・Infinity）
+   * - 今の状態の経過時間に足すと有限でなくなる
+   * - その経過時間で最も速く動いたときに、位置が有限でなくなりうる
+   * - 戦う者の更新（持続ダメージ・魔障・崩しゲージの計算）が失敗する（Combatant.update は自身で例外安全）
+   *
+   * 順番：1. 検証 → 2. 戦う者の更新（失敗すれば何も変わらない）→ 3. 経過時間・クールダウンの反映
+   * （検証済みの dt での代入だけで、例外は起きない）→ 4. 行動の流れ。
+   * 経過時間・クールダウンは戦う者の更新の結果に影響せず、行動の流れより前に反映するので、
+   * 振る舞いは従来（経過時間 → クールダウン → 戦う者 → 行動の流れ）と同じ。
+   * 行動の流れは、検証済みの dt と、作るときに検証した攻撃のデータ（雲の状態異常）だけを使い、例外を起こさない。
+   */
   update(dt: number, target: EnemyTarget, rng: Rng, bounds?: Bounds): EnemyEvent[] {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
-    this.stateTime += dt;
+    // 1. 検証（状態は変えない）
+    const stateTime = this.checkUpdate(dt);
+    // 2. 持続ダメージ・崩しゲージ・魔障・一定時間の効果（移動していたかは、前の刻みの値を使う）
+    //    例外を起こしうるのはここまで。Combatant.update は失敗すれば何も変えない
+    const dotTaken = this.combatant.update(dt);
+    // 3〜4. 反映と行動の流れ（例外は起きない）
+    return this.proceed(dt, stateTime, dotTaken, target, rng, bounds);
+  }
+
+  /**
+   * update の、状態を変えない前半：経過時間・状態の経過時間の累計・移動後の位置・戦う者の更新を
+   * 全て計算して検証し、計画を返す（失敗すれば RangeError で、何も変わらない）。
+   * 複数の敵を「全て検証してから全て反映する」ために使う（EnemyField.update）。
+   * commitUpdate(plan, ...) は update(dt, ...) と同じ結果になる。
+   *
+   * 計画を作ってから反映するまでの間に変わってよいのは、notice()（行動の状態が待機から追跡になり、
+   * 状態の経過時間が0に戻る）だけ。位置・戦う者（HP・状態異常・崩しゲージなど）は変えないこと。
+   */
+  planUpdate(dt: number): EnemyUpdatePlan {
+    this.checkUpdate(dt);
+    return { owner: this, dt, combatant: this.combatant.planUpdate(dt) };
+  }
+
+  /**
+   * planUpdate の計画を反映し、行動の流れを1刻み進める。検証済みの値だけを使い、例外は起きない
+   * （別の敵の計画を渡したときだけ Error。その場合も何も変えない）。
+   */
+  commitUpdate(
+    plan: EnemyUpdatePlan,
+    target: EnemyTarget,
+    rng: Rng,
+    bounds?: Bounds,
+  ): EnemyEvent[] {
+    if (plan.owner !== this) throw new Error("別の敵の計画は反映できない");
+    // 計画の後に notice() で状態の経過時間が0に戻っていても、累計は検証済みの値以下（有限）
+    const stateTime = this.stateTime + plan.dt;
+    const dotTaken = this.combatant.commitUpdate(plan.combatant);
+    return this.proceed(plan.dt, stateTime, dotTaken, target, rng, bounds);
+  }
+
+  /** 経過時間・状態の経過時間の累計・移動後の位置を検証し、次の状態の経過時間を返す（状態は変えない）。 */
+  private checkUpdate(dt: number): number {
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
+    const stateTime = this.stateTime + dt;
+    if (!Number.isFinite(stateTime))
+      throw new RangeError(`状態の経過時間の累計が有限の数でない（${String(stateTime)}）`);
+    const reach = this.maxSpeed * dt;
+    if (
+      !Number.isFinite(Math.abs(this.position.x) + reach) ||
+      !Number.isFinite(Math.abs(this.position.y) + reach)
+    )
+      throw new RangeError(`経過時間 ${String(dt)} で動くと、位置が有限の数でなくなる`);
+    return stateTime;
+  }
+
+  /** 戦う者の更新の後：経過時間・クールダウンの反映と行動の流れ（検証済みの値だけを使い、例外は起きない）。 */
+  private proceed(
+    dt: number,
+    stateTime: number,
+    dotTaken: number,
+    target: EnemyTarget,
+    rng: Rng,
+    bounds: Bounds | undefined,
+  ): EnemyEvent[] {
+    this.stateTime = stateTime;
     this.cooldowns.update(dt);
-    // 持続ダメージ・崩しゲージ・魔障・一定時間の効果（移動していたかは、前の刻みの値を使う）
-    this.dotTaken = this.combatant.update(dt);
+    this.dotTaken = dotTaken;
     this.combatant.moving = false;
     if (this.combatant.health.dead) {
       if (this.stateValue !== "dead") this.setState("dead");
@@ -503,10 +592,18 @@ export class Enemy {
             radius: d.radius,
             duration: d.duration,
             interval: d.interval,
-            application: this.cloudApplication(attack),
+            application: this.cloudApplicationOf(attack),
           },
         ];
     }
+  }
+
+  /** 作るときに計算した、雲の状態異常（呼び出す側が書き換えても影響しないよう、写しを返す）。 */
+  private cloudApplicationOf(attack: EnemyAttackDef): AilmentApplication {
+    const app = this.cloudApplications.get(attack);
+    // 雲の攻撃は全て作るときに計算しているので、ここには来ない
+    if (app === undefined) throw new Error(`雲の攻撃 ${attack.id} の状態異常がない`);
+    return { ...app };
   }
 
   private cloudApplication(attack: EnemyAttackDef): AilmentApplication {
@@ -544,6 +641,13 @@ export class Enemy {
   }
 }
 
+/** Enemy.planUpdate の計画（検証済み。Enemy.commitUpdate で反映する）。 */
+export interface EnemyUpdatePlan {
+  readonly owner: Enemy;
+  readonly dt: number;
+  readonly combatant: CombatantUpdatePlan;
+}
+
 /** 敵の最大HP（補助仕様書10.1）：通常の敵のHP × 種類の倍率 × 格の倍率。 */
 export function enemyMaxHp(def: EnemyDef, rank: EnemyRankDef, level: number): number {
   return normalEnemyHp(level) * def.hpMultiplier * rank.hpMultiplier;
@@ -572,12 +676,17 @@ export class EnemyAttackers {
     this.tags = new TagIndex(db.tags);
   }
 
+  /**
+   * 一定時間の効果がかかっている敵ごとの評価（敵の ID → 効果の版と評価）。
+   * 効果が切れた敵の分はその場で、倒れた・消えた敵の分は retain で消す（溜まり続けないように）。
+   */
   private readonly statusViews = new Map<string, { version: number; view: ModifierView }>();
 
   /** 敵のLvの命中と、敵にかかっている一定時間の効果（煙玉の命中-30%など）を評価した値。 */
   private view(enemy: Enemy): ModifierView {
     const statuses = enemy.combatant.statuses;
     if (statuses.active.length === 0) {
+      this.statusViews.delete(enemy.id);
       const cached = this.views.get(enemy.level);
       if (cached !== undefined) return cached;
       const { view } = evaluateEffects(this.db, this.tags, [], {
@@ -593,6 +702,22 @@ export class EnemyAttackers {
     });
     this.statusViews.set(enemy.id, { version: statuses.version, view });
     return view;
+  }
+
+  /**
+   * 一定時間の効果の評価を、渡した敵（場に出ていて倒れていない敵）の分だけ残し、他を消す。
+   * Map の削除だけで、例外は起きない。
+   */
+  retain(enemies: Iterable<Enemy>): void {
+    if (this.statusViews.size === 0) return;
+    const keep = new Set<string>();
+    for (const e of enemies) if (e.state !== "dead") keep.add(e.id);
+    for (const id of this.statusViews.keys()) if (!keep.has(id)) this.statusViews.delete(id);
+  }
+
+  /** 一定時間の効果の評価を残している敵の ID（確認用）。 */
+  cachedStatusViews(): readonly string[] {
+    return [...this.statusViews.keys()];
   }
 
   /** 攻撃する側。攻撃の強さには、敵にかかっている衰弱（与えるダメージの低下）を含める。 */
