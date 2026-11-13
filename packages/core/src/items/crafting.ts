@@ -326,7 +326,11 @@ export function enhanceWithInventory(inv: Inventory, uid: string): boolean {
   return true;
 }
 
-/** インベントリの装備を分解し、素材を得る（装備はなくなる）。 */
+/**
+ * インベントリの装備を分解し、素材を得る（装備はなくなる）。
+ * 素材は Inventory.addAll でまとめて足し（合計が安全な整数に収まらなければ、何も変えずに RangeError）、
+ * 足せたときだけ装備を出す（素材だけ増えて装備が残る・装備だけ消える、という半端な状態にしない）。
+ */
 export function disassembleFromInventory(
   inv: Inventory,
   uid: string,
@@ -334,7 +338,10 @@ export function disassembleFromInventory(
   const item = inv.items.find((i) => i.uid === uid);
   if (item === undefined) throw new RangeError(`インベントリに ${uid} が無い`);
   const got = disassemblyYield(item);
-  for (const [m, n] of Object.entries(got)) inv.addMaterial(m, n);
+  inv.addAll(
+    [],
+    Object.entries(got).map(([material, count]) => ({ material, count })),
+  );
   inv.removeItem(uid);
   return got;
 }

@@ -113,12 +113,20 @@ export function buyItem(inventory: Inventory, stock: ItemInstance[], uid: string
   return true;
 }
 
-/** 目覚めの粉を買う（数は1以上の整数）。金貨が足りなければ何も変えずに false。 */
+/**
+ * 目覚めの粉を買う（数は1以上の整数）。金貨が足りなければ何も変えずに false。
+ * 値段や持っている粉の合計が安全な整数に収まらなければ、金貨を払う前に（何も変えずに）RangeError。
+ */
 export function buyAwakeningDust(inventory: Inventory, count = 1): boolean {
   if (!(Number.isSafeInteger(count) && count >= 1))
     throw new RangeError(`数は1以上の整数（${String(count)}）`);
   const price = AWAKENING_DUST_PRICE * count;
+  if (!Number.isSafeInteger(price))
+    throw new RangeError(`値段が安全な整数に収まらない（${String(count)}個）`);
   if (inventory.gold < price) return false;
+  // 素材を足せるか（合計が安全な整数に収まるか）を、金貨を払う前に確かめる
+  if (!Number.isSafeInteger(inventory.material(AWAKENING_DUST) + count))
+    throw new RangeError(`素材 ${AWAKENING_DUST} の合計が安全な整数の範囲を超える`);
   inventory.spendGold(price);
   inventory.addMaterial(AWAKENING_DUST, count);
   return true;
