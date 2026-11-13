@@ -260,6 +260,32 @@
     "provisionalNote": "要求値は補助仕様書14章の仮値（両手武器の下級＝18）。魔導書・ワンドは足していない（docs/progress Q-MAG-5）"
   },
   {
+    "id": "BASE-WPN-SCEPTER-T1",
+    "text": "item.base.scepter-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-SCEPTER"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "kon",
+      "value": 12
+    },
+    "weapon": {
+      "hands": 1,
+      "damage": {
+        "physical": {
+          "min": 5,
+          "max": 10
+        }
+      },
+      "attackSpeed": 1.2,
+      "critChance": 0.05
+    },
+    "implicitEffects": ["EFF-IMP-MINION-DAMAGE-12", "EFF-IMP-DUAL-ONEHAND"],
+    "provisional": true,
+    "provisionalNote": "数値は仕様書v0.2 3.2（片手・近接5–10・1.20・5%・召喚物のダメージ+12%）。要求値は補助仕様書14章の仮値（片手武器の下級＝12。笏は魂）。呪鈴は数値が無いので足していない（docs/progress Q-SUM-4）"
+  },
+  {
     "id": "BASE-ARM-IRON-HEAD-T1",
     "text": "item.base.iron-head-1",
     "category": "head",

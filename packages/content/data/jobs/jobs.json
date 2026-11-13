@@ -310,5 +310,62 @@
     ],
     "startingWeapon": "BASE-WPN-LONGSWORD-T1",
     "startingOffHand": "BASE-SHD-BUCKLER-T1"
+  },
+  {
+    "id": "JOB-SUMMONER",
+    "tag": "TAG-JOB-SUMMONER",
+    "text": "job.summoner",
+    "gauge": "GAU-CONTRACT",
+    "skills": [
+      {
+        "skill": "SKL-SUMMONER-SKELETON",
+        "level": 1
+      },
+      {
+        "skill": "SKL-SUMMONER-COMMAND",
+        "level": 3
+      },
+      {
+        "skill": "SKL-SUMMONER-FIRE-SPIRIT",
+        "level": 5
+      },
+      {
+        "skill": "SKL-SUMMONER-SACRIFICE",
+        "level": 7
+      },
+      {
+        "skill": "SKL-SUMMONER-DIRE-WOLF",
+        "level": 10
+      },
+      {
+        "skill": "SKL-SUMMONER-POSSESS",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-SCEPTER": "S",
+      "TAG-WPN-BELL": "S",
+      "TAG-WPN-STAFF": "A",
+      "TAG-WPN-SCYTHE": "A",
+      "TAG-WPN-TOME": "A",
+      "TAG-WPN-SWORD": "C"
+    },
+    "originAttributes": {
+      "go": 5,
+      "jin": 5,
+      "ri": 15,
+      "kon": 15
+    },
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLv・初期の技の枠は仮値（補助仕様書3.5と同じ考え方。docs/progress D-SUM-10）。初期能力値は補助仕様書3.2（理15・魂15）。適性は仕様書v0.2 5.5",
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-SUMMONER-COMMAND",
+      "SKL-SUMMONER-SKELETON",
+      "SKL-SUMMONER-FIRE-SPIRIT",
+      "SKL-SUMMONER-DIRE-WOLF",
+      "SKL-SUMMONER-SACRIFICE"
+    ],
+    "startingWeapon": "BASE-WPN-SCEPTER-T1"
   }
 ]

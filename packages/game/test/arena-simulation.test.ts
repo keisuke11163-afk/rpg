@@ -553,6 +553,8 @@ describe("ArenaSimulation：技の枠の設定（U-12）", () => {
     expect(sim.job.id).toBe("JOB-MAGE");
     sim.changeJob(); // 騎士
     expect(sim.job.id).toBe("JOB-KNIGHT");
+    sim.changeJob(); // 召喚士
+    expect(sim.job.id).toBe("JOB-SUMMONER");
     sim.changeJob();
     expect(sim.loadout.find((l) => l.action === "skill6")?.skill).toBe("SKL-WARRIOR-ROUT");
   });
@@ -1613,6 +1615,8 @@ describe("ArenaSimulation：職紋盤（U-15、仕様書v0.2 4.10・5.2・5.6）
     sim.changeJob(); // 魔法使い
     expect(sim.jobBoard.spent).toBe(0);
     sim.changeJob(); // 騎士
+    expect(sim.jobBoard.spent).toBe(0);
+    sim.changeJob(); // 召喚士
     expect(sim.jobBoard.spent).toBe(0);
     sim.changeJob(); // 戦士に戻る
     expect(sim.jobBoard.nodes).toEqual(trunk(W, 2));

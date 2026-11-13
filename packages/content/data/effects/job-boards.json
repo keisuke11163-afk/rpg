@@ -788,5 +788,135 @@
       "ailmentBase": false
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-SUM-MINION-DAMAGE",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MINION-DAMAGE",
+        "value": 0.06
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-SUM-MINION-HP",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MINION-HP",
+        "value": 0.06
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-SUM-MP",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MP-MAX",
+        "value": 0.06
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-SUM-HP",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-HP-MAX",
+        "value": 0.06
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-SUM-WARLORD",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MINION-DAMAGE",
+        "value": 0.15
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-SUM-BONEBIND",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MINION-HP",
+        "value": 0.15
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-SUM-VIGOR",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-HP-MAX",
+        "value": 0.1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBM-SUM-LEGION",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GAUGE-MAX-BONUS",
+        "value": 4
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "職奥義「軍勢」：契約枠+4（仕様書v0.2 5.5）。最大値の加算で表す（職詞の+1と同じ）"
   }
 ]

@@ -70,6 +70,20 @@
     "text": "star.start.goukon"
   },
   {
+    "id": "STAR-RIKON-START",
+    "kind": "start",
+    "region": "rikon",
+    "links": ["STAR-JIN-0202"],
+    "position": {
+      "x": 330,
+      "y": 120
+    },
+    "provisional": true,
+    "provisionalNote": "召喚士の始点（仕様書v0.2 4.2 の理魂域）。MVPの盤には理魂域の中身が無いので、魔法使いの始点と同じ迅域の枝（STAR-JIN-0202）につないだ仮の位置（docs/progress D-SUM-11。D-ARC-5・D-MAG-10・D-KNT-9 と同じ考え方）",
+    "startFor": ["JOB-SUMMONER"],
+    "text": "star.start.rikon"
+  },
+  {
     "id": "STAR-GOU-0001",
     "kind": "minor",
     "region": "gou",

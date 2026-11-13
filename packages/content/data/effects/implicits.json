@@ -474,5 +474,21 @@
       "ailmentBase": true
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-MINION-DAMAGE-12",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MINION-DAMAGE",
+        "value": 0.12
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
   }
 ]

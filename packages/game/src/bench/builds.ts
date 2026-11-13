@@ -391,4 +391,42 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       undefined,
     ],
   },
+  {
+    id: "baseline-summoner",
+    name: "基準・召喚士（希少の笏・ユニークと天極なし・ポイントをほぼ使う。骸兵・炎霊・魔狼を呼び、指揮で狙わせる）",
+    job: "JOB-SUMMONER",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-SCEPTER-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07", "STAR-NT-FOCUS", "STAR-NT-CORRODE"],
+    jobNodes: [
+      "JBN-SUMMONER-T7",
+      "JBN-SUMMONER-B1B",
+      "JBN-SUMMONER-B2B",
+      "JBN-SUMMONER-WARLORD",
+      "JBN-SUMMONER-BONEBIND",
+    ],
+    // 召喚の3つ（骸兵2＋炎霊3＋魔狼4＝9枠）と指揮。魂の供儀（召喚物が減る）・霊体憑依は入れない
+    skills: [
+      "SKL-BASIC-ATTACK",
+      "SKL-SUMMONER-COMMAND",
+      "SKL-SUMMONER-DIRE-WOLF",
+      "SKL-SUMMONER-FIRE-SPIRIT",
+      "SKL-SUMMONER-SKELETON",
+      undefined,
+    ],
+    // 召喚物が前に出るので、本人は離れて立つ（ボットの動きだけ。魔法使いと同じ）
+    standoff: { min: 6, max: 10, close: 3 },
+  },
 ];

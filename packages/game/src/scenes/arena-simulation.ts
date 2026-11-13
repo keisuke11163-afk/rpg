@@ -239,6 +239,8 @@ export const TEST_WEAPONS: readonly { readonly uid: string; readonly base: strin
   { uid: "test-staff", base: "BASE-WPN-STAFF-T1" },
   // 騎士の初期の副手（下級の盾。ガードの規則を持つジョブだけが、盾でガードする）
   { uid: "test-buckler", base: "BASE-SHD-BUCKLER-T1" },
+  // 召喚士の初期装備（下級の笏）
+  { uid: "test-scepter", base: "BASE-WPN-SCEPTER-T1" },
 ];
 /** ジョブの初期装備の武器（補助仕様書3.4。転職したときに持ち替える）。 */
 const START_WEAPON: Readonly<Record<string, string>> = {
@@ -247,6 +249,7 @@ const START_WEAPON: Readonly<Record<string, string>> = {
   "JOB-ARCHER": "test-bow",
   "JOB-MAGE": "test-staff",
   "JOB-KNIGHT": "test-longsword",
+  "JOB-SUMMONER": "test-scepter",
 };
 /** ジョブの初期装備の副手（騎士の盾。転職したときに持ち替える）。 */
 const START_OFFHAND: Readonly<Record<string, string>> = {

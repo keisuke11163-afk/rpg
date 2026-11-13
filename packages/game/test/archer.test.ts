@@ -60,7 +60,7 @@ describe("弓使い：出自・初期装備・技の枠", () => {
     ]);
   });
 
-  it("転職の順番は 戦士 → 盗賊 → 弓使い → 魔法使い → 騎士 → 戦士（騎士はデータの末尾）", () => {
+  it("転職の順番は 戦士 → 盗賊 → 弓使い → 魔法使い → 騎士 → 召喚士 → 戦士（召喚士はデータの末尾）", () => {
     const sim = new ArenaSimulation(undefined, { db, enemies: false });
     expect(sim.job.id).toBe("JOB-WARRIOR");
     expect(sim.changeJob()).toBe("ok");
@@ -73,6 +73,9 @@ describe("弓使い：出自・初期装備・技の枠", () => {
     expect(sim.changeJob()).toBe("ok");
     expect(sim.job.id).toBe("JOB-KNIGHT");
     expect(sim.weapon?.base).toBe("BASE-WPN-LONGSWORD-T1");
+    expect(sim.changeJob()).toBe("ok");
+    expect(sim.job.id).toBe("JOB-SUMMONER");
+    expect(sim.weapon?.base).toBe("BASE-WPN-SCEPTER-T1");
     expect(sim.changeJob()).toBe("ok");
     expect(sim.job.id).toBe("JOB-WARRIOR");
   });
