@@ -2960,6 +2960,7 @@ export class ArenaSimulation {
       // 倒れると召喚物も消える（D-SUM-8）
       this.minionField.clear();
       this.minionCommand = undefined;
+      this.jobGaugeValue.setContractUsed(0);
       this.deathCount += 1;
       this.deathLog = { count: this.deathLog.count + 1, lastCause: this.lastHitBy };
       if (this.region !== undefined) {

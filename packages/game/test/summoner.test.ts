@@ -2,7 +2,14 @@
  * 召喚士（仕様書v0.2 5.5）：契約枠・召喚物の行動（敵を攻撃する）・敵が召喚物を狙う・命令の技・転職・データだけで足せること。
  */
 import { describe, expect, it } from "vitest";
-import { type RawContent, FIXED_STEP_SECONDS, loadContent } from "@stella/core";
+import {
+  type RawContent,
+  Combatant,
+  FIXED_STEP_SECONDS,
+  Rng,
+  loadContent,
+  staggerProfiles,
+} from "@stella/core";
 import { loadGameContent, rawContent } from "@stella/content";
 import type { Action } from "../src/input/actions.ts";
 import type { InputFrame } from "../src/input/frame.ts";
@@ -12,6 +19,7 @@ import {
   newCharacterProfile,
 } from "../src/scenes/arena-simulation.ts";
 import { toPixels } from "../src/world/units.ts";
+import { MinionField } from "../src/world/MinionField.ts";
 
 const STEP = FIXED_STEP_SECONDS;
 const db = loadGameContent();
@@ -244,6 +252,101 @@ describe("指揮・魂の供儀・霊体憑依", () => {
     expect(sim.minions).toHaveLength(1);
     const buff = sim.buffs.active.find((b) => b.effectId === "EFF-SUMMONER-POSSESS-DIRE-WOLF");
     expect(buff).toBeDefined();
+  });
+});
+
+describe("召喚物の細部（レビュー対応）", () => {
+  it("プレイヤーが倒れると、召喚物は全て消える（D-SUM-8）", () => {
+    const sim = simOf();
+    allSkills(sim);
+    use(sim, "SKL-SUMMONER-SKELETON");
+    expect(sim.minions).toHaveLength(1);
+    sim.player.health.takeDamage(1e12);
+    sim.frame(STEP, frame());
+    expect(sim.deaths).toBe(1);
+    expect(sim.minions).toHaveLength(0);
+    expect(sim.jobGauge.value).toBe(0);
+  });
+
+  it("契約枠が減っても、すでにいる召喚物は消さない。新しく呼べなくなるだけ（D-SUM-7）", () => {
+    const sim = simOf();
+    allSkills(sim);
+    use(sim, "SKL-SUMMONER-DIRE-WOLF");
+    use(sim, "SKL-SUMMONER-FIRE-SPIRIT");
+    expect(sim.jobGauge.value).toBe(7);
+    sim.minionField.squad.capacity = 4; // 職詞の装備を外したときなど
+    for (let i = 0; i < 30; i++) sim.frame(STEP, frame());
+    expect(sim.minions).toHaveLength(2);
+    expect(sim.jobGauge.value).toBe(7);
+    expect(sim.blockOf("SKL-SUMMONER-SKELETON")).toBe("gauge");
+  });
+
+  it("指揮・集中の後は、近い敵ではなく指揮した敵を狙う", () => {
+    const { sim, rat: near } = withRat(3, 60);
+    const p = sim.motion.position;
+    const far = sim.field?.spawn("ENM-THORN-RAT", "normal", 60, { x: p.x + 8, y: p.y }, "r2");
+    if (far === undefined) throw new Error("敵を出せない");
+    use(sim, "SKL-SUMMONER-DIRE-WOLF");
+    // 呼んだ直後に近い敵へ向かう前に、遠い敵を指揮する
+    use(sim, "SKL-SUMMONER-COMMAND", far.position);
+    expect(sim.commandTarget).toBe(far.combatant);
+    const nearHp = near.combatant.health.hp;
+    for (let i = 0; i < 600 && far.combatant.health.hp >= far.combatant.health.maxHp; i++)
+      sim.frame(STEP, frame([], [], { x: toPixels(far.position.x), y: toPixels(far.position.y) }));
+    expect(far.combatant.health.hp).toBeLessThan(far.combatant.health.maxHp);
+    // 狼は遠い敵だけを噛む（近い敵の減りは、プレイヤーへの反撃などが無いので0）
+    expect(near.combatant.health.hp).toBe(nearHp);
+  });
+
+  /** 召喚物の攻撃を、同じ乱数の並びで1回当てる（倍率だけを比べるため）。 */
+  function strikeOnce(opts: { command: boolean; pct?: number }): number {
+    const field = new MinionField(10);
+    const def = db.skills.get("SKL-SUMMONER-FIRE-SPIRIT")?.action;
+    if (def?.type !== "summon") throw new Error("炎霊の定義が無い");
+    const m = field.squad.summon(db, def.minion, { characterLevel: 15, position: { x: 0, y: 0 } });
+    if (m === undefined) throw new Error("呼べない");
+    const target = new Combatant(db, {
+      id: "t",
+      team: "enemy",
+      position: { x: 1, y: 0 },
+      radius: 0.4,
+      maxHp: 1e9,
+      staggerProfile: staggerProfiles(db).enemy,
+    });
+    const ctx = {
+      db,
+      rng: Rng.fromSeed("same"),
+      now: 0,
+      characterLevel: 15,
+      owner: { x: 0, y: 0 },
+      enemies: [target],
+      minionDamage: 0,
+      command: undefined,
+      onHit: () => undefined,
+    };
+    const command = opts.command ? { target, until: 10, damageBonus: 0.2 } : undefined;
+    return field.strike(m, target, ctx, command, opts.pct ?? 1).hit.total;
+  }
+
+  it("指揮した敵への召喚物のダメージは+20%（加算）", () => {
+    expect(strikeOnce({ command: true }) / strikeOnce({ command: false })).toBeCloseTo(1.2);
+  });
+
+  it("炎霊の爆発は攻撃の4倍で、半径3m（＋敵の半径）の中の敵だけに当たる", () => {
+    expect(strikeOnce({ command: false, pct: 4 }) / strikeOnce({ command: false })).toBeCloseTo(4);
+    const { sim, rat: inside } = withRat(2, 60);
+    const p = sim.motion.position;
+    const outside = sim.field?.spawn("ENM-THORN-RAT", "normal", 60, { x: p.x + 12, y: p.y }, "r2");
+    if (outside === undefined) throw new Error("敵を出せない");
+    use(sim, "SKL-SUMMONER-FIRE-SPIRIT");
+    const m = sim.minions[0];
+    if (m === undefined) throw new Error("炎霊がいない");
+    m.position = { x: inside.position.x - 2.5, y: inside.position.y };
+    const outHp = outside.combatant.health.hp;
+    const inHp = inside.combatant.health.hp;
+    use(sim, "SKL-SUMMONER-SACRIFICE", m.position);
+    expect(inside.combatant.health.hp).toBeLessThan(inHp);
+    expect(outside.combatant.health.hp).toBe(outHp);
   });
 });
 
