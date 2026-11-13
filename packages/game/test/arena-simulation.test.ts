@@ -331,6 +331,35 @@ describe("ArenaSimulation：転職・経験値（U-10）", () => {
     // 知らせは Lvアップの1つ（星読みの記録の「新しい星の巡り」は別に数える）
     expect(texts.filter((t) => !t.startsWith("新しい星の巡り")).length).toBe(1);
   });
+
+  it("Lvが上がっても、状態異常・崩しゲージ・戦う者は残る（全回復だけ。D-AUTO-1）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    const player = sim.player;
+    const poison = sim.db.ailments.get("AIL-POISON");
+    if (poison?.kind !== "dot") throw new Error("毒が無い");
+    expect(
+      player.applyAilment({
+        ailmentId: poison.id,
+        tag: poison.tag,
+        total: 30,
+        duration: 3,
+        maxStacks: undefined,
+      }),
+    ).toBe(true);
+    player.stagger.add(player.stagger.max * 0.4);
+    const staggerBefore = player.stagger.current;
+    expect(staggerBefore).toBeGreaterThan(0);
+    player.health.takeDamage(10);
+    const maxBefore = player.health.maxHp;
+    sim.gainXp(1e6);
+    expect(sim.player).toBe(player);
+    expect(player.ailments.stacks("AIL-POISON")).toBe(1);
+    // 崩しゲージは割合を保つ（最大HPが増えると最大も増える）
+    expect(player.stagger.current / player.stagger.max).toBeCloseTo(0.4, 5);
+    expect(player.health.maxHp).toBeGreaterThan(maxBefore);
+    expect(player.health.hp).toBe(player.health.maxHp);
+    expect(player.health.ward).toBe(player.health.maxWard);
+  });
 });
 
 describe("ArenaSimulation：地面の物と拾得（U-11、補助仕様書13章）", () => {
@@ -720,6 +749,25 @@ describe("ArenaSimulation：ロードアウト（U-20、仕様書v0.2 4.13）", 
     expect(sim.weapon?.uid).toBe("test-dagger");
     expect(sim.stars.nodes).toEqual(["STAR-GOUJIN-0001"]);
     expect(sim.inventory.items.some((i) => i.uid === "test-greatsword")).toBe(true);
+  });
+
+  it("切り替え先の星辰盤が正しくなければ、何も変えずに例外（星辰盤も計画の段階で作る）", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    toSafeZone(sim);
+    expect(sim.switchLoadout(2)).toBe("ok");
+    sim.equipFromInventory("test-dagger");
+    expect(sim.switchLoadout(1)).toBe("ok");
+    // ロードアウト2 の星辰盤に、データに無いノードを入れる（壊れた記録の代わり）
+    const list = (sim as unknown as { loadoutList: { id: number; starAllocation: string[] }[] })
+      .loadoutList;
+    const two = list.find((l) => l.id === 2);
+    if (two === undefined) throw new Error("ロードアウト2が無い");
+    two.starAllocation = ["STAR-NO-SUCH-NODE"];
+    const before = sim.saveData();
+    expect(() => sim.switchLoadout(2)).toThrow(RangeError);
+    expect(sim.activeLoadout).toBe(1);
+    expect(sim.weapon?.uid).toBe("test-greatsword");
+    expect(sim.saveData()).toEqual(before);
   });
 
   it("分解した装備を登録していたロードアウトは、その部位が空きになる（M-15）", () => {

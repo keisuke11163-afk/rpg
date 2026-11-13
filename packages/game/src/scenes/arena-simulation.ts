@@ -1427,6 +1427,8 @@ export class ArenaSimulation {
       this.inventory.capacity
     )
       return "inventoryFull";
+    // 星辰盤（データに無いノードなどは、ここで RangeError になり、何も変えない）
+    const nextStars = new StarAllocation(this.db, target.starAllocation);
 
     // 2. 反映（入りきることは確かめた）
     this.loadoutList = [
@@ -1441,7 +1443,7 @@ export class ArenaSimulation {
     for (const [slot, item] of planned.entries()) this.equipment.equip(item, slot, dual);
     for (const item of toInventory)
       if (!this.inventory.addItem(item)) throw new Error("ロードアウトの切り替えの計画と合わない");
-    this.starsValue = new StarAllocation(this.db, target.starAllocation);
+    this.starsValue = nextStars;
     this.activeLoadoutId = id;
     this.equipmentVersion += 1;
     this.starVersion += 1;
@@ -1807,20 +1809,29 @@ export class ArenaSimulation {
     if (next !== undefined) this.equipFromInventory(next.uid, "mainHand");
   }
 
-  /** 転職する（戦士と盗賊を順に替える）。武器はジョブの初期装備に持ち替える。 */
-  changeJob(): void {
-    if (this.current !== undefined || !this.character.canChangeJob) return;
+  /**
+   * 転職する（ジョブを順に替える）。武器はジョブの初期装備に持ち替える。
+   * 転職した後に二刀流ができなくなるなら、副手の片手武器をインベントリに戻す。入りきらなければ、
+   * 何も変えずに "inventoryFull"（ロードアウトの切り替えと同じ考え方。docs/progress D-AUTO-2）。
+   */
+  changeJob(): "ok" | "busy" | "cannot" | "inventoryFull" {
+    if (this.current !== undefined) return "busy";
+    if (!this.character.canChangeJob) return "cannot";
     const jobs = [...this.db.jobs.keys()];
     const next = jobs[(jobs.indexOf(this.job.id) + 1) % jobs.length];
-    if (next === undefined || !this.character.changeJob(next)) return;
-    // 二刀流ができなくなったら、副手の片手武器を外す（入りきらなければ、そのまま残す）
+    const nextJob = next === undefined ? undefined : this.db.jobs.get(next);
+    if (next === undefined || nextJob === undefined || next === this.job.id) return "cannot";
+    // 1. 計画：二刀流ができなくなるなら、副手の片手武器を外せるか
     const off = this.equipment.get("offHand");
-    if (
+    const dropOff =
       off !== undefined &&
-      !this.canDualWield &&
-      this.db.itemBases.get(off.base)?.category === "weapon"
-    )
-      unequipToInventory(this.inventory, this.equipment, "offHand");
+      dualWieldAffinity(nextJob) === undefined &&
+      this.db.itemBases.get(off.base)?.category === "weapon";
+    if (dropOff && this.inventory.full) return "inventoryFull";
+    // 2. 反映
+    if (!this.character.changeJob(next)) return "cannot";
+    if (dropOff && !unequipToInventory(this.inventory, this.equipment, "offHand"))
+      throw new Error("転職の計画と合わない（副手を外せない）");
     const start = START_WEAPON[next];
     if (start !== undefined && this.inventory.items.some((i) => i.uid === start))
       equipFromInventory(
@@ -1837,9 +1848,13 @@ export class ArenaSimulation {
     this.attackerVersion = "";
     this.refreshAttacker();
     this.syncPlayerMaxHp();
+    return "ok";
   }
 
-  /** 経験値を得る。Lvが上がったら、HPを全回復する（最大HPが変わるため）。 */
+  /**
+   * 経験値を得る。Lvが上がったら、最大HPなどを今の戦う者に反映してから、HP・魔障を全回復する。
+   * 戦う者は作り直さないので、状態異常・崩しゲージ（割合）・一定時間の効果は残る（docs/progress D-AUTO-1）。
+   */
   gainXp(amount: number): void {
     const before = this.character.level;
     const r = this.character.gainXp(amount);
@@ -1847,7 +1862,10 @@ export class ArenaSimulation {
       this.levelUpCount += r.characterLevels + r.jobLevels;
       this.attackerVersion = "";
       this.refreshAttacker();
-      if (this.character.level !== before) this.playerValue = this.newPlayer();
+      if (this.character.level !== before) {
+        this.syncPlayerMaxHp();
+        if (!this.playerValue.health.dead) this.playerValue.health.restoreFull();
+      }
       this.onText?.(
         `${r.characterLevels > 0 ? `Lv${String(this.character.level)}` : ""}${r.jobLevels > 0 ? ` ジョブLv${String(this.character.jobLevel(this.job.id))}` : ""}`,
         this.motion.position,
