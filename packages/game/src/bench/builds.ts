@@ -323,4 +323,35 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       "SKL-ARCHER-SNIPE",
     ],
   },
+  {
+    id: "baseline-mage",
+    name: "基準・魔法使い（希少の杖・ユニークと天極なし・ポイントをほぼ使う。離れて撃つ）",
+    job: "JOB-MAGE",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-STAFF-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07", "STAR-NT-FOCUS", "STAR-NT-CORRODE"],
+    jobNodes: [
+      "JBN-MAGE-T7",
+      "JBN-MAGE-B1B",
+      "JBN-MAGE-B2B",
+      "JBN-MAGE-WELL",
+      "JBN-MAGE-SPELLWORK",
+    ],
+    // 呪文の位相（火・氷・火で合成魔法の蒸爆）を回す。雷鎖・瞬移・魔法障壁は入れない（雷は合成魔法が無い）
+    skills: ["SKL-BASIC-ATTACK", "SKL-MAGE-FIREBALL", "SKL-MAGE-ICELANCE", "SKL-MAGE-METEOR"],
+    // 適正間合いは無いので、ボットの立ち位置だけ決める（ボスから6〜10m）
+    standoff: { min: 6, max: 10, close: 3 },
+  },
 ];

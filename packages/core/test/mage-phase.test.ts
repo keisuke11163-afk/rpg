@@ -109,6 +109,8 @@ describe("位相（魔法使いの職能ゲージ）の遷移", () => {
     g.onSpellCast("cold");
     g.onSpellCast("fire");
     expect(g.fusionFor(["TAG-FORM-SPELL", "TAG-ELEM-COLD"])?.id).toBe("steam");
+    // 組み合わせと関係のない属性（雷）の呪文は変えない（D-MAG-4）
+    expect(g.fusionFor(["TAG-FORM-SPELL", "TAG-ELEM-LIGHTNING"])).toBeUndefined();
     expect(g.fusionFor(["TAG-FORM-SPELL", "TAG-FORM-AREA", "TAG-ELEM-FIRE"])).toBeUndefined();
     expect(g.fusionFor(["TAG-FORM-SPELL", "TAG-FORM-MOVEMENT"])).toBeUndefined();
   });

@@ -144,12 +144,23 @@ export class JobGauge {
     );
   }
 
-  /** この呪文（のタグ）が、合成魔法に変わるか。属性を持たない呪文・除く印のある呪文（隕星）は変わらない。 */
+  /**
+   * この呪文（のタグ）が、合成魔法に変わるか。変わるのは、合成魔法を作った2つの属性のどちらかの呪文
+   * （蒸爆なら火・氷。その呪文のダメージ×倍率になるので、組み合わせと関係のない属性の呪文は変えない。D-MAG-4）。
+   * 属性を持たない呪文・除く印のある呪文（隕星）も変わらない。
+   */
   fusionFor(tags: readonly string[]): PhaseFusion | undefined {
     const f = this.def.phase?.fusion;
-    if (f === undefined || this.phaseElementOf(tags) === undefined) return undefined;
+    const element = this.phaseElementOf(tags);
+    if (f === undefined || element === undefined) return undefined;
     if (f.excludeTags.some((t) => tags.includes(t))) return undefined;
-    return this.fusion;
+    const row = this.fusion;
+    return row !== undefined && row.elements.includes(element) ? row : undefined;
+  }
+
+  /** 直前に使った呪文の属性（位相。次に違う属性を選ぶ目安。無ければ undefined）。 */
+  get lastSpellElement(): Element | undefined {
+    return this.lastElement;
   }
 
   /** 合成魔法を使った。位相を決まった量に戻し、直前の属性を忘れる。 */

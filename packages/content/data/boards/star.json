@@ -42,6 +42,20 @@
     "text": "star.start.jinri"
   },
   {
+    "id": "STAR-RI-START",
+    "kind": "start",
+    "region": "ri",
+    "links": ["STAR-JIN-0202"],
+    "position": {
+      "x": 260,
+      "y": 170
+    },
+    "provisional": true,
+    "provisionalNote": "魔法使いの始点（仕様書v0.2 4.1 の理域）。MVPの盤には理域の中身が無いので、迅域の枝（STAR-JIN-0202）につないだ仮の位置（docs/progress D-MAG-10。弓使いの D-ARC-5 と同じ考え方）",
+    "startFor": ["JOB-MAGE"],
+    "text": "star.start.ri"
+  },
+  {
     "id": "STAR-GOU-0001",
     "kind": "minor",
     "region": "gou",

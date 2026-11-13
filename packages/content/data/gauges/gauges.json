@@ -65,5 +65,67 @@
     "stages": [],
     "provisional": true,
     "provisionalNote": "毎秒20・同じ敵に当てるたび+5は M-23 の仮値（MVP後の機能の提案3章で承認）。溜まるのは戦闘中だけで、戦闘外では毎秒20減る（仮値）・+5は技の1回の使用につき1回（docs/progress D-ARC-3）"
+  },
+  {
+    "id": "GAU-PHASE",
+    "text": "gauge.phase",
+    "max": 3,
+    "gains": [],
+    "decayOutOfCombat": 0,
+    "phase": {
+      "elements": ["fire", "cold", "lightning"],
+      "transitions": [
+        {
+          "input": "first",
+          "add": 1
+        },
+        {
+          "input": "same",
+          "add": 0
+        },
+        {
+          "input": "different",
+          "add": 1
+        }
+      ],
+      "neutral": "ignore",
+      "fusion": {
+        "at": 3,
+        "after": 0,
+        "excludeTags": ["TAG-FORM-AREA"],
+        "table": [
+          {
+            "id": "steam",
+            "text": "gauge.phase.steam",
+            "elements": ["fire", "cold"],
+            "mods": {
+              "pctMultiplier": 1.8,
+              "action": {
+                "type": "projectile",
+                "count": 1,
+                "spreadDeg": 0,
+                "speed": 22,
+                "range": 16,
+                "radius": 0.4,
+                "pierce": 0,
+                "burst": 3.0
+              },
+              "ailmentChance": {
+                "TAG-AIL-BURN": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    "stages": [
+      {
+        "id": "steam",
+        "min": 3,
+        "text": "gauge.phase.steam"
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "位相の遷移表は仕様書v0.2 5.4 に無い（H-09 ②。表をデータで持つ方針は承認済み）。最初の呪文も+1・属性なしの呪文は何もしない・戦闘外で開始の量に戻る（docs/progress D-MAG-1〜3）。合成魔法は蒸爆だけ（火＋氷。範囲・燃焼の付与率は仮。docs/progress D-MAG-4。灼雷・晶雷は Q-MAG-1・Q-MAG-2）"
   }
 ]

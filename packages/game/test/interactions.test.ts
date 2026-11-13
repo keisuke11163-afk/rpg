@@ -70,7 +70,7 @@ describe("I-09：ユニークの潜在効果は、ノード・星座・ジョブ
   it("弓使いに転職すると、盗賊の職紋盤の条件は満たされない（潜在効果は眠る）", () => {
     const sim = rogue({ u03: true, poisonBlood: true });
     expect(sim.sheet.latents[0]?.active).toBe(true);
-    sim.changeJob(); // 転職の順番：戦士 → 盗賊 → 弓使い → 戦士
+    sim.changeJob(); // 転職の順番：戦士 → 盗賊 → 弓使い → 魔法使い → 戦士
     expect(sim.job.id).toBe("JOB-ARCHER");
     const latent = sim.sheet.latents.find((l) => l.base === "BASE-UNQ-U03");
     // 転職で主手が初期装備に替わっていれば、千の小傷は装備していない

@@ -978,5 +978,315 @@
     "effects": ["EFF-JBM-ARC-REPEATER"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-MAGE-START",
+    "job": "JOB-MAGE",
+    "kind": "start",
+    "links": ["JBN-MAGE-T1"],
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-T1",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T2"],
+    "position": {
+      "x": 0,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-MAG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-T2",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T3"],
+    "position": {
+      "x": 0,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-MAG-SPELL"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-T3",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T4"],
+    "position": {
+      "x": 0,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-MAG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-T4",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T5"],
+    "position": {
+      "x": 0,
+      "y": 160
+    },
+    "effects": ["EFF-JBN-MAG-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-T5",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T6"],
+    "position": {
+      "x": 0,
+      "y": 200
+    },
+    "effects": ["EFF-JBN-MAG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-T6",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T7"],
+    "position": {
+      "x": 0,
+      "y": 240
+    },
+    "effects": ["EFF-JBN-MAG-SPELL"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-T7",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": [],
+    "position": {
+      "x": 0,
+      "y": 280
+    },
+    "effects": ["EFF-JBN-MAG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-B1A",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T1"],
+    "position": {
+      "x": -40,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-MAG-SPELL"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-B1B",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-B1A"],
+    "position": {
+      "x": -80,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-MAG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-SPELLWORK",
+    "job": "JOB-MAGE",
+    "kind": "notable",
+    "links": ["JBN-MAGE-B1B"],
+    "position": {
+      "x": -120,
+      "y": 40
+    },
+    "text": "jobnode.mage.spellwork",
+    "description": "jobnode.mage.spellwork.desc",
+    "effects": ["EFF-JBN-MAG-SPELLWORK"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-B2A",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T2"],
+    "position": {
+      "x": 40,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-MAG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-B2B",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-B2A"],
+    "position": {
+      "x": 80,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-MAG-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-WELL",
+    "job": "JOB-MAGE",
+    "kind": "notable",
+    "links": ["JBN-MAGE-B2B"],
+    "position": {
+      "x": 120,
+      "y": 80
+    },
+    "text": "jobnode.mage.well",
+    "description": "jobnode.mage.well.desc",
+    "effects": ["EFF-JBN-MAG-WELL"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-B3A",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T3"],
+    "position": {
+      "x": -40,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-MAG-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-B3B",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-B3A"],
+    "position": {
+      "x": -80,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-MAG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-SWIFT",
+    "job": "JOB-MAGE",
+    "kind": "notable",
+    "links": ["JBN-MAGE-B3B"],
+    "position": {
+      "x": -120,
+      "y": 120
+    },
+    "text": "jobnode.mage.swift",
+    "description": "jobnode.mage.swift.desc",
+    "effects": ["EFF-JBN-MAG-SWIFT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-C1",
+    "job": "JOB-MAGE",
+    "kind": "connector",
+    "links": ["JBN-MAGE-T5"],
+    "position": {
+      "x": 40,
+      "y": 200
+    },
+    "text": "jobnode.mage.c1",
+    "description": "jobnode.mage.c1.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）"
+  },
+  {
+    "id": "JBN-MAGE-C2",
+    "job": "JOB-MAGE",
+    "kind": "connector",
+    "links": ["JBN-MAGE-C1"],
+    "position": {
+      "x": 80,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）",
+    "text": "jobnode.mage.c1",
+    "description": "jobnode.mage.c1.desc"
+  },
+  {
+    "id": "JBN-MAGE-C3",
+    "job": "JOB-MAGE",
+    "kind": "connector",
+    "links": ["JBN-MAGE-C2"],
+    "position": {
+      "x": 120,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）",
+    "text": "jobnode.mage.c1",
+    "description": "jobnode.mage.c1.desc"
+  },
+  {
+    "id": "JBN-MAGE-M-TRIPHASE",
+    "job": "JOB-MAGE",
+    "kind": "mastery",
+    "links": ["JBN-MAGE-T7"],
+    "position": {
+      "x": -60,
+      "y": 330
+    },
+    "text": "jobnode.mage.m-triphase",
+    "description": "jobnode.mage.m-triphase.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）。職奥義の効果（三相同調・単相の極み・無詠唱）は、位相の増え方の差し替えと過充填が要るので、まだ働かない（docs/progress Q-MAG-3・Q-MAG-4）"
+  },
+  {
+    "id": "JBN-MAGE-M-SINGLE",
+    "job": "JOB-MAGE",
+    "kind": "mastery",
+    "links": ["JBN-MAGE-T7"],
+    "position": {
+      "x": 0,
+      "y": 330
+    },
+    "text": "jobnode.mage.m-single",
+    "description": "jobnode.mage.m-single.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）。職奥義の効果（三相同調・単相の極み・無詠唱）は、位相の増え方の差し替えと過充填が要るので、まだ働かない（docs/progress Q-MAG-3・Q-MAG-4）"
+  },
+  {
+    "id": "JBN-MAGE-M-SILENT",
+    "job": "JOB-MAGE",
+    "kind": "mastery",
+    "links": ["JBN-MAGE-T7"],
+    "position": {
+      "x": 60,
+      "y": 330
+    },
+    "text": "jobnode.mage.m-silent",
+    "description": "jobnode.mage.m-silent.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）。職奥義の効果（三相同調・単相の極み・無詠唱）は、位相の増え方の差し替えと過充填が要るので、まだ働かない（docs/progress Q-MAG-3・Q-MAG-4）"
   }
 ]

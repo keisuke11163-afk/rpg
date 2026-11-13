@@ -550,5 +550,11 @@
     "text": "stat.moving-shot-slow",
     "unit": "ratio",
     "min": 0
+  },
+  {
+    "id": "STAT-GAUGE-START",
+    "text": "stat.gauge-start",
+    "unit": "flat",
+    "min": 0
   }
 ]

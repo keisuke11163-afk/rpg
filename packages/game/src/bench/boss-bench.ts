@@ -42,6 +42,11 @@ export interface BenchBuild {
   readonly jobNodes: readonly string[];
   /** 技の枠（1〜6。省略するとジョブの初期の並び）。破軍・罠設置は初期の枠に無いので、ここで入れる。 */
   readonly skills?: readonly (string | undefined)[];
+  /**
+   * ボットの立ち位置（適正間合いを持たないジョブが、離れて撃つとき。魔法使い）。ゲームの規則ではなく、
+   * ボットの動き方だけ。ボスとの距離（体の端から）の min〜max の真ん中に立ち、close より近ければ離れる。
+   */
+  readonly standoff?: { readonly min: number; readonly max: number; readonly close: number };
 }
 
 export interface BenchOptions {
@@ -226,6 +231,8 @@ export function chooseSkill(
       l.skill !== "SKL-BASIC-ATTACK" &&
       sim.blockOf(l.skill) === undefined &&
       (def(l.skill)?.action.type !== "teleport" || moveBackstab) &&
+      // 瞬移（照準の方向へ跳ぶ）は、ボットは使わない（立ち位置を崩すだけ）
+      def(l.skill)?.action.type !== "blink" &&
       // 跳躍後退（撃ちながら後ろへ跳ぶ）は、近すぎるときだけ使う（止まって集中を溜めるため）
       (!isLeap(def(l.skill)) || tooClose),
   );
@@ -239,12 +246,34 @@ export function chooseSkill(
       .map((l) => def(l.skill)?.mpCost ?? 0),
   );
   const affordable = (id: string): boolean => sim.mp - (def(id)?.mpCost ?? 0) >= reserve;
+  const free = usable.filter(
+    (l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill) && affordable(l.skill),
+  );
   return (
     usable.find((l) => (def(l.skill)?.cooldown ?? 0) > 0 && !spender(l.skill)) ??
     usable.find((l) => spender(l.skill) && full) ??
-    usable.find(
-      (l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill) && affordable(l.skill),
-    )
+    (sim.jobGauge.def.phase === undefined ? free[0] : choosePhaseSpell(sim, db, free))
+  );
+}
+
+/**
+ * 位相のジョブ（魔法使い）の呪文を選ぶ：合成魔法に変わる呪文があればそれ（枠の順の最初）、無ければ直前とは
+ * 違う属性の呪文（位相が増える）、それも無ければ枠の順の最初。
+ */
+function choosePhaseSpell<T extends { readonly skill: string }>(
+  sim: ArenaSimulation,
+  db: ContentDb,
+  free: readonly T[],
+): T | undefined {
+  const gauge = sim.jobGauge;
+  const tagsOf = (l: T): readonly string[] => db.skills.get(l.skill)?.tags ?? [];
+  return (
+    free.find((l) => gauge.fusionFor(tagsOf(l)) !== undefined) ??
+    free.find((l) => {
+      const e = gauge.phaseElementOf(tagsOf(l));
+      return e !== undefined && e !== gauge.lastSpellElement;
+    }) ??
+    free[0]
   );
 }
 
@@ -391,7 +420,7 @@ export function runBossBench(
           : { x: 0, y: 0 };
     // 適正間合いを持つジョブ（弓使い）：間合いの真ん中に立ち、止まって撃つ。近すぎれば離れ、遠ければ寄る。
     // 雲の中にいれば、雲の外へ出る
-    const band = sim.job.preferredRange;
+    const band = sim.job.preferredRange ?? build.standoff;
     let ranged: { move: { x: number; y: number }; attack: boolean } | undefined;
     if (band !== undefined) {
       const clouds = sim.field?.clouds ?? [];

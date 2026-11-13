@@ -15,7 +15,7 @@ for (const region of process.argv.includes("--hands") ? [] : ["REGION-A4-BOSS", 
     const atk = runBossBench(db, build, { region, invincible: true });
     const real = runBossBench(db, build, { region, invincible: false });
     const uses = Object.entries(atk.uses)
-      .map(([k, n]) => `${k.replace(/^SKL-(WARRIOR|ROGUE|ARCHER|BASIC)-/, "")} ${String(n)}`)
+      .map(([k, n]) => `${k.replace(/^SKL-(WARRIOR|ROGUE|ARCHER|MAGE|BASIC)-/, "")} ${String(n)}`)
       .join("・");
     const breakdown = (r: typeof atk): string =>
       Object.entries(r.takenBySource)

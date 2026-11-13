@@ -550,6 +550,28 @@
     ]
   },
   {
+    "id": "EFF-PRE-JOB-MAGE",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GAUGE-START",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "mainJob",
+        "job": "TAG-JOB-MAGE"
+      }
+    ]
+  },
+  {
     "id": "EFF-SUF-BEAST-HUNTER",
     "origin": "affix",
     "modifiers": [

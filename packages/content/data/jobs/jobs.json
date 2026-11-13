@@ -184,5 +184,60 @@
       "SKL-ARCHER-RAIN"
     ],
     "startingWeapon": "BASE-WPN-BOW-T1"
+  },
+  {
+    "id": "JOB-MAGE",
+    "tag": "TAG-JOB-MAGE",
+    "text": "job.mage",
+    "gauge": "GAU-PHASE",
+    "skills": [
+      {
+        "skill": "SKL-MAGE-FIREBALL",
+        "level": 1
+      },
+      {
+        "skill": "SKL-MAGE-ICELANCE",
+        "level": 3
+      },
+      {
+        "skill": "SKL-MAGE-CHAIN",
+        "level": 5
+      },
+      {
+        "skill": "SKL-MAGE-BLINK",
+        "level": 7
+      },
+      {
+        "skill": "SKL-MAGE-METEOR",
+        "level": 10
+      },
+      {
+        "skill": "SKL-MAGE-BARRIER",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-STAFF": "S",
+      "TAG-WPN-TOME": "S",
+      "TAG-WPN-WAND": "S",
+      "TAG-WPN-DAGGER": "B"
+    },
+    "originAttributes": {
+      "go": 5,
+      "jin": 5,
+      "ri": 20,
+      "kon": 10
+    },
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5。docs/progress D-MAG-5）。剣はCなので適性の表に書かない",
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-MAGE-FIREBALL",
+      "SKL-MAGE-ICELANCE",
+      "SKL-MAGE-CHAIN",
+      "SKL-MAGE-BLINK",
+      "SKL-MAGE-METEOR"
+    ],
+    "startingWeapon": "BASE-WPN-STAFF-T1"
   }
 ]
