@@ -105,6 +105,8 @@ interface SkillState {
   smokes: number;
   arrows: number;
   guarding: boolean;
+  minions: { def: string; hp: number }[];
+  contract: number;
 }
 interface EnemyInfo {
   id: string;
@@ -760,7 +762,25 @@ try {
       JSON.stringify(sk2.uses) === JSON.stringify(sk.uses),
     `ジョブ ${sk.job}・武器 ${String(sk.weapon)}・ガード ${String(sk.guarding)} → 押し続け ${String(sk1.guarding)} → 離した ${String(sk2.guarding)}`,
   );
-  // 騎士 → 戦士 → 盗賊に戻す（以降の確認は盗賊の短剣で行う）
+  // 召喚士（仕様書v0.2 5.5）：G で転職すると下級の笏を持つ。1 のキー（技の枠3＝骸兵召喚）で骸兵が現れ、契約枠を2使う
+  await waitIdle();
+  await page.keyboard.press("KeyG");
+  await page.waitForTimeout(100);
+  const ss = await skills();
+  await page.keyboard.press("Digit1");
+  await page.waitForTimeout(900);
+  const ss1 = await skills();
+  check(
+    "Gで召喚士に転職し（下級の笏）、1 のキーで骸兵を呼ぶと、骸兵が現れて契約枠を2使う（召喚士）",
+    ss.job === "JOB-SUMMONER" &&
+      ss.weapon === "test-scepter" &&
+      ss.minions.length === 0 &&
+      ss1.minions.length === 1 &&
+      ss1.minions[0]?.def === "MIN-SKELETON" &&
+      ss1.contract === 2,
+    `ジョブ ${ss.job}・武器 ${String(ss.weapon)}・召喚物 ${String(ss.minions.length)} → ${String(ss1.minions.length)}・契約枠 ${String(ss1.contract)}`,
+  );
+  // 召喚士 → 戦士 → 盗賊に戻す（以降の確認は盗賊の短剣で行う。転職で召喚物は消える）
   for (let i = 0; i < 2; i++) {
     await waitIdle();
     await page.keyboard.press("KeyG");
