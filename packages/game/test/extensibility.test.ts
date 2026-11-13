@@ -114,11 +114,18 @@ describe("上位職・混成職のデータの形（MVP後の機能の提案 4�
     ]);
     const sim = new ArenaSimulation(undefined, { db, enemies: false });
     const seen: string[] = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       expect(sim.changeJob()).toBe("ok");
       seen.push(sim.job.id);
     }
-    expect(seen).toEqual(["JOB-ROGUE", "JOB-ARCHER", "JOB-MAGE", "JOB-WARRIOR", "JOB-ROGUE"]);
+    expect(seen).toEqual([
+      "JOB-ROGUE",
+      "JOB-ARCHER",
+      "JOB-MAGE",
+      "JOB-KNIGHT",
+      "JOB-WARRIOR",
+      "JOB-ROGUE",
+    ]);
   });
 
   it("元のジョブが無い・自分自身・重なり、元のジョブの無い試練は、データの誤り", () => {

@@ -211,6 +211,11 @@ export function buildCharacterSheet(
     ...(input.extraEffects ?? []),
     ...(equipment?.effects() ?? []),
     ...(jobBoard?.effects(jobPoints) ?? []),
+    // メインジョブのあいだ、いつも働く効果（騎士の誓い。サブジョブ・ほかのジョブには効かない）
+    ...(job.passiveEffects ?? []).map((effectId) => ({
+      effectId,
+      source: { kind: "jobPassive", ref: job.id },
+    })),
   ];
   // 遺物の写し（遺物の部位の装備。仕様書v0.2 3.11.6）
   const relicItem = equipment?.get("relic");

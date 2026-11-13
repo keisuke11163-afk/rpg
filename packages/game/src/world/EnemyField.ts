@@ -12,6 +12,7 @@ import {
   type EnemyResidue,
   type EnemyTarget,
   type EnemyUpdatePlan,
+  type GuardOutcome,
   type HitReport,
   ProjectilePool,
   type ProjectileTarget,
@@ -86,7 +87,19 @@ export interface FieldEnemy {
 
 /** 敵の攻撃を受けたときに、場面に知らせること。 */
 export interface FieldHooks {
-  onPlayerHit(report: HitReport, enemy: Enemy, attack: EnemyAttackDef): void;
+  /**
+   * プレイヤーがヒットを受けた（防げなかった分・ガードで減った分を含む）。guarded は、ガードで防いだヒットか
+   * （ガードしたヒットは被弾として数えない：信念は-1にならず+1になる。仕様書v0.2 5.3）。
+   */
+  onPlayerHit(report: HitReport, enemy: Enemy, attack: EnemyAttackDef, guarded: boolean): void;
+  /**
+   * 攻撃が当たる直前に、ガード・パリィの結果を決める（騎士。省略すると、いつも none）。
+   * guard なら、ヒットのダメージから盾のガード率の分だけ減る。parry ならヒットは起きない（onParried だけ呼ぶ）。
+   * 回避の無敵で無効にしたヒットは、ここも呼ばない。
+   */
+  guardAgainst?(enemy: Enemy, attack: EnemyAttackDef): GuardOutcome;
+  /** パリィに成功した（ダメージ・状態異常・崩しは何も受けない）。 */
+  onParried?(enemy: Enemy, attack: EnemyAttackDef): void;
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
   /** 敵が倒れた（経験値を得る）。1体につき1回だけ、場の更新を全て反映した後に呼ぶ。 */
   onEnemyKilled(enemy: Enemy): void;
@@ -518,6 +531,12 @@ export class EnemyField {
         hooks.onAvoided(ef.enemy, ef.attack);
         continue;
       }
+      // ガード・パリィ（騎士）。パリィなら、ヒットそのものが無かったことになる（無敵と同じ）
+      const outcome = hooks.guardAgainst?.(ef.enemy, ef.attack) ?? { kind: "none" as const };
+      if (outcome.kind === "parry") {
+        hooks.onParried?.(ef.enemy, ef.attack);
+        continue;
+      }
       const report = resolveHit({
         db: this.db,
         attacker: this.attackers.attacker(ef.enemy, ef.attack),
@@ -528,8 +547,9 @@ export class EnemyField {
         target: player,
         rng: this.rng,
         extraTakenMultiplier: hooks.playerTakenMultiplier?.(ef.enemy) ?? 1,
+        ...(outcome.kind === "guard" ? { guard: outcome.rate } : {}),
       });
-      hooks.onPlayerHit(report, ef.enemy, ef.attack);
+      hooks.onPlayerHit(report, ef.enemy, ef.attack, outcome.kind === "guard");
     }
   }
 

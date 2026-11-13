@@ -1,0 +1,142 @@
+[
+  {
+    "id": "SKL-KNIGHT-SHIELD-BASH",
+    "text": "skill.knight.shield-bash",
+    "job": "JOB-KNIGHT",
+    "tags": ["TAG-FORM-MELEE", "TAG-AIL-STAGGER"],
+    "kind": "weapon",
+    "pct": 0.8,
+    "mpCost": 5,
+    "cooldown": 0,
+    "shieldArmorRatio": 0.1,
+    "action": {
+      "type": "strike",
+      "shape": {
+        "type": "sector",
+        "radius": 1.8,
+        "angleDeg": 100
+      }
+    },
+    "staggerCoefficient": 1.5,
+    "provisional": true,
+    "provisionalNote": "騎士の技の数値（範囲・動作・覚えるジョブLv・弾の跳ね返る距離など）は仕様書v0.2 5.3 に無いので仮（docs/progress D-KNT-6）。盾の防具値の10%は、盾の基礎の防具値を、技倍率を受けない固定の物理ダメージとして足した。崩し係数1.5は「崩し値が大きい」の仮値"
+  },
+  {
+    "id": "SKL-KNIGHT-JUDGMENT",
+    "text": "skill.knight.judgment",
+    "job": "JOB-KNIGHT",
+    "tags": ["TAG-FORM-MELEE", "TAG-FORM-FINISHER", "TAG-ELEM-HOLY"],
+    "kind": "weapon",
+    "pct": 2.0,
+    "mpCost": 10,
+    "cooldown": 3,
+    "convert": [
+      {
+        "from": "physical",
+        "to": "holy",
+        "value": 0.5
+      }
+    ],
+    "finisher": {
+      "pctPerPoint": 0.2
+    },
+    "gauge": {
+      "cost": "all"
+    },
+    "action": {
+      "type": "strike",
+      "shape": {
+        "type": "sector",
+        "radius": 2.2,
+        "angleDeg": 120
+      }
+    },
+    "staggerCoefficient": 0.6,
+    "provisional": true,
+    "provisionalNote": "騎士の技の数値（範囲・動作・覚えるジョブLv・弾の跳ね返る距離など）は仕様書v0.2 5.3 に無いので仮（docs/progress D-KNT-6）。信念を全て使い、1点につき技倍率+20%（終結技の仕組み）。サブジョブの騎士の技は信念を0として扱う（簡易動作）ので、技倍率2.0のまま"
+  },
+  {
+    "id": "SKL-KNIGHT-SANCTUARY",
+    "text": "skill.knight.sanctuary",
+    "job": "JOB-KNIGHT",
+    "tags": ["TAG-FORM-AREA", "TAG-FORM-DURATION", "TAG-ELEM-HOLY"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 25,
+    "cooldown": 15,
+    "action": {
+      "type": "warcry",
+      "radius": 5,
+      "duration": 6,
+      "allyEffects": ["EFF-KNIGHT-SANCTUARY"]
+    },
+    "provisional": true,
+    "provisionalNote": "騎士の技の数値（範囲・動作・覚えるジョブLv・弾の跳ね返る距離など）は仕様書v0.2 5.3 に無いので仮（docs/progress D-KNT-6）。味方・召喚物の仕組みがまだ無いので、自分に6秒間、毎秒最大HPの2%を回復する形にした（地面に置かない）。不死系への聖ダメージは無い（docs/progress Q-KNT-3）"
+  },
+  {
+    "id": "SKL-KNIGHT-TAUNT",
+    "text": "skill.knight.taunt",
+    "job": "JOB-KNIGHT",
+    "tags": ["TAG-FORM-WARCRY"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 8,
+    "cooldown": 8,
+    "action": {
+      "type": "warcry",
+      "radius": 8,
+      "duration": 4,
+      "allyEffects": [],
+      "enemyEffects": ["EFF-KNIGHT-TAUNT"]
+    },
+    "provisional": true,
+    "provisionalNote": "騎士の技の数値（範囲・動作・覚えるジョブLv・弾の跳ね返る距離など）は仕様書v0.2 5.3 に無いので仮（docs/progress D-KNT-6）。範囲8mは仮。「狙いを自分に集める」は、プレイヤーが1人なので何も変わらない（docs/progress Q-KNT-2）。4秒間、敵の与ダメージ-10%（加算）"
+  },
+  {
+    "id": "SKL-KNIGHT-SHIELD-CHARGE",
+    "text": "skill.knight.shield-charge",
+    "job": "JOB-KNIGHT",
+    "tags": ["TAG-FORM-MOVEMENT", "TAG-FORM-DEFENSE", "TAG-FORM-MELEE"],
+    "kind": "weapon",
+    "pct": 0.6,
+    "mpCost": 8,
+    "cooldown": 5,
+    "shieldArmorRatio": 0.1,
+    "guardEffect": {
+      "mode": "raise"
+    },
+    "action": {
+      "type": "dash",
+      "distance": 6,
+      "duration": 0.4,
+      "width": 1.4
+    },
+    "staggerCoefficient": 0.5,
+    "provisional": true,
+    "provisionalNote": "騎士の技の数値（範囲・動作・覚えるジョブLv・弾の跳ね返る距離など）は仕様書v0.2 5.3 に無いので仮（docs/progress D-KNT-6）。技倍率0.6・距離6m・幅1.4mは仮。突進している間はガードしている扱い（パリィの受付は無い）"
+  },
+  {
+    "id": "SKL-KNIGHT-AUREOLE",
+    "text": "skill.knight.aureole",
+    "job": "JOB-KNIGHT",
+    "tags": ["TAG-FORM-PROJECTILE", "TAG-FORM-DEFENSE"],
+    "kind": "weapon",
+    "pct": 0.9,
+    "mpCost": 12,
+    "cooldown": 6,
+    "shieldArmorRatio": 0.1,
+    "guardEffect": {
+      "mode": "lock",
+      "seconds": 1.2
+    },
+    "action": {
+      "type": "chain",
+      "range": 10,
+      "jumpRange": 6,
+      "chains": 2
+    },
+    "staggerCoefficient": 0.3,
+    "provisional": true,
+    "provisionalNote": "騎士の技の数値（範囲・動作・覚えるジョブLv・弾の跳ね返る距離など）は仕様書v0.2 5.3 に無いので仮（docs/progress D-KNT-6）。「盾を投げて3体まで跳ね返る」は、連鎖（最初の1体＋2回）で表した。盾が飛んで戻る動きは無く、「戻ってくるまでガードできない」は使った後1.2秒の固定（docs/progress Q-KNT-4）"
+  }
+]

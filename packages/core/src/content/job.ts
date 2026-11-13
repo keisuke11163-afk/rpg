@@ -239,6 +239,17 @@ export const skillSchema = z.strictObject({
    * 盾を持っていなければ0。
    */
   shieldArmorRatio: z.number().positive().optional(),
+  /**
+   * ガードとの関わり（騎士。メインジョブにガードの規則があるときだけ働く）。
+   * raise＝技の実行中はガードしている扱い（盾突撃：パリィの受付はない）、
+   * lock＝使った後、決まった秒数はガードできない（光輪の盾：戻ってくるまで）。
+   */
+  guardEffect: z
+    .discriminatedUnion("mode", [
+      z.strictObject({ mode: z.literal("raise") }),
+      z.strictObject({ mode: z.literal("lock"), seconds: z.number().positive() }),
+    ])
+    .optional(),
   /** 使った後、自分に一定時間かかる効果（破軍の「受けるダメージ-20%」など）。 */
   selfEffects: z
     .array(z.strictObject({ effect: idSchema, duration: z.number().positive() }))
@@ -388,6 +399,13 @@ export const jobSchema = z.strictObject({
   defaultSlots: z.array(idSchema).max(6).optional(),
   /** 出自にしたときの初期の武器のベース（補助仕様書3.4）。 */
   startingWeapon: idSchema.optional(),
+  /** 出自にしたときの初期の副手（騎士の盾。仕様書v0.2 5.3「盾を装備して」）。省略すると副手は空。 */
+  startingOffHand: idSchema.optional(),
+  /**
+   * メインジョブのあいだ、いつも働く効果（騎士が立てる誓い。仕様書v0.2 5.3「出撃前に1つ立てる」）。
+   * 誓いを選ぶ操作はまだ無いので、守護の誓いに固定している（docs/progress D-KNT-4）。
+   */
+  passiveEffects: z.array(idSchema).optional(),
   /** 背面からのヒットの補正（メインジョブのときだけ。盗賊：会心率+10%（固定値）・付与率+25%。仕様書5.6）。 */
   backstabBonus: z
     .strictObject({ critChance: z.number().min(0).max(1), ailmentChance: z.number().min(0).max(1) })

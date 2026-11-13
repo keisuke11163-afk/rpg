@@ -568,5 +568,11 @@
     "text": "stat.guard-rate",
     "unit": "ratio",
     "min": 0
+  },
+  {
+    "id": "STAT-HP-REGEN",
+    "text": "stat.hp-regen",
+    "unit": "ratio",
+    "min": 0
   }
 ]

@@ -777,6 +777,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     if (job.startingWeapon !== undefined)
       refCheck(itemBaseMap, "装備のベース", job.startingWeapon, file, job.id, "startingWeapon");
+    if (job.startingOffHand !== undefined)
+      refCheck(itemBaseMap, "装備のベース", job.startingOffHand, file, job.id, "startingOffHand");
+    (job.passiveEffects ?? []).forEach((e, i) => {
+      refCheck(effectMap, "効果", e, file, job.id, `passiveEffects.${String(i)}`);
+    });
     // 上位職・混成職の形（MVP後の機能の提案 4章）：元のジョブがあり、自分自身でなく、重ならない。試練の文章がある
     (job.advancedFrom ?? []).forEach((from, i) => {
       const at = `advancedFrom.${String(i)}`;

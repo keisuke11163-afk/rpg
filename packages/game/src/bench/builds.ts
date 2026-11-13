@@ -354,4 +354,41 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
     // 適正間合いは無いので、ボットの立ち位置だけ決める（ボスから6〜10m）
     standoff: { min: 6, max: 10, close: 3 },
   },
+  {
+    id: "baseline-knight",
+    name: "基準・騎士（希少の長剣と小盾・ユニークと天極なし・ポイントをほぼ使う。ガードして受ける）",
+    job: "JOB-KNIGHT",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-LONGSWORD-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      { slot: "offHand", base: "BASE-SHD-BUCKLER-T1", enhance: 5 },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-SM-GOU-A-07", "STAR-NT-IRON-SKIN"],
+    jobNodes: [
+      "JBN-KNIGHT-T7",
+      "JBN-KNIGHT-B1B",
+      "JBN-KNIGHT-B2B",
+      "JBN-KNIGHT-BULWARK",
+      "JBN-KNIGHT-SHIELDWORK",
+    ],
+    // 盾打ち・断罪の刃を入れる（枠2はガードで固定なので空ける）。ほかの技は入れない
+    skills: [
+      "SKL-BASIC-ATTACK",
+      undefined,
+      "SKL-KNIGHT-SHIELD-BASH",
+      "SKL-KNIGHT-JUDGMENT",
+      undefined,
+      undefined,
+    ],
+  },
 ];

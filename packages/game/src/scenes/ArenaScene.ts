@@ -398,6 +398,7 @@ export class ArenaScene extends Phaser.Scene {
         traps: sim.traps.length,
         smokes: sim.smokes.length,
         arrows: sim.arrows.active,
+        guarding: sim.guard?.raised ?? false,
       }),
       // セーブ（U-13）：今すぐ保存する・スロットの一覧・最後の結果（開発版だけ）
       saveNow: () => this.saveNow(),

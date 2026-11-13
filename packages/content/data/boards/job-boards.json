@@ -1288,5 +1288,315 @@
     "description": "jobnode.mage.m-silent.desc",
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）。職奥義の効果（三相同調・単相の極み・無詠唱）は、位相の増え方の差し替えと過充填が要るので、まだ働かない（docs/progress Q-MAG-3・Q-MAG-4）"
+  },
+  {
+    "id": "JBN-KNIGHT-START",
+    "job": "JOB-KNIGHT",
+    "kind": "start",
+    "links": ["JBN-KNIGHT-T1"],
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-T1",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T2"],
+    "position": {
+      "x": 0,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-T2",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T3"],
+    "position": {
+      "x": 0,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-KNT-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-T3",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T4"],
+    "position": {
+      "x": 0,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-KNT-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-T4",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T5"],
+    "position": {
+      "x": 0,
+      "y": 160
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-T5",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T6"],
+    "position": {
+      "x": 0,
+      "y": 200
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-T6",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T7"],
+    "position": {
+      "x": 0,
+      "y": 240
+    },
+    "effects": ["EFF-JBN-KNT-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-T7",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": [],
+    "position": {
+      "x": 0,
+      "y": 280
+    },
+    "effects": ["EFF-JBN-KNT-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-B1A",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T1"],
+    "position": {
+      "x": -40,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-KNT-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-B1B",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-B1A"],
+    "position": {
+      "x": -80,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-KNT-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-SHIELDWORK",
+    "job": "JOB-KNIGHT",
+    "kind": "notable",
+    "links": ["JBN-KNIGHT-B1B"],
+    "position": {
+      "x": -120,
+      "y": 40
+    },
+    "text": "jobnode.knight.shieldwork",
+    "description": "jobnode.knight.shieldwork.desc",
+    "effects": ["EFF-JBN-KNT-SHIELDWORK"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-B2A",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T2"],
+    "position": {
+      "x": 40,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-KNT-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-B2B",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-B2A"],
+    "position": {
+      "x": 80,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-BULWARK",
+    "job": "JOB-KNIGHT",
+    "kind": "notable",
+    "links": ["JBN-KNIGHT-B2B"],
+    "position": {
+      "x": 120,
+      "y": 80
+    },
+    "text": "jobnode.knight.bulwark",
+    "description": "jobnode.knight.bulwark.desc",
+    "effects": ["EFF-JBN-KNT-BULWARK"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-B3A",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T3"],
+    "position": {
+      "x": -40,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-B3B",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-B3A"],
+    "position": {
+      "x": -80,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-VIGOR",
+    "job": "JOB-KNIGHT",
+    "kind": "notable",
+    "links": ["JBN-KNIGHT-B3B"],
+    "position": {
+      "x": -120,
+      "y": 120
+    },
+    "text": "jobnode.knight.vigor",
+    "description": "jobnode.knight.vigor.desc",
+    "effects": ["EFF-JBN-KNT-VIGOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-C1",
+    "job": "JOB-KNIGHT",
+    "kind": "connector",
+    "links": ["JBN-KNIGHT-T5"],
+    "position": {
+      "x": 40,
+      "y": 200
+    },
+    "text": "jobnode.knight.c1",
+    "description": "jobnode.knight.c1.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）"
+  },
+  {
+    "id": "JBN-KNIGHT-C2",
+    "job": "JOB-KNIGHT",
+    "kind": "connector",
+    "links": ["JBN-KNIGHT-C1"],
+    "position": {
+      "x": 80,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）",
+    "text": "jobnode.knight.c1",
+    "description": "jobnode.knight.c1.desc"
+  },
+  {
+    "id": "JBN-KNIGHT-C3",
+    "job": "JOB-KNIGHT",
+    "kind": "connector",
+    "links": ["JBN-KNIGHT-C2"],
+    "position": {
+      "x": 120,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）",
+    "text": "jobnode.knight.c1",
+    "description": "jobnode.knight.c1.desc"
+  },
+  {
+    "id": "JBN-KNIGHT-M-IRON",
+    "job": "JOB-KNIGHT",
+    "kind": "mastery",
+    "links": ["JBN-KNIGHT-T7"],
+    "position": {
+      "x": -60,
+      "y": 330
+    },
+    "text": "jobnode.knight.m-iron",
+    "description": "jobnode.knight.m-iron.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）。職奥義の効果（鉄の守り・断罪者・殉教）は、まだ働かない（docs/progress Q-KNT-5）"
+  },
+  {
+    "id": "JBN-KNIGHT-M-CONDEMN",
+    "job": "JOB-KNIGHT",
+    "kind": "mastery",
+    "links": ["JBN-KNIGHT-T7"],
+    "position": {
+      "x": 0,
+      "y": 330
+    },
+    "text": "jobnode.knight.m-condemn",
+    "description": "jobnode.knight.m-condemn.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）。職奥義の効果（鉄の守り・断罪者・殉教）は、まだ働かない（docs/progress Q-KNT-5）"
+  },
+  {
+    "id": "JBN-KNIGHT-M-MARTYR",
+    "job": "JOB-KNIGHT",
+    "kind": "mastery",
+    "links": ["JBN-KNIGHT-T7"],
+    "position": {
+      "x": 60,
+      "y": 330
+    },
+    "text": "jobnode.knight.m-martyr",
+    "description": "jobnode.knight.m-martyr.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）。職奥義の効果（鉄の守り・断罪者・殉教）は、まだ働かない（docs/progress Q-KNT-5）"
   }
 ]

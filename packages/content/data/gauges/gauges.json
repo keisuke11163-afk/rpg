@@ -118,5 +118,28 @@
     ],
     "provisional": true,
     "provisionalNote": "位相の遷移表は仕様書v0.2 5.4 に無い（H-09 ②。表をデータで持つ方針は承認済み）。最初の呪文も+1・属性なしの呪文は何もしない・戦闘外で開始の量に戻る（docs/progress D-MAG-1〜3）。合成魔法は蒸爆だけ（火＋氷。範囲・燃焼の付与率は仮。docs/progress D-MAG-4。灼雷・晶雷は Q-MAG-1・Q-MAG-2）"
+  },
+  {
+    "id": "GAU-FAITH",
+    "text": "gauge.faith",
+    "max": 10,
+    "gains": [
+      {
+        "on": "guardSuccess",
+        "value": 1
+      },
+      {
+        "on": "parrySuccess",
+        "value": 3
+      },
+      {
+        "on": "hitTaken",
+        "value": -1
+      }
+    ],
+    "decayOutOfCombat": 0,
+    "stages": [],
+    "provisional": true,
+    "provisionalNote": "信念（0〜10）：ガード成功+1・パリィ成功+3・ガードしていない被弾-1（仕様書v0.2 5.3）。戦闘外の減少は仕様書に記載がないので減らさない（盗賊のコンボ点と同じ。docs/progress D-KNT-3）"
   }
 ]

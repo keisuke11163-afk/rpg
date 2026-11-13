@@ -1,0 +1,56 @@
+[
+  {
+    "id": "EFF-KNIGHT-SANCTUARY",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-HP-REGEN",
+        "value": 0.02
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "allies",
+    "provisional": true,
+    "provisionalNote": "聖域の「味方のHPを毎秒2%回復」を、最大HPの2%の毎秒の回復（STAT-HP-REGEN）で表した。味方・召喚物はまだ無いので、自分だけ（docs/progress D-KNT-6・Q-KNT-3）"
+  },
+  {
+    "id": "EFF-KNIGHT-TAUNT",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": -0.1
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "enemies",
+    "provisional": true,
+    "provisionalNote": "挑発の「敵の与ダメージ-10%」を加算として扱う（戦吼・破軍と同じ。docs/progress D-U08-5・D-KNT-6）"
+  },
+  {
+    "id": "EFF-KNIGHT-OATH-GUARDIAN",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "守護の誓いの「自分の防具値+20%」。「近くの味方・召喚物が受けるダメージの20%を肩代わりする」は味方がまだ無いので無い。誓いは守護に固定（docs/progress D-KNT-4・Q-KNT-1）"
+  }
+]

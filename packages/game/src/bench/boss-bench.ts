@@ -89,6 +89,9 @@ export interface BenchResult {
   /** 敵の攻撃を受けた回数・回避の無敵で避けた回数。 */
   readonly hitsTaken: number;
   readonly attacksAvoided: number;
+  /** ガードで防いだ回数・パリィに成功した回数（騎士）。 */
+  readonly guards: number;
+  readonly parries: number;
 }
 
 const STEP = FIXED_STEP_SECONDS;
@@ -236,7 +239,9 @@ export function chooseSkill(
       // 跳躍後退（撃ちながら後ろへ跳ぶ）は、近すぎるときだけ使う（止まって集中を溜めるため）
       (!isLeap(def(l.skill)) || tooClose),
   );
-  const full = sim.jobGauge.value >= sim.jobGauge.max - 1e-9;
+  // ガードのジョブ（騎士）は、信念が6以上で断罪の刃を使う（10まで待つと、被弾の-1で溜まりきらない。ボットの動きだけ）
+  const spendAt = sim.job.guard === undefined ? sim.jobGauge.max : sim.jobGauge.max * 0.6;
+  const full = sim.jobGauge.value >= spendAt - 1e-9;
   const spender = (id: string): boolean => def(id)?.gauge?.cost === "all";
   // CD のある技が2秒以内に使えるようになるなら、その MP を残す（CD の無い技で使い切らない）
   const reserve = Math.max(
@@ -358,6 +363,35 @@ function dodgeDirection(sim: ArenaSimulation, boss: Enemy): { x: number; y: numb
     : { x: me.x - boss.position.x || 1, y: me.y - boss.position.y };
 }
 
+/**
+ * ガードするボット（騎士）：ボスの叩きつけ・薙ぎ払いが当たる直前に、右クリックを押してパリィを狙う。
+ * 予兆の残りが 0.12秒以下になったらガードを上げ（受付は0.18秒）、攻撃が終わるまで上げ続ける。
+ * 残り 0.6秒以下の間は、新しい技を始めない（技の最中はガードを上げられないため）。
+ * 自分が当たる範囲にいるときだけ。ガードできない攻撃（胞子の雲・召喚）は何もしない。
+ */
+function guardPlan(sim: ArenaSimulation, boss: Enemy): { guard: boolean; hold: boolean } {
+  const a = boss.currentAttack;
+  const none = { guard: false, hold: false };
+  if (a === undefined || a.delivery.type !== "strike" || !(a.ratio > 0)) return none;
+  if (boss.state !== "windup" && boss.state !== "active") return none;
+  const d = a.delivery;
+  const me = sim.motion.position;
+  const center = d.aim === "target" ? boss.targetPoint : boss.position;
+  const reach = d.shape.type === "line" ? d.shape.length : d.shape.radius;
+  const gap = Math.hypot(me.x - center.x, me.y - center.y) - sim.player.radius;
+  if (gap > reach + (d.aim === "target" ? 0 : boss.combatant.radius)) return none;
+  if (boss.state === "active") {
+    // 連続の叩きつけ：1回ごとに押し直す（押し続けだとパリィにならない）。次の1回の0.12秒前に上げ直す
+    const repeat = d.repeat;
+    if (repeat === undefined) return { guard: true, hold: true };
+    const into = boss.timeInState % repeat.interval;
+    const next = repeat.interval - into;
+    return { guard: into <= 0.2 || next <= 0.12, hold: into <= 0.2 || next <= 0.4 };
+  }
+  const left = (a.windup - boss.timeInState) / (1 + boss.haste);
+  return { guard: left <= 0.12, hold: left <= 0.6 };
+}
+
 /** 一番近い、生きているボス以外の敵（触手など）。 */
 function nearestAdd(sim: ArenaSimulation, me: { x: number; y: number }): Enemy | undefined {
   let best: Enemy | undefined;
@@ -389,7 +423,9 @@ export function runBossBench(
   if (boss === undefined) throw new RangeError("ボスがいない");
   const limit = options.seconds ?? 300;
   const invincible = options.invincible ?? true;
-  const dodges = options.dodge ?? !invincible;
+  // ガードできる騎士は、回避せずにパリィで受ける（攻撃面だけを測るときは、ガードに時間を使わない）
+  const guardian = !invincible && sim.canGuard;
+  const dodges = options.dodge ?? (!invincible && !guardian);
   let t = 0;
   let taken = 0;
   let killTime: number | undefined;
@@ -451,6 +487,13 @@ export function runBossBench(
           : [],
     );
     const pressed = new Set<Action>();
+    // ガード（騎士）：予兆の終わり際にガードを上げる。ガードを上げている間と、その直前は攻撃しない
+    const plan = guardian ? guardPlan(sim, boss) : undefined;
+    if (plan?.hold === true) held.clear();
+    if (plan?.guard === true) {
+      held.add("skill2");
+      if (sim.guard?.raised !== true) pressed.add("skill2");
+    }
     // 予兆の回避：ボスの攻撃の予兆の終わり際に、当たる範囲にいれば、範囲の外へ回避する
     const away = dodgeDirection(sim, boss);
     if (dodges && away !== undefined) pressed.add("dodge");
@@ -459,7 +502,11 @@ export function runBossBench(
       held: away !== undefined && dodges ? new Set<Action>() : held,
       pressed,
       move: away !== undefined && dodges ? away : (ranged?.move ?? move),
-      pointerWorld: { x: toPixels(dest.x), y: toPixels(dest.y) },
+      // ガードするときは、ボットの攻撃の相手（触手）ではなく、攻撃してくるボスの方を向く
+      pointerWorld:
+        plan?.hold === true
+          ? { x: toPixels(boss.position.x), y: toPixels(boss.position.y) }
+          : { x: toPixels(dest.x), y: toPixels(dest.y) },
     };
     const hpBefore = sim.player.health.hp + sim.player.health.ward;
     sim.frame(STEP, frame);
@@ -496,6 +543,8 @@ export function runBossBench(
     takenBySource: takenBreakdown(sim, taken, t),
     hitsTaken: sim.hitsTaken,
     attacksAvoided: sim.attacksAvoided,
+    guards: sim.guardCount,
+    parries: sim.parryCount,
   };
 }
 
