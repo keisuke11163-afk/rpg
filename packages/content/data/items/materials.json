@@ -24,6 +24,14 @@
     "text": "item.material.seal-wax"
   },
   {
+    "id": "MAT-AFFIX-NEEDLE",
+    "text": "item.material.affix-needle"
+  },
+  {
+    "id": "MAT-AFFIX-BRUSH",
+    "text": "item.material.affix-brush"
+  },
+  {
     "id": "MAT-RETURN-LAMP",
     "text": "item.material.return-lamp"
   },

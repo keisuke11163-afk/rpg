@@ -42,6 +42,8 @@ export interface ItemInstance {
   readonly cracks?: readonly string[];
   /** 銘（+10 で刻む効果の ID。省略で無し）。 */
   readonly inscription?: string;
+  /** 刻詞の筆で付けた詞の数（1つの装備に2つまで。仕様書v0.2 3.11.2。省略で0）。 */
+  readonly brushed?: number;
   /** 遺物で写し取る小星（プレイヤーが選ぶ。仕様書v0.2 3.11.6。省略で無し）。 */
   readonly relicNodes?: readonly string[];
 }

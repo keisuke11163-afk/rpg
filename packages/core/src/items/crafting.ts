@@ -18,6 +18,8 @@ export const CRAFT_MATERIALS = {
   tuningFork: "MAT-TUNING-FORK",
   eraseBlade: "MAT-ERASE-BLADE",
   sealWax: "MAT-SEAL-WAX",
+  affixNeedle: "MAT-AFFIX-NEEDLE",
+  affixBrush: "MAT-AFFIX-BRUSH",
 } as const;
 
 /** 鍛造負荷の上限（仕様書v0.2 3.11.1：100を超える操作はできない＝定着）。 */
@@ -193,6 +195,20 @@ export function craft(db: ContentDb, rng: Rng, item: ItemInstance, op: CraftOp):
   }
   // 封詞は、次の1回の操作から守ったら外れる
   if (op.kind !== "seal" && item.sealed !== undefined) next = withoutSeal(next);
+  return applyInstability(db, rng, loadBefore, next);
+}
+
+/**
+ * 操作の前の負荷が60以上なら、20%で亀裂、10%で霊感（仕様書v0.2 3.11.1）。クラフトの操作と刻詞の筆で共通。
+ * 乱数は、負荷が60未満なら使わない。
+ */
+export function applyInstability(
+  db: ContentDb,
+  rng: Rng,
+  loadBefore: number,
+  item: ItemInstance,
+): CraftResult {
+  let next = item;
   let cracked: string | undefined;
   let inspired: string | undefined;
   if (loadBefore >= UNSTABLE_LOAD) {

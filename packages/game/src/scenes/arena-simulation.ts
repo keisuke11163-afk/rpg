@@ -35,6 +35,12 @@ import {
   inRect,
   rollMerchantStock,
   relicSelectionProblem,
+  AffixLibrary,
+  type AffixShard,
+  type BrushBlock,
+  type ExtractBlock,
+  brushFromLibrary,
+  extractFromInventory,
   rollRegionLayout,
   buyAwakeningDust,
   buyItem,
@@ -360,6 +366,23 @@ const CRAFT_BLOCK_TEXT: Readonly<Record<CraftBlock, string>> = {
   material: "素材が足りない",
 };
 
+const EXTRACT_BLOCK_TEXT: Readonly<Record<ExtractBlock, string>> = {
+  unique: "ユニークからは取り出せない",
+  noAffix: "その詞が無い",
+  full: "書庫のその詞片がいっぱい（20個）",
+  material: "抽詞の針が無い",
+};
+const BRUSH_BLOCK_TEXT: Readonly<Record<BrushBlock, string>> = {
+  unique: "ユニークには付けられない",
+  settled: "鍛造負荷が100を超える（定着）",
+  brushLimit: "筆で付けられる詞は2つまで",
+  noSlot: "空いている枠が無い",
+  category: "その部位には付かない詞",
+  duplicate: "同じ詞がもう付いている",
+  noShard: "書庫にその詞片が無い",
+  material: "刻詞の筆が無い",
+};
+
 /** 試験用の場の安全地帯（訓練用の人形の周り。m）。 */
 export const SAFE_ZONE_RADIUS = 4;
 
@@ -474,6 +497,8 @@ export class ArenaSimulation {
   readonly secretsFound: Set<string>;
   /** ボスの敵のID → 倒した回数（補助仕様書11章）。 */
   readonly bossKills: Map<string, number>;
+  /** 詞片の書庫（MVPの後の機能。docs/progress A-5）。 */
+  readonly affixLibrary: AffixLibrary;
   /** 討伐証のID → 持っている数（仕様書v0.2 3.12）。 */
   readonly bossTokens: Map<string, number>;
   /** 星辰盤のクエストのポイント（星図の欠片）と探索のポイント（隠し星）。 */
@@ -618,6 +643,7 @@ export class ArenaSimulation {
     this.questStages = new Set(profile.questStages);
     this.secretsFound = new Set(profile.secretsFound);
     this.bossKills = new Map(Object.entries(profile.bossKills));
+    this.affixLibrary = AffixLibrary.fromRecord(this.db, profile.affixLibrary ?? {});
     this.bossTokens = new Map(Object.entries(profile.kept.bossTokens));
     this.revealedLatents = new Set(profile.kept.discoveries.latent_revealed);
     this.interactionsSeen = new Set(profile.kept.discoveries.interactions_seen);
@@ -1629,6 +1655,8 @@ export class ArenaSimulation {
       | { readonly kind: "enhance" }
       | { readonly kind: "inscribe"; readonly effect: string }
       | { readonly kind: "disassemble" }
+      | { readonly kind: "extract"; readonly affix: string }
+      | { readonly kind: "brush"; readonly shard: AffixShard }
       | CraftOp,
   ): { readonly ok: boolean; readonly message: string } {
     const item = this.inventory.items.find((i) => i.uid === uid);
@@ -1666,6 +1694,40 @@ export class ArenaSimulation {
         };
         break;
       }
+      case "extract": {
+        // 抽詞の針（MVPの後の機能。docs/progress A-5）：装備を壊して詞片を書庫へ
+        const r = extractFromInventory(
+          this.db,
+          this.inventory,
+          this.affixLibrary,
+          uid,
+          action.affix,
+        );
+        if (typeof r === "string") result = { ok: false, message: EXTRACT_BLOCK_TEXT[r] };
+        else {
+          this.loadoutList = forgetItem(this.loadoutList, uid);
+          result = { ok: true, message: `詞片を取り出した（T${String(r.tier)}）` };
+        }
+        break;
+      }
+      case "brush": {
+        const r = brushFromLibrary(
+          this.db,
+          this.craftRng,
+          this.inventory,
+          this.affixLibrary,
+          uid,
+          action.shard,
+        );
+        result =
+          typeof r === "string"
+            ? { ok: false, message: BRUSH_BLOCK_TEXT[r] }
+            : {
+                ok: true,
+                message: `詞片を付けた${r.cracked === undefined ? "" : "・亀裂が付いた"}${r.inspired === undefined ? "" : "・霊感で詞のtierが上がった"}`,
+              };
+        break;
+      }
       default: {
         const r = craftWithInventory(this.db, this.craftRng, this.inventory, uid, action);
         result =
@@ -1698,6 +1760,7 @@ export class ArenaSimulation {
       questStages: [...this.questStages],
       secretsFound: [...this.secretsFound],
       bossKills: Object.fromEntries(this.bossKills),
+      affixLibrary: this.affixLibrary.toRecord(),
       kept: {
         ...this.kept,
         bossTokens: Object.fromEntries(this.bossTokens),

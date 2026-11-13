@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Character } from "../character/progression.ts";
 import { relicSelectionProblem } from "../board/star-board.ts";
+import { AffixLibrary, BRUSH_LIMIT } from "../items/affix-library.ts";
 import { type LoadoutRecord, MAX_LOADOUTS } from "../character/loadouts.ts";
 import { ITEM_RARITIES, AFFIX_TIERS } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
@@ -61,6 +62,8 @@ const itemSchema = itemSchemaV2.extend({
   inscription: id.nullable(),
   /** 遺物で写し取る小星（遺物だけ。省略できる。版の番号は上げない。docs/progress D-RELIC-4）。 */
   relic_nodes: z.array(id).optional(),
+  /** 刻詞の筆で付けた詞の数（2つまで。省略できる。docs/progress A-5）。 */
+  brushed: z.number().int().min(0).max(BRUSH_LIMIT).optional(),
 });
 
 const jobSchemaV2 = z.strictObject({
@@ -129,6 +132,8 @@ export const saveDataSchema = z.strictObject({
   secrets_found: z.array(id),
   /** ボスの敵のID → 倒した回数。 */
   boss_kills: z.record(id, count),
+  /** 詞片の書庫（`詞のID@T数` → 数。省略できる。版の番号は上げない。docs/progress A-5）。 */
+  affix_library: z.record(z.string(), count).optional(),
   ...commonFields,
 });
 export type SaveData = z.infer<typeof saveDataSchema>;
@@ -327,6 +332,8 @@ export interface PlayerProfile {
   readonly secretsFound: readonly string[];
   /** ボスの敵のID → 倒した回数（初回の撃破の判定・A5 の開放。補助仕様書9.2・11章）。 */
   readonly bossKills: Readonly<Record<string, number>>;
+  /** 詞片の書庫（`詞のID@T数` → 数。省略で空。docs/progress A-5）。 */
+  readonly affixLibrary?: Readonly<Record<string, number>>;
   /** まだゲームで使っていない項目（職紋盤・討伐証など）。読み込んだ値をそのまま保存し直す。 */
   readonly kept: KeptSaveFields;
 }
@@ -370,6 +377,7 @@ const toSaveItem = (i: ItemInstance): SaveData["items"][string] => ({
   ...(i.relicNodes === undefined || i.relicNodes.length === 0
     ? {}
     : { relic_nodes: [...i.relicNodes] }),
+  ...(i.brushed === undefined || i.brushed === 0 ? {} : { brushed: i.brushed }),
 });
 
 /** プレイヤーの状態を、セーブデータにする（今の版）。保存しない値（能力値など）は入れない。 */
@@ -446,6 +454,9 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
     quest_stages: [...profile.questStages],
     secrets_found: [...profile.secretsFound],
     boss_kills: { ...profile.bossKills },
+    ...(profile.affixLibrary === undefined || Object.keys(profile.affixLibrary).length === 0
+      ? {}
+      : { affix_library: { ...profile.affixLibrary } }),
     gold: profile.inventory.gold,
     materials: Object.fromEntries(profile.inventory.materials),
     boss_tokens: { ...kept.bossTokens },
@@ -519,6 +530,7 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       ...(raw.relic_nodes === undefined || raw.relic_nodes.length === 0
         ? {}
         : { relicNodes: [...raw.relic_nodes] }),
+      ...(raw.brushed === undefined || raw.brushed === 0 ? {} : { brushed: raw.brushed }),
     });
   }
   const used = new Set<string>();
@@ -695,6 +707,18 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
         ref(db.enemies.get(e)?.boss !== undefined, () => `ボス ${e} がデータに無い`);
       return { ...data.boss_kills };
     })(),
+    ...(data.affix_library === undefined
+      ? {}
+      : {
+          affixLibrary: (() => {
+            try {
+              return AffixLibrary.fromRecord(db, data.affix_library).toRecord();
+            } catch (e) {
+              ref(false, () => `詞片の書庫：${e instanceof Error ? e.message : String(e)}`);
+              return {};
+            }
+          })(),
+        }),
     kept: (() => {
       // 職紋盤（仕様書v0.2 4.10）：データにあるノード・そのジョブの盤・職奥義は1つ・職奥義の選択と一致
       for (const [jobId, j] of Object.entries(data.jobs)) {
