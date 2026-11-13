@@ -1008,7 +1008,16 @@ export class EquipmentPanel {
     };
     if (item.rarity === "normal") op({ kind: "awaken" }, "目覚めの粉：魔法にする");
     if (item.rarity === "magic") op({ kind: "insight" }, "開眼の結晶：希少にする");
-    if (item.rarity === "rare") op({ kind: "transmute" }, "転詞の石：詞を全て抽選し直す");
+    if (item.rarity === "rare") {
+      op({ kind: "transmute" }, "転詞の石：詞を全て抽選し直す");
+      // 系統素材を持っていれば、一緒に使う転詞も出す（仕様書v0.2 3.11.3）
+      for (const [id, m] of db.materials)
+        if (m.craftBias !== undefined && sim.inventory.material(id) > 0)
+          op(
+            { kind: "transmute", bias: id },
+            `転詞の石＋${matName(id)}（${String(sim.inventory.material(id))}）：偏りを付けて抽選し直す`,
+          );
+    }
     if (item.affixes.length > 0) op({ kind: "erase" }, "削詞の刃：詞を1つ消す");
     for (const a of item.affixes) {
       const def = db.affixes.get(a.id);

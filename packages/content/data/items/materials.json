@@ -37,7 +37,8 @@
   },
   {
     "id": "MAT-BEAST-FANG",
-    "text": "item.material.beast-fang"
+    "text": "item.material.beast-fang",
+    "craftBias": { "family": "TAG-FAMILY-BEAST", "multiplier": 3 }
   },
   {
     "id": "MAT-MAGIC-DUST",
@@ -53,6 +54,12 @@
   },
   {
     "id": "MAT-BOSS-CORE-CH1",
-    "text": "item.material.boss-core-ch1"
+    "text": "item.material.boss-core-ch1",
+    "craftBias": {
+      "affixes": ["AFX-SUF-AILMENT-CHANCE", "AFX-SUF-AILMENT-DAMAGE"],
+      "multiplier": 3
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.12：母樹の樹液は「毒の詞が出やすくなる」。MVPには毒だけの詞が無いので、状態異常の付与率・ダメージの詞で代える（docs/progress D-BIAS-2）"
   }
 ]

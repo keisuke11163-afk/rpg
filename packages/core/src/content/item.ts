@@ -242,6 +242,18 @@ export type AffixDef = z.infer<typeof affixSchema>;
 export const materialSchema = z.strictObject({
   id: idSchema,
   text: textKeySchema,
+  /**
+   * 系統素材による偏ったクラフト（仕様書v0.2 3.11.3）：転詞の石と一緒に使うと、決まった詞の出現率が multiplier 倍。
+   * family はその系統の系統詞（ふだんはその系統の敵のドロップだけに付く）を候補に入れて倍にする。
+   * affixes は名前を挙げた詞を倍にする。
+   */
+  craftBias: z
+    .strictObject({
+      family: idSchema.optional(),
+      affixes: z.array(idSchema).optional(),
+      multiplier: z.number().gt(1),
+    })
+    .optional(),
   ...provisionalFields,
 });
 export type MaterialDef = z.infer<typeof materialSchema>;

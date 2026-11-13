@@ -1164,7 +1164,16 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         err({ code: "schema", file, id: a.id, path: at, message: "tierは低い順（7 → 0）に並べる" });
     });
   }
-  for (const { value: m, file } of materials) checkText(m.text, file, m.id);
+  const affixIds = new Map(affixes.map((a) => [a.value.id, a.value]));
+  for (const { value: m, file } of materials) {
+    checkText(m.text, file, m.id);
+    // 系統素材の偏り（仕様書v0.2 3.11.3）：系統のタグと、詞の参照
+    if (m.craftBias?.family !== undefined)
+      tagOf(m.craftBias.family, ["enemyFamily"], file, m.id, "craftBias.family");
+    (m.craftBias?.affixes ?? []).forEach((a, i) => {
+      refCheck(affixIds, "詞", a, file, m.id, `craftBias.affixes.${String(i)}`);
+    });
+  }
   const materialMap = new Map(materials.map((m) => [m.value.id, m.value]));
   const dropMap = new Map<DropSource, DropProfileDef>();
   for (const { value: d, file } of dropProfiles) {
