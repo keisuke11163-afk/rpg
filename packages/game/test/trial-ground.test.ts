@@ -5,7 +5,12 @@ import { describe, expect, it } from "vitest";
 import { FIXED_STEP_SECONDS } from "@stella/core";
 import type { Action } from "../src/input/actions.ts";
 import type { InputFrame } from "../src/input/frame.ts";
-import { ArenaSimulation, DUMMY_POSITION, TRIAL_RADIUS } from "../src/scenes/arena-simulation.ts";
+import {
+  ArenaSimulation,
+  DUMMY_POSITION,
+  RETURN_LAMP,
+  TRIAL_RADIUS,
+} from "../src/scenes/arena-simulation.ts";
 import { toPixels } from "../src/world/units.ts";
 
 const STEP = FIXED_STEP_SECONDS;
@@ -75,5 +80,29 @@ describe("試し打ちの場", () => {
     expect(sim.inTrial).toBe(true);
     sim.frame(STEP, frame({ pressed: ["interact"] }));
     expect(sim.inTrial).toBe(false);
+  });
+
+  it("試し打ちの場では、星辰盤のノードを返しても還星の灯を使わない。場を出ると星辰盤が元に戻る", () => {
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.inventory.addMaterial(RETURN_LAMP, 1);
+    const lamps = sim.inventory.material(RETURN_LAMP);
+    const stars0 = [...sim.stars.nodes];
+    walkToDummy(sim);
+    sim.frame(STEP, frame({ pressed: ["interact"] }));
+    expect(sim.inTrial).toBe(true);
+
+    const first = [...(sim.db.starLinks.get(sim.starRoot ?? "") ?? [])][0];
+    expect(first).toBeDefined();
+    if (first === undefined) return;
+    expect(sim.allocateStar(first)).toBe(true);
+    expect(sim.refundStar(first)).toBe("ok");
+    expect(sim.stars.has(first)).toBe(false);
+    expect(sim.inventory.material(RETURN_LAMP)).toBe(lamps);
+
+    // 取ったまま場を出ると、取る前に戻る（灯は減らない）
+    expect(sim.allocateStar(first)).toBe(true);
+    expect(sim.endTrial()).toBe(true);
+    expect([...sim.stars.nodes]).toEqual(stars0);
+    expect(sim.inventory.material(RETURN_LAMP)).toBe(lamps);
   });
 });

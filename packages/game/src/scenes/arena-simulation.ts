@@ -1730,11 +1730,14 @@ export class ArenaSimulation {
   /**
    * 星辰盤のノードを1つ返す（還星の灯を1つ使う。仕様書v0.2 4.13）。
    * 灯が無い・返すと始点からつながらなくなるノードがあるときは、何も変えずに false。
+   * 試し打ちの場では灯を使わない（場を出ると星辰盤が元に戻るため。jobBoardRespecCost と同じ考え方）。
    */
   refundStar(id: string): "ok" | "noLamp" | "blocked" {
     if (!this.stars.canRefund(id, this.starRoot)) return "blocked";
-    if (this.inventory.material(RETURN_LAMP) < 1) return "noLamp";
-    this.inventory.spendMaterial(RETURN_LAMP, 1);
+    if (this.trialSnapshot === undefined) {
+      if (this.inventory.material(RETURN_LAMP) < 1) return "noLamp";
+      this.inventory.spendMaterial(RETURN_LAMP, 1);
+    }
     this.stars.refund(id, this.starRoot);
     this.starsChanged();
     return "ok";
