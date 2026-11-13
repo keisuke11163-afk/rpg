@@ -133,3 +133,129 @@ describe("上位職・混成職のデータの形（MVP後の機能の提案 4�
     }
   });
 });
+
+describe("位相のジョブ（魔法使い）をデータだけで足す（MVP後の機能の提案 3章 H-09）", () => {
+  const PJOB = "JOB-TEST-PHASE";
+  const spell = (id: string, element: "fire" | "cold") => ({
+    id,
+    text: "skill.mage.fireball",
+    job: PJOB,
+    tags: ["TAG-FORM-SPELL", element === "fire" ? "TAG-ELEM-FIRE" : "TAG-ELEM-COLD"],
+    kind: "spell",
+    pct: 1,
+    base: { [element]: { min: 10, max: 10 } },
+    mpCost: 1,
+    cooldown: 0,
+    action: { type: "chain", range: 14, jumpRange: 6, chains: 0 },
+  });
+  // 遷移表だけが違う：最初の呪文は増えない・位相2で合成魔法（氷＋火。名前は test-fuse）
+  const gauge = (fusionText: string) => ({
+    id: "GAU-TEST-PHASE",
+    text: "gauge.phase",
+    max: 3,
+    gains: [],
+    decayOutOfCombat: 0,
+    stages: [],
+    phase: {
+      elements: ["fire", "cold"],
+      transitions: [
+        { input: "first", add: 0 },
+        { input: "same", add: 0 },
+        { input: "different", add: 1 },
+      ],
+      neutral: "reset",
+      fusion: {
+        at: 1,
+        after: 0,
+        excludeTags: [],
+        table: [
+          {
+            id: "test-fuse",
+            text: fusionText,
+            elements: ["cold", "fire"],
+            mods: { pctMultiplier: 3 },
+          },
+        ],
+      },
+    },
+  });
+  const withPhaseJob = (fusionText: string): RawContent => {
+    const c = rawContent.collections;
+    return {
+      ...rawContent,
+      collections: {
+        ...c,
+        gauges: [
+          ...(c.gauges ?? []),
+          { file: "test/phase-gauge.json", entries: [gauge(fusionText)] },
+        ],
+        skills: [
+          ...(c.skills ?? []),
+          {
+            file: "test/phase-skills.json",
+            entries: [spell("SKL-TEST-PHASE-FIRE", "fire"), spell("SKL-TEST-PHASE-ICE", "cold")],
+          },
+        ],
+        jobs: [
+          ...(c.jobs ?? []),
+          {
+            file: "test/phase-job.json",
+            entries: [
+              {
+                id: PJOB,
+                tag: "TAG-JOB-MAGE",
+                text: "job.mage",
+                gauge: "GAU-TEST-PHASE",
+                skills: [
+                  { skill: "SKL-TEST-PHASE-FIRE", level: 1 },
+                  { skill: "SKL-TEST-PHASE-ICE", level: 1 },
+                ],
+                affinity: { "TAG-WPN-STAFF": "S" },
+                originAttributes: { go: 5, jin: 5, ri: 20, kon: 10 },
+                defaultSlots: ["SKL-BASIC-ATTACK", "SKL-TEST-PHASE-FIRE", "SKL-TEST-PHASE-ICE"],
+                startingWeapon: "BASE-WPN-STAFF-T1",
+              },
+            ],
+          },
+        ],
+      },
+    };
+  };
+
+  it("遷移表・合成魔法をデータで差し替えると、そのとおりに働く（ゲームの本体は変えない）", () => {
+    const loaded = loadContent(withPhaseJob("gauge.phase.steam"));
+    if (!loaded.ok) throw new Error(loaded.errors.map((e) => e.message).join("\n"));
+    const db = loaded.content;
+    const sim = new ArenaSimulation(undefined, {
+      db,
+      profile: newCharacterProfile(db, PJOB, "試験"),
+      enemies: false,
+    });
+    sim.gainXp(1e7);
+    const press = (slot: Action): void => {
+      const frame = (pressed: Action[]): InputFrame => ({
+        held: new Set<Action>(),
+        pressed: new Set<Action>(pressed),
+        move: { x: 0, y: 0 },
+        pointerWorld: { x: 100, y: 0 },
+      });
+      sim.frame(FIXED_STEP_SECONDS, frame([slot]));
+      for (let i = 0; i < 200 && sim.executing !== undefined; i++)
+        sim.frame(FIXED_STEP_SECONDS, frame([]));
+    };
+    press("skill2"); // 火。最初の呪文は増えない（データの表）
+    expect(sim.jobGauge.value).toBe(0);
+    press("skill3"); // 氷。違う属性で+1 → 位相1で合成魔法（at: 1）
+    expect(sim.jobGauge.value).toBe(1);
+    expect(sim.jobGauge.stages).toEqual(["test-fuse"]);
+    press("skill2");
+    expect(sim.lastSkill?.variants).toContain("fusion:test-fuse");
+    expect(sim.jobGauge.value).toBe(0);
+  });
+
+  it("合成魔法の文章のキーが無いなど、データの誤りは読み込みの誤りになる", () => {
+    const bad = loadContent(withPhaseJob("gauge.phase.nope"));
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.errors.some((e) => e.code === "unknown-text")).toBe(true);
+  });
+});
