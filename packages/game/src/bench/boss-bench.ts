@@ -251,9 +251,15 @@ export function chooseSkill(
       .map((l) => def(l.skill)?.mpCost ?? 0),
   );
   const affordable = (id: string): boolean => sim.mp - (def(id)?.mpCost ?? 0) >= reserve;
-  const free = usable.filter(
-    (l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill) && affordable(l.skill),
-  );
+  // 召喚士：まだいない種類の召喚物を先に呼ぶ（枠の順のままだと、同じ種類ばかりで枠が埋まる。ボットの動きだけ）
+  const present = new Set(sim.minions.map((m) => m.def.id));
+  const dup = (id: string): boolean => {
+    const a = def(id)?.action;
+    return a?.type === "summon" && present.has(a.minion.id);
+  };
+  const free = usable
+    .filter((l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill) && affordable(l.skill))
+    .sort((x, y) => Number(dup(x.skill)) - Number(dup(y.skill)));
   return (
     usable.find((l) => (def(l.skill)?.cooldown ?? 0) > 0 && !spender(l.skill)) ??
     usable.find((l) => spender(l.skill) && full) ??
