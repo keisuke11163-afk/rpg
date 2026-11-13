@@ -110,6 +110,17 @@ describe("弓使いの技の仕組み（仕様書v0.2 5.7）", () => {
     expect(ticks.filter((t) => t.volley !== undefined)).toHaveLength(1);
   });
 
+  it("跳躍後退：攻撃速度が速く、動作が跳ぶ時間より短くても、跳び終えたら技を終える", () => {
+    // 攻撃速度4なら動作は0.25秒で、跳ぶ時間（0.3秒）より短い
+    const exec = new SkillExecution(resolve("SKL-LEAP"), 0, 4);
+    const ticks = runAll(exec);
+    expect(exec.finished).toBe(true);
+    const moved = ticks.reduce((s, t) => s + t.displacement.x, 0);
+    expect(moved).toBeCloseTo(-6);
+    expect(ticks.filter((t) => t.volley !== undefined)).toHaveLength(1);
+    expect(ticks.filter((t) => t.finished)).toHaveLength(1);
+  });
+
   it("矢の雨：照準の位置（射程内）に、0.5秒ごとに3秒間（6回）当たり判定を出す", () => {
     const exec = new SkillExecution(resolve("SKL-RAIN"), 0, 1, { aimPoint: { x: 30, y: 0 } });
     const zones = runAll(exec).flatMap((t) => t.zones);

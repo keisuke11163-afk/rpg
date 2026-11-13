@@ -184,6 +184,8 @@ export class SkillExecution {
   private readonly teleportTo: Vec2 | undefined;
   private hitsFired = 0;
   private leapDone = 0;
+  /** 動作の時間が終わったか（跳躍後退は、動作と跳ぶのが両方終わったら終える）。 */
+  private timelineDone = false;
 
   /**
    * aimPoint：照準の位置（煙玉・罠は、射程内に収めた位置に置く）。
@@ -366,7 +368,10 @@ export class SkillExecution {
             (a.leap.distance / a.leap.duration) * step,
           );
         }
-        const finished = e.finished && !leaping;
+        // 動作の終わり（e.finished）は1回しか来ないので覚えておく。動作が跳ぶ時間より短い
+        // （攻撃速度が速い）ときも、跳び終えた時点で技を終える
+        if (e.finished) this.timelineDone = true;
+        const finished = this.timelineDone && !leaping;
         this.finishedFlag = finished;
         let volley: ProjectileVolley | undefined;
         if (e.activeStarted) {
