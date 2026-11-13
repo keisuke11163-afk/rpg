@@ -2032,13 +2032,22 @@ export class ArenaSimulation {
     // 時間の検証を先に行う（例外のときに入力だけが残らないように）
     const { steps } = this.clock.advance(deltaSeconds);
     if (extra.switchWeapon === true) this.switchWeapon();
-    if (extra.changeJob === true && this.changeJob() === "inventoryFull")
+    if (extra.changeJob === true) {
+      const r = this.changeJob();
       // 何も起きないように見えないよう、理由を出す（docs/progress D-AUTO-2）
-      this.onText?.(
-        "インベントリがいっぱいで、副手を外せない（転職しない）",
-        this.motion.position,
-        "#ff6b6b",
-      );
+      if (r === "inventoryFull")
+        this.onText?.(
+          "インベントリがいっぱいで、副手を外せない（転職しない）",
+          this.motion.position,
+          "#ff6b6b",
+        );
+      else if (r === "busy")
+        this.onText?.(
+          this.inTrial ? "試し打ちの場では転職できない" : "技の実行中は転職できない",
+          this.motion.position,
+          "#ff6b6b",
+        );
+    }
     this.aimPoint = { x: toMeters(input.pointerWorld.x), y: toMeters(input.pointerWorld.y) };
     this.stepInput.press(STEP_ACTIONS.filter((a) => input.pressed.has(a)));
     for (let i = 0; i < steps; i++) this.step(input);
@@ -2058,9 +2067,10 @@ export class ArenaSimulation {
    * 転職する（ジョブを順に替える）。武器はジョブの初期装備に持ち替える。
    * 転職した後に二刀流ができなくなるなら、副手の片手武器をインベントリに戻す。入りきらなければ、
    * 何も変えずに "inventoryFull"（ロードアウトの切り替えと同じ考え方。docs/progress D-AUTO-2）。
+   * 技の実行中・試し打ちの場では "busy"（場を出ても転職は戻せないので、switchLoadout と同じく断る）。
    */
   changeJob(): "ok" | "busy" | "cannot" | "inventoryFull" {
-    if (this.current !== undefined) return "busy";
+    if (this.current !== undefined || this.trialSnapshot !== undefined) return "busy";
     if (!this.character.canChangeJob) return "cannot";
     // 上位職・混成職は、試練で就くもの（MVP後の機能の提案 4章：形だけ）なので、転職の順番に入れない
     const jobs = [...this.db.jobs.values()]

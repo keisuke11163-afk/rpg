@@ -105,4 +105,25 @@ describe("試し打ちの場", () => {
     expect([...sim.stars.nodes]).toEqual(stars0);
     expect(sim.inventory.material(RETURN_LAMP)).toBe(lamps);
   });
+
+  it("試し打ちの場では転職できない（changeJob は busy。G を押しても理由を出してジョブは変わらない）", () => {
+    const texts: string[] = [];
+    const sim = new ArenaSimulation(undefined, {
+      enemies: false,
+      onText: (t) => texts.push(t),
+    });
+    const job0 = sim.job.id;
+    walkToDummy(sim);
+    sim.frame(STEP, frame({ pressed: ["interact"] }));
+    expect(sim.inTrial).toBe(true);
+
+    expect(sim.changeJob()).toBe("busy");
+    expect(sim.job.id).toBe(job0);
+    sim.frame(STEP, frame(), { changeJob: true });
+    expect(sim.job.id).toBe(job0);
+    expect(texts).toContain("試し打ちの場では転職できない");
+
+    expect(sim.endTrial()).toBe(true);
+    expect(sim.job.id).toBe(job0);
+  });
 });
