@@ -104,12 +104,25 @@ describe("弓使い：投射物", () => {
 });
 
 describe("弓使い：集中（M-23 の仮値）", () => {
-  it("止まっている間は毎秒20増え、動くと増えない", () => {
+  it("戦闘中、止まっている間は毎秒20増え、動くと増えない", () => {
     const sim = archer();
+    sim.setFervor(0); // 戦闘中にする
     run(sim, 1, aim());
     expect(sim.jobGauge.value).toBeCloseTo(20, 0);
     run(sim, 1, aim({ move: { x: 0, y: 1 } }));
     expect(sim.jobGauge.value).toBeCloseTo(20, 0);
+  });
+
+  it("戦闘外では、止まっていても増えず、溜まっていた集中は減る", () => {
+    const sim = archer();
+    run(sim, 2, aim());
+    expect(sim.jobGauge.value).toBe(0);
+    sim.setFervor(100);
+    // 最後の攻撃・被弾から5秒で戦闘外になり、毎秒20減る
+    run(sim, 7.5, aim());
+    expect(sim.jobGauge.value).toBeCloseTo(50, 0);
+    run(sim, 3, aim());
+    expect(sim.jobGauge.value).toBe(0);
   });
 
   it("集中1につき会心率+1%（増加）", () => {
@@ -135,6 +148,23 @@ describe("弓使い：集中（M-23 の仮値）", () => {
       expect(sim.allocateJobNode(`${A}${id}`), id).toBe(true);
     sim.setFervor(100);
     expect(sim.blockOf("SKL-ARCHER-SNIPE")).toBe("locked");
+  });
+
+  it("狙撃は集中を全て使っても、使う前の集中の会心率で当たる", () => {
+    const sim = archer();
+    expect(sim.setSlotSkill(5, "SKL-ARCHER-SNIPE")).toBe(true);
+    const inc0 = sim.sheet.evaluated.view.stat("STAT-CRIT-CHANCE").increased;
+    // 集中0の通常攻撃の会心率（動きながら撃って集中を溜めない）
+    run(sim, 1.5, aim({ pressed: ["skill1"], move: { x: 0, y: 0.0001 } }));
+    const basic = sim.lastHit?.hit.critChance ?? 0;
+    expect(basic).toBeGreaterThan(0);
+    sim.setFervor(100);
+    run(sim, 1.5, aim({ pressed: ["skill6"], move: { x: 0, y: 0.0001 } }));
+    expect(sim.uses.get("SKL-ARCHER-SNIPE")).toBe(1);
+    // 集中は使い切っている（当たった後の「同じ敵」の+5だけ）
+    expect(sim.jobGauge.value).toBeLessThanOrEqual(5);
+    // 集中100で会心率+100%（増加）
+    expect(sim.lastHit?.hit.critChance).toBeCloseTo((basic * (1 + inc0 + 1)) / (1 + inc0), 5);
   });
 
   it("同じ敵に当てるたび+5（1回の使用で1回）", () => {

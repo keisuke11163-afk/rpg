@@ -124,10 +124,12 @@ export class JobGauge {
 
   /**
    * 止まっている間の獲得（集中：毎秒20）。動いている間は movingStationaryMultiplier を掛ける。
+   * 戦闘中（inCombat）だけ増える（町や戦闘の合間に溜めて、満タンで戦い始められないように）。
    * 経過時間が0以上の有限の数でなければ RangeError。
    */
   onStill(dt: number, moving: boolean): number {
     if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
+    if (!this.inCombat) return 0;
     const k = moving ? this.movingStationaryMultiplier : 1;
     if (!(k > 0)) return 0;
     let gained = 0;

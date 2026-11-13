@@ -283,6 +283,11 @@ interface Running {
   swings?: number;
   /** 1回の使用で、もう敵に当てたか（集中の「同じ敵に当てるたび」は使用ごとに1回。D-ARC-3）。 */
   targeted?: boolean;
+  /**
+   * 使う前の能力値（職能ゲージの量で値が変わる効果を、使った量のまま当てる。狙撃は集中を全て使うが、
+   * 集中の会心率は使う前の量で乗る）。無ければ、当たったときの能力値を使う。
+   */
+  castSheet?: CharacterSheet;
 }
 
 /** プレイヤーの投射物（弓使いの技・弓の通常攻撃）が当たったときに使う情報。 */
@@ -2356,6 +2361,9 @@ export class ArenaSimulation {
     const endlessCd = def.finisher === undefined ? 0 : this.view.stat("STAT-JOB-ENDLESS-CD").value;
     const cost = def.gauge?.cost;
     const spent = cost === "all" ? this.jobGaugeValue.value : (cost ?? 0);
+    // ゲージの量で値が変わる効果（集中の会心率）を持つゲージを使う技は、使う前の能力値で当てる
+    const castSheet =
+      spent > 0 && this.jobGaugeValue.def.pointEffect !== undefined ? this.sheetValue : undefined;
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
       stages: this.jobGaugeValue.stages,
       weaponTags: this.tags.closure(this.sheetValue.weaponTags),
@@ -2436,6 +2444,7 @@ export class ArenaSimulation {
           },
         ),
         hit: new Map(),
+        ...(castSheet === undefined ? {} : { castSheet }),
       },
     };
   }
@@ -2799,6 +2808,7 @@ export class ArenaSimulation {
             s.fullStagger,
             s.forceCrit === true,
             offHand,
+            run.castSheet,
           )
         ) {
           landed = true;
@@ -2864,7 +2874,18 @@ export class ArenaSimulation {
       if (t === undefined || t.health.dead) continue;
       const p = h.payload;
       this.showShape({ type: "circle", radius: 0.3 }, h.position, 0);
-      if (this.hitTarget(t, p.skill, p.skill.damage, p.origin, false, p.skill.forceCrit))
+      if (
+        this.hitTarget(
+          t,
+          p.skill,
+          p.skill.damage,
+          p.origin,
+          false,
+          p.skill.forceCrit,
+          false,
+          p.run.castSheet,
+        )
+      )
         this.afterLanded(p.run, p.skill, t.id);
     }
   }
@@ -2949,14 +2970,15 @@ export class ArenaSimulation {
     fullStagger: boolean,
     forceCrit: boolean,
     offHand = false,
+    /** 使う前の能力値（Running.castSheet）。省略で今の能力値。 */
+    sheet: CharacterSheet = this.sheetValue,
   ): boolean {
-    const attacker =
-      (offHand ? this.sheetValue.offAttacker : undefined) ?? this.sheetValue.attacker;
-    this.lastOffHand = attacker !== this.sheetValue.attacker;
-    // 双刃座の完成ボーナス：二刀流のとき、交互攻撃の2撃目（副手）の崩し値+30%
-    const twin = this.lastOffHand ? 1 + this.view.stat("STAT-CONST-TWIN-STAGGER").value : 1;
+    const attacker = (offHand ? sheet.offAttacker : undefined) ?? sheet.attacker;
+    this.lastOffHand = attacker !== sheet.attacker;
     // 背面からの補正：メインジョブの職能（盗賊）＋短剣の基本刻印「背面からの会心率+5%（固定値）」（その武器のヒットだけ）
-    const view = this.sheetValue.evaluated.view;
+    const view = sheet.evaluated.view;
+    // 双刃座の完成ボーナス：二刀流のとき、交互攻撃の2撃目（副手）の崩し値+30%
+    const twin = this.lastOffHand ? 1 + view.stat("STAT-CONST-TWIN-STAGGER").value : 1;
     const weaponUid = damage.kind === "weapon" ? attacker.weapon?.uid : undefined;
     const scope = { weaponUid };
     const jobBonus = this.job.backstabBonus;

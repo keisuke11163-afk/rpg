@@ -138,8 +138,9 @@ describe("集中（弓使いの職能ゲージ。M-23 の仮値）", () => {
   const gaugeDef = db.gauges.get("GAU-FOCUS");
   if (gaugeDef === undefined) throw new Error("gauge");
 
-  it("止まっている間は毎秒20増え、動いている間は増えない（疾風なら半分）", () => {
+  it("戦闘中、止まっている間は毎秒20増え、動いている間は増えない（疾風なら半分）", () => {
     const g = new JobGauge(gaugeDef);
+    g.markCombat();
     g.onStill(1, false);
     expect(g.value).toBeCloseTo(20);
     g.onStill(1, true);
@@ -147,6 +148,16 @@ describe("集中（弓使いの職能ゲージ。M-23 の仮値）", () => {
     g.movingStationaryMultiplier = 0.5;
     g.onStill(1, true);
     expect(g.value).toBeCloseTo(30);
+  });
+
+  it("戦闘外（5秒間、攻撃も被弾も無い）では、止まっていても増えない", () => {
+    const g = new JobGauge(gaugeDef);
+    g.onStill(1, false);
+    expect(g.value).toBe(0);
+    g.markCombat();
+    g.update(5);
+    g.onStill(1, false);
+    expect(g.value).toBe(0);
   });
 
   it("同じ敵に当てるたび+5（最初の敵・違う敵では増えない）。攻撃を受けると-20", () => {
