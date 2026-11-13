@@ -97,6 +97,7 @@ import {
   type ItemTooltip,
   skillContexts,
   equipFromInventory,
+  levelMet,
   slotsFor,
   unequipToInventory,
 } from "@stella/core";
@@ -1352,7 +1353,11 @@ export class ArenaSimulation {
   /**
    * ロードアウトを切り替える（仕様書v0.2 4.13）。今の装備・星辰盤・メインジョブを今のロードアウトに保存し、
    * 切り替え先の装備（インベントリ・倉庫にある物）・星辰盤・メインジョブにする。まだ無いロードアウトは、今の状態の写しで作る。
-   * 持っていない装備・装備できない部位は空きにする。切り替えた後のインベントリが枠を超えるなら、何も変えない。
+   *
+   * 全て計画して確かめてから反映する：転職した後の二刀流の可否で、最終的な装備・インベントリ・倉庫を先に計算する。
+   * 持っていない装備は空きにする。部位に合わない・必要Lvに届かない装備と、ほかの装備に外される装備
+   * （両手武器と副手など）・切り替え先で使わない今の装備は、インベントリに戻す扱いにする。
+   * それでもインベントリに入りきらなければ、何も変えずに "inventoryFull"。
    */
   switchLoadout(id: number): "ok" | "same" | "notSafe" | "busy" | "inventoryFull" | "unknown" {
     if (!(Number.isInteger(id) && id >= 1 && id <= MAX_LOADOUTS)) return "unknown";
@@ -1368,50 +1373,74 @@ export class ArenaSimulation {
       id,
       name: `ロードアウト${String(id)}`,
     };
-    // 切り替えた後のインベントリの数を先に確かめる
-    const equipped = new Set(this.equipment.entries().map(([, i]) => i.uid));
-    const wanted = new Set(Object.values(target.equipment));
-    const fromInventory = [...wanted].filter(
-      (u) => !equipped.has(u) && this.inventory.items.some((i) => i.uid === u),
-    ).length;
-    const toInventory = [...equipped].filter((u) => !wanted.has(u)).length;
-    if (this.inventory.items.length - fromInventory + toInventory > this.inventory.capacity)
+    // 1. 計画（状態は変えない）
+    // メインジョブ（転職できるときだけ。docs/progress D-U20-2）と、転職した後の二刀流の可否
+    const nextJob = this.db.jobs.get(target.mainJob);
+    const changeJob =
+      nextJob !== undefined &&
+      target.mainJob !== this.character.mainJob &&
+      this.character.canChangeJob;
+    const dual = dualWieldAffinity(changeJob ? nextJob : this.job) !== undefined;
+    // 装備：今の装備を全て脇に置き、切り替え先の装備を集めて写しの装備に付ける
+    const planned = new Equipment(this.db);
+    const aside = this.equipment.entries().map(([, item]) => item);
+    const fromInventory: string[] = [];
+    const fromStash: string[] = [];
+    const toInventory: ItemInstance[] = [];
+    const pick = (uid: string): ItemInstance | undefined => {
+      const held = aside.find((i) => i.uid === uid);
+      if (held !== undefined) {
+        aside.splice(aside.indexOf(held), 1);
+        return held;
+      }
+      const inInventory = this.inventory.items.find((i) => i.uid === uid);
+      if (inInventory !== undefined && !fromInventory.includes(uid)) {
+        fromInventory.push(uid);
+        return inInventory;
+      }
+      const inStash = this.stash.items.find((i) => i.uid === uid);
+      if (inStash !== undefined && !fromStash.includes(uid)) {
+        fromStash.push(uid);
+        return inStash;
+      }
+      return undefined;
+    };
+    for (const [slot, uid] of Object.entries(target.equipment) as [MvpEquipSlot, string][]) {
+      const item = pick(uid);
+      if (item === undefined) continue;
+      const base = this.db.itemBases.get(item.base);
+      // 部位に合わない・必要Lvに届かない装備は、インベントリに戻す
+      if (
+        base === undefined ||
+        !slotsFor(base, dual).includes(slot) ||
+        !levelMet(base, this.character.level)
+      ) {
+        toInventory.push(item);
+        continue;
+      }
+      // ほかの装備に外された物（両手武器と副手など）も、インベントリに戻す
+      toInventory.push(...planned.equip(item, slot, dual));
+    }
+    toInventory.push(...aside);
+    if (
+      this.inventory.items.length - fromInventory.length + toInventory.length >
+      this.inventory.capacity
+    )
       return "inventoryFull";
-    // 保存
+
+    // 2. 反映（入りきることは確かめた）
     this.loadoutList = [
       ...this.loadoutList.filter((l) => l.id !== saved.id && l.id !== target.id),
       saved,
       target,
     ].sort((a, b) => a.id - b.id);
-    // メインジョブ（転職できるときだけ。docs/progress D-U20-2）
-    if (target.mainJob !== this.character.mainJob && this.character.canChangeJob) {
-      this.character.changeJob(target.mainJob);
-      this.jobGaugeValue = this.newGauge();
-    }
-    // 装備：今の装備を外して脇に置き、切り替え先の装備を集めて付ける
-    const aside = this.equipment.entries().map(([slot]) => this.equipment.unequip(slot));
-    const pick = (uid: string): ItemInstance | undefined => {
-      const held = aside.find((i) => i?.uid === uid);
-      if (held !== undefined) {
-        aside.splice(aside.indexOf(held), 1);
-        return held;
-      }
-      return this.inventory.removeItem(uid) ?? this.stash.removeItem(uid);
-    };
-    const kept: Partial<Record<MvpEquipSlot, string>> = {};
-    for (const [slot, uid] of Object.entries(target.equipment) as [MvpEquipSlot, string][]) {
-      const item = pick(uid);
-      if (item === undefined) continue;
-      const base = this.db.itemBases.get(item.base);
-      if (base === undefined || !slotsFor(base, this.canDualWield).includes(slot)) {
-        this.inventory.addItem(item);
-        continue;
-      }
-      for (const out of this.equipment.equip(item, slot, this.canDualWield))
-        this.inventory.addItem(out);
-      kept[slot] = uid;
-    }
-    for (const i of aside) if (i !== undefined) this.inventory.addItem(i);
+    if (changeJob && this.character.changeJob(target.mainJob)) this.jobGaugeValue = this.newGauge();
+    for (const [slot] of this.equipment.entries()) this.equipment.unequip(slot);
+    for (const uid of fromInventory) this.inventory.removeItem(uid);
+    for (const uid of fromStash) this.stash.removeItem(uid);
+    for (const [slot, item] of planned.entries()) this.equipment.equip(item, slot, dual);
+    for (const item of toInventory)
+      if (!this.inventory.addItem(item)) throw new Error("ロードアウトの切り替えの計画と合わない");
     this.starsValue = new StarAllocation(this.db, target.starAllocation);
     this.activeLoadoutId = id;
     this.equipmentVersion += 1;
