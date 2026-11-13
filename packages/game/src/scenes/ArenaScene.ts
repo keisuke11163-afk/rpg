@@ -829,6 +829,14 @@ export class ArenaScene extends Phaser.Scene {
     }
 
     const g = this.fx.clear();
+    // 騎士：盾を構えている間だけ、正面に小さな弧（ガードの印。見た目だけ）
+    if (sim.guard?.raised === true) {
+      const a = motion.facing;
+      g.lineStyle(3, 0x9ad1ff, 0.9)
+        .beginPath()
+        .arc(x, y, 14, a - 0.9, a + 0.9)
+        .strokePath();
+    }
     if (sim.region === undefined) {
       const t = sim.time % HAZARD.period;
       const hx = toPixels(HAZARD.x);
