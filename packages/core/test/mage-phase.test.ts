@@ -128,9 +128,12 @@ describe("位相（魔法使いの職能ゲージ）の遷移", () => {
     g.update(0.2); // 5秒間、攻撃も被弾も無い
     expect(g.value).toBe(1);
     expect(g.fusion).toBeUndefined();
+    // 直前の属性も忘れた：氷（さっきの直前）が「最初の呪文」として+1になる。覚えていれば「同じ属性」で増えない
+    expect(g.onSpellCast("cold")).toBe(1);
+    expect(g.value).toBe(2);
   });
 
-  it("位相のゲージでなければ、呪文を使っても何も起きない（サブジョブの簡易動作：位相は溜まらない）", () => {
+  it("位相の仕組みを持たないゲージ（戦士など）では、呪文を使っても位相が動かない。サブジョブはメインジョブのゲージを受け継がないので、サブジョブの魔法使いの技では位相は溜まらない", () => {
     const warrior = gaugeSchema.parse({
       id: "GAU-TEST-FERVOR",
       text: "gauge.fervor",
