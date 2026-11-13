@@ -702,6 +702,16 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     if (gauge.pointEffect !== undefined)
       refCheck(effectMap, "効果", gauge.pointEffect.effect, file, gauge.id, "pointEffect.effect");
+    // 位相の遷移表（魔法使い）：除く印・合成魔法の文章と変化の参照
+    if (gauge.phase !== undefined) {
+      gauge.phase.fusion.excludeTags.forEach((t, i) => {
+        tagOf(t, undefined, file, gauge.id, `phase.fusion.excludeTags.${String(i)}`);
+      });
+      gauge.phase.fusion.table.forEach((row, i) => {
+        checkText(row.text, file, gauge.id);
+        checkMods(row.mods, file, gauge.id, `phase.fusion.table.${String(i)}.mods`);
+      });
+    }
   }
 
   /** 技 → それを持つジョブの職能ゲージ（段階の名前の確認に使う）。 */
