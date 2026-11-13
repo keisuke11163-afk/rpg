@@ -405,6 +405,11 @@ const BRUSH_BLOCK_TEXT: Readonly<Record<BrushBlock, string>> = {
 
 /** 試験用の場の安全地帯（訓練用の人形の周り。m）。 */
 export const SAFE_ZONE_RADIUS = 4;
+/**
+ * 試し打ちの場（MVP後の機能の提案 5章・M-22）：訓練用の人形からこの距離（m）より離れると、試した配置を元に戻す
+ * （仮値。docs/progress D-TRIAL-2）。
+ */
+export const TRIAL_RADIUS = 8;
 
 /** 還星の灯（星辰盤の1ノードを返す。仕様書v0.2 4.13）。 */
 export const RETURN_LAMP = "MAT-RETURN-LAMP";
@@ -625,6 +630,17 @@ export class ArenaSimulation {
   private attackerVersion = "";
   private current: { slot: SkillSlot; run: Running } | undefined;
   private zoneRuns: Running[] = [];
+  /**
+   * 試し打ちの場（MVP後の機能の提案 5章）：始めたときの星辰盤・職紋盤・技の枠の写し。試している間だけある。
+   * 職紋盤の振り直しは無料になり、場を出る（人形から離れる・もう一度 F・地域を出る）と写しに戻す。
+   */
+  private trialSnapshot:
+    | {
+        readonly stars: readonly string[];
+        readonly boards: Readonly<Record<string, readonly string[]>>;
+        readonly slots: readonly (readonly [string, readonly (string | undefined)[]])[];
+      }
+    | undefined;
   /** プレイヤーの投射物（弓使い。仕様書v0.2 5.7）。 */
   readonly arrows = new ProjectilePool<PlayerArrow>(PLAYER_ARROWS);
   private readonly strikes: ShownStrike[] = [];
@@ -1441,7 +1457,8 @@ export class ArenaSimulation {
   switchLoadout(id: number): "ok" | "same" | "notSafe" | "busy" | "inventoryFull" | "unknown" {
     if (!(Number.isInteger(id) && id >= 1 && id <= MAX_LOADOUTS)) return "unknown";
     if (id === this.activeLoadoutId) return "same";
-    if (this.current !== undefined) return "busy";
+    // 試し打ちの場の間は切り替えない（試した配置がロードアウトに残らないように）
+    if (this.current !== undefined || this.trialSnapshot !== undefined) return "busy";
     if (!this.inSafeZone) return "notSafe";
     const here = this.loadoutList.find((l) => l.id === this.activeLoadoutId);
     const saved = this.currentLoadout(
@@ -1546,6 +1563,66 @@ export class ArenaSimulation {
     return "ok";
   }
 
+  /** 試し打ちの場で試しているか。 */
+  get inTrial(): boolean {
+    return this.trialSnapshot !== undefined;
+  }
+
+  /** 訓練用の人形の近く（F が届く距離）にいるか。 */
+  get nearDummy(): boolean {
+    const d = this.dummy;
+    if (d === undefined) return false;
+    const p = this.motion.position;
+    return Math.hypot(d.position.x - p.x, d.position.y - p.y) <= INTERACT_DISTANCE + d.radius;
+  }
+
+  /**
+   * 試し打ちの場を始める（訓練用の人形の近くで F。安全地帯だけ・技の実行中は不可）。
+   * 今の星辰盤・職紋盤・技の枠を写しておき、その後の振り直し（職紋盤も）を無料で試せる。
+   * 装備は試す対象にしない（持ち物そのものなので、戻すと売った・分解した物と合わなくなる。D-TRIAL-1）。
+   */
+  startTrial(): boolean {
+    if (this.trialSnapshot !== undefined || this.current !== undefined) return false;
+    if (!this.inSafeZone || !this.nearDummy) return false;
+    this.trialSnapshot = {
+      stars: [...this.stars.nodes],
+      boards: this.currentJobBoards(),
+      slots: [...this.skillSlotsByJob].map(([job, slots]) => [job, [...slots]] as const),
+    };
+    this.onText?.(
+      "試し打ちの場：振り直しが無料（人形から離れると元に戻る）",
+      this.motion.position,
+      "#9fd3ff",
+    );
+    return true;
+  }
+
+  /** 試し打ちの場を終え、始めたときの星辰盤・職紋盤・技の枠に戻す。試していなければ false。 */
+  endTrial(): boolean {
+    const snap = this.trialSnapshot;
+    if (snap === undefined) return false;
+    // 1. 計画（データに無いノードなどは、ここで RangeError になり、何も変えない）
+    const stars = new StarAllocation(this.db, snap.stars);
+    const boards = Object.entries(snap.boards).map(
+      ([jobId, nodes]) => new JobBoardAllocation(this.db, jobId, nodes),
+    );
+    // 2. 反映
+    this.trialSnapshot = undefined;
+    this.starsValue = stars;
+    for (const jobId of [...this.jobBoards.keys()])
+      this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId));
+    for (const b of boards) this.jobBoards.set(b.job, b);
+    this.skillSlotsByJob.clear();
+    for (const [job, slots] of snap.slots) this.skillSlotsByJob.set(job, [...slots]);
+    this.starVersion += 1;
+    this.jobBoardVersion += 1;
+    this.attackerVersion = "";
+    this.refreshAttacker();
+    this.syncPlayerMaxHp();
+    this.onText?.("試し打ちの場を出た（元に戻した）", this.motion.position, "#9fd3ff");
+    return true;
+  }
+
   /** 星辰盤の全体の振り直し（町の星読み師。MVPでは常に無料。仕様書v0.2 4.13・補助仕様書5章）。安全地帯だけ。 */
   resetStars(): boolean {
     if (!this.inSafeZone || this.current !== undefined) return false;
@@ -1579,6 +1656,8 @@ export class ArenaSimulation {
 
   /** 職紋盤の振り直しの金貨（補助仕様書5章：20×ジョブLv）。 */
   get jobBoardRespecCost(): number {
+    // 試し打ちの場では無料（試した配置は場を出ると戻る）
+    if (this.trialSnapshot !== undefined) return 0;
     return jobBoardRespecCost(this.character.jobLevel(this.job.id));
   }
 
@@ -1767,6 +1846,33 @@ export class ArenaSimulation {
 
   /** 今の状態（セーブデータにする元）。 */
   profile(): PlayerProfile {
+    // 試し打ちの場の間は、試す前の配置を残す（読み込み直しても、試した配置は残らない）
+    const snap = this.trialSnapshot;
+    if (snap !== undefined) {
+      const p = this.liveProfile();
+      return {
+        ...p,
+        skillSlots: new Map(snap.slots.map(([job, slots]) => [job, [...slots]])),
+        starAllocation: [...snap.stars],
+        kept: {
+          ...p.kept,
+          boards: {
+            ...p.kept.boards,
+            ...Object.fromEntries(
+              [...this.jobBoards.keys()].map((jobId) => {
+                const nodes = snap.boards[jobId] ?? [];
+                const b = new JobBoardAllocation(this.db, jobId, nodes);
+                return [jobId, { board: [...b.nodes], mastery: b.mastery ?? null }];
+              }),
+            ),
+          },
+        },
+      };
+    }
+    return this.liveProfile();
+  }
+
+  private liveProfile(): PlayerProfile {
     return {
       name: this.name,
       character: this.character,
@@ -2592,6 +2698,14 @@ export class ArenaSimulation {
       const r = this.loot.pickNearestItem(this.motion.position, this.inventory);
       if (r.kind === "full")
         this.onText?.("インベントリがいっぱい", this.motion.position, "#ff6b6b");
+      // 拾う物が無く、訓練用の人形の近くなら、試し打ちの場を始める・終える（MVP後の機能の提案 5章）
+      else if (r.kind === "none" && this.nearDummy && !this.endTrial()) this.startTrial();
+    }
+    // 試し打ちの場：人形から離れたら、元に戻す
+    if (this.trialSnapshot !== undefined && this.dummy !== undefined) {
+      const d = this.dummy.position;
+      const p = this.motion.position;
+      if (Math.hypot(d.x - p.x, d.y - p.y) > TRIAL_RADIUS) this.endTrial();
     }
     // 出口（その範囲に入ると、別の地域へ移る）。閉じている出口は通れない
     if (!this.exited)
