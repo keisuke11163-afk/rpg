@@ -49,6 +49,7 @@ export const SLOT_NAME: Readonly<Record<MvpEquipSlot, string>> = {
   neck: "首",
   ring1: "指輪1",
   ring2: "指輪2",
+  relic: "遺物",
 };
 
 const ATTRIBUTE_NAME: Readonly<Record<string, string>> = {

@@ -2,6 +2,7 @@ import type { ItemRarity } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
 import type { Rng } from "../random/rng.ts";
 import type { ItemInstance } from "./generate.ts";
+import { droppableBases } from "./drops.ts";
 import { Inventory } from "./inventory.ts";
 
 /** 倉庫の枠の数（補助仕様書13章：120枠。町だけで使える）。 */
@@ -63,13 +64,14 @@ export interface StockInput {
 }
 
 /**
- * 商人の品揃え（町に戻るたびに入れ替える。補助仕様書5章）：通常のベースを、必要LvがアイテムLv以下のベースから
+ * 商人の品揃え（町に戻るたびに入れ替える。補助仕様書5章）：通常のベースを、必要LvがアイテムLv以下の通常のベースから
  * 等しい確率で選ぶ（ドロップのベースの選び方 D-U11-8 と同じ）。
  */
 export function rollMerchantStock(db: ContentDb, rng: Rng, input: StockInput): ItemInstance[] {
   if (!(Number.isInteger(input.itemLevel) && input.itemLevel >= 1))
     throw new RangeError(`アイテムLvは1以上の整数（${String(input.itemLevel)}）`);
-  const bases = [...db.itemBases.values()].filter((b) => b.requiredLevel <= input.itemLevel);
+  // ユニークの専用のベース・遺物は並べない（通常の抽選と同じ。docs/progress A-4）
+  const bases = droppableBases(db, input.itemLevel);
   const out: ItemInstance[] = [];
   if (bases.length === 0) return out;
   for (let i = 0; i < MERCHANT_STOCK_SIZE; i++) {

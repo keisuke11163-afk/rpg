@@ -1017,6 +1017,36 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
           message: `基本刻印の効果 ${e} の出どころが implicit ではない（${def.origin}）`,
         });
     });
+    if ((b.category === "relic") !== (b.relic !== undefined))
+      err({
+        code: "schema",
+        file,
+        id: b.id,
+        path: "relic",
+        message: "遺物の定義は、分類が relic のベースだけが持つ（relic のベースには必須）",
+      });
+    if (b.relic !== undefined) {
+      const cid = b.relic.constellation;
+      const c = constellations.find((n) => n.value.id === cid)?.value;
+      if (c === undefined)
+        err({
+          code: "unknown-ref",
+          file,
+          id: b.id,
+          path: "relic.constellation",
+          message: `星座 ${cid} がない`,
+        });
+      else if (
+        !c.nodes.some((id) => starNodes.find((n) => n.value.id === id)?.value.kind === "minor")
+      )
+        err({
+          code: "schema",
+          file,
+          id: b.id,
+          path: "relic.constellation",
+          message: `星座 ${cid} に写し取れる小星がない`,
+        });
+    }
     const u = b.unique;
     if (u !== undefined) {
       checkText(u.description, file, b.id);

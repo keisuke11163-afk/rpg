@@ -204,6 +204,16 @@ export interface StarBoardInput {
   readonly boostRadius?: number;
   /** 星域ごとの共鳴紋の数（天極の共鳴変化。共鳴紋の付いた装備は、まだ無い）。 */
   readonly resonance?: Partial<Record<StarRegion, number>>;
+  /**
+   * 遺物の写し（仕様書v0.2 3.11.6）：星座の小星を取得済みとして扱う（ポイントを使わない・経路には使えない・
+   * 星門やつながりに関係なく効く）。写した小星で完成した星座は、完成ボーナスが completionBonus 倍。
+   * その星座の小星でないノード・すでに有効なノードは無視する。数の上限は呼ぶ側で切る（{@link relicCopies}）。
+   */
+  readonly relic?: {
+    readonly constellation: string;
+    readonly nodes: readonly string[];
+    readonly completionBonus: number;
+  };
 }
 
 export interface StarBoardResult {
@@ -218,6 +228,10 @@ export interface StarBoardResult {
   readonly constellations: readonly string[];
   /** 共鳴変化が効いている天極。 */
   readonly resonating: readonly string[];
+  /** 遺物で写して効いている小星（取った順ではなく、遺物の選んだ順）。 */
+  readonly relicNodes: readonly string[];
+  /** 遺物の写しを使って完成した星座（完成ボーナスが減る）。 */
+  readonly relicCompleted: readonly string[];
   /** 有効なノード・星座・共鳴変化の効果（能力値の計算に渡す）。 */
   readonly effects: readonly EffectInstance[];
   readonly spent: number;
@@ -327,10 +341,23 @@ export function evaluateStarBoard(
         : { type: "gate", gate, unmet: unmetOf.get(gate) ?? [] },
     );
   }
+  // 遺物の写し：その星座の小星で、まだ有効でないもの（重なりは1つにする）
+  const relicDef =
+    input.relic === undefined ? undefined : db.constellations.get(input.relic.constellation);
+  const relicNodes =
+    input.relic === undefined || relicDef === undefined
+      ? []
+      : [...new Set(input.relic.nodes)].filter(
+          (id) => relicDef.nodes.includes(id) && node(id)?.kind === "minor" && !activeSet.has(id),
+        );
+  const relicSet = new Set(relicNodes);
   // 星座・共鳴変化
   const constellations = [...db.constellations.values()]
-    .filter((c) => c.nodes.every((n) => activeSet.has(n)))
+    .filter((c) => c.nodes.every((n) => activeSet.has(n) || relicSet.has(n)))
     .map((c) => c.id);
+  const relicCompleted = constellations.filter((c) =>
+    (db.constellations.get(c)?.nodes ?? []).some((n) => relicSet.has(n)),
+  );
   const resonating = active.filter((id) => {
     const r = node(id)?.resonance;
     const region = node(id)?.region;
@@ -338,7 +365,7 @@ export function evaluateStarBoard(
       r !== undefined && region !== undefined && (input.resonance?.[region] ?? 0) >= r.threshold
     );
   });
-  const effects: EffectInstance[] = [...instancesOf(active)];
+  const effects: EffectInstance[] = [...instancesOf(active), ...instancesOf(relicNodes)];
   for (const id of resonating)
     for (const effectId of node(id)?.resonance?.effects ?? [])
       effects.push({ effectId, source: { kind: STAR_NODE_SOURCE, ref: id } });
@@ -349,11 +376,17 @@ export function evaluateStarBoard(
       def.completionStacks === undefined
         ? 1
         : Math.max(0, Math.floor(input.facts?.facts?.[def.completionStacks] ?? 0));
+    // 遺物の写しで完成した星座は、完成ボーナスの数値の部分を completionBonus 倍にする（9章 V-13）
+    const values =
+      input.relic !== undefined && relicCompleted.includes(c)
+        ? amplifiedValues(db, def.completionEffect, input.relic.completionBonus - 1)
+        : undefined;
     if (stacks > 0)
       effects.push({
         effectId: def.completionEffect,
         source: { kind: CONSTELLATION_SOURCE, ref: c },
         ...(stacks === 1 ? {} : { stacks }),
+        ...(values === undefined ? {} : { values }),
       });
   }
   return {
@@ -363,8 +396,66 @@ export function evaluateStarBoard(
     gates,
     constellations,
     resonating,
+    relicNodes,
+    relicCompleted,
     effects,
     spent: input.allocation.length,
     points: input.points,
+  };
+}
+
+/** 遺物で写し取れる小星の数（強化値で増える。仕様書v0.2 3.11.6）。 */
+export function relicCopyLimit(db: ContentDb, base: string, enhance: number): number {
+  const r = db.itemBases.get(base)?.relic;
+  if (r === undefined) return 0;
+  return Math.floor(r.copies.base + r.copies.perEnhance * Math.max(0, enhance) + 1e-9);
+}
+
+/** 遺物で写し取れる小星（その星座の小星。選べる候補）。遺物でなければ空。 */
+export function relicCandidates(db: ContentDb, base: string): string[] {
+  const r = db.itemBases.get(base)?.relic;
+  const c = r === undefined ? undefined : db.constellations.get(r.constellation);
+  return (c?.nodes ?? []).filter((id) => db.starNodes.get(id)?.kind === "minor");
+}
+
+/**
+ * 遺物の選んだ小星が正しいか（候補の中・重ならない・強化値の上限以下）。正しくなければ理由。
+ * 遺物でないベースに選んだ小星があるのも正しくない。
+ */
+export function relicSelectionProblem(
+  db: ContentDb,
+  base: string,
+  enhance: number,
+  nodes: readonly string[],
+): string | undefined {
+  if (db.itemBases.get(base)?.relic === undefined)
+    return nodes.length === 0 ? undefined : `${base} は遺物ではない`;
+  const candidates = relicCandidates(db, base);
+  for (const n of nodes) if (!candidates.includes(n)) return `${n} は写し取れる小星ではない`;
+  if (new Set(nodes).size !== nodes.length) return "同じ小星が2回選ばれている";
+  const limit = relicCopyLimit(db, base, enhance);
+  if (nodes.length > limit)
+    return `写し取れるのは${String(limit)}つまで（${String(nodes.length)}つ選ばれている）`;
+  return undefined;
+}
+
+/** 装備の遺物の写し（星辰盤の評価に渡す形）。遺物でない・選んでいなければ undefined。 */
+export function relicCopies(
+  db: ContentDb,
+  item: {
+    readonly base: string;
+    readonly enhance?: number;
+    readonly relicNodes?: readonly string[];
+  },
+): StarBoardInput["relic"] {
+  const r = db.itemBases.get(item.base)?.relic;
+  if (r === undefined || item.relicNodes === undefined || item.relicNodes.length === 0)
+    return undefined;
+  const limit = relicCopyLimit(db, item.base, item.enhance ?? 0);
+  const candidates = relicCandidates(db, item.base);
+  return {
+    constellation: r.constellation,
+    nodes: [...new Set(item.relicNodes)].filter((n) => candidates.includes(n)).slice(0, limit),
+    completionBonus: r.completionBonus,
   };
 }

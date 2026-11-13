@@ -34,6 +34,7 @@ import {
   type RegionDef,
   inRect,
   rollMerchantStock,
+  relicSelectionProblem,
   rollRegionLayout,
   buyAwakeningDust,
   buyItem,
@@ -1301,6 +1302,27 @@ export class ArenaSimulation {
       return false;
     this.equipmentChanged();
     return true;
+  }
+
+  /**
+   * 遺物の調律：写し取る小星を選ぶ（仕様書v0.2 3.11.6。プレイヤーが選ぶ）。装備している遺物かインベントリの遺物。
+   * 候補でない・重なる・強化値の上限を超える・技の実行中は、何も変えずに理由を返す（docs/progress D-RELIC-3）。
+   */
+  setRelicNodes(uid: string, nodes: readonly string[]): string | undefined {
+    if (!this.canChangeEquipment) return "技の実行中";
+    const equipped = this.equipment.get("relic");
+    const item = equipped?.uid === uid ? equipped : this.inventory.items.find((i) => i.uid === uid);
+    if (item === undefined) return "遺物が無い";
+    if (this.db.itemBases.get(item.base)?.relic === undefined) return "遺物ではない";
+    const problem = relicSelectionProblem(this.db, item.base, item.enhance ?? 0, nodes);
+    if (problem !== undefined) return problem;
+    const next: ItemInstance = { ...item, relicNodes: [...nodes] };
+    if (item === equipped) {
+      this.equipment.unequip("relic");
+      this.equipment.equip(next, "relic", this.canDualWield);
+      this.equipmentChanged();
+    } else this.inventory.replaceItem(next);
+    return undefined;
   }
 
   /**

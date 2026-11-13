@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Character } from "../character/progression.ts";
+import { relicSelectionProblem } from "../board/star-board.ts";
 import { type LoadoutRecord, MAX_LOADOUTS } from "../character/loadouts.ts";
 import { ITEM_RARITIES, AFFIX_TIERS } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
@@ -58,6 +59,8 @@ const itemSchema = itemSchemaV2.extend({
   seals_used: count,
   cracks: z.array(id),
   inscription: id.nullable(),
+  /** 遺物で写し取る小星（遺物だけ。省略できる。版の番号は上げない。docs/progress D-RELIC-4）。 */
+  relic_nodes: z.array(id).optional(),
 });
 
 const jobSchemaV2 = z.strictObject({
@@ -364,6 +367,9 @@ const toSaveItem = (i: ItemInstance): SaveData["items"][string] => ({
   seals_used: i.sealsUsed ?? 0,
   cracks: [...(i.cracks ?? [])],
   inscription: i.inscription ?? null,
+  ...(i.relicNodes === undefined || i.relicNodes.length === 0
+    ? {}
+    : { relic_nodes: [...i.relicNodes] }),
 });
 
 /** プレイヤーの状態を、セーブデータにする（今の版）。保存しない値（能力値など）は入れない。 */
@@ -492,6 +498,8 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
           raw.enhance === MAX_ENHANCE),
       () => `装備 ${key} の銘 ${String(raw.inscription)} が正しくない（候補に無い・+10でない）`,
     );
+    const relicProblem = relicSelectionProblem(db, raw.base, raw.enhance, raw.relic_nodes ?? []);
+    ref(relicProblem === undefined, () => `装備 ${key} の遺物の写し：${String(relicProblem)}`);
     items.set(key, {
       uid: raw.uid,
       base: raw.base,
@@ -508,6 +516,9 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       ...(raw.seals_used === 0 ? {} : { sealsUsed: raw.seals_used }),
       ...(raw.cracks.length === 0 ? {} : { cracks: [...raw.cracks] }),
       ...(raw.inscription === null ? {} : { inscription: raw.inscription }),
+      ...(raw.relic_nodes === undefined || raw.relic_nodes.length === 0
+        ? {}
+        : { relicNodes: [...raw.relic_nodes] }),
     });
   }
   const used = new Set<string>();

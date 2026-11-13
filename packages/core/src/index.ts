@@ -462,6 +462,10 @@ export {
   evaluateStarBoard,
   startNodeOf,
   nodesWithin,
+  relicCandidates,
+  relicCopies,
+  relicCopyLimit,
+  relicSelectionProblem,
   starPoints,
 } from "./board/star-board.ts";
 
