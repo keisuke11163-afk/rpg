@@ -54,7 +54,7 @@ describe("チェックリスト 3-4・3-5：二刀流と基準のビルドも、
   }, 120_000);
 
   // baseline-summoner：召喚士（骸兵・炎霊・魔狼を1体ずつ呼び、指揮で狙わせ、本人は離れて立つボット）。
-  // 撃破は s1=130.3秒・s2=121.2秒・s3=137.4秒（docs/progress の召喚士の節。調整はしない）
+  // 撃破は s1=126.8秒・s2=123.0秒・s3=122.7秒（docs/progress の召喚士の節。調整はしない）
   it("baseline-summoner：3つのシードで、倒れずに倒せる（180秒以内。召喚物が戦う）", () => {
     for (const seed of ["s1", "s2", "s3"]) {
       const r = runBossBench(db, find("baseline-summoner"), {

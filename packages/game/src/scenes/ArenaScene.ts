@@ -99,14 +99,14 @@ const SLOT_LABEL: Readonly<Record<string, string>> = {
   skill6: "4",
 };
 
-/** 試験用の場の描画・入力の取得（計算は ArenaSimulation）。 */
-
 /** 召喚物の色（図形の仮の表示）。 */
 const MINION_COLORS: Readonly<Record<string, number>> = {
   "MIN-SKELETON": 0xe8e2d0,
   "MIN-FIRE-SPIRIT": 0xff8a3d,
   "MIN-DIRE-WOLF": 0x8a8f99,
 };
+
+/** 試験用の場の描画・入力の取得（計算は ArenaSimulation）。 */
 export class ArenaScene extends Phaser.Scene {
   private sim!: ArenaSimulation;
   private enemyView: EnemyFieldView | undefined;
@@ -923,6 +923,8 @@ export class ArenaScene extends Phaser.Scene {
       );
     // 召喚物（召喚士）：種類ごとの色の円・向きの線・HPの棒（図形だけ。ドット絵は後で）
     for (const m of sim.minions) {
+      // 倒れた召喚物は描かない（取り除かれるのはその刻みの終わり）
+      if (m.dead) continue;
       const x = toPixels(m.position.x);
       const y = toPixels(m.position.y);
       const r = m.def.radius * PIXELS_PER_METER;

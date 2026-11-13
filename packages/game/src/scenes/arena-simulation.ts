@@ -624,8 +624,11 @@ export class ArenaSimulation {
    * セーブしない（地域を移る・転職・倒れると消える。D-SUM-8）。
    */
   readonly minionField = new MinionField(0);
-  /** 召喚物の攻撃の乱数（他の乱数の順番を変えないように、別の種から作る）。 */
-  private readonly minionRng = Rng.fromSeed("arena-minions");
+  /**
+   * 召喚物の攻撃の乱数（他の乱数の順番を変えないように、別の種から作る）。種は場の乱数の種＋"-minions"
+   * （ボットのシードごとに召喚物の乱数も変わるように）。
+   */
+  private readonly minionRng: Rng;
   /** 指揮・集中の対象（期限まで）。 */
   private minionCommand: MinionCommand | undefined;
   private minionBounds: { minX: number; minY: number; maxX: number; maxY: number } | undefined;
@@ -713,6 +716,7 @@ export class ArenaSimulation {
   constructor(clock: FixedStepClock = new FixedStepClock(), options: ArenaSimulationOptions = {}) {
     this.clock = clock;
     this.rng = Rng.fromSeed(options.rngSeed ?? "arena");
+    this.minionRng = Rng.fromSeed(`${options.rngSeed ?? "arena"}-minions`);
     this.db = options.db ?? loadGameContent();
     this.onHit = options.onHit;
     this.onText = options.onText;
@@ -3511,7 +3515,11 @@ export class ArenaSimulation {
         const a = this.motion.facing + Math.PI / 2;
         f.squad.summon(this.db, order.minion, {
           characterLevel: this.character.level,
-          position: { x: p.x + Math.cos(a) * 1.2, y: p.y + Math.sin(a) * 1.2 },
+          // 仮値: 呼ぶ位置は自分の横1.2m（仕様書に無い。docs/progress D-SUM-3）。場の外には出さない
+          position: clampTo(
+            { x: p.x + Math.cos(a) * 1.2, y: p.y + Math.sin(a) * 1.2 },
+            this.minionBounds,
+          ),
           hpIncreased: this.view.stat("STAT-MINION-HP").increased,
           forbidden: this.view.flag("spawnMinion", undefined).resolution === "forbid",
         });
@@ -3750,4 +3758,13 @@ export class ArenaSimulation {
       this.jobGaugeValue.onDamageTaken(taken.toHp + taken.toWard, this.playerValue.health.maxHp);
     }
   }
+}
+
+/** 位置を場の範囲に収める（範囲が無ければそのまま）。 */
+function clampTo(
+  p: Vec2,
+  b: { minX: number; minY: number; maxX: number; maxY: number } | undefined,
+): Vec2 {
+  if (b === undefined) return p;
+  return { x: Math.min(b.maxX, Math.max(b.minX, p.x)), y: Math.min(b.maxY, Math.max(b.minY, p.y)) };
 }

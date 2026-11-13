@@ -15,7 +15,7 @@ import {
 
 /**
  * 召喚物の動き（召喚士。仕様書v0.2 5.5）。Phaser に依存しない（表示は ArenaScene）。
- * 数値は仕様書に無い仮値（docs/progress D-SUM-3）。
+ * 仮値: 戻る距離12m・移す距離25m・並ぶ半径1.6m・止まる距離0.4m・追いつく倍率1.5・火球の射程+1m は仕様書に無い（docs/progress D-SUM-3）
  */
 export const MINION_AI = {
   /** 持ち主からこれ以上離れたら、敵を捨てて持ち主の所へ戻る（m）。 */
@@ -107,7 +107,7 @@ export class MinionField {
       if (m.combatant.stagger.broken) return;
       const fromOwner = dist(m.position, ctx.owner);
       if (fromOwner > MINION_AI.warp) {
-        m.position = around(ctx.owner, index, MINION_AI.followRadius);
+        m.position = clamp(around(ctx.owner, index, MINION_AI.followRadius), ctx.bounds);
         return;
       }
       const target =
@@ -199,18 +199,21 @@ export class MinionField {
     const k = Math.min(step, d - stopAt) / d;
     m.facing = Math.atan2(dy, dx);
     m.combatant.facing = m.facing;
-    let next = { x: m.position.x + dx * k, y: m.position.y + dy * k };
-    if (bounds !== undefined)
-      next = {
-        x: Math.min(bounds.maxX, Math.max(bounds.minX, next.x)),
-        y: Math.min(bounds.maxY, Math.max(bounds.minY, next.y)),
-      };
-    m.position = next;
+    m.position = clamp({ x: m.position.x + dx * k, y: m.position.y + dy * k }, bounds);
     m.combatant.moving = true;
   }
 }
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
+
+/** 位置を場の範囲に収める（範囲が無ければそのまま）。 */
+function clamp(p: Vec2, bounds: Bounds | undefined): Vec2 {
+  if (bounds === undefined) return p;
+  return {
+    x: Math.min(bounds.maxX, Math.max(bounds.minX, p.x)),
+    y: Math.min(bounds.maxY, Math.max(bounds.minY, p.y)),
+  };
+}
 
 /** 持ち主の周りの、召喚物ごとの位置（番号で角度をずらす）。 */
 function around(owner: Vec2, index: number, radius: number): Vec2 {
