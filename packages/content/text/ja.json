@@ -136,6 +136,7 @@
   "enemy.attack.slam": "叩きつけ",
   "enemy.attack.spores": "胞子",
   "stat.minion-hp": "召喚物のHP",
+  "stat.minion-damage": "召喚物のダメージ",
   "stat.effect-duration": "効果時間",
   "gauge.combo": "コンボ点",
   "job.rogue": "盗賊",

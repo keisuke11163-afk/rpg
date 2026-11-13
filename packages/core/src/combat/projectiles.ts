@@ -151,6 +151,11 @@ export class ProjectilePool<P> {
     return out;
   }
 
+  /** 全ての投射物を消す（召喚物を全て消したときの火球など）。 */
+  clear(): void {
+    for (const s of this.slots) if (s.active) this.release(s);
+  }
+
   private release(slot: Slot<P>): void {
     slot.active = false;
     slot.payload = undefined;

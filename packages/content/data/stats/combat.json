@@ -189,6 +189,11 @@
     "unit": "ratio"
   },
   {
+    "id": "STAT-MINION-DAMAGE",
+    "text": "stat.minion-damage",
+    "unit": "ratio"
+  },
+  {
     "id": "STAT-EFFECT-DURATION",
     "text": "stat.effect-duration",
     "unit": "ratio"

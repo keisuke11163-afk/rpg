@@ -67,6 +67,9 @@ import {
   PlayerMotion,
   type ResolvedSkill,
   Rng,
+  contractCapacity,
+  type Minion,
+  type MinionOrder,
   SkillExecution,
   type SkillBlock,
   StepInputBuffer,
@@ -120,6 +123,7 @@ import { type TextKey, loadGameContent, text } from "@stella/content";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
 import { EnemyField } from "../world/EnemyField.ts";
+import { type MinionCommand, MinionField } from "../world/MinionField.ts";
 import { LootField } from "../world/LootField.ts";
 
 /** 軽装の統一ボーナスの移動速度が続く秒数（仕様書v0.2 3.3：回避した直後0.5秒間）。 */
@@ -612,6 +616,16 @@ export class ArenaSimulation {
   private exited = false;
   /** 試験用の敵（出さない設定なら undefined）。 */
   readonly field: EnemyField | undefined;
+  /**
+   * 召喚物（召喚士。仕様書v0.2 5.5）。契約枠の数は、メインジョブの職能ゲージに契約枠の仕組みがあるときだけ0より大きい。
+   * セーブしない（地域を移る・転職・倒れると消える。D-SUM-8）。
+   */
+  readonly minionField = new MinionField(0);
+  /** 召喚物の攻撃の乱数（他の乱数の順番を変えないように、別の種から作る）。 */
+  private readonly minionRng = Rng.fromSeed("arena-minions");
+  /** 指揮・集中の対象（期限まで）。 */
+  private minionCommand: MinionCommand | undefined;
+  private minionBounds: { minX: number; minY: number; maxX: number; maxY: number } | undefined;
   readonly cooldowns = new Cooldowns();
   readonly buffs = new TimedEffects();
   private readonly stepInput = new StepInputBuffer<StepAction>();
@@ -767,6 +781,7 @@ export class ArenaSimulation {
       maxX: this.size.width - 0.5,
       maxY: this.size.height - 0.5,
     };
+    this.minionBounds = bounds;
     if (region === undefined)
       this.field =
         options.enemies === false
@@ -2201,6 +2216,9 @@ export class ArenaSimulation {
     this.equipmentVersion += 1;
     this.jobGaugeValue = this.newGauge();
     this.demonLeft = 0;
+    // 召喚物は転職で消える（契約枠はメインジョブのゲージ。D-SUM-8）
+    this.minionField.clear();
+    this.minionCommand = undefined;
     this.attackerVersion = "";
     this.refreshAttacker();
     this.syncPlayerMaxHp();
@@ -2252,6 +2270,20 @@ export class ArenaSimulation {
       return "target";
     // 雷鎖（連鎖）も、最初の対象（照準の近くの敵）がいなければ使えない
     if (def.action.type === "chain" && this.stepTarget(def.action.range) === undefined)
+      return "target";
+    // 召喚士：契約枠が足りなければ呼べない（召喚物を生む禁止の印があっても呼べない）。
+    // 指揮は照準の近くの敵、犠牲・憑依は召喚物がいなければ使えない
+    if (def.action.type === "summon") {
+      const forbidden = this.view.flag("spawnMinion", undefined).resolution === "forbid";
+      if (this.minionField.squad.blockOf(def.action.minion, forbidden) !== undefined)
+        return "gauge";
+    }
+    if (def.action.type === "command" && this.stepTarget(def.action.range) === undefined)
+      return "target";
+    if (
+      (def.action.type === "sacrifice" || def.action.type === "possess") &&
+      this.minionField.squad.nearest(this.aimPoint) === undefined
+    )
       return "target";
     // 職奥義「連弩の嵐」を選ぶと、狙撃（集中を使う投射の終結技）は使えなくなる
     if (
@@ -2392,6 +2424,8 @@ export class ArenaSimulation {
     g.takenGainMultiplier = Math.max(0, 1 + jv.stat("STAT-GAUGE-GAIN-TAKEN").increased);
     g.floor = jv.stat("STAT-GAUGE-FLOOR").value;
     g.maxBonus = jv.stat("STAT-GAUGE-MAX-BONUS").value;
+    // 契約枠（召喚士）：メインジョブのゲージの最大値＋加算（職詞「契約枠+1」）。契約枠の無いジョブは0
+    this.minionField.squad.capacity = contractCapacity(g.def, "main", g.maxBonus);
     // 職詞「位相を1から開始する」（位相のゲージだけ。最大値の後に反映する）
     g.startValue = jv.stat("STAT-GAUGE-START").value;
     // 職奥義「疾風」：移動中も集中が半分の速さで増える
@@ -2681,6 +2715,7 @@ export class ArenaSimulation {
             exec.skill.def.id,
           );
       }
+      if (tick.order !== undefined) this.minionOrder(tick.order, exec.skill.def.id);
       if (tick.zone !== undefined) {
         const z = tick.zone;
         this.smokeList.push({
@@ -2744,127 +2779,144 @@ export class ArenaSimulation {
     this.playerValue.position = this.motion.position;
     this.playerValue.moving = length(input.move) > 0 && !staggered;
 
-    // 敵の行動と攻撃
-    this.field?.update(dt, this.playerValue, this.motion.invulnerable, this.motion.facing, {
-      // 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージ-15%
-      playerTakenMultiplier: (enemy) =>
-        this.behindGuardMultiplier(enemy) *
-        (1 - Math.min(0.99, this.view.stat("STAT-KEY-SHADOW-DELAY").value)),
-      // ガード・パリィ（騎士）：敵の攻撃が当たる直前に、防ぐか・パリィかを決める
-      guardAgainst: (enemy) => this.judgeGuard(enemy),
-      onParried: (enemy) => {
-        this.onParried(enemy);
-      },
-      onPlayerHit: (report, enemy, attack, guarded) => {
-        this.lastCombatAt = this.elapsed;
-        if (report.hit.evaded) return;
-        // 影写し（K15）：受けるダメージの35%を、4秒かけて遅れて受ける（即時の分は65%に減っている）
-        const delay = Math.min(0.99, this.view.stat("STAT-KEY-SHADOW-DELAY").value);
-        const now = report.applied.toHp + report.applied.toWard;
-        if (delay > 0 && now > 0) {
-          const later = (now * delay) / (1 - delay);
-          this.shadowQueue.push({ remaining: later, perSecond: later / SHADOW_SECONDS });
-        }
-        // 樹皮の盾（U13）：攻撃を受けると、攻撃してきた敵に毒を1スタック（基準値は受けたダメージの30%）
-        const retaliate = this.sheetValue.evaluated.view.stat("STAT-UNQ-RETALIATE-POISON").value;
-        const taken = report.applied.toHp + report.applied.toWard;
-        const poison = this.db.ailments.get(POISON_AILMENT);
-        if (retaliate > 0 && taken > 0 && poison?.kind === "dot") {
-          const app = {
-            ailmentId: poison.id,
-            tag: poison.tag,
-            total: taken * retaliate * poison.totalRatio,
-            duration: poison.duration,
-            maxStacks: poison.stacking.mode === "stack" ? poison.stacking.maxStacks : undefined,
-          };
-          // 潜在効果（徒手の極意）：攻撃してきた敵の周囲3mの全ての敵に
-          const area = this.view.stat("STAT-UNQ-RETALIATE-AREA").value;
-          const victims =
-            area > 0
-              ? (this.field?.enemies ?? []).filter(
-                  (e) =>
-                    e.state !== "dead" &&
-                    Math.hypot(e.position.x - enemy.position.x, e.position.y - enemy.position.y) <=
-                      area + e.combatant.radius,
-                )
-              : enemy.combatant.health.dead
+    // 召喚物の行動と攻撃（敵より先に動き、敵はその位置を見て狙う）
+    this.updateMinions(dt);
+
+    // 敵の行動と攻撃（召喚物がいれば、敵は召喚物も狙う）
+    this.field?.update(
+      dt,
+      this.playerValue,
+      this.motion.invulnerable,
+      this.motion.facing,
+      {
+        onAllyHit: (report, _enemy, ally) => {
+          const dealt = report.applied.toHp + report.applied.toWard;
+          if (dealt > 0) this.onText?.(String(Math.round(dealt)), ally.position, "#c9a0ff");
+        },
+        // 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージ-15%
+        playerTakenMultiplier: (enemy) =>
+          this.behindGuardMultiplier(enemy) *
+          (1 - Math.min(0.99, this.view.stat("STAT-KEY-SHADOW-DELAY").value)),
+        // ガード・パリィ（騎士）：敵の攻撃が当たる直前に、防ぐか・パリィかを決める
+        guardAgainst: (enemy) => this.judgeGuard(enemy),
+        onParried: (enemy) => {
+          this.onParried(enemy);
+        },
+        onPlayerHit: (report, enemy, attack, guarded) => {
+          this.lastCombatAt = this.elapsed;
+          if (report.hit.evaded) return;
+          // 影写し（K15）：受けるダメージの35%を、4秒かけて遅れて受ける（即時の分は65%に減っている）
+          const delay = Math.min(0.99, this.view.stat("STAT-KEY-SHADOW-DELAY").value);
+          const now = report.applied.toHp + report.applied.toWard;
+          if (delay > 0 && now > 0) {
+            const later = (now * delay) / (1 - delay);
+            this.shadowQueue.push({ remaining: later, perSecond: later / SHADOW_SECONDS });
+          }
+          // 樹皮の盾（U13）：攻撃を受けると、攻撃してきた敵に毒を1スタック（基準値は受けたダメージの30%）
+          const retaliate = this.sheetValue.evaluated.view.stat("STAT-UNQ-RETALIATE-POISON").value;
+          const taken = report.applied.toHp + report.applied.toWard;
+          const poison = this.db.ailments.get(POISON_AILMENT);
+          if (retaliate > 0 && taken > 0 && poison?.kind === "dot") {
+            const app = {
+              ailmentId: poison.id,
+              tag: poison.tag,
+              total: taken * retaliate * poison.totalRatio,
+              duration: poison.duration,
+              maxStacks: poison.stacking.mode === "stack" ? poison.stacking.maxStacks : undefined,
+            };
+            // 潜在効果（徒手の極意）：攻撃してきた敵の周囲3mの全ての敵に
+            const area = this.view.stat("STAT-UNQ-RETALIATE-AREA").value;
+            const victims =
+              area > 0
+                ? (this.field?.enemies ?? []).filter(
+                    (e) =>
+                      e.state !== "dead" &&
+                      Math.hypot(
+                        e.position.x - enemy.position.x,
+                        e.position.y - enemy.position.y,
+                      ) <=
+                        area + e.combatant.radius,
+                  )
+                : enemy.combatant.health.dead
+                  ? []
+                  : [enemy];
+            for (const v of victims) v.combatant.applyAilment(app);
+          }
+          this.hitsTakenCount += 1;
+          const key = `${enemy.def.id}:${attack.id}`;
+          this.takenBySourceMap.set(key, (this.takenBySourceMap.get(key) ?? 0) + taken);
+          this.lastHitBy = enemy.def.id;
+          this.jobGaugeValue.onDamageTaken(
+            report.applied.toHp + report.applied.toWard,
+            this.playerValue.health.maxHp,
+          );
+          // 集中：攻撃を受けると-20（仕様書v0.2 5.7）。信念：ガードしていない被弾は-1（仕様書v0.2 5.3）。
+          // ガードで防いだヒットは、被弾として数えない（信念は+1になる。judgeGuard）
+          if (!guarded) this.jobGaugeValue.onHitTaken();
+        },
+        onAvoided: () => {
+          this.avoidedAttacks += 1;
+          // 輝星「影踏み」：回避に成功すると、1秒間だけ受けるダメージ-25%
+          if (this.view.stat("STAT-NT-SHADOW-STEP").value > 0)
+            this.buffs.add("EFF-BUFF-SHADOW-STEP", 1, "shadow-step");
+        },
+        onBossEvent: (enemy, event, phase) => {
+          const label =
+            event === "phase"
+              ? `${text(enemy.def.text as TextKey)}：第${String(phase)}段階`
+              : event === "burrow"
+                ? "根渡り：地中に潜った"
+                : "根渡り：現れた";
+          this.onText?.(label, enemy.position, event === "phase" ? "#ff9f43" : "#c8a2ff");
+        },
+        onEnemyKilled: (enemy) => {
+          // 経験値（補助仕様書4.2）：5＋2×敵のLv、格の倍率（中ボス・章ボスは種類の倍率）、Lvの差の補正
+          this.gainXp(
+            enemyXp(enemy.level, enemy.def.xpMultiplier ?? enemy.rank.xpMultiplier) *
+              levelGapMultiplier(this.character.level, enemy.level),
+          );
+          this.progressQuests({ type: "defeat", id: enemy.def.id });
+          if (enemy.def.boss !== undefined) this.onBossKilled(enemy);
+          // 影写し：敵を倒すと、溜まっている分の20%が消える
+          for (const q of this.shadowQueue) {
+            q.remaining *= 1 - SHADOW_KILL_CLEAR;
+            q.perSecond *= 1 - SHADOW_KILL_CLEAR;
+          }
+          // 狼牙の首飾り（U14）：倒した敵に残っていた出血が、最も近い敵1体に移る（1スタックになる）
+          if (this.sheetValue.evaluated.view.stat("STAT-UNQ-BLEED-TRANSFER").value > 0) {
+            const to = this.field?.nearestEnemy(enemy.position, enemy);
+            // 潜在効果（輝星「傷口を抉る」）：移るときにスタック数を保つ
+            const all = this.view.stat("STAT-UNQ-BLEED-TRANSFER-ALL").value > 0;
+            const strongest = enemy.combatant.ailments.strongestDot(BLEED_AILMENT);
+            const moving = all
+              ? enemy.combatant.ailments.allDots(BLEED_AILMENT)
+              : strongest === undefined
                 ? []
-                : [enemy];
-          for (const v of victims) v.combatant.applyAilment(app);
-        }
-        this.hitsTakenCount += 1;
-        const key = `${enemy.def.id}:${attack.id}`;
-        this.takenBySourceMap.set(key, (this.takenBySourceMap.get(key) ?? 0) + taken);
-        this.lastHitBy = enemy.def.id;
-        this.jobGaugeValue.onDamageTaken(
-          report.applied.toHp + report.applied.toWard,
-          this.playerValue.health.maxHp,
-        );
-        // 集中：攻撃を受けると-20（仕様書v0.2 5.7）。信念：ガードしていない被弾は-1（仕様書v0.2 5.3）。
-        // ガードで防いだヒットは、被弾として数えない（信念は+1になる。judgeGuard）
-        if (!guarded) this.jobGaugeValue.onHitTaken();
+                : [strongest];
+            if (to !== undefined) for (const b of moving) to.combatant.applyAilment(b);
+          }
+          // 薬瓶の充填（補助仕様書6章。HP瓶とMP瓶は別にたまる）
+          const fill = FLASK_FILL[enemy.def.dropSource ?? enemy.rank.rank];
+          this.hpFlask.addFill(fill);
+          this.mpFlask.addFill(fill);
+          // 系統詞【獣狩りの】：獣を倒すと3秒間移動速度+15%（仕様書v0.2 3.6）
+          if (
+            enemy.def.family !== undefined &&
+            this.tags.closure([enemy.def.family]).has("TAG-FAMILY-BEAST") &&
+            this.sheetValue.evaluated.view.stat("STAT-BEAST-HUNT").value > 0
+          )
+            this.buffs.add("EFF-BUFF-BEAST-HUNT", BEAST_HUNT_SECONDS, "beast-hunt");
+          // ドロップ（仕様書v0.2 3.5、補助仕様書12章）。敵の格（通常・魔法・精鋭）がドロップの出どころ
+          this.dropLoot(
+            enemy.def.dropSource ?? enemy.rank.rank,
+            enemy.level,
+            enemy.position,
+            enemy.def.family,
+          );
+        },
       },
-      onAvoided: () => {
-        this.avoidedAttacks += 1;
-        // 輝星「影踏み」：回避に成功すると、1秒間だけ受けるダメージ-25%
-        if (this.view.stat("STAT-NT-SHADOW-STEP").value > 0)
-          this.buffs.add("EFF-BUFF-SHADOW-STEP", 1, "shadow-step");
-      },
-      onBossEvent: (enemy, event, phase) => {
-        const label =
-          event === "phase"
-            ? `${text(enemy.def.text as TextKey)}：第${String(phase)}段階`
-            : event === "burrow"
-              ? "根渡り：地中に潜った"
-              : "根渡り：現れた";
-        this.onText?.(label, enemy.position, event === "phase" ? "#ff9f43" : "#c8a2ff");
-      },
-      onEnemyKilled: (enemy) => {
-        // 経験値（補助仕様書4.2）：5＋2×敵のLv、格の倍率（中ボス・章ボスは種類の倍率）、Lvの差の補正
-        this.gainXp(
-          enemyXp(enemy.level, enemy.def.xpMultiplier ?? enemy.rank.xpMultiplier) *
-            levelGapMultiplier(this.character.level, enemy.level),
-        );
-        this.progressQuests({ type: "defeat", id: enemy.def.id });
-        if (enemy.def.boss !== undefined) this.onBossKilled(enemy);
-        // 影写し：敵を倒すと、溜まっている分の20%が消える
-        for (const q of this.shadowQueue) {
-          q.remaining *= 1 - SHADOW_KILL_CLEAR;
-          q.perSecond *= 1 - SHADOW_KILL_CLEAR;
-        }
-        // 狼牙の首飾り（U14）：倒した敵に残っていた出血が、最も近い敵1体に移る（1スタックになる）
-        if (this.sheetValue.evaluated.view.stat("STAT-UNQ-BLEED-TRANSFER").value > 0) {
-          const to = this.field?.nearestEnemy(enemy.position, enemy);
-          // 潜在効果（輝星「傷口を抉る」）：移るときにスタック数を保つ
-          const all = this.view.stat("STAT-UNQ-BLEED-TRANSFER-ALL").value > 0;
-          const strongest = enemy.combatant.ailments.strongestDot(BLEED_AILMENT);
-          const moving = all
-            ? enemy.combatant.ailments.allDots(BLEED_AILMENT)
-            : strongest === undefined
-              ? []
-              : [strongest];
-          if (to !== undefined) for (const b of moving) to.combatant.applyAilment(b);
-        }
-        // 薬瓶の充填（補助仕様書6章。HP瓶とMP瓶は別にたまる）
-        const fill = FLASK_FILL[enemy.def.dropSource ?? enemy.rank.rank];
-        this.hpFlask.addFill(fill);
-        this.mpFlask.addFill(fill);
-        // 系統詞【獣狩りの】：獣を倒すと3秒間移動速度+15%（仕様書v0.2 3.6）
-        if (
-          enemy.def.family !== undefined &&
-          this.tags.closure([enemy.def.family]).has("TAG-FAMILY-BEAST") &&
-          this.sheetValue.evaluated.view.stat("STAT-BEAST-HUNT").value > 0
-        )
-          this.buffs.add("EFF-BUFF-BEAST-HUNT", BEAST_HUNT_SECONDS, "beast-hunt");
-        // ドロップ（仕様書v0.2 3.5、補助仕様書12章）。敵の格（通常・魔法・精鋭）がドロップの出どころ
-        this.dropLoot(
-          enemy.def.dropSource ?? enemy.rank.rank,
-          enemy.level,
-          enemy.position,
-          enemy.def.family,
-        );
-      },
-    });
+      this.minionField.combatants(),
+    );
 
     // 拾う（補助仕様書13章）：金貨・素材は近づくと自動で、装備は F で。F は先に宝箱・転移の石・施設を調べる
     this.loot.autoPickup(this.motion.position, this.inventory);
@@ -2898,6 +2950,9 @@ export class ArenaSimulation {
     // 死亡（補助仕様書7章）：回数と原因を記録する。地域では町に戻す（アイテム・経験値は失わない）。
     // 開発用の試験用の場では、その場で全回復する
     if (this.playerValue.health.dead && !this.exited) {
+      // 倒れると召喚物も消える（D-SUM-8）
+      this.minionField.clear();
+      this.minionCommand = undefined;
       this.deathCount += 1;
       this.deathLog = { count: this.deathLog.count + 1, lastCause: this.lastHitBy };
       if (this.region !== undefined) {
@@ -3376,6 +3431,126 @@ export class ArenaSimulation {
     // 輝星「疾風の脚」：移動中は回避値+20%
     const gale = view.stat("STAT-NT-GALE").value;
     this.playerValue.evasion = this.sheetValue.defense.evasion * (moved > 1e-6 ? 1 + gale : 1);
+  }
+
+  /** 呼び出している召喚物（表示・確認用）。 */
+  get minions(): readonly Minion[] {
+    return this.minionField.minions;
+  }
+
+  /** 指揮・集中の対象（期限内なら。表示・確認用）。 */
+  get commandTarget(): Combatant | undefined {
+    const c = this.minionCommand;
+    return c !== undefined && this.elapsed < c.until && !c.target.health.dead
+      ? c.target
+      : undefined;
+  }
+
+  /** 召喚物の動きに渡すもの。 */
+  private minionContext(): Parameters<MinionField["update"]>[1] {
+    return {
+      db: this.db,
+      rng: this.minionRng,
+      now: this.elapsed,
+      characterLevel: this.character.level,
+      owner: this.motion.position,
+      enemies: this.field?.targets() ?? [],
+      // 笏の基本刻印「召喚物のダメージ+12%」など（持ち主の能力値。召喚物はこれだけを受ける。V-05）
+      minionDamage: this.view.stat("STAT-MINION-DAMAGE").increased,
+      command: this.minionCommand,
+      bounds: this.minionBounds,
+      onHit: (report, target) => {
+        this.lastCombatAt = this.elapsed;
+        this.jobGaugeValue.markCombat();
+        if (target === this.dummy) {
+          this.recentDamage.push({ t: this.elapsed, amount: report.hit.total });
+          this.lastReport = report;
+        } else this.field?.onEnemyHit(target);
+        this.onHit?.(report, target.position);
+      },
+    };
+  }
+
+  /**
+   * 召喚物を1刻み動かす（追従・索敵・攻撃）。持続ダメージ・崩しを進め、倒された召喚物を取り除く（枠が戻る）。
+   * 契約枠（使っている枠）をゲージの量に写す（表示用）。
+   */
+  private updateMinions(dt: number): void {
+    const f = this.minionField;
+    if (f.minions.length === 0 && f.bolts.active === 0) {
+      this.jobGaugeValue.setContractUsed(0);
+      return;
+    }
+    for (const m of f.minions) {
+      m.combatant.moving = false;
+      if (!m.dead) m.combatant.update(dt);
+    }
+    const gone = f.update(dt, this.minionContext());
+    for (const m of gone)
+      this.onText?.(`${text(m.def.text as TextKey)}が倒れた`, m.position, "#c9a0ff");
+    if (this.minionCommand !== undefined && this.commandTarget === undefined)
+      this.minionCommand = undefined;
+    this.jobGaugeValue.setContractUsed(f.squad.used);
+  }
+
+  /**
+   * 召喚士の技の命令（当たり判定が出始めた刻み）。
+   * - 召喚：自分の隣に呼ぶ（契約枠は使い始める前に blockOf で確かめ、ここでもう一度確かめる）
+   * - 指揮・集中：照準の近くの敵（影走りと同じ選び方）を、期限まで全ての召喚物が狙う
+   * - 魂の供儀・霊体憑依：照準に最も近い自分の召喚物（D-SUM-1）
+   */
+  private minionOrder(order: MinionOrder, skillId: string): void {
+    const f = this.minionField;
+    switch (order.type) {
+      case "summon": {
+        const p = this.motion.position;
+        const a = this.motion.facing + Math.PI / 2;
+        f.squad.summon(this.db, order.minion, {
+          characterLevel: this.character.level,
+          position: { x: p.x + Math.cos(a) * 1.2, y: p.y + Math.sin(a) * 1.2 },
+          hpIncreased: this.view.stat("STAT-MINION-HP").increased,
+          forbidden: this.view.flag("spawnMinion", undefined).resolution === "forbid",
+        });
+        this.jobGaugeValue.setContractUsed(f.squad.used);
+        break;
+      }
+      case "command": {
+        const t = this.stepTarget(order.range);
+        if (t !== undefined)
+          this.minionCommand = {
+            target: t,
+            until: this.elapsed + order.duration,
+            damageBonus: order.damageBonus,
+          };
+        break;
+      }
+      case "sacrifice": {
+        const m = f.squad.nearest(this.aimPoint);
+        if (m === undefined) break;
+        f.squad.remove(m);
+        const s = m.def.sacrifice;
+        for (const e of s.selfEffects ?? [])
+          this.buffs.add(e.effect, e.duration * this.sheetValue.effectDuration, skillId);
+        if (s.burst !== undefined) {
+          const ctx = this.minionContext();
+          for (const t of ctx.enemies) {
+            const d = Math.hypot(t.position.x - m.position.x, t.position.y - m.position.y);
+            if (d <= s.burst.radius + t.radius)
+              f.strike(m, t, ctx, this.minionCommand, s.burst.pct);
+          }
+          this.showShape({ type: "circle", radius: s.burst.radius }, m.position, 0);
+        }
+        this.jobGaugeValue.setContractUsed(f.squad.used);
+        break;
+      }
+      case "possess": {
+        const m = f.squad.nearest(this.aimPoint);
+        if (m === undefined) break;
+        for (const e of m.def.possessEffects)
+          this.buffs.add(e, order.duration * this.sheetValue.effectDuration, skillId);
+        break;
+      }
+    }
   }
 
   /**
