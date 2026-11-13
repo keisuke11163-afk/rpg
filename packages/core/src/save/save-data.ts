@@ -77,6 +77,11 @@ const loadoutSchema = z.strictObject({
   equipment: z.partialRecord(z.enum(MVP_EQUIP_SLOTS), id.nullable()),
   star_allocation: z.array(id),
   extra_entries: z.array(id),
+  /**
+   * 職紋盤の取得（ジョブ → ノード。使っていないロードアウトだけ。docs/progress D-AUTO-3）。
+   * 省略できる（版2のまま足した項目。無ければ、切り替えても今の職紋盤のまま）。
+   */
+  job_boards: z.record(id, z.array(id)).optional(),
 });
 
 const commonFields = {
@@ -404,6 +409,13 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
           equipment: { ...l.equipment },
           star_allocation: [...l.starAllocation],
           extra_entries: [...l.extraEntries],
+          ...(l.jobBoards === undefined
+            ? {}
+            : {
+                job_boards: Object.fromEntries(
+                  Object.entries(l.jobBoards).map(([j, n]) => [j, [...n]]),
+                ),
+              }),
         },
   );
   return {
@@ -573,6 +585,27 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
         db.starNodes.has(n),
         () => `ロードアウト ${String(l.id)} の星辰盤のノード ${n} がデータに無い`,
       );
+    // 職紋盤（使っていないロードアウトの分）：jobs と同じ規則で検証する。使っているロードアウトの分は jobs が正なので使わない
+    let jobBoards: Record<string, string[]> | undefined;
+    if (l.job_boards !== undefined && l.id !== data.active_loadout) {
+      jobBoards = {};
+      for (const [jobId, nodes] of Object.entries(l.job_boards)) {
+        ref(
+          db.jobs.has(jobId),
+          () => `ロードアウト ${String(l.id)} の職紋盤のジョブ ${jobId} がデータに無い`,
+        );
+        try {
+          new JobBoardAllocation(db, jobId, nodes);
+        } catch (e) {
+          ref(
+            false,
+            () =>
+              `ロードアウト ${String(l.id)} のジョブ ${jobId} の職紋盤：${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        jobBoards[jobId] = [...nodes];
+      }
+    }
     loadouts.push({
       id: l.id,
       name: l.name,
@@ -580,6 +613,7 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       equipment: eq,
       starAllocation: [...l.star_allocation],
       extraEntries: [...l.extra_entries],
+      ...(jobBoards === undefined ? {} : { jobBoards }),
     });
   }
   inventory.addGold(data.gold);

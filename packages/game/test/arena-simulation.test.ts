@@ -799,6 +799,62 @@ describe("ArenaSimulation：ロードアウト（U-20、仕様書v0.2 4.13）", 
     expect(back.activeLoadout).toBe(3);
     expect(back.loadouts).toEqual(sim.loadouts);
   });
+
+  it("職紋盤の配置もロードアウトごとに持ち、切り替えると戻る。セーブデータでも残る（仕様書v0.2 4.13・D-AUTO-3）", async () => {
+    const { MemoryBackend, SaveStore } = await import("@stella/core");
+    const W = "JBN-WARRIOR-";
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.gainXp(1e7);
+    toSafeZone(sim);
+    for (const n of [`${W}T1`, `${W}T2`]) expect(sim.allocateJobNode(n), n).toBe(true);
+    expect(sim.switchLoadout(2)).toBe("ok");
+    // 写しで作るので、同じ配置から始まる
+    expect(sim.jobBoard.nodes).toEqual([`${W}T1`, `${W}T2`]);
+    sim.inventory.addGold(sim.jobBoardRespecCost);
+    expect(sim.resetJobBoard()).toBe(true);
+    expect(sim.allocateJobNode(`${W}T1`)).toBe(true);
+    expect(sim.switchLoadout(1)).toBe("ok");
+    expect(sim.jobBoard.nodes).toEqual([`${W}T1`, `${W}T2`]);
+    expect(sim.switchLoadout(2)).toBe("ok");
+    expect(sim.jobBoard.nodes).toEqual([`${W}T1`]);
+    // セーブデータ：使っているロードアウト（2）の分は jobs、使っていない分（1）は loadouts[].job_boards
+    const data = sim.saveData();
+    expect(data.jobs["JOB-WARRIOR"]?.board_allocation).toEqual([`${W}T1`]);
+    expect(data.loadouts.find((l) => l.id === 1)?.job_boards?.["JOB-WARRIOR"]).toEqual([
+      `${W}T1`,
+      `${W}T2`,
+    ]);
+    const store = new SaveStore(sim.db, new MemoryBackend());
+    store.save(1, data);
+    const r = store.load(1);
+    if (!r.ok) throw new Error(r.error?.message ?? "空");
+    const back = new ArenaSimulation(undefined, { enemies: false, db: sim.db, profile: r.profile });
+    toSafeZone(back);
+    expect(back.jobBoard.nodes).toEqual([`${W}T1`]);
+    expect(back.switchLoadout(1)).toBe("ok");
+    expect(back.jobBoard.nodes).toEqual([`${W}T1`, `${W}T2`]);
+    // 1 に戻した後の保存で、2 の配置が loadouts に入る
+    expect(back.saveData().loadouts.find((l) => l.id === 2)?.job_boards?.["JOB-WARRIOR"]).toEqual([
+      `${W}T1`,
+    ]);
+  });
+
+  it("職紋盤を持たない古いロードアウトに切り替えても、今の職紋盤のまま", () => {
+    const W = "JBN-WARRIOR-";
+    const sim = new ArenaSimulation(undefined, { enemies: false });
+    sim.gainXp(1e7);
+    toSafeZone(sim);
+    expect(sim.switchLoadout(2)).toBe("ok");
+    expect(sim.switchLoadout(1)).toBe("ok");
+    const list = (sim as unknown as { loadoutList: { id: number; jobBoards?: unknown }[] })
+      .loadoutList;
+    const two = list.find((l) => l.id === 2);
+    if (two === undefined) throw new Error("ロードアウト2が無い");
+    delete two.jobBoards;
+    expect(sim.allocateJobNode(`${W}T1`)).toBe(true);
+    expect(sim.switchLoadout(2)).toBe("ok");
+    expect(sim.jobBoard.nodes).toEqual([`${W}T1`]);
+  });
 });
 
 describe("ArenaSimulation：町とダンジョン（U-18a、補助仕様書7〜9章）", () => {

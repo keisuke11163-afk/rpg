@@ -1337,7 +1337,16 @@ export class ArenaSimulation {
       mainJob: this.character.mainJob,
       equipment: Object.fromEntries(this.equipment.entries().map(([s, i]) => [s, i.uid])),
       starAllocation: [...this.stars.nodes],
+      jobBoards: this.currentJobBoards(),
     };
+  }
+
+  /** 今の職紋盤（知っている全てのジョブ。取っていないジョブは空）。ロードアウトに保存する形。 */
+  private currentJobBoards(): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    for (const [jobId, b] of Object.entries(this.kept.boards)) out[jobId] = [...b.board];
+    for (const [jobId, b] of this.jobBoards) out[jobId] = [...b.nodes];
+    return out;
   }
 
   /**
@@ -1429,6 +1438,13 @@ export class ArenaSimulation {
       return "inventoryFull";
     // 星辰盤（データに無いノードなどは、ここで RangeError になり、何も変えない）
     const nextStars = new StarAllocation(this.db, target.starAllocation);
+    // 職紋盤（ロードアウトごと。持っていない古いロードアウトは今のまま。docs/progress D-AUTO-3）
+    const nextBoards =
+      target.jobBoards === undefined
+        ? undefined
+        : Object.entries(target.jobBoards).map(
+            ([jobId, nodes]) => new JobBoardAllocation(this.db, jobId, nodes),
+          );
 
     // 2. 反映（入りきることは確かめた）
     this.loadoutList = [
@@ -1444,6 +1460,13 @@ export class ArenaSimulation {
     for (const item of toInventory)
       if (!this.inventory.addItem(item)) throw new Error("ロードアウトの切り替えの計画と合わない");
     this.starsValue = nextStars;
+    if (nextBoards !== undefined) {
+      // 切り替え先に無いジョブは空にする（読み込んだときの値が、保存で戻らないように空の盤を置く）
+      for (const jobId of [...this.jobBoards.keys(), ...Object.keys(this.kept.boards)])
+        this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId));
+      for (const b of nextBoards) this.jobBoards.set(b.job, b);
+      this.jobBoardVersion += 1;
+    }
     this.activeLoadoutId = id;
     this.equipmentVersion += 1;
     this.starVersion += 1;
