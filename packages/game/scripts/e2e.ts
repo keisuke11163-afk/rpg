@@ -708,6 +708,31 @@ try {
     sa.job === "JOB-ARCHER" && sa.weapon === "test-bow" && da2.hits > da1.hits,
     `ジョブ ${sa.job}・武器 ${String(sa.weapon)}・飛んでいる矢 ${String(flying)}・ヒット ${String(da2.hits - da1.hits)}回`,
   );
+  // 魔法使い（仕様書v0.2 5.4）：G で転職し、8m 離れた人形を右クリック（火球）で撃つ。火球が飛んで当たり、位相が 0 → 1 になる
+  // （転職したばかりでジョブLv1 なので、氷槍（Lv3）は使えない。位相の続きは game/test/mage.test.ts）
+  await waitIdle();
+  await page.keyboard.press("KeyG");
+  await page.waitForTimeout(100);
+  const sm = await skills();
+  const dm0 = await dummy();
+  await page.mouse.move(dm0.screenX * 2, dm0.screenY * 2);
+  await page.waitForTimeout(50);
+  await page.mouse.down({ button: "right" });
+  await page.waitForTimeout(80);
+  await page.mouse.up({ button: "right" });
+  await page.waitForTimeout(1200);
+  const sm1 = await skills();
+  const dm1 = await dummy();
+  check(
+    "Gで魔法使いに転職し（下級の杖）、8m先の人形に火球を撃つと、当たって位相が 0 → 1 になる（魔法使い）",
+    sm.job === "JOB-MAGE" &&
+      sm.weapon === "test-staff" &&
+      sm.fervor === 0 &&
+      dm1.hits > dm0.hits &&
+      sm1.lastSkill === "SKL-MAGE-FIREBALL" &&
+      sm1.fervor === 1,
+    `ジョブ ${sm.job}・武器 ${String(sm.weapon)}・位相 ${String(sm.fervor)} → ${String(sm1.fervor)}・ヒット ${String(dm1.hits - dm0.hits)}回`,
+  );
   // 戦士 → 盗賊に戻す（以降の確認は盗賊の短剣で行う）
   await waitIdle();
   await page.keyboard.press("KeyG");
