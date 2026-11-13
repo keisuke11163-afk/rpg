@@ -312,3 +312,15 @@ export {
   rollDrops,
 } from "./items/drops.ts";
 export { INVENTORY_SLOTS, Inventory } from "./items/inventory.ts";
+export {
+  Equipment,
+  MVP_EQUIP_SLOTS,
+  type MvpEquipSlot,
+  UNMET_REQUIREMENT_MULTIPLIER,
+  basePerformanceMultiplier,
+  equipFromInventory,
+  levelMet,
+  requirementMet,
+  slotsFor,
+  unequipToInventory,
+} from "./items/equipment.ts";
