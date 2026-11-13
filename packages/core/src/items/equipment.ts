@@ -20,6 +20,7 @@ export const MVP_EQUIP_SLOTS = [
   "neck",
   "ring1",
   "ring2",
+  "relic",
 ] as const satisfies readonly EquipSlot[];
 export type MvpEquipSlot = (typeof MVP_EQUIP_SLOTS)[number];
 

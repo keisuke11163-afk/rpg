@@ -34,6 +34,13 @@ import {
   type RegionDef,
   inRect,
   rollMerchantStock,
+  relicSelectionProblem,
+  AffixLibrary,
+  type AffixShard,
+  type BrushBlock,
+  type ExtractBlock,
+  brushFromLibrary,
+  extractFromInventory,
   rollRegionLayout,
   buyAwakeningDust,
   buyItem,
@@ -359,6 +366,23 @@ const CRAFT_BLOCK_TEXT: Readonly<Record<CraftBlock, string>> = {
   material: "素材が足りない",
 };
 
+const EXTRACT_BLOCK_TEXT: Readonly<Record<ExtractBlock, string>> = {
+  unique: "ユニークからは取り出せない",
+  noAffix: "その詞が無い",
+  full: "書庫のその詞片がいっぱい（20個）",
+  material: "抽詞の針が無い",
+};
+const BRUSH_BLOCK_TEXT: Readonly<Record<BrushBlock, string>> = {
+  unique: "ユニークには付けられない",
+  settled: "鍛造負荷が100を超える（定着）",
+  brushLimit: "筆で付けられる詞は2つまで",
+  noSlot: "空いている枠が無い",
+  category: "その部位には付かない詞",
+  duplicate: "同じ詞がもう付いている",
+  noShard: "書庫にその詞片が無い",
+  material: "刻詞の筆が無い",
+};
+
 /** 試験用の場の安全地帯（訓練用の人形の周り。m）。 */
 export const SAFE_ZONE_RADIUS = 4;
 
@@ -473,6 +497,8 @@ export class ArenaSimulation {
   readonly secretsFound: Set<string>;
   /** ボスの敵のID → 倒した回数（補助仕様書11章）。 */
   readonly bossKills: Map<string, number>;
+  /** 詞片の書庫（MVPの後の機能。docs/progress A-5）。 */
+  readonly affixLibrary: AffixLibrary;
   /** 討伐証のID → 持っている数（仕様書v0.2 3.12）。 */
   readonly bossTokens: Map<string, number>;
   /** 星辰盤のクエストのポイント（星図の欠片）と探索のポイント（隠し星）。 */
@@ -617,6 +643,7 @@ export class ArenaSimulation {
     this.questStages = new Set(profile.questStages);
     this.secretsFound = new Set(profile.secretsFound);
     this.bossKills = new Map(Object.entries(profile.bossKills));
+    this.affixLibrary = AffixLibrary.fromRecord(this.db, profile.affixLibrary ?? {});
     this.bossTokens = new Map(Object.entries(profile.kept.bossTokens));
     this.revealedLatents = new Set(profile.kept.discoveries.latent_revealed);
     this.interactionsSeen = new Set(profile.kept.discoveries.interactions_seen);
@@ -1304,6 +1331,27 @@ export class ArenaSimulation {
   }
 
   /**
+   * 遺物の調律：写し取る小星を選ぶ（仕様書v0.2 3.11.6。プレイヤーが選ぶ）。装備している遺物かインベントリの遺物。
+   * 候補でない・重なる・強化値の上限を超える・技の実行中は、何も変えずに理由を返す（docs/progress D-RELIC-3）。
+   */
+  setRelicNodes(uid: string, nodes: readonly string[]): string | undefined {
+    if (!this.canChangeEquipment) return "技の実行中";
+    const equipped = this.equipment.get("relic");
+    const item = equipped?.uid === uid ? equipped : this.inventory.items.find((i) => i.uid === uid);
+    if (item === undefined) return "遺物が無い";
+    if (this.db.itemBases.get(item.base)?.relic === undefined) return "遺物ではない";
+    const problem = relicSelectionProblem(this.db, item.base, item.enhance ?? 0, nodes);
+    if (problem !== undefined) return problem;
+    const next: ItemInstance = { ...item, relicNodes: [...nodes] };
+    if (item === equipped) {
+      this.equipment.unequip("relic");
+      this.equipment.equip(next, "relic", this.canDualWield);
+      this.equipmentChanged();
+    } else this.inventory.replaceItem(next);
+    return undefined;
+  }
+
+  /**
    * 部位を省略したときに装備する部位：武器は主手（副手には部位を指定して装備する）、
    * ほかは空いている最初の部位（無ければ最初の部位）。装備できなければ undefined（docs/progress D-U12-6）。
    */
@@ -1337,7 +1385,16 @@ export class ArenaSimulation {
       mainJob: this.character.mainJob,
       equipment: Object.fromEntries(this.equipment.entries().map(([s, i]) => [s, i.uid])),
       starAllocation: [...this.stars.nodes],
+      jobBoards: this.currentJobBoards(),
     };
+  }
+
+  /** 今の職紋盤（知っている全てのジョブ。取っていないジョブは空）。ロードアウトに保存する形。 */
+  private currentJobBoards(): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    for (const [jobId, b] of Object.entries(this.kept.boards)) out[jobId] = [...b.board];
+    for (const [jobId, b] of this.jobBoards) out[jobId] = [...b.nodes];
+    return out;
   }
 
   /**
@@ -1427,6 +1484,15 @@ export class ArenaSimulation {
       this.inventory.capacity
     )
       return "inventoryFull";
+    // 星辰盤（データに無いノードなどは、ここで RangeError になり、何も変えない）
+    const nextStars = new StarAllocation(this.db, target.starAllocation);
+    // 職紋盤（ロードアウトごと。持っていない古いロードアウトは今のまま。docs/progress D-AUTO-3）
+    const nextBoards =
+      target.jobBoards === undefined
+        ? undefined
+        : Object.entries(target.jobBoards).map(
+            ([jobId, nodes]) => new JobBoardAllocation(this.db, jobId, nodes),
+          );
 
     // 2. 反映（入りきることは確かめた）
     this.loadoutList = [
@@ -1441,7 +1507,14 @@ export class ArenaSimulation {
     for (const [slot, item] of planned.entries()) this.equipment.equip(item, slot, dual);
     for (const item of toInventory)
       if (!this.inventory.addItem(item)) throw new Error("ロードアウトの切り替えの計画と合わない");
-    this.starsValue = new StarAllocation(this.db, target.starAllocation);
+    this.starsValue = nextStars;
+    if (nextBoards !== undefined) {
+      // 切り替え先に無いジョブは空にする（読み込んだときの値が、保存で戻らないように空の盤を置く）
+      for (const jobId of [...this.jobBoards.keys(), ...Object.keys(this.kept.boards)])
+        this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId));
+      for (const b of nextBoards) this.jobBoards.set(b.job, b);
+      this.jobBoardVersion += 1;
+    }
     this.activeLoadoutId = id;
     this.equipmentVersion += 1;
     this.starVersion += 1;
@@ -1582,6 +1655,8 @@ export class ArenaSimulation {
       | { readonly kind: "enhance" }
       | { readonly kind: "inscribe"; readonly effect: string }
       | { readonly kind: "disassemble" }
+      | { readonly kind: "extract"; readonly affix: string }
+      | { readonly kind: "brush"; readonly shard: AffixShard }
       | CraftOp,
   ): { readonly ok: boolean; readonly message: string } {
     const item = this.inventory.items.find((i) => i.uid === uid);
@@ -1619,6 +1694,40 @@ export class ArenaSimulation {
         };
         break;
       }
+      case "extract": {
+        // 抽詞の針（MVPの後の機能。docs/progress A-5）：装備を壊して詞片を書庫へ
+        const r = extractFromInventory(
+          this.db,
+          this.inventory,
+          this.affixLibrary,
+          uid,
+          action.affix,
+        );
+        if (typeof r === "string") result = { ok: false, message: EXTRACT_BLOCK_TEXT[r] };
+        else {
+          this.loadoutList = forgetItem(this.loadoutList, uid);
+          result = { ok: true, message: `詞片を取り出した（T${String(r.tier)}）` };
+        }
+        break;
+      }
+      case "brush": {
+        const r = brushFromLibrary(
+          this.db,
+          this.craftRng,
+          this.inventory,
+          this.affixLibrary,
+          uid,
+          action.shard,
+        );
+        result =
+          typeof r === "string"
+            ? { ok: false, message: BRUSH_BLOCK_TEXT[r] }
+            : {
+                ok: true,
+                message: `詞片を付けた${r.cracked === undefined ? "" : "・亀裂が付いた"}${r.inspired === undefined ? "" : "・霊感で詞のtierが上がった"}`,
+              };
+        break;
+      }
       default: {
         const r = craftWithInventory(this.db, this.craftRng, this.inventory, uid, action);
         result =
@@ -1651,6 +1760,7 @@ export class ArenaSimulation {
       questStages: [...this.questStages],
       secretsFound: [...this.secretsFound],
       bossKills: Object.fromEntries(this.bossKills),
+      affixLibrary: this.affixLibrary.toRecord(),
       kept: {
         ...this.kept,
         bossTokens: Object.fromEntries(this.bossTokens),
@@ -1791,7 +1901,13 @@ export class ArenaSimulation {
     // 時間の検証を先に行う（例外のときに入力だけが残らないように）
     const { steps } = this.clock.advance(deltaSeconds);
     if (extra.switchWeapon === true) this.switchWeapon();
-    if (extra.changeJob === true) this.changeJob();
+    if (extra.changeJob === true && this.changeJob() === "inventoryFull")
+      // 何も起きないように見えないよう、理由を出す（docs/progress D-AUTO-2）
+      this.onText?.(
+        "インベントリがいっぱいで、副手を外せない（転職しない）",
+        this.motion.position,
+        "#ff6b6b",
+      );
     this.aimPoint = { x: toMeters(input.pointerWorld.x), y: toMeters(input.pointerWorld.y) };
     this.stepInput.press(STEP_ACTIONS.filter((a) => input.pressed.has(a)));
     for (let i = 0; i < steps; i++) this.step(input);
@@ -1807,20 +1923,29 @@ export class ArenaSimulation {
     if (next !== undefined) this.equipFromInventory(next.uid, "mainHand");
   }
 
-  /** 転職する（戦士と盗賊を順に替える）。武器はジョブの初期装備に持ち替える。 */
-  changeJob(): void {
-    if (this.current !== undefined || !this.character.canChangeJob) return;
+  /**
+   * 転職する（ジョブを順に替える）。武器はジョブの初期装備に持ち替える。
+   * 転職した後に二刀流ができなくなるなら、副手の片手武器をインベントリに戻す。入りきらなければ、
+   * 何も変えずに "inventoryFull"（ロードアウトの切り替えと同じ考え方。docs/progress D-AUTO-2）。
+   */
+  changeJob(): "ok" | "busy" | "cannot" | "inventoryFull" {
+    if (this.current !== undefined) return "busy";
+    if (!this.character.canChangeJob) return "cannot";
     const jobs = [...this.db.jobs.keys()];
     const next = jobs[(jobs.indexOf(this.job.id) + 1) % jobs.length];
-    if (next === undefined || !this.character.changeJob(next)) return;
-    // 二刀流ができなくなったら、副手の片手武器を外す（入りきらなければ、そのまま残す）
+    const nextJob = next === undefined ? undefined : this.db.jobs.get(next);
+    if (next === undefined || nextJob === undefined || next === this.job.id) return "cannot";
+    // 1. 計画：二刀流ができなくなるなら、副手の片手武器を外せるか
     const off = this.equipment.get("offHand");
-    if (
+    const dropOff =
       off !== undefined &&
-      !this.canDualWield &&
-      this.db.itemBases.get(off.base)?.category === "weapon"
-    )
-      unequipToInventory(this.inventory, this.equipment, "offHand");
+      dualWieldAffinity(nextJob) === undefined &&
+      this.db.itemBases.get(off.base)?.category === "weapon";
+    if (dropOff && this.inventory.full) return "inventoryFull";
+    // 2. 反映
+    if (!this.character.changeJob(next)) return "cannot";
+    if (dropOff && !unequipToInventory(this.inventory, this.equipment, "offHand"))
+      throw new Error("転職の計画と合わない（副手を外せない）");
     const start = START_WEAPON[next];
     if (start !== undefined && this.inventory.items.some((i) => i.uid === start))
       equipFromInventory(
@@ -1837,9 +1962,13 @@ export class ArenaSimulation {
     this.attackerVersion = "";
     this.refreshAttacker();
     this.syncPlayerMaxHp();
+    return "ok";
   }
 
-  /** 経験値を得る。Lvが上がったら、HPを全回復する（最大HPが変わるため）。 */
+  /**
+   * 経験値を得る。Lvが上がったら、最大HPなどを今の戦う者に反映してから、HP・魔障を全回復する。
+   * 戦う者は作り直さないので、状態異常・崩しゲージ（割合）・一定時間の効果は残る（docs/progress D-AUTO-1）。
+   */
   gainXp(amount: number): void {
     const before = this.character.level;
     const r = this.character.gainXp(amount);
@@ -1847,7 +1976,10 @@ export class ArenaSimulation {
       this.levelUpCount += r.characterLevels + r.jobLevels;
       this.attackerVersion = "";
       this.refreshAttacker();
-      if (this.character.level !== before) this.playerValue = this.newPlayer();
+      if (this.character.level !== before) {
+        this.syncPlayerMaxHp();
+        if (!this.playerValue.health.dead) this.playerValue.health.restoreFull();
+      }
       this.onText?.(
         `${r.characterLevels > 0 ? `Lv${String(this.character.level)}` : ""}${r.jobLevels > 0 ? ` ジョブLv${String(this.character.jobLevel(this.job.id))}` : ""}`,
         this.motion.position,

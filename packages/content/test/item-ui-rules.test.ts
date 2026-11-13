@@ -213,6 +213,21 @@ describe("商人（補助仕様書5章）", () => {
     ).toThrow(RangeError);
   });
 
+  it("品揃え：ユニークの専用のベースと遺物は並ばない（通常の抽選のベースと同じ）", () => {
+    let n = 0;
+    const seen = new Set<string>();
+    for (let s = 0; s < 300; s++)
+      for (const i of rollMerchantStock(db, Rng.fromSeed(`shop-${String(s)}`), {
+        itemLevel: 30,
+        nextUid: () => `shop-${String(++n)}`,
+      }))
+        seen.add(i.base);
+    for (const b of seen) {
+      expect(db.itemBases.get(b)?.unique, b).toBeUndefined();
+      expect(db.itemBases.get(b)?.relic, b).toBeUndefined();
+    }
+  });
+
   it("買う：金貨が足りなければ何も変えない。足りれば金貨を使い、品揃えから出る", () => {
     const stock = [item("s1", "BASE-WPN-AXE-T1", [], { itemLevel: 5 })];
     const inv = new Inventory();

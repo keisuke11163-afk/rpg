@@ -64,10 +64,13 @@ export function dropItemLevel(db: ContentDb, source: DropSource, enemyLevel: num
   return enemyLevel + profile.itemLevelBonus;
 }
 
-/** アイテムLvで落とせるベース（必要LvがアイテムLv以下。ユニークの専用のベースは除く）。 */
+/**
+ * アイテムLvで落とせるベース（必要LvがアイテムLv以下。ユニークの専用のベースと遺物は除く。
+ * 遺物はボスの抽選だけで、MVP では扱わない。仕様書v0.2 3.12）。
+ */
 export function droppableBases(db: ContentDb, itemLevel: number): ItemBaseDef[] {
   return [...db.itemBases.values()].filter(
-    (b) => b.unique === undefined && b.requiredLevel <= itemLevel,
+    (b) => b.unique === undefined && b.relic === undefined && b.requiredLevel <= itemLevel,
   );
 }
 

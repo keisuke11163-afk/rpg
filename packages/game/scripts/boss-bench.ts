@@ -3,7 +3,7 @@
  * 攻撃面だけ（毎フレーム全回復。受けたダメージは記録だけ）と、倒れるまで戦う場合の両方を出す。
  */
 import { loadGameContent } from "@stella/content";
-import { runBossBench, withoutPart } from "../src/bench/boss-bench.ts";
+import { runBossBench, withWeapons, withoutPart } from "../src/bench/boss-bench.ts";
 import { BENCH_BUILDS } from "../src/bench/builds.ts";
 import type { BenchBuild } from "../src/bench/boss-bench.ts";
 
@@ -81,24 +81,6 @@ if (process.argv.includes("--hands")) {
         )
         .reduce((x, y) => x + y, 0) / seeds.length
     );
-  };
-  const withWeapons = (b: BenchBuild, main: string, off?: string): BenchBuild => {
-    const w = b.equipment.find((e) => e.slot === "mainHand");
-    const rest = b.equipment.filter((e) => e.slot !== "mainHand" && e.slot !== "offHand");
-    const hand = (slot: "mainHand" | "offHand", base: string) => ({
-      slot,
-      base,
-      ...(w?.affixes === undefined ? {} : { affixes: w.affixes }),
-      enhance: 5,
-    });
-    return {
-      ...b,
-      equipment: [
-        hand("mainHand", main),
-        ...(off === undefined ? [] : [hand("offHand", off)]),
-        ...rest,
-      ],
-    };
   };
   const rows: [string, BenchBuild, string, string?][] = [
     ["基準・戦士：大剣（両手）", find("baseline-warrior"), "BASE-WPN-GREATSWORD-T1"],

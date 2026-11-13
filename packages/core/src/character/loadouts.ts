@@ -17,6 +17,12 @@ export interface LoadoutRecord {
   readonly starAllocation: readonly string[];
   /** 追加の入口（星渡りの外套など。MVPでは使わず、セーブデータの値を保つ）。 */
   readonly extraEntries: readonly string[];
+  /**
+   * 職紋盤の取得（ジョブ → 取った順のノード。職奥義の選択はノードから決まる）。仕様書v0.2 4.13「全てのツリーの配置」。
+   * 省略は「このロードアウトでは別に持っていない」（版2の古いセーブデータ）：切り替えても今の職紋盤のまま
+   * （docs/progress D-AUTO-3）。使っているロードアウトの分は、セーブデータの jobs[].board_allocation が正。
+   */
+  readonly jobBoards?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** 新しいロードアウト（空の装備・星辰盤）。 */

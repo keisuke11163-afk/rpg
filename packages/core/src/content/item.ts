@@ -48,6 +48,7 @@ export const BASE_CATEGORIES = [
   "belt",
   "neck",
   "ring",
+  "relic",
 ] as const;
 export type BaseCategory = (typeof BASE_CATEGORIES)[number];
 
@@ -63,6 +64,8 @@ export const AFFIX_SLOTS: Readonly<Record<BaseCategory, { prefix: number; suffix
   belt: { prefix: 2, suffix: 2 },
   neck: { prefix: 3, suffix: 3 },
   ring: { prefix: 2, suffix: 2 },
+  // 遺物は詞を持たない（仕様書v0.2 3.1）
+  relic: { prefix: 0, suffix: 0 },
 };
 
 /** 能力値（仕様書v0.2 2.2：剛・迅・理・魂）。 */
@@ -156,6 +159,22 @@ export const itemBaseSchema = z.strictObject({
   guaranteedResonance: z.boolean().optional(),
   /** ユニークの専用のベース（通常の抽選のベースには含めない）。 */
   unique: uniqueSchema.optional(),
+  /** 遺物（分類 relic のベースだけ・必須。仕様書v0.2 3.11.6）。通常の抽選のベースには含めない。 */
+  relic: z
+    .strictObject({
+      /** 写し取る星座。 */
+      constellation: idSchema,
+      /**
+       * 写し取れる小星の数：⌊base＋perEnhance×強化値⌋（仕様書：+0で3・+10で7。途中の値は docs/progress D-RELIC-2）。
+       */
+      copies: z.strictObject({
+        base: z.number().int().min(1),
+        perEnhance: z.number().min(0),
+      }),
+      /** 写した小星で完成したときの完成ボーナスの倍率（仕様書：50%。9章 V-13）。 */
+      completionBonus: z.number().min(0).max(1),
+    })
+    .optional(),
   ...provisionalFields,
 });
 export type ItemBaseDef = z.infer<typeof itemBaseSchema>;
@@ -223,6 +242,18 @@ export type AffixDef = z.infer<typeof affixSchema>;
 export const materialSchema = z.strictObject({
   id: idSchema,
   text: textKeySchema,
+  /**
+   * 系統素材による偏ったクラフト（仕様書v0.2 3.11.3）：転詞の石と一緒に使うと、決まった詞の出現率が multiplier 倍。
+   * family はその系統の系統詞（ふだんはその系統の敵のドロップだけに付く）を候補に入れて倍にする。
+   * affixes は名前を挙げた詞を倍にする。
+   */
+  craftBias: z
+    .strictObject({
+      family: idSchema.optional(),
+      affixes: z.array(idSchema).optional(),
+      multiplier: z.number().gt(1),
+    })
+    .optional(),
   ...provisionalFields,
 });
 export type MaterialDef = z.infer<typeof materialSchema>;

@@ -823,5 +823,20 @@
     "guaranteedResonance": true,
     "provisional": true,
     "provisionalNote": "仕様書v0.2 3.4：共鳴紋が確定で付く（その代わり詞の枠-1）"
+  },
+  {
+    "id": "BASE-RELIC-SNAKE-FLUTE",
+    "text": "item.base.relic-snake-flute",
+    "category": "relic",
+    "tags": [],
+    "tier": 1,
+    "requiredLevel": 20,
+    "relic": {
+      "constellation": "CONST-VIPER",
+      "copies": { "base": 3, "perEnhance": 0.4 },
+      "completionBonus": 0.5
+    },
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.11.6 の遺物（第1章ボス）。写せる数の途中の値（+0で3・+10で7の間は⌊3＋0.4×強化値⌋）と必要Lv20（遺物の部位の開放）は仮（docs/progress D-RELIC-1・D-RELIC-2）。MVPでは入手できない（3.12）"
   }
 ]

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { Character } from "../character/progression.ts";
+import { relicSelectionProblem } from "../board/star-board.ts";
+import { AffixLibrary, BRUSH_LIMIT } from "../items/affix-library.ts";
 import { type LoadoutRecord, MAX_LOADOUTS } from "../character/loadouts.ts";
 import { ITEM_RARITIES, AFFIX_TIERS } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
@@ -58,6 +60,10 @@ const itemSchema = itemSchemaV2.extend({
   seals_used: count,
   cracks: z.array(id),
   inscription: id.nullable(),
+  /** 遺物で写し取る小星（遺物だけ。省略できる。版の番号は上げない。docs/progress D-RELIC-4）。 */
+  relic_nodes: z.array(id).optional(),
+  /** 刻詞の筆で付けた詞の数（2つまで。省略できる。docs/progress A-5）。 */
+  brushed: z.number().int().min(0).max(BRUSH_LIMIT).optional(),
 });
 
 const jobSchemaV2 = z.strictObject({
@@ -77,6 +83,11 @@ const loadoutSchema = z.strictObject({
   equipment: z.partialRecord(z.enum(MVP_EQUIP_SLOTS), id.nullable()),
   star_allocation: z.array(id),
   extra_entries: z.array(id),
+  /**
+   * 職紋盤の取得（ジョブ → ノード。使っていないロードアウトだけ。docs/progress D-AUTO-3）。
+   * 省略できる（版2のまま足した項目。無ければ、切り替えても今の職紋盤のまま）。
+   */
+  job_boards: z.record(id, z.array(id)).optional(),
 });
 
 const commonFields = {
@@ -121,6 +132,8 @@ export const saveDataSchema = z.strictObject({
   secrets_found: z.array(id),
   /** ボスの敵のID → 倒した回数。 */
   boss_kills: z.record(id, count),
+  /** 詞片の書庫（`詞のID@T数` → 数。省略できる。版の番号は上げない。docs/progress A-5）。 */
+  affix_library: z.record(z.string(), count).optional(),
   ...commonFields,
 });
 export type SaveData = z.infer<typeof saveDataSchema>;
@@ -319,6 +332,8 @@ export interface PlayerProfile {
   readonly secretsFound: readonly string[];
   /** ボスの敵のID → 倒した回数（初回の撃破の判定・A5 の開放。補助仕様書9.2・11章）。 */
   readonly bossKills: Readonly<Record<string, number>>;
+  /** 詞片の書庫（`詞のID@T数` → 数。省略で空。docs/progress A-5）。 */
+  readonly affixLibrary?: Readonly<Record<string, number>>;
   /** まだゲームで使っていない項目（職紋盤・討伐証など）。読み込んだ値をそのまま保存し直す。 */
   readonly kept: KeptSaveFields;
 }
@@ -359,6 +374,10 @@ const toSaveItem = (i: ItemInstance): SaveData["items"][string] => ({
   seals_used: i.sealsUsed ?? 0,
   cracks: [...(i.cracks ?? [])],
   inscription: i.inscription ?? null,
+  ...(i.relicNodes === undefined || i.relicNodes.length === 0
+    ? {}
+    : { relic_nodes: [...i.relicNodes] }),
+  ...(i.brushed === undefined || i.brushed === 0 ? {} : { brushed: i.brushed }),
 });
 
 /** プレイヤーの状態を、セーブデータにする（今の版）。保存しない値（能力値など）は入れない。 */
@@ -404,6 +423,13 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
           equipment: { ...l.equipment },
           star_allocation: [...l.starAllocation],
           extra_entries: [...l.extraEntries],
+          ...(l.jobBoards === undefined
+            ? {}
+            : {
+                job_boards: Object.fromEntries(
+                  Object.entries(l.jobBoards).map(([j, n]) => [j, [...n]]),
+                ),
+              }),
         },
   );
   return {
@@ -428,6 +454,9 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
     quest_stages: [...profile.questStages],
     secrets_found: [...profile.secretsFound],
     boss_kills: { ...profile.bossKills },
+    ...(profile.affixLibrary === undefined || Object.keys(profile.affixLibrary).length === 0
+      ? {}
+      : { affix_library: { ...profile.affixLibrary } }),
     gold: profile.inventory.gold,
     materials: Object.fromEntries(profile.inventory.materials),
     boss_tokens: { ...kept.bossTokens },
@@ -480,6 +509,8 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
           raw.enhance === MAX_ENHANCE),
       () => `装備 ${key} の銘 ${String(raw.inscription)} が正しくない（候補に無い・+10でない）`,
     );
+    const relicProblem = relicSelectionProblem(db, raw.base, raw.enhance, raw.relic_nodes ?? []);
+    ref(relicProblem === undefined, () => `装備 ${key} の遺物の写し：${String(relicProblem)}`);
     items.set(key, {
       uid: raw.uid,
       base: raw.base,
@@ -496,6 +527,10 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       ...(raw.seals_used === 0 ? {} : { sealsUsed: raw.seals_used }),
       ...(raw.cracks.length === 0 ? {} : { cracks: [...raw.cracks] }),
       ...(raw.inscription === null ? {} : { inscription: raw.inscription }),
+      ...(raw.relic_nodes === undefined || raw.relic_nodes.length === 0
+        ? {}
+        : { relicNodes: [...raw.relic_nodes] }),
+      ...(raw.brushed === undefined || raw.brushed === 0 ? {} : { brushed: raw.brushed }),
     });
   }
   const used = new Set<string>();
@@ -573,6 +608,27 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
         db.starNodes.has(n),
         () => `ロードアウト ${String(l.id)} の星辰盤のノード ${n} がデータに無い`,
       );
+    // 職紋盤（使っていないロードアウトの分）：jobs と同じ規則で検証する。使っているロードアウトの分は jobs が正なので使わない
+    let jobBoards: Record<string, string[]> | undefined;
+    if (l.job_boards !== undefined && l.id !== data.active_loadout) {
+      jobBoards = {};
+      for (const [jobId, nodes] of Object.entries(l.job_boards)) {
+        ref(
+          db.jobs.has(jobId),
+          () => `ロードアウト ${String(l.id)} の職紋盤のジョブ ${jobId} がデータに無い`,
+        );
+        try {
+          new JobBoardAllocation(db, jobId, nodes);
+        } catch (e) {
+          ref(
+            false,
+            () =>
+              `ロードアウト ${String(l.id)} のジョブ ${jobId} の職紋盤：${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        jobBoards[jobId] = [...nodes];
+      }
+    }
     loadouts.push({
       id: l.id,
       name: l.name,
@@ -580,6 +636,7 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       equipment: eq,
       starAllocation: [...l.star_allocation],
       extraEntries: [...l.extra_entries],
+      ...(jobBoards === undefined ? {} : { jobBoards }),
     });
   }
   inventory.addGold(data.gold);
@@ -650,6 +707,18 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
         ref(db.enemies.get(e)?.boss !== undefined, () => `ボス ${e} がデータに無い`);
       return { ...data.boss_kills };
     })(),
+    ...(data.affix_library === undefined
+      ? {}
+      : {
+          affixLibrary: (() => {
+            try {
+              return AffixLibrary.fromRecord(db, data.affix_library).toRecord();
+            } catch (e) {
+              ref(false, () => `詞片の書庫：${e instanceof Error ? e.message : String(e)}`);
+              return {};
+            }
+          })(),
+        }),
     kept: (() => {
       // 職紋盤（仕様書v0.2 4.10）：データにあるノード・そのジョブの盤・職奥義は1つ・職奥義の選択と一致
       for (const [jobId, j] of Object.entries(data.jobs)) {

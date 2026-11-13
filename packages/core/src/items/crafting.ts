@@ -18,6 +18,8 @@ export const CRAFT_MATERIALS = {
   tuningFork: "MAT-TUNING-FORK",
   eraseBlade: "MAT-ERASE-BLADE",
   sealWax: "MAT-SEAL-WAX",
+  affixNeedle: "MAT-AFFIX-NEEDLE",
+  affixBrush: "MAT-AFFIX-BRUSH",
 } as const;
 
 /** 鍛造負荷の上限（仕様書v0.2 3.11.1：100を超える操作はできない＝定着）。 */
@@ -55,7 +57,8 @@ export const CRACKS = ["EFF-CRACK-MOVE-SPEED-3"] as const;
 export type CraftOp =
   | { readonly kind: "awaken" }
   | { readonly kind: "insight" }
-  | { readonly kind: "transmute" }
+  /** bias：一緒に使う系統素材（仕様書v0.2 3.11.3。省略で偏りなし）。 */
+  | { readonly kind: "transmute"; readonly bias?: string }
   | { readonly kind: "tune"; readonly affix: string }
   | { readonly kind: "erase" }
   | { readonly kind: "seal"; readonly affix: string };
@@ -163,9 +166,25 @@ export function craft(db: ContentDb, rng: Rng, item: ItemInstance, op: CraftOp):
     }
     case "transmute": {
       const kept = sealedAffix === undefined ? [] : [sealedAffix];
+      const bias = op.bias === undefined ? undefined : db.materials.get(op.bias)?.craftBias;
+      if (op.bias !== undefined && bias === undefined)
+        throw new RangeError(`${op.bias} は偏りを付ける素材ではない`);
       next = {
         ...next,
-        affixes: addAffixes(db, rng, base, item.itemLevel, kept, rarityCount(db, rng, "rare")),
+        affixes: addAffixes(
+          db,
+          rng,
+          base,
+          item.itemLevel,
+          kept,
+          rarityCount(db, rng, "rare"),
+          bias === undefined
+            ? {}
+            : {
+                ...(bias.family === undefined ? {} : { families: new Set([bias.family]) }),
+                bias,
+              },
+        ),
       };
       break;
     }
@@ -193,6 +212,20 @@ export function craft(db: ContentDb, rng: Rng, item: ItemInstance, op: CraftOp):
   }
   // 封詞は、次の1回の操作から守ったら外れる
   if (op.kind !== "seal" && item.sealed !== undefined) next = withoutSeal(next);
+  return applyInstability(db, rng, loadBefore, next);
+}
+
+/**
+ * 操作の前の負荷が60以上なら、20%で亀裂、10%で霊感（仕様書v0.2 3.11.1）。クラフトの操作と刻詞の筆で共通。
+ * 乱数は、負荷が60未満なら使わない。
+ */
+export function applyInstability(
+  db: ContentDb,
+  rng: Rng,
+  loadBefore: number,
+  item: ItemInstance,
+): CraftResult {
+  let next = item;
   let cracked: string | undefined;
   let inspired: string | undefined;
   if (loadBefore >= UNSTABLE_LOAD) {
@@ -309,8 +342,15 @@ export function craftWithInventory(
   if (block !== undefined) return block;
   const material = CRAFT_OPS[op.kind].material;
   if (inv.material(material) < 1) return "material";
+  // 系統素材（転詞の石と一緒に1つ使う。仕様書v0.2 3.11.3）
+  const bias = op.kind === "transmute" ? op.bias : undefined;
+  if (bias !== undefined) {
+    if (db.materials.get(bias)?.craftBias === undefined) return "material";
+    if (inv.material(bias) < (bias === material ? 2 : 1)) return "material";
+  }
   const r = craft(db, rng, item, op);
   inv.spendMaterial(material, 1);
+  if (bias !== undefined) inv.spendMaterial(bias, 1);
   inv.replaceItem(r.item);
   return r;
 }

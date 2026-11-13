@@ -119,20 +119,25 @@ function testDb(nodes: unknown[] = NODES, consts: unknown[] = CONSTS): ContentDb
       // テスト用の盤に置き換えるので、本データの盤を参照するユニークの潜在効果は「まだ無い」扱いにする
       itemBases: (rawContent.collections.itemBases ?? []).map((src) => ({
         ...src,
-        entries: (src.entries as { unique?: { latent: { condition: object } } }[]).map((b) =>
-          b.unique === undefined
-            ? b
-            : {
-                ...b,
-                unique: {
-                  ...b.unique,
-                  latent: {
-                    ...b.unique.latent,
-                    condition: { ...b.unique.latent.condition, pending: true },
+        // 本データの星座を写す遺物も除く
+        entries: (
+          src.entries as { category?: string; unique?: { latent: { condition: object } } }[]
+        )
+          .filter((b) => b.category !== "relic")
+          .map((b) =>
+            b.unique === undefined
+              ? b
+              : {
+                  ...b,
+                  unique: {
+                    ...b.unique,
+                    latent: {
+                      ...b.unique.latent,
+                      condition: { ...b.unique.latent.condition, pending: true },
+                    },
                   },
                 },
-              },
-        ),
+          ),
       })),
       starNodes: [{ file: "test-nodes.json", entries: nodes }],
       constellations: [{ file: "test-consts.json", entries: consts }],

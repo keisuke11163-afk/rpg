@@ -11,7 +11,12 @@ import {
 } from "../combat/damage.ts";
 import type { Rng } from "../random/rng.ts";
 import { AFFINITY_ATTACK_SPEED, weaponAffinity } from "../combat/skills.ts";
-import { type StarBoardResult, evaluateStarBoard, starPoints } from "../board/star-board.ts";
+import {
+  type StarBoardResult,
+  evaluateStarBoard,
+  relicCopies,
+  starPoints,
+} from "../board/star-board.ts";
 import {
   type EffectInstance,
   type EvaluatedEffects,
@@ -207,6 +212,9 @@ export function buildCharacterSheet(
     ...(equipment?.effects() ?? []),
     ...(jobBoard?.effects(jobPoints) ?? []),
   ];
+  // 遺物の写し（遺物の部位の装備。仕様書v0.2 3.11.6）
+  const relicItem = equipment?.get("relic");
+  const relic = relicItem === undefined ? undefined : relicCopies(db, relicItem);
   // 星辰盤：星門の条件は、第1段階の値（基礎・装備・星門を通らないノード）で判定する
   const board =
     input.starBoard === undefined
@@ -218,6 +226,7 @@ export function buildCharacterSheet(
           // 接続ノードを1つ取るごとに、×2にする範囲が1ノード広がる（3つで半径3。docs/progress D-U15-3）
           boostRadius: jobBoard?.connectors(jobPoints) ?? 0,
           resonance: equipment?.resonance() ?? {},
+          ...(relic === undefined ? {} : { relic }),
           baseInstances: gear,
           facts,
         });

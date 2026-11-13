@@ -42,6 +42,10 @@ export interface ItemInstance {
   readonly cracks?: readonly string[];
   /** 銘（+10 で刻む効果の ID。省略で無し）。 */
   readonly inscription?: string;
+  /** 刻詞の筆で付けた詞の数（1つの装備に2つまで。仕様書v0.2 3.11.2。省略で0）。 */
+  readonly brushed?: number;
+  /** 遺物で写し取る小星（プレイヤーが選ぶ。仕様書v0.2 3.11.6。省略で無し）。 */
+  readonly relicNodes?: readonly string[];
 }
 
 /** 職詞の重みの倍率（ジョブに合わせたドロップのとき、そのジョブの職詞。docs/progress D-U11-23）。 */
@@ -54,6 +58,12 @@ export interface AffixContext {
   readonly families?: ReadonlySet<string>;
   /** ジョブに合わせたドロップのジョブのタグ。そのジョブの職詞の重みを JOB_AFFIX_BOOST 倍にする。 */
   readonly targetJob?: string;
+  /** 系統素材の偏り（仕様書v0.2 3.11.3）：この詞・この系統の系統詞の重みを multiplier 倍にする。 */
+  readonly bias?: {
+    readonly family?: string | undefined;
+    readonly affixes?: readonly string[] | undefined;
+    readonly multiplier: number;
+  };
 }
 
 export interface GenerateItemInput {
@@ -89,10 +99,16 @@ export function candidateAffixes(
     if (affix.family !== undefined && options.families?.has(affix.family) !== true) continue;
     const tiers = eligibleTiers(affix, itemLevel, options);
     if (tiers.length === 0) continue;
+    const b = options.bias;
+    const biased =
+      b !== undefined &&
+      ((affix.family !== undefined && affix.family === b.family) ||
+        (b.affixes?.includes(affix.id) ?? false));
     const weight =
       affix.weight *
       (affix.categoryWeights?.[base.category] ?? 1) *
-      (affix.job !== undefined && affix.job === options.targetJob ? JOB_AFFIX_BOOST : 1);
+      (affix.job !== undefined && affix.job === options.targetJob ? JOB_AFFIX_BOOST : 1) *
+      (biased ? b.multiplier : 1);
     out.push({ affix, tiers, weight });
   }
   return out;

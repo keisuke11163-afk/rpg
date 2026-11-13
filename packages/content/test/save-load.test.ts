@@ -362,6 +362,43 @@ describe("T11：1つ前の版のデータを移行できる", () => {
     ).toThrow(SaveDataError);
   });
 
+  it("ロードアウトの職紋盤（D-AUTO-3）：使っていないロードアウトの分を保存して戻す。正しくなければ参照の問題", () => {
+    const data = toSaveData(db, sampleProfile());
+    const other: SaveData["loadouts"][number] = {
+      id: data.active_loadout === 1 ? 2 : 1,
+      name: "別",
+      main_job: "JOB-ROGUE",
+      equipment: {},
+      star_allocation: [],
+      extra_entries: [],
+      job_boards: { "JOB-ROGUE": ["JBN-ROGUE-T1"] },
+    };
+    const withOther = (jobBoards: Record<string, string[]>): SaveData => ({
+      ...data,
+      loadouts: [...data.loadouts, { ...other, job_boards: jobBoards }],
+    });
+    const back = fromSaveData(db, withOther({ "JOB-ROGUE": ["JBN-ROGUE-T1"] }));
+    expect(back.loadouts.find((l) => l.id === other.id)?.jobBoards).toEqual({
+      "JOB-ROGUE": ["JBN-ROGUE-T1"],
+    });
+    expect(toSaveData(db, back).loadouts.find((l) => l.id === other.id)?.job_boards).toEqual({
+      "JOB-ROGUE": ["JBN-ROGUE-T1"],
+    });
+    // 省略できる（古いセーブデータ）
+    const plain = { ...other };
+    delete plain.job_boards;
+    expect(
+      fromSaveData(db, { ...data, loadouts: [...data.loadouts, plain] }).loadouts.find(
+        (l) => l.id === other.id,
+      )?.jobBoards,
+    ).toBeUndefined();
+    expect(() => fromSaveData(db, withOther({ "JOB-ROGUE": ["JBN-NONE"] }))).toThrow(SaveDataError);
+    expect(() => fromSaveData(db, withOther({ "JOB-ROGUE": ["JBN-WARRIOR-T1"] }))).toThrow(
+      SaveDataError,
+    );
+    expect(() => fromSaveData(db, withOther({ "JOB-NONE": [] }))).toThrow(SaveDataError);
+  });
+
   it("版5 → 版6：ボスはまだ倒していない。ボスでない敵・データに無い敵は参照の問題", () => {
     const data = decodeSave(wrap(v5Sample()));
     expect(data.save_version).toBe(SAVE_VERSION);

@@ -462,6 +462,10 @@ export {
   evaluateStarBoard,
   startNodeOf,
   nodesWithin,
+  relicCandidates,
+  relicCopies,
+  relicCopyLimit,
+  relicSelectionProblem,
   starPoints,
 } from "./board/star-board.ts";
 
@@ -489,7 +493,22 @@ export {
   enhanceWithInventory,
   inscribe,
   opLoad,
+  applyInstability,
 } from "./items/crafting.ts";
+export {
+  AffixLibrary,
+  type AffixShard,
+  BRUSH_LIMIT,
+  BRUSH_LOAD,
+  type BrushBlock,
+  type ExtractBlock,
+  LIBRARY_STACK,
+  brushBlock,
+  brushFromLibrary,
+  extractFromInventory,
+  extractedShard,
+  shardOfKey,
+} from "./items/affix-library.ts";
 
 export {
   type LoadoutRecord,
