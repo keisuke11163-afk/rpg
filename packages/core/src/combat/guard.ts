@@ -57,6 +57,10 @@ export class GuardState {
   /** 短く押して離しても、ここまではガードを続ける時刻。 */
   private minUntil = -Infinity;
   private held = false;
+  /** 最後に「新しいパリィの受付」を開いた時刻。連打で受付を開き続けられないようにする（D-KNT-10）。 */
+  private lastWindowAt = -Infinity;
+  /** 今の受付で、もうパリィに成功したか（1回の受付でパリィは1回だけ。D-KNT-10）。 */
+  private parried = false;
   /** 反撃権（次の攻撃のダメージに足す）が切れる時刻。 */
   private counterUntil = -Infinity;
 
@@ -80,19 +84,21 @@ export class GuardState {
       return;
     }
     if (fresh) {
-      this.raisedAt = now;
       this.minUntil = now + this.rule.minRaise;
+      if (now - this.lastWindowAt >= this.rule.parryCooldown - 1e-9) {
+        // 新しいパリィの受付を開く
+        this.raisedAt = now;
+        this.lastWindowAt = now;
+        this.parried = false;
+      } else if (this.raisedAt === undefined) {
+        // 受付の間隔が足りない押し直し：ガードは上がるが、パリィの受付は付かない（連打の対策）
+        this.raisedAt = -Infinity;
+      }
     } else if (down && this.raisedAt === undefined) {
       this.raisedAt = -Infinity;
     } else if (!down && now >= this.minUntil - 1e-9) {
       this.raisedAt = undefined;
     }
-  }
-
-  /** ガードを下ろす（技を使った・回避した・よろめいた）。 */
-  lower(): void {
-    this.raisedAt = undefined;
-    this.minUntil = -Infinity;
   }
 
   /** ガードを上げているか。 */
@@ -108,7 +114,8 @@ export class GuardState {
   /**
    * 攻撃が当たったときの結果。パリィ＞ガード＞そのまま受ける。
    * - 上げていない・正面でない → none
-   * - 上げてから（受付＋加算）の秒数以内 → parry（気力は使わない）
+   * - 上げてから（受付＋加算）の秒数以内で、この受付でまだパリィしていない → parry（気力は使わない。
+   *   パリィに成功したら、この受付は閉じる。以降はガード扱い。呼ぶたびに状態が変わる＝1回のヒットに1回だけ呼ぶ）
    * - それ以外 → 気力が足りていれば guard（ガード率）、足りなければ none
    */
   judge(a: IncomingAttack): GuardOutcome {
@@ -117,7 +124,10 @@ export class GuardState {
     if (!isInFront(a.from, a.position, a.facing, this.rule.frontAngleDeg)) return { kind: "none" };
     const window = this.rule.parryWindow + a.parryWindowBonus;
     // 浮動小数の誤差（0.18ちょうど）で外れないように、わずかに余裕を持たせる
-    if (since <= window + 1e-9) return { kind: "parry" };
+    if (!this.parried && since <= window + 1e-9) {
+      this.parried = true;
+      return { kind: "parry" };
+    }
     if (!a.canPay || !(a.guardRate > 0)) return { kind: "none" };
     return { kind: "guard", rate: Math.min(1, a.guardRate) };
   }

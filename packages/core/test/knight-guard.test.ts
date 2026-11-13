@@ -27,6 +27,7 @@ const RULE: GuardRule = {
   counterSeconds: 4,
   moveSpeedMultiplier: 0.6,
   minRaise: 0.3,
+  parryCooldown: 0.6,
 };
 
 /** 敵が正面（+x）にいる攻撃。 */
@@ -114,6 +115,38 @@ describe("ガードの結果（防ぐ・パリィ・防げない）", () => {
     expect(g.consumeCounter(2.1)).toBe(0);
     g.grantCounter(10);
     expect(g.consumeCounter(14.1)).toBe(0);
+  });
+});
+
+describe("パリィの連打の対策（D-KNT-10）", () => {
+  /** 0.13秒ごとに押して離す（気力なし）。毎回、敵の攻撃がその直後に当たる。 */
+  it("連打しても、パリィは続かない（受付の間隔の間は、ガードの扱い）", () => {
+    const g = new GuardState(RULE);
+    const kinds: string[] = [];
+    for (let i = 0; i < 17; i++) {
+      const t = i * 0.13;
+      g.input(t, false, true, true); // 押した刻み
+      kinds.push(g.judge(attack(t + 0.05, { canPay: false })).kind);
+      g.input(t + 0.06, false, false, true); // 離す（最短0.3秒は上がったまま）
+    }
+    expect(kinds.filter((k) => k === "parry").length).toBeLessThanOrEqual(4);
+    expect(kinds[0]).toBe("parry");
+    expect(kinds.slice(1, 5)).not.toContain("parry");
+  });
+
+  it("普通の1回のパリィは従来どおり成立する。間隔（0.6秒）をあければ、また成立する", () => {
+    const g = new GuardState(RULE);
+    g.input(1, true, true, true);
+    expect(g.judge(attack(1.1)).kind).toBe("parry");
+    g.input(1.6, false, false, true);
+    g.input(2, true, true, true);
+    expect(g.judge(attack(2.1)).kind).toBe("parry");
+  });
+
+  it("パリィに成功した受付は閉じる：同じ受付の2発目はガード扱い", () => {
+    const g = raisedAt(0);
+    expect(g.judge(attack(0.05)).kind).toBe("parry");
+    expect(g.judge(attack(0.1))).toEqual({ kind: "guard", rate: 0.6 });
   });
 });
 

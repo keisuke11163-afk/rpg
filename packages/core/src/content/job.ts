@@ -316,6 +316,8 @@ export type PhaseFusion = PhaseDef["fusion"]["table"][number];
 const guardRuleSchema = z.strictObject({
   /** パリィの受付（秒）：攻撃が当たる前のこの時間以内にガードを始めるとパリィ（仕様書：0.18秒）。 */
   parryWindow: z.number().positive(),
+  /** 新しいパリィの受付を開ける最短の間隔（秒）。連打でパリィを続けられないようにする（仮値。D-KNT-10）。 */
+  parryCooldown: z.number().nonnegative(),
   /** 正面の角度（度。自分の向きを中心に、この角度の中から来る攻撃だけを防ぐ）。 */
   frontAngleDeg: z.number().positive().max(360),
   /** ガードで攻撃を防ぐたびに使う気力。足りなければ防げない（パリィは使わない）。 */

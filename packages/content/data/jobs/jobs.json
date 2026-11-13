@@ -287,7 +287,7 @@
       "kon": 15
     },
     "provisional": true,
-    "provisionalNote": "技を覚えるジョブLvは仮値（補助仕様書3.5）。初期能力値は補助仕様書3.2（剛15・迅5・理5・魂15）。適性は仕様書v0.2 5.3（弓Cは書かなければC）。ガードの規則の数値（正面の角度・気力・反撃権の秒数など）は仕様書に無い仮値（docs/progress D-KNT-1・D-KNT-2）",
+    "provisionalNote": "技を覚えるジョブLvは仮値（補助仕様書3.5）。初期能力値は補助仕様書3.2（剛15・迅5・理5・魂15）。適性は仕様書v0.2 5.3（弓Cは書かなければC）。ガードの規則の数値（正面の角度・気力・反撃権の秒数など）は仕様書に無い仮値（docs/progress D-KNT-1・D-KNT-2。パリィの連打の対策 parryCooldown は D-KNT-10）",
     "guard": {
       "parryWindow": 0.18,
       "frontAngleDeg": 180,
@@ -296,7 +296,8 @@
       "counterBonus": 1.0,
       "counterSeconds": 4,
       "moveSpeedMultiplier": 0.6,
-      "minRaise": 0.3
+      "minRaise": 0.3,
+      "parryCooldown": 0.6
     },
     "passiveEffects": ["EFF-KNIGHT-OATH-GUARDIAN"],
     "defaultSlots": [
