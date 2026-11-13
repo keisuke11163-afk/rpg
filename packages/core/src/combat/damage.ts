@@ -83,6 +83,8 @@ export interface HitOptions {
   readonly extraCritChance?: number;
   /** 必ず会心にする（例：急所穿ちの「5点なら必ず会心」）。会心の禁止の印があれば、禁止が勝つ。 */
   readonly forceCrit?: boolean;
+  /** このヒットだけのダメージの加算（例：弓使いの適正間合い+20%・近すぎると-20%。仕様書v0.2 5.7）。 */
+  readonly extraIncreased?: number;
 }
 
 export interface DamagePortion {
@@ -301,6 +303,7 @@ export function computeHit(
     a.effectId < b.effectId ? -1 : a.effectId > b.effectId ? 1 : 0,
   );
 
+  const extraIncreased = finite(options.extraIncreased ?? 0, "このヒットだけのダメージの加算");
   const run = (
     pipeline: Pipeline,
   ): {
@@ -335,7 +338,8 @@ export function computeHit(
     for (const p of after) {
       const tags = [...contextTags, ...p.lineage.map((e) => ELEMENT_TAG[e])];
       const parts = collectParts(db, view.stat(COMBAT_STATS.damage, tags, scope), pipeline);
-      const increased = parts.increased + AFFIX_SKILL_LEVEL_INCREASED * affixLevels;
+      const increased =
+        parts.increased + AFFIX_SKILL_LEVEL_INCREASED * affixLevels + extraIncreased;
       amounts[p.element] = finite(
         (amounts[p.element] ?? 0) + p.amount * (1 + increased) * parts.more,
         `${pipeline === "hit" ? "打撃値" : "基準値"}（${p.element}・加算と乗算の後）`,

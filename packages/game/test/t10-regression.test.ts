@@ -21,13 +21,15 @@ describe("V-11：クールダウンの短縮を積み重ねても、CDは0にな
 });
 
 describe("V-25：MPを使わない通常攻撃が、MPの技の意味を失わせない", () => {
-  it("通常攻撃は技倍率100%・付与率なし・武器による変化と段階による変化なし", async () => {
+  it("通常攻撃は技倍率100%・付与率なし・段階による変化なし。武器による変化は弓系の投射物だけ（強さは変えない）", async () => {
     const { loadGameContent } = await import("@stella/content");
     const def = loadGameContent().skills.get("SKL-BASIC-ATTACK");
     expect(def?.pct).toBe(1);
     expect(def?.mpCost).toBe(0);
     expect(def?.ailmentChance).toBeUndefined();
-    expect(def?.weaponVariants).toBeUndefined();
+    // 仕様書v0.2 5章：通常攻撃のタグは弓系では「投射」。動き方とタグだけを置き換え、技倍率などは変えない
+    expect(def?.weaponVariants?.map((v) => v.weaponTag)).toEqual(["TAG-WPNGRP-BOW"]);
+    expect(Object.keys(def?.weaponVariants?.[0]?.mods ?? {}).sort()).toEqual(["action", "tags"]);
     expect(def?.stageVariants).toBeUndefined();
   });
 });

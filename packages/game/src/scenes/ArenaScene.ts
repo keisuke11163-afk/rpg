@@ -397,6 +397,7 @@ export class ArenaScene extends Phaser.Scene {
         xp: sim.character.progress.xp,
         traps: sim.traps.length,
         smokes: sim.smokes.length,
+        arrows: sim.arrows.active,
       }),
       // セーブ（U-13）：今すぐ保存する・スロットの一覧・最後の結果（開発版だけ）
       saveNow: () => this.saveNow(),
@@ -902,7 +903,14 @@ export class ArenaScene extends Phaser.Scene {
         toPixels(tr.center.y),
         tr.radius * PIXELS_PER_METER,
       );
-    // 残っている亀裂
+    // プレイヤーの矢（弓使い）
+    g.lineStyle(2, 0xf4e3b2, 1);
+    for (const a of sim.arrows.positions()) {
+      const x = toPixels(a.position.x);
+      const y = toPixels(a.position.y);
+      g.lineBetween(x, y, x - a.direction.x * 10, y - a.direction.y * 10);
+    }
+    // 残っている亀裂・矢の雨
     for (const z of sim.zones) {
       g.fillStyle(0xff9f43, 0.18);
       for (const part of z.parts) this.drawShape(g, part.shape, part.origin, part.facing);

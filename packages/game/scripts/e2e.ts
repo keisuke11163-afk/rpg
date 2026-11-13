@@ -103,6 +103,7 @@ interface SkillState {
   xp: number;
   traps: number;
   smokes: number;
+  arrows: number;
 }
 interface EnemyInfo {
   id: string;
@@ -683,6 +684,36 @@ try {
     pt.x > dd.x + 0.5 && Math.abs(pt.y - dd.y) < 0.5,
     `プレイヤー (${pt.x.toFixed(2)}, ${pt.y.toFixed(2)})・人形 (${dd.x.toFixed(1)}, ${dd.y.toFixed(1)})`,
   );
+
+  // 弓使い（仕様書v0.2 5.7）：G で転職し、8m 離れた人形を左クリックで撃つ。矢が飛び、人形に当たる
+  await waitIdle();
+  await page.keyboard.press("KeyG");
+  await page.waitForTimeout(100);
+  const sa = await skills();
+  const da0 = await dummy();
+  await walkTo(da0.x - 8, da0.y);
+  await waitIdle();
+  const da1 = await dummy();
+  const dArrow = await dummy();
+  await page.mouse.move(dArrow.screenX * 2, dArrow.screenY * 2);
+  await page.waitForTimeout(50);
+  await page.mouse.down({ button: "left" });
+  await page.waitForTimeout(400);
+  const flying = (await skills()).arrows;
+  await page.mouse.up({ button: "left" });
+  await page.waitForTimeout(900);
+  const da2 = await dummy();
+  check(
+    "Gで弓使いに転職し（下級の弓）、8m先の人形を左クリックで撃つと、矢が飛んで当たる（弓使い）",
+    sa.job === "JOB-ARCHER" && sa.weapon === "test-bow" && da2.hits > da1.hits,
+    `ジョブ ${sa.job}・武器 ${String(sa.weapon)}・飛んでいる矢 ${String(flying)}・ヒット ${String(da2.hits - da1.hits)}回`,
+  );
+  // 戦士 → 盗賊に戻す（以降の確認は盗賊の短剣で行う）
+  await waitIdle();
+  await page.keyboard.press("KeyG");
+  await page.waitForTimeout(100);
+  await page.keyboard.press("KeyG");
+  await page.waitForTimeout(100);
 
   // 16〜19. 敵（補助仕様書10章）
   const enemies = (): Promise<EnemyInfo[]> =>

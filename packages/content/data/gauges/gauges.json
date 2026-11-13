@@ -38,5 +38,32 @@
     "stages": [],
     "provisional": true,
     "provisionalNote": "戦闘外の減少は仕様書に記載がないため、減らさない（docs/progress D-U10-2）"
+  },
+  {
+    "id": "GAU-FOCUS",
+    "text": "gauge.focus",
+    "max": 100,
+    "gains": [
+      {
+        "on": "stationary",
+        "perSecond": 20
+      },
+      {
+        "on": "hitSameTarget",
+        "value": 5
+      },
+      {
+        "on": "hitTaken",
+        "value": -20
+      }
+    ],
+    "decayOutOfCombat": 0,
+    "pointEffect": {
+      "effect": "EFF-GAUGE-FOCUS-CRIT",
+      "perPoint": 0.01
+    },
+    "stages": [],
+    "provisional": true,
+    "provisionalNote": "毎秒20・同じ敵に当てるたび+5は M-23 の仮値（MVP後の機能の提案3章で承認）。戦闘外で減らない・+5は技の1回の使用につき1回（docs/progress D-ARC-3）"
   }
 ]

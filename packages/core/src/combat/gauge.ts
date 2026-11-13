@@ -25,6 +25,10 @@ export class JobGauge {
   maxBonus = 0;
   /** 全ての段階に達している扱いにする（職奥義「鬼神化」の間）。 */
   forceStages = false;
+  /** 動いている間の「止まっている間」の獲得の倍率（職奥義「疾風」で0.5。既定は動くと増えない）。 */
+  movingStationaryMultiplier = 0;
+  /** 直前に当てた敵（同じ敵に当て続けたときの獲得。集中）。 */
+  private lastTarget: string | undefined;
 
   constructor(def: GaugeDef) {
     this.def = def;
@@ -96,6 +100,39 @@ export class JobGauge {
       if (g.on === "damageTaken") gained += (amount / maxHp) * 100 * g.valuePerPercentOfMaxHp;
     }
     return this.add(gained * this.gainMultiplier * this.takenGainMultiplier);
+  }
+
+  /** 攻撃を受けたとき（回避されなかったヒット1回。集中は-20）。獲得量の倍率は掛けない。 */
+  onHitTaken(): number {
+    let delta = 0;
+    for (const g of this.def.gains) if (g.on === "hitTaken") delta += g.value;
+    return delta === 0 ? 0 : this.add(delta);
+  }
+
+  /**
+   * 技の1回の使用で、敵に当たったとき（使用ごとに1回。docs/progress D-ARC-3）。
+   * 直前に当てた敵と同じなら決まった量が増える（集中+5）。違えば、その敵を覚えるだけ。
+   */
+  onHitTarget(targetId: string): number {
+    const same = this.lastTarget === targetId;
+    this.lastTarget = targetId;
+    if (!same) return 0;
+    let gained = 0;
+    for (const g of this.def.gains) if (g.on === "hitSameTarget") gained += g.value;
+    return gained === 0 ? 0 : this.add(gained * this.gainMultiplier);
+  }
+
+  /**
+   * 止まっている間の獲得（集中：毎秒20）。動いている間は movingStationaryMultiplier を掛ける。
+   * 経過時間が0以上の有限の数でなければ RangeError。
+   */
+  onStill(dt: number, moving: boolean): number {
+    if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
+    const k = moving ? this.movingStationaryMultiplier : 1;
+    if (!(k > 0)) return 0;
+    let gained = 0;
+    for (const g of this.def.gains) if (g.on === "stationary") gained += g.perSecond * dt;
+    return gained === 0 ? 0 : this.add(gained * k * this.gainMultiplier);
   }
 
   /**

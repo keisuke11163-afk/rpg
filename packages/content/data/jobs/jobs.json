@@ -120,5 +120,69 @@
       "SKL-ROGUE-SMOKE"
     ],
     "startingWeapon": "BASE-WPN-DAGGER-T1"
+  },
+  {
+    "id": "JOB-ARCHER",
+    "tag": "TAG-JOB-ARCHER",
+    "text": "job.archer",
+    "gauge": "GAU-FOCUS",
+    "skills": [
+      {
+        "skill": "SKL-ARCHER-QUICKSHOT",
+        "level": 1
+      },
+      {
+        "skill": "SKL-ARCHER-SPREAD",
+        "level": 3
+      },
+      {
+        "skill": "SKL-ARCHER-PIERCING",
+        "level": 5
+      },
+      {
+        "skill": "SKL-ARCHER-LEAP",
+        "level": 7
+      },
+      {
+        "skill": "SKL-ARCHER-RAIN",
+        "level": 10
+      },
+      {
+        "skill": "SKL-ARCHER-SNIPE",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-BOW": "S",
+      "TAG-WPN-LONGBOW": "S",
+      "TAG-WPN-CROSSBOW": "A",
+      "TAG-WPN-QUIVER": "S",
+      "TAG-WPN-DAGGER": "B",
+      "TAG-WPN-GREATSWORD": "C"
+    },
+    "originAttributes": {
+      "go": 5,
+      "jin": 15,
+      "ri": 15,
+      "kon": 5
+    },
+    "preferredRange": {
+      "min": 6,
+      "max": 10,
+      "bonus": 0.2,
+      "close": 3,
+      "closePenalty": -0.2
+    },
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5。docs/progress D-ARC-2）",
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-ARCHER-QUICKSHOT",
+      "SKL-ARCHER-SPREAD",
+      "SKL-ARCHER-PIERCING",
+      "SKL-ARCHER-LEAP",
+      "SKL-ARCHER-RAIN"
+    ],
+    "startingWeapon": "BASE-WPN-BOW-T1"
   }
 ]

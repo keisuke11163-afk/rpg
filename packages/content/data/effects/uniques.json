@@ -405,5 +405,27 @@
       "ailmentBase": false
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-UNQ-U06-LATENT",
+    "origin": "unique",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GAUGE-MAX-BONUS",
+        "value": 50
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "mainJob",
+        "job": "TAG-JOB-ARCHER"
+      }
+    ]
   }
 ]

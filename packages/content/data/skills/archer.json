@@ -1,0 +1,143 @@
+[
+  {
+    "id": "SKL-ARCHER-QUICKSHOT",
+    "text": "skill.archer.quickshot",
+    "job": "JOB-ARCHER",
+    "tags": ["TAG-FORM-PROJECTILE"],
+    "kind": "weapon",
+    "pct": 1.0,
+    "mpCost": 3,
+    "cooldown": 0,
+    "useTimeMultiplier": 0.7,
+    "speedStat": "STAT-JOB-QUICKSHOT-SPEED",
+    "action": {
+      "type": "projectile",
+      "count": 1,
+      "spreadDeg": 0,
+      "speed": 32,
+      "range": 18,
+      "radius": 0.15,
+      "pierce": 0
+    },
+    "staggerCoefficient": 0.2,
+    "provisional": true,
+    "provisionalNote": "弓使いの技の数値（矢の速さ・射程・動作の時間・矢の雨の間隔・覚えるジョブLv）は仕様書v0.2 5.7 に無いので仮（docs/progress D-ARC-2）"
+  },
+  {
+    "id": "SKL-ARCHER-SPREAD",
+    "text": "skill.archer.spread",
+    "job": "JOB-ARCHER",
+    "tags": ["TAG-FORM-PROJECTILE", "TAG-FORM-AREA"],
+    "kind": "weapon",
+    "pct": 0.6,
+    "mpCost": 8,
+    "cooldown": 0,
+    "action": {
+      "type": "projectile",
+      "count": 5,
+      "spreadDeg": 40,
+      "speed": 28,
+      "range": 12,
+      "radius": 0.15,
+      "pierce": 0
+    },
+    "staggerCoefficient": 0.15,
+    "provisional": true,
+    "provisionalNote": "弓使いの技の数値（矢の速さ・射程・動作の時間・矢の雨の間隔・覚えるジョブLv）は仕様書v0.2 5.7 に無いので仮（docs/progress D-ARC-2）"
+  },
+  {
+    "id": "SKL-ARCHER-PIERCING",
+    "text": "skill.archer.piercing",
+    "job": "JOB-ARCHER",
+    "tags": ["TAG-FORM-PROJECTILE"],
+    "kind": "weapon",
+    "pct": 2.5,
+    "mpCost": 10,
+    "cooldown": 3,
+    "action": {
+      "type": "projectile",
+      "count": 1,
+      "spreadDeg": 0,
+      "speed": 36,
+      "range": 22,
+      "radius": 0.15,
+      "pierce": 99
+    },
+    "staggerCoefficient": 0.4,
+    "provisional": true,
+    "provisionalNote": "弓使いの技の数値（矢の速さ・射程・動作の時間・矢の雨の間隔・覚えるジョブLv）は仕様書v0.2 5.7 に無いので仮（docs/progress D-ARC-2）。貫通∞は99で表す"
+  },
+  {
+    "id": "SKL-ARCHER-LEAP",
+    "text": "skill.archer.leap",
+    "job": "JOB-ARCHER",
+    "tags": ["TAG-FORM-MOVEMENT", "TAG-FORM-PROJECTILE"],
+    "kind": "weapon",
+    "pct": 1.0,
+    "mpCost": 6,
+    "cooldown": 4,
+    "action": {
+      "type": "projectile",
+      "count": 1,
+      "spreadDeg": 0,
+      "speed": 28,
+      "range": 18,
+      "radius": 0.15,
+      "pierce": 0,
+      "leap": {
+        "distance": 6,
+        "duration": 0.35
+      }
+    },
+    "staggerCoefficient": 0.2,
+    "provisional": true,
+    "provisionalNote": "弓使いの技の数値（矢の速さ・射程・動作の時間・矢の雨の間隔・覚えるジョブLv）は仕様書v0.2 5.7 に無いので仮（docs/progress D-ARC-2）。矢の技倍率100%も仮"
+  },
+  {
+    "id": "SKL-ARCHER-RAIN",
+    "text": "skill.archer.rain",
+    "job": "JOB-ARCHER",
+    "tags": ["TAG-FORM-PROJECTILE", "TAG-FORM-AREA", "TAG-FORM-DURATION"],
+    "kind": "weapon",
+    "pct": 0.5,
+    "mpCost": 20,
+    "cooldown": 8,
+    "action": {
+      "type": "barrage",
+      "range": 12,
+      "radius": 3,
+      "duration": 3,
+      "interval": 0.5
+    },
+    "staggerCoefficient": 0.1,
+    "provisional": true,
+    "provisionalNote": "弓使いの技の数値（矢の速さ・射程・動作の時間・矢の雨の間隔・覚えるジョブLv）は仕様書v0.2 5.7 に無いので仮（docs/progress D-ARC-2）。0.5秒ごとに技倍率50%（3秒で6回）も仮"
+  },
+  {
+    "id": "SKL-ARCHER-SNIPE",
+    "text": "skill.archer.snipe",
+    "job": "JOB-ARCHER",
+    "tags": ["TAG-FORM-PROJECTILE", "TAG-FORM-FINISHER"],
+    "kind": "weapon",
+    "pct": 12.0,
+    "mpCost": 0,
+    "cooldown": 0,
+    "useTimeMultiplier": 1.5,
+    "action": {
+      "type": "projectile",
+      "count": 1,
+      "spreadDeg": 0,
+      "speed": 45,
+      "range": 24,
+      "radius": 0.15,
+      "pierce": 1
+    },
+    "staggerCoefficient": 0.6,
+    "gauge": {
+      "requires": 100,
+      "cost": "all"
+    },
+    "provisional": true,
+    "provisionalNote": "弓使いの技の数値（矢の速さ・射程・動作の時間・矢の雨の間隔・覚えるジョブLv）は仕様書v0.2 5.7 に無いので仮（docs/progress D-ARC-2）。集中を全て使う（docs/progress D-ARC-4）"
+  }
+]

@@ -647,6 +647,9 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const checkMods = (mods: SkillMods, file: string, id: string, path: string): void => {
     for (const tagId of Object.keys(mods.ailmentChance ?? {}))
       tagOf(tagId, ["ailment"], file, id, `${path}.ailmentChance`);
+    (mods.tags ?? []).forEach((t, i) => {
+      tagOf(t, undefined, file, id, `${path}.tags.${String(i)}`);
+    });
     (mods.behaviors ?? []).forEach((b, i) => {
       const at = `${path}.behaviors.${String(i)}`;
       if (!knownHooks.has(b.hook)) {
@@ -697,6 +700,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       if (g.on === "hitDealt" && g.tag !== undefined)
         tagOf(g.tag, undefined, file, gauge.id, `gains.${String(i)}.tag`);
     });
+    if (gauge.pointEffect !== undefined)
+      refCheck(effectMap, "効果", gauge.pointEffect.effect, file, gauge.id, "pointEffect.effect");
   }
 
   /** 技 → それを持つジョブの職能ゲージ（段階の名前の確認に使う）。 */

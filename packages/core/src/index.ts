@@ -230,6 +230,7 @@ export {
   pullTowards,
   type TrapPlacement,
   type ZonePlacement,
+  type ProjectileVolley,
   type ExecutionInput,
   type ExecutionTick,
   type PullPulse,

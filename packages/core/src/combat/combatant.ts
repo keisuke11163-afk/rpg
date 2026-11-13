@@ -257,6 +257,8 @@ export interface HitInput {
   readonly fullStagger?: boolean;
   /** 必ず会心にする（急所穿ちの5点）。 */
   readonly forceCrit?: boolean;
+  /** このヒットだけのダメージの加算（弓使いの適正間合い）。 */
+  readonly extraIncreased?: number;
   /** このヒットだけの受けるダメージの倍率（母樹の根冠の毒・背向けの外套など。省略で1）。 */
   readonly extraTakenMultiplier?: number;
   /** このヒットの全ての付与率への加算（武具連携「双牙」の2撃目+20%など）。 */
@@ -316,6 +318,7 @@ export function resolveHit(input: HitInput): HitReport {
         ? { extraCritChance: input.backstabBonus.critChance }
         : {}),
       ...(input.forceCrit === true ? { forceCrit: true } : {}),
+      ...(input.extraIncreased === undefined ? {} : { extraIncreased: input.extraIncreased }),
     },
   );
   // 1. 計算と検証（受ける側の状態は変えない）

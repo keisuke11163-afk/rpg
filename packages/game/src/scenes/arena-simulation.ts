@@ -8,6 +8,8 @@ import {
   Cooldowns,
   type DamageAttacker,
   type DamageSkill,
+  ProjectilePool,
+  type ProjectileVolley,
   type DropSource,
   FixedStepClock,
   type Health,
@@ -56,6 +58,7 @@ import {
   MAX_LOADOUTS,
   toSaveData,
   JobGauge,
+  type EffectInstance,
   type MvpEquipSlot,
   type JobDef,
   LingeringZone,
@@ -222,11 +225,14 @@ export const TEST_WEAPONS: readonly { readonly uid: string; readonly base: strin
   { uid: "test-longsword", base: "BASE-WPN-LONGSWORD-T1" },
   { uid: "test-dagger", base: "BASE-WPN-DAGGER-T1" },
   { uid: "test-claw", base: "BASE-WPN-CLAW-T1" },
+  { uid: "test-bow", base: "BASE-WPN-BOW-T1" },
+  { uid: "test-longbow", base: "BASE-WPN-LONGBOW-T1" },
 ];
 /** ジョブの初期装備の武器（補助仕様書3.4。転職したときに持ち替える）。 */
 const START_WEAPON: Readonly<Record<string, string>> = {
   "JOB-WARRIOR": "test-greatsword",
   "JOB-ROGUE": "test-dagger",
+  "JOB-ARCHER": "test-bow",
 };
 
 /** 技の枠（補助仕様書1.1：左クリック・右クリック・1〜4 の6枠）。 */
@@ -275,7 +281,21 @@ interface Running {
   gained?: boolean;
   /** 二刀流の左右交互：この技の実行で出した当たり判定の数（偶数は主手・奇数は副手）。 */
   swings?: number;
+  /** 1回の使用で、もう敵に当てたか（集中の「同じ敵に当てるたび」は使用ごとに1回。D-ARC-3）。 */
+  targeted?: boolean;
 }
+
+/** プレイヤーの投射物（弓使いの技・弓の通常攻撃）が当たったときに使う情報。 */
+interface PlayerArrow {
+  /** 撃った技の実行（同じ使用の中での当たった敵の記録・集中の獲得に使う）。 */
+  readonly run: Running;
+  readonly skill: ResolvedSkill;
+  /** 撃った位置（背面の判定に使う）。 */
+  readonly origin: Vec2;
+}
+
+/** 投射物の入れ物の数（散弾矢5本×連射でも足りる数）。 */
+const PLAYER_ARROWS = 96;
 
 /** 置いた煙玉。 */
 export interface SmokeZone {
@@ -605,6 +625,8 @@ export class ArenaSimulation {
   private attackerVersion = "";
   private current: { slot: SkillSlot; run: Running } | undefined;
   private zoneRuns: Running[] = [];
+  /** プレイヤーの投射物（弓使い。仕様書v0.2 5.7）。 */
+  readonly arrows = new ProjectilePool<PlayerArrow>(PLAYER_ARROWS);
   private readonly strikes: ShownStrike[] = [];
   private mpValue = 60;
   private hitStopLeft = 0;
@@ -1841,7 +1863,7 @@ export class ArenaSimulation {
         character: this.character,
         job: this.job,
         equipment: this.equipment,
-        extraEffects: this.buffs.instances(),
+        extraEffects: this.extraEffects(),
       },
       item,
       target,
@@ -2008,6 +2030,13 @@ export class ArenaSimulation {
     // 影走りは、対象（照準の近くの敵）がいなければ使えない（補助仕様書3.6）
     if (def.action.type === "teleport" && this.stepTarget(def.action.range) === undefined)
       return "target";
+    // 職奥義「連弩の嵐」を選ぶと、狙撃（集中を使う投射の終結技）は使えなくなる
+    if (
+      this.view.stat("STAT-JOB-NO-SNIPE").value > 0 &&
+      def.tags.includes("TAG-FORM-FINISHER") &&
+      def.tags.includes("TAG-FORM-PROJECTILE")
+    )
+      return "locked";
     // 職奥義「鬼神化」を選ぶと、解放技は使えなくなる
     if (def.tags.includes("TAG-FORM-RELEASE") && this.view.stat("STAT-JOB-DEMON").value > 0)
       return "locked";
@@ -2099,14 +2128,15 @@ export class ArenaSimulation {
 
   /** 効果（戦吼の強化など）・Lv・ジョブ・装備が変わったら、能力値を計算し直す（キャラクターの画面と同じ計算）。 */
   private refreshAttacker(): void {
-    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}|${String(this.jobBoardVersion)}|${String(this.character.jobLevel(this.job.id))}`;
+    const focus = this.gaugePointInstance();
+    const version = `${String(this.buffs.version)}|${String(Number(focus?.values?.[0] ?? 0))}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}|${String(this.jobBoardVersion)}|${String(this.character.jobLevel(this.job.id))}`;
     if (this.attackerVersion === version) return;
     this.attackerVersion = version;
     this.sheetValue = buildCharacterSheet(this.db, this.tags, {
       character: this.character,
       job: this.job,
       equipment: this.equipment,
-      extraEffects: this.buffs.instances(),
+      extraEffects: this.extraEffects(),
       starBoard: { allocation: this.stars.nodes, points: this.starPoints },
       jobBoard: this.jobBoard,
     });
@@ -2139,11 +2169,35 @@ export class ArenaSimulation {
     g.takenGainMultiplier = Math.max(0, 1 + jv.stat("STAT-GAUGE-GAIN-TAKEN").increased);
     g.floor = jv.stat("STAT-GAUGE-FLOOR").value;
     g.maxBonus = jv.stat("STAT-GAUGE-MAX-BONUS").value;
+    // 職奥義「疾風」：移動中も集中が半分の速さで増える
+    g.movingStationaryMultiplier = jv.stat("STAT-GAUGE-MOVING").value;
     // 職能ゲージの獲得量（職詞。メインジョブの条件は効果の側で判定する）
     this.jobGaugeValue.gainMultiplier = Math.max(
       0,
       1 + this.sheetValue.evaluated.view.stat("STAT-GAUGE-GAIN").increased,
     );
+  }
+
+  /**
+   * 職能ゲージの量に応じて自分にかける効果（集中：集中1につき会心率+1%（増加）。仕様書v0.2 5.7）。
+   * 量は整数に切り下げる（能力値の計算し直しを、量が1変わるごとにする）。量が0なら無し。
+   */
+  private extraEffects(): EffectInstance[] {
+    const g = this.gaugePointInstance();
+    return g === undefined ? this.buffs.instances() : [...this.buffs.instances(), g];
+  }
+
+  private gaugePointInstance(): EffectInstance | undefined {
+    const g = this.jobGaugeValue as JobGauge | undefined;
+    const pe = g?.def.pointEffect;
+    if (g === undefined || pe === undefined) return undefined;
+    const points = Math.floor(g.value + 1e-9);
+    if (points <= 0) return undefined;
+    return {
+      effectId: pe.effect,
+      source: { kind: "gauge", ref: g.def.id },
+      values: [pe.perPoint * points],
+    };
   }
 
   /**
@@ -2240,14 +2294,25 @@ export class ArenaSimulation {
     this.noteInteractions(skillInteractions(resolved.variants));
     // 技ごとの動作の速さの能力値（例：職紋盤「素早い手」の連刃の速度+15%）
     const flurry = def.speedStat === undefined ? 1 : 1 + this.view.stat(def.speedStat).value;
+    // 長弓の特性：移動しながら撃つと速度-30%（投射物を放つ技・通常攻撃）
+    const slow = this.view.stat("STAT-MOVING-SHOT-SLOW").value;
+    const movingShot =
+      slow > 0 && this.playerValue.moving && resolved.action.type === "projectile"
+        ? Math.max(0.1, 1 - slow)
+        : 1;
     this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
     this.current = {
       slot,
       run: {
-        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeed * flurry, {
-          aimPoint: this.aimPoint,
-          ...(teleportTo === undefined ? {} : { teleportTo }),
-        }),
+        exec: new SkillExecution(
+          resolved,
+          this.motion.facing,
+          this.attackSpeed * flurry * movingShot,
+          {
+            aimPoint: this.aimPoint,
+            ...(teleportTo === undefined ? {} : { teleportTo }),
+          },
+        ),
         hit: new Map(),
       },
     };
@@ -2312,6 +2377,7 @@ export class ArenaSimulation {
       });
       this.mpValue = Math.max(0, this.mpValue - tick.mpCost);
       this.resolveStrikes(run, tick.strikes);
+      if (tick.volley !== undefined) this.shoot(run, tick.volley);
       this.motion.displace(tick.displacement);
       if (tick.warcry !== undefined) {
         const w = tick.warcry;
@@ -2371,12 +2437,14 @@ export class ArenaSimulation {
       if (tick.finished) this.current = undefined;
     }
     for (const z of this.zoneRuns) this.resolveStrikes(z, (z.exec as LingeringZone).update(dt));
+    this.updateArrows(dt);
     this.updateSmokes(dt);
     this.updateTraps(dt);
     this.updatePuddles(dt);
     this.zoneRuns = this.zoneRuns.filter((z) => !(z.exec as LingeringZone).done);
 
     const wasDodging = this.motion.dodging;
+    const before = this.motion.position;
     this.motion.update(dt, {
       move: staggered ? ZERO : input.move,
       aim: this.current === undefined && !staggered ? aim : ZERO,
@@ -2395,6 +2463,10 @@ export class ArenaSimulation {
     const dodgeEnded = wasDodging && !(this.motion.dodging as boolean);
     if (dodgeEnded && this.sheetValue.uniform === "light")
       this.buffs.add(UNIFORM_EFFECTS.light, LIGHT_UNIFORM_SECONDS, "uniform-light");
+    const moveDelta = {
+      x: this.motion.position.x - before.x,
+      y: this.motion.position.y - before.y,
+    };
     this.playerValue.position = this.motion.position;
     this.playerValue.moving = length(input.move) > 0 && !staggered;
 
@@ -2449,6 +2521,8 @@ export class ArenaSimulation {
           report.applied.toHp + report.applied.toWard,
           this.playerValue.health.maxHp,
         );
+        // 集中：攻撃を受けると-20（仕様書v0.2 5.7）
+        this.jobGaugeValue.onHitTaken();
       },
       onAvoided: () => {
         this.avoidedAttacks += 1;
@@ -2560,6 +2634,9 @@ export class ArenaSimulation {
     // 鬼神化は、闘志が最大に届いた刻みで始まる（戦闘外の減少より先に判定する）
     this.updateDemon(dt);
     this.jobGaugeValue.update(dt);
+    // 集中：止まっている間は毎秒20（回避・跳躍後退で動いている間は動いている扱い。M-23）
+    const still = !this.playerValue.moving && !this.motion.dodging && length(moveDelta) < 1e-6;
+    this.jobGaugeValue.onStill(dt, !still);
     this.refreshAttacker();
     this.elapsed += dt;
     if (this.region === undefined) this.updateHazard();
@@ -2570,6 +2647,7 @@ export class ArenaSimulation {
   /** 当たり判定を、形に入った敵に当てる。同じ group では、1体に1回だけ。 */
   private resolveStrikes(run: Running, strikes: readonly Strike[]): void {
     let landed = false;
+    let landedOn: string | undefined;
     for (const s of strikes) {
       this.showShape(s.shape, s.origin, s.facing);
       // 二刀流：通常攻撃と連撃の技は左右交互に出て、それぞれの手の武器のダメージを使う（仕様書v0.2 3.2）
@@ -2592,12 +2670,20 @@ export class ArenaSimulation {
             s.forceCrit === true,
             offHand,
           )
-        )
+        ) {
           landed = true;
+          landedOn ??= t.id;
+        }
       }
     }
     const first = strikes[0];
-    if (!landed || first === undefined) return;
+    if (!landed || first === undefined || landedOn === undefined) return;
+    this.afterLanded(run, first.skill, landedOn);
+  }
+
+  /** 1回の当たり判定（または投射物1本）が1体以上に当たった後の、職能ゲージの獲得。 */
+  private afterLanded(run: Running, skill: ResolvedSkill, targetId: string): void {
+    const first = { skill };
     // 闘志：1回の当たり判定の発生で、当たれば1回増える（docs/progress D-U08-3）
     // 転変「重撃化」：近接の技は重撃のタグを得る（闘志の獲得が重撃の値になる）
     const base = this.tags.closure(first.skill.damage.tags);
@@ -2611,6 +2697,65 @@ export class ArenaSimulation {
       run.gained = true;
       this.jobGaugeValue.add(gain);
     }
+    // 集中：同じ敵に当てるたび+5（1回の使用で1回。docs/progress D-ARC-3）
+    if (run.targeted !== true) {
+      run.targeted = true;
+      this.jobGaugeValue.onHitTarget(targetId);
+    }
+  }
+
+  /** 投射物を放つ（投射物速度の能力値を掛ける）。入れ物がいっぱいなら、その矢は出ない。 */
+  private shoot(run: Running, v: ProjectileVolley): void {
+    const speed = v.speed * Math.max(0.1, 1 + this.view.stat("STAT-PROJECTILE-SPEED").increased);
+    for (const a of v.angles)
+      this.arrows.spawn({
+        position: v.origin,
+        direction: { x: Math.cos(a), y: Math.sin(a) },
+        speed,
+        range: v.range,
+        radius: v.radius,
+        pierce: v.pierce,
+        team: "player",
+        payload: { run, skill: v.skill, origin: v.origin },
+      });
+  }
+
+  /** 投射物を進め、当たった敵にヒットを解決する。 */
+  private updateArrows(dt: number): void {
+    if (this.arrows.active === 0) return;
+    const targets = this.targets();
+    const byId = new Map(targets.map((t) => [t.id, t]));
+    const hits = this.arrows.update(
+      dt,
+      targets.map((t) => ({ id: t.id, team: t.team, position: t.position, radius: t.radius })),
+    );
+    for (const h of hits) {
+      const t = byId.get(h.targetId);
+      if (t === undefined || t.health.dead) continue;
+      const p = h.payload;
+      this.showShape({ type: "circle", radius: 0.3 }, h.position, 0);
+      if (this.hitTarget(t, p.skill, p.skill.damage, p.origin, false, p.skill.forceCrit))
+        this.afterLanded(p.run, p.skill, t.id);
+    }
+  }
+
+  /**
+   * 適正間合い（メインジョブが持つとき。弓使い：敵との距離〔体の端どうし〕が6〜10mなら与ダメージ+20%（加算）、
+   * 3m以内なら-20%。仕様書v0.2 5.7）。上限は鷹の目・長弓で延び、ボーナスは職紋盤で増える。距離は今の自分の位置から。
+   */
+  rangeBonus(t: { readonly position: Vec2; readonly radius: number }): number {
+    const r = this.job.preferredRange;
+    if (r === undefined) return 0;
+    const p = this.motion.position;
+    const d = Math.max(
+      0,
+      Math.hypot(t.position.x - p.x, t.position.y - p.y) - t.radius - this.playerValue.radius,
+    );
+    const max = r.max + this.view.stat("STAT-JOB-RANGE-MAX").value;
+    if (d >= r.min - 1e-9 && d <= max + 1e-9)
+      return r.bonus + this.view.stat("STAT-JOB-RANGE-BONUS").value;
+    if (d <= r.close + 1e-9) return r.closePenalty;
+    return 0;
   }
 
   /** 初めて効いた相互作用を記録して「新しい星の巡り」として知らせる（仕様書v0.2 6.7）。 */
@@ -2713,7 +2858,7 @@ export class ArenaSimulation {
     if (hunt > 0 && t.health.hp <= t.health.maxHp * 0.5) extraTaken *= 1 + hunt;
     // 輝星「断ち切る刃」：崩れた敵への近接ダメージがさらに+20%
     const brokenMelee = view.stat("STAT-NT-BROKEN-MELEE").value;
-    if (brokenMelee > 0 && t.stagger.broken && skill.def.tags.includes("TAG-FORM-MELEE"))
+    if (brokenMelee > 0 && t.stagger.broken && skill.damage.tags.includes("TAG-FORM-MELEE"))
       extraTaken *= 1 + brokenMelee;
     // 輝星「腐食の手」：状態異常を受けている敵は、物理耐性-10%（このヒットの間だけ下げる）
     const corrode = view.stat("STAT-NT-CORRODE").value;
@@ -2726,6 +2871,7 @@ export class ArenaSimulation {
       this.ailmentTypeCount(t) >= CRITICAL_TYPES &&
       this.elapsed - (this.lastCritical.get(t.id) ?? -Infinity) >= CRITICAL_INTERVAL;
     const wasBroken = t.stagger.broken;
+    const rangeBonus = this.rangeBonus(t);
     // ダメージを受けない相手（ボスの段階の切り替え・根渡り）へのヒットは、後処理（臨界・分かれたヒット・
     // 吸収・延長など）を全て行わない（docs/progress Q-U19-2 の確定）
     const invulnerable = t.health.invulnerable;
@@ -2742,6 +2888,7 @@ export class ArenaSimulation {
       forceCrit,
       ...(bonus === undefined ? {} : { backstabBonus: bonus }),
       ...(extraTaken === 1 ? {} : { extraTakenMultiplier: extraTaken }),
+      ...(rangeBonus === 0 ? {} : { extraIncreased: rangeBonus }),
       // 背向けの外套（U16）：移動の技を使った後の一定時間、全てのヒットを背面からのヒットとして扱う
       ...(this.elapsed < this.moveBackstabUntil || allBackstab ? { forceBackstab: true } : {}),
       ...(pairing === "twinFangs" && this.lastOffHand

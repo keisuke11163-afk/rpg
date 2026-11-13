@@ -665,5 +665,318 @@
     "effects": ["EFF-JBM-ROG-SHADOW"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-START",
+    "job": "JOB-ARCHER",
+    "kind": "start",
+    "links": ["JBN-ARCHER-T1"],
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-T1",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T2"],
+    "position": {
+      "x": 0,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-ARC-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-T2",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T3"],
+    "position": {
+      "x": 0,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-ARC-PROJ"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-T3",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T4"],
+    "position": {
+      "x": 0,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-ARC-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-T4",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T5"],
+    "position": {
+      "x": 0,
+      "y": 160
+    },
+    "effects": ["EFF-JBN-ARC-FOCUS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-T5",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T6"],
+    "position": {
+      "x": 0,
+      "y": 200
+    },
+    "effects": ["EFF-JBN-ARC-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-T6",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T7"],
+    "position": {
+      "x": 0,
+      "y": 240
+    },
+    "effects": ["EFF-JBN-ARC-PROJ"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-T7",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": [],
+    "position": {
+      "x": 0,
+      "y": 280
+    },
+    "effects": ["EFF-JBN-ARC-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-B1A",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T1"],
+    "position": {
+      "x": -40,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-ARC-PROJ"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-B1B",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-B1A"],
+    "position": {
+      "x": -80,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-ARC-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-MIND-EYE",
+    "job": "JOB-ARCHER",
+    "kind": "notable",
+    "links": ["JBN-ARCHER-B1B"],
+    "position": {
+      "x": -120,
+      "y": 40
+    },
+    "text": "jobnode.archer.mind-eye",
+    "description": "jobnode.archer.mind-eye.desc",
+    "effects": ["EFF-JBN-ARC-MIND-EYE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-B2A",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T2"],
+    "position": {
+      "x": 40,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-ARC-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-B2B",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-B2A"],
+    "position": {
+      "x": 80,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-ARC-FOCUS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-RANGE",
+    "job": "JOB-ARCHER",
+    "kind": "notable",
+    "links": ["JBN-ARCHER-B2B"],
+    "position": {
+      "x": 120,
+      "y": 80
+    },
+    "text": "jobnode.archer.range",
+    "description": "jobnode.archer.range.desc",
+    "effects": ["EFF-JBN-ARC-RANGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-B3A",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T3"],
+    "position": {
+      "x": -40,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-ARC-FOCUS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-B3B",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-B3A"],
+    "position": {
+      "x": -80,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-ARC-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-QUICK",
+    "job": "JOB-ARCHER",
+    "kind": "notable",
+    "links": ["JBN-ARCHER-B3B"],
+    "position": {
+      "x": -120,
+      "y": 120
+    },
+    "text": "jobnode.archer.quick",
+    "description": "jobnode.archer.quick.desc",
+    "effects": ["EFF-JBN-ARC-QUICK"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-C1",
+    "job": "JOB-ARCHER",
+    "kind": "connector",
+    "links": ["JBN-ARCHER-T5"],
+    "position": {
+      "x": 40,
+      "y": 200
+    },
+    "text": "jobnode.archer.c1",
+    "description": "jobnode.archer.c1.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-C2",
+    "job": "JOB-ARCHER",
+    "kind": "connector",
+    "links": ["JBN-ARCHER-C1"],
+    "position": {
+      "x": 80,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
+    "text": "jobnode.archer.c1",
+    "description": "jobnode.archer.c1.desc"
+  },
+  {
+    "id": "JBN-ARCHER-C3",
+    "job": "JOB-ARCHER",
+    "kind": "connector",
+    "links": ["JBN-ARCHER-C2"],
+    "position": {
+      "x": 120,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
+    "text": "jobnode.archer.c1",
+    "description": "jobnode.archer.c1.desc"
+  },
+  {
+    "id": "JBN-ARCHER-M-HAWK",
+    "job": "JOB-ARCHER",
+    "kind": "mastery",
+    "links": ["JBN-ARCHER-T7"],
+    "position": {
+      "x": -60,
+      "y": 330
+    },
+    "text": "jobnode.archer.m-hawk",
+    "description": "jobnode.archer.m-hawk.desc",
+    "effects": ["EFF-JBM-ARC-HAWK"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-M-GALE",
+    "job": "JOB-ARCHER",
+    "kind": "mastery",
+    "links": ["JBN-ARCHER-T7"],
+    "position": {
+      "x": 0,
+      "y": 330
+    },
+    "text": "jobnode.archer.m-gale",
+    "description": "jobnode.archer.m-gale.desc",
+    "effects": ["EFF-JBM-ARC-GALE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-M-REPEATER",
+    "job": "JOB-ARCHER",
+    "kind": "mastery",
+    "links": ["JBN-ARCHER-T7"],
+    "position": {
+      "x": 60,
+      "y": 330
+    },
+    "text": "jobnode.archer.m-repeater",
+    "description": "jobnode.archer.m-repeater.desc",
+    "effects": ["EFF-JBM-ARC-REPEATER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
   }
 ]
