@@ -1,4 +1,3 @@
-// 仮実装: U-18a feature/town-and-dungeon-base で、地域の群れの出現地点（補助仕様書9.3）に置き換える（試験用の敵の配置）
 import {
   type AilmentApplication,
   type Bounds,
@@ -7,8 +6,10 @@ import {
   ENEMY_RULES,
   Enemy,
   type EnemyAttackDef,
+  type EnemyDef,
   EnemyAttackers,
   type EnemyRank,
+  type EnemyResidue,
   type EnemyTarget,
   type EnemyUpdatePlan,
   type HitReport,
@@ -22,7 +23,7 @@ import {
   separate,
 } from "@stella/core";
 
-/** 試験用の群れ。 */
+/** 群れ（地域の配置〔補助仕様書9.3〕か、開発用の試験用の場の群れ）。 */
 export interface SpawnGroup {
   readonly id: string;
   readonly enemy: string;
@@ -31,9 +32,11 @@ export interface SpawnGroup {
   readonly at: Vec2;
   /** 群れの中で、魔法・精鋭にする体（先頭から）。 */
   readonly ranks?: readonly EnemyRank[];
+  /** 根渡りで現れる地点（ボス）。 */
+  readonly anchors?: readonly Vec2[];
 }
 
-/** 試験用の場に置く群れ（補助仕様書9.2のA1〜A4の敵を、1種類ずつ）。 */
+/** 開発用の試験用の場に置く群れ（補助仕様書9.2のA1〜A4の敵を、1種類ずつ）。 */
 export const TEST_GROUPS: readonly SpawnGroup[] = [
   {
     id: "wolves",
@@ -57,7 +60,7 @@ export const TEST_GROUPS: readonly SpawnGroup[] = [
   { id: "saplings", enemy: "ENM-ROT-SAPLING", level: 3, count: 2, at: { x: 44, y: 33 } },
 ];
 
-/** 群れが全て倒れてから、もう一度出るまでの秒数（試験用）。 */
+/** 群れが全て倒れてから、もう一度出るまでの秒数（開発用の試験用の場だけ。地域では、入り直すまで出ない）。 */
 const RESPAWN_SECONDS = 8;
 /** 倒れた敵を消すまでの秒数。 */
 const CORPSE_SECONDS = 0.6;
@@ -87,10 +90,14 @@ export interface FieldHooks {
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
   /** 敵が倒れた（経験値を得る）。1体につき1回だけ、場の更新を全て反映した後に呼ぶ。 */
   onEnemyKilled(enemy: Enemy): void;
+  /** このヒットの、プレイヤーが受けるダメージの倍率（背向けの外套。省略で1）。 */
+  playerTakenMultiplier?(enemy: Enemy): number;
+  /** ボスの段階が変わった・根渡りで潜った・現れた（表示用。省略できる）。 */
+  onBossEvent?(enemy: Enemy, event: "phase" | "burrow" | "surface", phase: number): void;
 }
 
 /**
- * 試験用の場の敵：出現・行動・攻撃の処理（Phaser に依存しない。表示は EnemyFieldView）。
+ * 場の敵：出現・行動・攻撃の処理（Phaser に依存しない。表示は EnemyFieldView）。
  */
 export class EnemyField {
   private readonly db: ContentDb;
@@ -102,14 +109,26 @@ export class EnemyField {
   private readonly respawn = new Map<string, number>();
   readonly projectiles = new ProjectilePool<{ enemy: Enemy; attack: EnemyAttackDef }>(64);
   private serial = 0;
+  private readonly respawns: boolean;
   kills = 0;
 
-  constructor(db: ContentDb, rng: Rng, bounds: Bounds) {
+  /**
+   * @param groups 出す群れ（省略すると開発用の試験用の場の群れ）
+   * @param respawns 群れが全て倒れたら、しばらくして出し直すか（開発用の試験用の場だけ）
+   */
+  constructor(
+    db: ContentDb,
+    rng: Rng,
+    bounds: Bounds,
+    groups: readonly SpawnGroup[] = TEST_GROUPS,
+    respawns = true,
+  ) {
     this.db = db;
     this.rng = rng;
     this.bounds = bounds;
+    this.respawns = respawns;
     this.attackers = new EnemyAttackers(db);
-    for (const g of TEST_GROUPS) this.spawnGroup(g);
+    for (const g of groups) this.spawnGroup(g);
   }
 
   /** 場に出ている敵（倒れてから消えるまでを含む）。 */
@@ -126,9 +145,25 @@ export class EnemyField {
     return this.views.map((v) => v.enemy);
   }
 
-  /** 生きている敵の、戦う者（プレイヤーの技の対象）。 */
+  /** 生きている敵の、戦う者（プレイヤーの技の対象。根渡りで地中にいるボスは除く）。 */
   targets(): Combatant[] {
-    return this.views.filter((v) => v.enemy.state !== "dead").map((v) => v.enemy.combatant);
+    return this.views.filter((v) => v.enemy.targetable).map((v) => v.enemy.combatant);
+  }
+
+  /** 位置に最も近い、生きている敵（except を除く）。 */
+  nearestEnemy(at: Vec2, except?: Enemy): Enemy | undefined {
+    let best: Enemy | undefined;
+    let dist = Infinity;
+    for (const v of this.views) {
+      const e = v.enemy;
+      if (e === except || e.state === "dead" || !e.targetable) continue;
+      const d = Math.hypot(e.position.x - at.x, e.position.y - at.y);
+      if (d < dist) {
+        dist = d;
+        best = e;
+      }
+    }
+    return best;
   }
 
   byCombatant(c: Combatant): Enemy | undefined {
@@ -139,11 +174,13 @@ export class EnemyField {
     return this.cloudList.length;
   }
 
-  private spawnGroup(g: SpawnGroup): void {
+  /** 群れを出す。出した敵の id を返す。 */
+  private spawnGroup(g: SpawnGroup): string[] {
+    const out: string[] = [];
     for (let i = 0; i < g.count; i++) {
       const a = (i / Math.max(1, g.count)) * 2 * Math.PI;
       const r = g.count > 1 ? 1.2 : 0;
-      this.spawn(
+      const e = this.spawn(
         g.enemy,
         g.ranks?.[i] ?? "normal",
         g.level,
@@ -153,8 +190,11 @@ export class EnemyField {
         },
         g.id,
         i,
+        g.anchors,
       );
+      out.push(e.id);
     }
+    return out;
   }
 
   /** 敵を1体出す（確認用にも使う）。 */
@@ -165,6 +205,7 @@ export class EnemyField {
     at: Vec2,
     group: string,
     index = 0,
+    anchors?: readonly Vec2[],
   ): Enemy {
     const def = this.db.enemies.get(enemyId);
     const rank = this.db.enemyRanks.get(rankKey);
@@ -180,6 +221,7 @@ export class EnemyField {
       packId: group,
       packIndex: index,
       facing: Math.PI,
+      ...(anchors === undefined ? {} : { anchors }),
     });
     this.views.push({ enemy, group, deadFor: 0, hitGroups: new Set() });
     return enemy;
@@ -232,10 +274,10 @@ export class EnemyField {
     facing: number,
     hooks: FieldHooks,
   ): void {
-    const plan = this.plan(dt, player);
+    const plan = this.plan(dt, player, invulnerable);
     const effects = this.commit(plan, player, facing);
     try {
-      this.applyToPlayer(effects, player, invulnerable, hooks);
+      this.applyToPlayer(effects, player, plan.invulnerable, hooks);
     } finally {
       // 倒れた・消えた敵の、攻撃の命中の評価を消す（倒れた敵の投射物が段階3で当たって作った分も含む）
       this.attackers.retain(this.enemies);
@@ -248,16 +290,20 @@ export class EnemyField {
   }
 
   /** 1. 計画と検証（場もプレイヤーも変えない）。 */
-  private plan(dt: number, player: Combatant): FieldPlan {
+  private plan(dt: number, player: Combatant, invulnerable: boolean): FieldPlan {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
+    // プレイヤーがヒットを受けない（回避の無敵）かは、この刻みの始めに決める。
+    // 段階3では、この値で無効にしたヒットに、ダメージ・状態異常・崩しを何も与えない
+    if (typeof invulnerable !== "boolean")
+      throw new RangeError(`無敵かは真偽値（${String(invulnerable)}）`);
     // 投射物：相手（プレイヤー）の位置・半径と、今ある投射物の半径との合計
     this.projectiles.checkUpdate(dt, [playerTarget(player)]);
     // 敵：更新の計画（後ろの敵で失敗しても、前の敵はまだ何も変わっていない）
     const enemies = this.views.map((v) => {
       const enemy = v.enemy.planUpdate(dt);
       const deadFor = requireFinite(v.deadFor + dt, `敵 ${v.enemy.id} の倒れてからの時間`);
-      checkAttacks(v.enemy, player);
+      checkAttacks(this.db, v.enemy.id, v.enemy.def, player);
       // この刻みで倒れるか（倒れた状態になるのは、計画の HP が0以下のときだけ。Enemy.commitUpdate を参照）
       const killed = v.enemy.state !== "dead" && enemy.combatant.health.hp <= 0;
       return { enemy, deadFor, killed };
@@ -276,7 +322,7 @@ export class EnemyField {
       requireFinite(t + dt, `群れ ${id} をもう一度出すまでの時間`);
     if (!Number.isSafeInteger(this.kills + this.views.length))
       throw new RangeError(`倒した数が安全な整数でなくなる（${String(this.kills)}）`);
-    return { dt, enemies, clouds };
+    return { dt, invulnerable, enemies, clouds };
   }
 
   /** 2. 場の反映（検証済みの値だけを使い、例外は起きない）。プレイヤーへの影響を、起きた順に返す。 */
@@ -289,11 +335,13 @@ export class EnemyField {
       facing,
       targetable: !player.health.dead,
     };
-    const views = this.views;
     const existingClouds = this.cloudList.length;
-    views.forEach((v, i) => {
-      const p = plan.enemies[i];
-      if (p === undefined) return; // 計画は views と同じ数（ここには来ない）
+    // 仲間を呼ぶと、views の後ろに敵が足される。足された敵も、従来どおりこの刻みで1回更新する
+    for (let i = 0; i < this.views.length; i++) {
+      const v = this.views[i];
+      if (v === undefined) continue;
+      const p = plan.enemies[i] ?? this.planSummoned(v, dt);
+      if (p === undefined) continue;
       const e = v.enemy;
       if (e.state === "windup") v.hitGroups.clear();
       for (const ev of e.commitUpdate(p.enemy, target, this.rng, this.bounds)) {
@@ -332,13 +380,48 @@ export class EnemyField {
               untilNext: 0,
             });
             break;
+          case "summon": {
+            // 仲間を呼ぶ（呼んだ敵と同じLv）。呼んだ仲間と、周りの同じ種類の敵の攻撃速度を上げる
+            const id = `summon-${String(++this.serial)}`;
+            const ids = this.spawnGroup({
+              id,
+              enemy: ev.enemy,
+              level: e.level,
+              count: ev.count,
+              at: {
+                x: ev.origin.x + Math.cos(e.facing) * ev.radius,
+                y: ev.origin.y + Math.sin(e.facing) * ev.radius,
+              },
+            });
+            // 呼ばれた仲間は、すぐに気づいている
+            for (const v2 of this.views) if (ids.includes(v2.enemy.id)) v2.enemy.notice();
+            const haste = ev.haste;
+            if (haste !== undefined)
+              for (const other of this.views) {
+                const o = other.enemy;
+                if (o.state === "dead" || o.def.id !== ev.enemy) continue;
+                const near =
+                  Math.hypot(o.position.x - ev.origin.x, o.position.y - ev.origin.y) <=
+                  haste.radius;
+                if (near || ids.includes(o.id)) o.hasten(haste.increase, haste.duration);
+              }
+            break;
+          }
           case "returned":
+            break;
+          // 表示のための知らせ（hooks.onBossEvent）は、段階3で起きた順に渡す
+          case "phase":
+            effects.push({ type: "boss", enemy: e, event: "phase", phase: ev.phase });
+            break;
+          case "burrow":
+          case "surface":
+            effects.push({ type: "boss", enemy: e, event: ev.type, phase: e.phase });
             break;
         }
       }
       if (e.state === "dead") v.deadFor = p.deadFor;
       if (p.killed) effects.push({ type: "killed", enemy: e });
-    });
+    }
     separate(this.enemies);
 
     for (const hit of this.projectiles.update(dt, [playerTarget(player)]))
@@ -375,9 +458,10 @@ export class EnemyField {
     }
     for (const application of ailments) effects.push({ type: "ailment", application });
 
-    // 倒れた敵を消し、群れが全て倒れたら、しばらくしてからもう一度出す（試験用）
+    // 倒れた敵を消し、群れが全て倒れたら、しばらくしてからもう一度出す（開発用の試験用の場だけ）
     this.kills += this.views.filter((v) => v.deadFor >= CORPSE_SECONDS).length;
     this.views = this.views.filter((v) => v.deadFor < CORPSE_SECONDS);
+    if (!this.respawns) return effects;
     for (const g of TEST_GROUPS) {
       const alive = this.views.some((v) => v.group === g.id);
       if (alive) {
@@ -392,6 +476,21 @@ export class EnemyField {
       } else this.respawn.set(g.id, t);
     }
     return effects;
+  }
+
+  /**
+   * この刻みに仲間を呼んで足された敵の、更新の計画（段階2の途中。従来どおり、足された刻みにも1回動く）。
+   * 足された敵は、段階1で検証した dt と検証済みのデータ（checkAttacks）で作ったばかりで、持続ダメージも
+   * 崩しもないので、計画は通常は失敗しない。それでも失敗する（極端に大きい dt で位置が有限でなくなる）ときは、
+   * その敵だけこの刻みは動かさない（undefined。場は一貫したままで、次の刻みの段階1で RangeError になる）。
+   */
+  private planSummoned(v: FieldEnemy, dt: number): FieldPlan["enemies"][number] | undefined {
+    try {
+      return { enemy: v.enemy.planUpdate(dt), deadFor: v.deadFor, killed: false };
+    } catch (error) {
+      if (error instanceof RangeError) return undefined;
+      throw error;
+    }
   }
 
   /** 3. プレイヤーへの影響（場を全て反映した後）。 */
@@ -410,6 +509,11 @@ export class EnemyField {
         hooks.onEnemyKilled(ef.enemy);
         continue;
       }
+      if (ef.type === "boss") {
+        hooks.onBossEvent?.(ef.enemy, ef.event, ef.phase);
+        continue;
+      }
+      // 段階1で決めた無敵：ヒットを無効にし、ダメージ・状態異常・崩しを何も与えない
       if (invulnerable) {
         hooks.onAvoided(ef.enemy, ef.attack);
         continue;
@@ -423,6 +527,7 @@ export class EnemyField {
         staggerCoefficient: ef.attack.staggerCoefficient,
         target: player,
         rng: this.rng,
+        extraTakenMultiplier: hooks.playerTakenMultiplier?.(ef.enemy) ?? 1,
       });
       hooks.onPlayerHit(report, ef.enemy, ef.attack);
     }
@@ -453,6 +558,8 @@ export class EnemyField {
 /** EnemyField.update の計画（検証済みの次の値）。 */
 interface FieldPlan {
   readonly dt: number;
+  /** プレイヤーがこの刻みのヒットを受けない（回避の無敵。段階1で決める）。 */
+  readonly invulnerable: boolean;
   /** views と同じ順。 */
   readonly enemies: readonly {
     readonly enemy: EnemyUpdatePlan;
@@ -472,6 +579,12 @@ interface FieldPlan {
 type PlayerEffect =
   | { readonly type: "hit"; readonly enemy: Enemy; readonly attack: EnemyAttackDef }
   | { readonly type: "killed"; readonly enemy: Enemy }
+  | {
+      readonly type: "boss";
+      readonly enemy: Enemy;
+      readonly event: "phase" | "burrow" | "surface";
+      readonly phase: number;
+    }
   | { readonly type: "ailment"; readonly application: AilmentApplication };
 
 function playerTarget(player: Combatant): ProjectileTarget {
@@ -484,22 +597,46 @@ function requireFinite(value: number, what: string): number {
 }
 
 /**
- * 敵が出しうる投射物・雲の値を検証する（反映の途中で ProjectilePool.spawn・ProjectilePool.update が
- * 例外を起こさないように）：速さ・射程・半径・時間が0以上の有限の数で、半径とプレイヤーの半径の合計が有限。
+ * 敵が出しうる投射物・雲・仲間の値を検証する（反映の途中で ProjectilePool.spawn・ProjectilePool.update・
+ * 仲間を呼ぶ処理が例外を起こさないように）：速さ・射程・半径・時間・雲を並べる距離・攻撃速度の強化が
+ * 0以上の有限の数で、半径とプレイヤーの半径の合計が有限。叩きつけの後に残る雲も同じ。
+ * 仲間を呼ぶ攻撃は、呼ぶ敵と通常の格がデータにあり、呼ぶ敵の攻撃も同じく正しいこと。
  */
-function checkAttacks(enemy: Enemy, player: Combatant): void {
-  for (const a of enemy.def.attacks) {
+function checkAttacks(
+  db: ContentDb,
+  id: string,
+  def: EnemyDef,
+  player: Combatant,
+  seen = new Set<string>(),
+): void {
+  if (seen.has(def.id)) return;
+  seen.add(def.id);
+  const cloudValues = (c: EnemyResidue): number[] => [
+    c.radius,
+    c.duration,
+    c.interval,
+    c.radius + player.radius,
+  ];
+  for (const a of def.attacks) {
     const d = a.delivery;
     const values =
       d.type === "projectile"
         ? [d.speed, d.range, d.radius, d.radius + player.radius]
         : d.type === "cloud"
-          ? [d.radius, d.duration, d.interval, d.radius + player.radius]
-          : [];
+          ? [...cloudValues(d), d.spread ?? 0]
+          : d.type === "strike" && d.residue !== undefined
+            ? cloudValues(d.residue)
+            : d.type === "summon"
+              ? [d.radius, d.haste?.increase ?? 0, d.haste?.duration ?? 0, d.haste?.radius ?? 0]
+              : [];
     for (const v of values)
       if (!(Number.isFinite(v) && v >= 0))
-        throw new RangeError(
-          `敵 ${enemy.id} の攻撃 ${a.id} の値が0以上の有限の数でない（${String(v)}）`,
-        );
+        throw new RangeError(`敵 ${id} の攻撃 ${a.id} の値が0以上の有限の数でない（${String(v)}）`);
+    if (d.type === "summon") {
+      const summoned = db.enemies.get(d.enemy);
+      if (summoned === undefined || !db.enemyRanks.has("normal"))
+        throw new RangeError(`敵 ${id} の攻撃 ${a.id} が呼ぶ敵 ${d.enemy} がない`);
+      checkAttacks(db, `${id} が呼ぶ ${d.enemy}`, summoned, player, seen);
+    }
   }
 }

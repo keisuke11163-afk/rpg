@@ -306,7 +306,7 @@ describe("Enemy.update：途中の計算が失敗しても、部分的に変わ�
   ] as const)("%s の途中で戦う者の更新が失敗しても、何も変わらない", (_, id, steps, t) => {
     const [a, b] = pair(id, midFight(t, steps));
     const before = snapshot(a.e, a.rng);
-    vi.spyOn(a.e.combatant, "update").mockImplementationOnce(() => {
+    vi.spyOn(a.e.combatant, "planUpdate").mockImplementationOnce(() => {
       throw new RangeError("試験用の失敗");
     });
     expect(() => a.e.update(dt, t, a.rng)).toThrow("試験用の失敗");

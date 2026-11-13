@@ -4,6 +4,7 @@
  * 例：
  *   pnpm sim                                   … builds/ の全てのビルドを、ビルドのLvの人形で60秒
  *   pnpm sim -- --target boss-14@15            … 第1章のボス（Lv14、HPはLv15の値）
+ *   pnpm sim -- --target ENM-MOTHER-TREE@14    … データの腐根の母樹（段階の切り替え・根渡りの無敵を含む）
  *   pnpm sim -- --build lv1-warrior-longsword --seconds 120 --seed 7
  */
 import { readFileSync, readdirSync } from "node:fs";
@@ -52,7 +53,8 @@ if (files.length === 0) {
 console.log(`DPSシミュレーター（${String(seconds)}秒・シード ${seed}）`);
 for (const file of files.sort()) {
   const build = buildSchema.parse(JSON.parse(readFileSync(join(buildsDir, file), "utf-8")));
-  const target = targetName === undefined ? dummy(build.characterLevel) : targetByName(targetName);
+  const target =
+    targetName === undefined ? dummy(build.characterLevel) : targetByName(targetName, db);
   const r = simulate(db, build, target, { seconds, seed });
   const std = standardDps(build.characterLevel);
   console.log(`\n■ ${build.name}（${build.id}）→ ${r.targetName}`);
@@ -60,6 +62,10 @@ for (const file of files.sort()) {
     `  DPS ${r.dps.toFixed(1)}（打撃 ${(r.hitDamage / r.seconds).toFixed(1)}・持続 ${(r.dotDamage / r.seconds).toFixed(1)}）／標準DPS ${std.toFixed(1)} の ${(r.dps / std).toFixed(2)}倍`,
   );
   if (r.killTime !== undefined) console.log(`  撃破 ${r.killTime.toFixed(1)}秒`);
+  if (r.invulnerableSeconds > 0)
+    console.log(
+      `  ダメージを受けない時間（段階の切り替え・根渡り）：${r.invulnerableSeconds.toFixed(1)}秒`,
+    );
   else if (target.maxHp !== undefined)
     console.log(
       `  ${String(seconds)}秒で倒せなかった（与えたダメージ ${r.totalDamage.toFixed(0)}／${target.maxHp.toFixed(0)}）`,

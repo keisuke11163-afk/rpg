@@ -37,6 +37,18 @@ import {
   jobSchema,
   skillSchema,
 } from "./job.ts";
+import {
+  type ConstellationDef,
+  NODE_EFFECT_ORIGIN,
+  type StarNodeDef,
+  constellationSchema,
+  jobNodeSchema,
+  JOB_NODE_EFFECT_ORIGIN,
+  type JobNodeDef,
+  starNodeSchema,
+} from "./board.ts";
+import type { Condition } from "./effect.ts";
+import { type QuestDef, type RegionDef, inRect, questSchema, regionSchema } from "./region.ts";
 import { conversionAllowed } from "./elements.ts";
 import { FLAG_TARGET_CATEGORY } from "./registries.ts";
 import { type Manifest, SUPPORTED_SCHEMA_VERSION, manifestSchema } from "./manifest.ts";
@@ -73,6 +85,14 @@ export interface RawContent {
     readonly affixes?: readonly RawSource[];
     readonly materials?: readonly RawSource[];
     readonly dropProfiles?: readonly RawSource[];
+    /** 星辰盤のノードと星座（省略すると無し）。 */
+    readonly starNodes?: readonly RawSource[];
+    readonly constellations?: readonly RawSource[];
+    readonly jobNodes?: readonly RawSource[];
+    /** 地域（町・ダンジョン。省略すると無し）。 */
+    readonly regions?: readonly RawSource[];
+    /** クエスト（省略すると無し）。 */
+    readonly quests?: readonly RawSource[];
   };
 }
 
@@ -129,6 +149,20 @@ export interface ContentDb {
   readonly materials: ReadonlyMap<string, MaterialDef>;
   /** ドロップの出どころ → 定義。 */
   readonly dropProfiles: ReadonlyMap<DropSource, DropProfileDef>;
+  /** 星辰盤のノード。 */
+  readonly starNodes: ReadonlyMap<string, StarNodeDef>;
+  /** 星辰盤のつながり（向きを持たない。ノード → 隣のノード）。 */
+  readonly starLinks: ReadonlyMap<string, ReadonlySet<string>>;
+  /** 星座。 */
+  readonly constellations: ReadonlyMap<string, ConstellationDef>;
+  /** 職紋盤のノード（仕様書v0.2 4.10）と、つながり（両方向）・ジョブごとの始点。 */
+  readonly jobNodes: ReadonlyMap<string, JobNodeDef>;
+  readonly jobLinks: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly jobBoardStarts: ReadonlyMap<string, string>;
+  /** 地域（町・ダンジョン）。 */
+  readonly regions: ReadonlyMap<string, RegionDef>;
+  /** クエスト。 */
+  readonly quests: ReadonlyMap<string, QuestDef>;
 }
 
 export type LoadResult =
@@ -238,6 +272,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const affixes = parseAll(raw.collections.affixes ?? [], affixSchema);
   const materials = parseAll(raw.collections.materials ?? [], materialSchema);
   const dropProfiles = parseAll(raw.collections.dropProfiles ?? [], dropProfileSchema);
+  const starNodes = parseAll(raw.collections.starNodes ?? [], starNodeSchema);
+  const constellations = parseAll(raw.collections.constellations ?? [], constellationSchema);
+  const jobNodes = parseAll(raw.collections.jobNodes ?? [], jobNodeSchema);
+  const regions = parseAll(raw.collections.regions ?? [], regionSchema);
+  const quests = parseAll(raw.collections.quests ?? [], questSchema);
 
   // 3. IDの重複（全てのコレクションを通して）
   const seen = new Map<string, string>();
@@ -256,6 +295,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     ...affixes,
     ...materials,
     ...dropProfiles,
+    ...starNodes,
+    ...constellations,
+    ...jobNodes,
+    ...regions,
+    ...quests,
   ];
   for (const { value, file } of all) {
     const prev = seen.get(value.id);
@@ -273,6 +317,7 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
 
   const tagMap = new Map(tags.map((t) => [t.value.id, t.value]));
   const statMap = new Map(stats.map((s) => [s.value.id, s.value]));
+  const itemBaseMap = new Map(itemBases.map((b) => [b.value.id, b.value]));
   const effectMap = new Map(effects.map((e) => [e.value.id, e.value]));
 
   const checkText = (key: string, file: string, id: string): void => {
@@ -681,6 +726,20 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     for (const tagId of Object.keys(job.affinity))
       tagOf(tagId, ["weapon"], file, job.id, "affinity");
+    (job.defaultSlots ?? []).forEach((id, i) => {
+      if (!refCheck(skillMap, "技", id, file, job.id, `defaultSlots.${String(i)}`)) return;
+      const skill = skillMap.get(id);
+      if (skill?.job !== undefined && skill.job !== job.id)
+        err({
+          code: "schema",
+          file,
+          id: job.id,
+          path: `defaultSlots.${String(i)}`,
+          message: `技 ${id} は、ジョブ ${skill.job} の技`,
+        });
+    });
+    if (job.startingWeapon !== undefined)
+      refCheck(itemBaseMap, "装備のベース", job.startingWeapon, file, job.id, "startingWeapon");
   }
 
   for (const { value: skill, file } of skills) {
@@ -691,6 +750,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     for (const tagId of Object.keys(skill.ailmentChance ?? {}))
       tagOf(tagId, ["ailment"], file, skill.id, "ailmentChance");
+    if (skill.speedStat !== undefined)
+      refCheck(statMap, "能力値", skill.speedStat, file, skill.id, "speedStat");
     if (skill.kind === "spell" && skill.base === undefined)
       err({
         code: "schema",
@@ -778,6 +839,17 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         path: "behavior",
         message: "保つ距離の最小が最大を超えている",
       });
+    if (enemy.boss !== undefined) {
+      const th = enemy.boss.phaseThresholds;
+      if (th.some((v, i) => i > 0 && v >= (th[i - 1] ?? 1)))
+        err({
+          code: "schema",
+          file,
+          id: enemy.id,
+          path: "boss.phaseThresholds",
+          message: "段階の境目は、高い順に並べる",
+        });
+    }
     const attackIds = new Set<string>();
     enemy.attacks.forEach((attack, i) => {
       const at = `attacks.${String(i)}`;
@@ -800,18 +872,71 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         });
       for (const tagId of Object.keys(attack.ailmentChance ?? {}))
         tagOf(tagId, ["ailment"], file, enemy.id, `${at}.ailmentChance`);
-      if (attack.delivery.type === "cloud") {
-        const tagId = attack.delivery.ailment;
-        tagOf(tagId, ["ailment"], file, enemy.id, `${at}.delivery.ailment`);
+      const cloudAilment = (tagId: string, path: string): void => {
+        tagOf(tagId, ["ailment"], file, enemy.id, path);
         if (tagMap.has(tagId) && !ailmentsByTag.has(tagId))
           err({
             code: "unknown-ref",
             file,
             id: enemy.id,
-            path: `${at}.delivery.ailment`,
+            path,
             message: `状態異常 ${tagId} の定義がない`,
           });
+      };
+      if (attack.delivery.type === "cloud")
+        cloudAilment(attack.delivery.ailment, `${at}.delivery.ailment`);
+      if (attack.delivery.type === "strike" && attack.delivery.residue !== undefined)
+        cloudAilment(attack.delivery.residue.ailment, `${at}.delivery.residue.ailment`);
+      // ボスの段階・根渡りは、ボスだけ
+      const phaseCount = (enemy.boss?.phaseThresholds.length ?? 0) + 1;
+      if (attack.phases !== undefined && enemy.boss === undefined)
+        err({
+          code: "schema",
+          file,
+          id: enemy.id,
+          path: `${at}.phases`,
+          message: "段階はボスの攻撃だけに付けられる",
+        });
+      for (const ph of attack.phases ?? [])
+        if (enemy.boss !== undefined && ph > phaseCount)
+          err({
+            code: "schema",
+            file,
+            id: enemy.id,
+            path: `${at}.phases`,
+            message: `段階 ${String(ph)} がない（段階は${String(phaseCount)}つ）`,
+          });
+      if (attack.delivery.type === "burrow" && enemy.boss === undefined)
+        err({
+          code: "schema",
+          file,
+          id: enemy.id,
+          path: `${at}.delivery`,
+          message: "根渡りはボスの攻撃だけ",
+        });
+      if (attack.delivery.type === "summon") {
+        const summoned = attack.delivery.enemy;
+        if (!enemies.some((e) => e.value.id === summoned) && !invalidIds.has(summoned))
+          err({
+            code: "unknown-ref",
+            file,
+            id: enemy.id,
+            path: `${at}.delivery.enemy`,
+            message: `呼ぶ敵 ${summoned} がない`,
+          });
       }
+      const repeat =
+        attack.delivery.type === "strike" || attack.delivery.type === "cloud"
+          ? attack.delivery.repeat
+          : undefined;
+      if (repeat !== undefined && repeat.interval * (repeat.count - 1) > attack.active + 1e-9)
+        err({
+          code: "schema",
+          file,
+          id: enemy.id,
+          path: `${at}.delivery.repeat`,
+          message: "連続の当たり判定が、当たり判定の出ている時間に収まらない",
+        });
       if (attack.ratio > 0.25 && attack.windup < 0.6)
         err({
           code: "telegraph",
@@ -892,8 +1017,57 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
           message: `基本刻印の効果 ${e} の出どころが implicit ではない（${def.origin}）`,
         });
     });
+    const u = b.unique;
+    if (u !== undefined) {
+      checkText(u.description, file, b.id);
+      checkText(u.latent.text, file, b.id);
+      [
+        ...u.effects.map((e, i) => [e, `unique.effects.${String(i)}`] as const),
+        ...u.latent.effects.map((e, i) => [e, `unique.latent.effects.${String(i)}`] as const),
+      ].forEach(([e, at]) => {
+        if (!refCheck(effectMap, "効果", e, file, b.id, at)) return;
+        const def = effectMap.get(e);
+        if (def !== undefined && def.origin !== "unique")
+          err({
+            code: "schema",
+            file,
+            id: b.id,
+            path: at,
+            message: `ユニークの効果 ${e} の出どころが unique ではない（${def.origin}）`,
+          });
+      });
+      const c = u.latent.condition;
+      const at = "unique.latent.condition";
+      if (c.type === "mainJob") tagOf(c.job, ["job"], file, b.id, at);
+      else if (c.type === "starNode" && c.pending !== true) {
+        if (!starNodes.some((n) => n.value.id === c.id))
+          err({
+            code: "unknown-ref",
+            file,
+            id: b.id,
+            path: at,
+            message: `星辰盤のノード ${c.id} がない`,
+          });
+      } else if (c.type === "constellation" && c.pending !== true) {
+        if (!constellations.some((n) => n.value.id === c.id))
+          err({ code: "unknown-ref", file, id: b.id, path: at, message: `星座 ${c.id} がない` });
+      } else if ((c.type === "jobNode" || c.type === "jobMastery") && c.pending !== true) {
+        const n = jobNodes.find((x) => x.value.id === c.id)?.value;
+        if (n === undefined || (n.kind === "mastery") !== (c.type === "jobMastery"))
+          err({
+            code: "unknown-ref",
+            file,
+            id: b.id,
+            path: at,
+            message: `職紋盤の${c.type === "jobMastery" ? "職奥義" : "ノード"} ${c.id} がない`,
+          });
+      }
+    }
   }
+
   for (const { value: a, file } of affixes) {
+    if (a.family !== undefined) tagOf(a.family, ["enemyFamily"], file, a.id, "family");
+    if (a.job !== undefined) tagOf(a.job, ["job"], file, a.id, "job");
     checkText(a.text, file, a.id);
     if (refCheck(effectMap, "効果", a.effect, file, a.id, "effect")) {
       const def = effectMap.get(a.effect);
@@ -990,9 +1164,347 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     else dropMap.set(d.source, d);
   }
 
+  // 11. 星辰盤：つながり・効果の出どころ・始点・星門・星座
+  const starMap = new Map(starNodes.map((n) => [n.value.id, n.value]));
+  const starLinks = new Map<string, Set<string>>();
+  for (const id of starMap.keys()) starLinks.set(id, new Set());
+  const checkCondition = (c: Condition, file: string, id: string, path: string): void => {
+    switch (c.type) {
+      case "statAtLeast":
+        refCheck(statMap, "能力値", c.stat, file, id, `${path}.stat`);
+        break;
+      case "equippedTag":
+        refCheck(tagMap, "タグ", c.tag, file, id, `${path}.tag`);
+        break;
+      case "mainJob":
+        refCheck(jobMap, "ジョブ", c.job, file, id, `${path}.job`);
+        break;
+      case "factAtLeast":
+        break;
+    }
+  };
+  for (const { value: n, file } of starNodes) {
+    if (n.text !== undefined) checkText(n.text, file, n.id);
+    n.links.forEach((l, i) => {
+      const at = `links.${String(i)}`;
+      if (l === n.id)
+        err({ code: "schema", file, id: n.id, path: at, message: "自分自身とはつながれない" });
+      else if (refCheck(starMap, "ノード", l, file, n.id, at)) {
+        starLinks.get(n.id)?.add(l);
+        starLinks.get(l)?.add(n.id);
+      }
+    });
+    const allowed = NODE_EFFECT_ORIGIN[n.kind];
+    for (const [key, list] of [
+      ["effects", n.effects ?? []],
+      ["resonance.effects", n.resonance?.effects ?? []],
+      ["factStacked.effects", n.factStacked?.effects ?? []],
+    ] as const)
+      list.forEach((e, i) => {
+        const at = `${key}.${String(i)}`;
+        if (!refCheck(effectMap, "効果", e, file, n.id, at)) return;
+        const origin = effectMap.get(e)?.origin ?? "";
+        if (!allowed.includes(origin))
+          err({
+            code: "schema",
+            file,
+            id: n.id,
+            path: at,
+            message: `${n.kind} のノードの効果 ${e} の出どころ ${origin} は使えない（${allowed.join("・") || "効果なし"}）`,
+          });
+      });
+    if ((n.kind === "start") !== (n.startFor !== undefined && n.startFor.length > 0))
+      err({
+        code: "schema",
+        file,
+        id: n.id,
+        path: "startFor",
+        message:
+          "始点（start）のノードだけが、始点にするジョブ（startFor）を持つ（start には必須）",
+      });
+    (n.startFor ?? []).forEach((j, i) => {
+      refCheck(jobMap, "ジョブ", j, file, n.id, `startFor.${String(i)}`);
+    });
+    if ((n.kind === "gate") !== (n.gate !== undefined))
+      err({
+        code: "schema",
+        file,
+        id: n.id,
+        path: "gate",
+        message: "星門（gate）のノードだけが条件（gate）を持つ（gate には必須）",
+      });
+    n.gate?.conditions.forEach((c, i) => {
+      checkCondition(c, file, n.id, `gate.conditions.${String(i)}`);
+    });
+    if (n.resonance !== undefined && n.kind !== "keystone")
+      err({
+        code: "schema",
+        file,
+        id: n.id,
+        path: "resonance",
+        message: "共鳴変化は天極（keystone）だけが持つ",
+      });
+  }
+  // 11b. 職紋盤：ジョブの参照・つながり（同じジョブの中だけ）・効果の出どころ・始点はジョブごとに1つ
+  const jobNodeMap = new Map(jobNodes.map((n) => [n.value.id, n.value]));
+  const jobLinks = new Map<string, Set<string>>();
+  for (const id of jobNodeMap.keys()) jobLinks.set(id, new Set());
+  const jobBoardStarts = new Map<string, string>();
+  for (const { value: n, file } of jobNodes) {
+    if (n.text !== undefined) checkText(n.text, file, n.id);
+    if (n.description !== undefined) checkText(n.description, file, n.id);
+    refCheck(jobMap, "ジョブ", n.job, file, n.id, "job");
+    n.links.forEach((l, i) => {
+      const at = `links.${String(i)}`;
+      if (l === n.id)
+        err({ code: "schema", file, id: n.id, path: at, message: "自分自身とはつながれない" });
+      else if (refCheck(jobNodeMap, "職紋盤のノード", l, file, n.id, at)) {
+        if (jobNodeMap.get(l)?.job !== n.job)
+          err({
+            code: "schema",
+            file,
+            id: n.id,
+            path: at,
+            message: "別のジョブの盤とはつながれない",
+          });
+        jobLinks.get(n.id)?.add(l);
+        jobLinks.get(l)?.add(n.id);
+      }
+    });
+    const allowed = JOB_NODE_EFFECT_ORIGIN[n.kind];
+    (n.effects ?? []).forEach((e, i) => {
+      const at = `effects.${String(i)}`;
+      if (!refCheck(effectMap, "効果", e, file, n.id, at)) return;
+      const origin = effectMap.get(e)?.origin ?? "";
+      if (!allowed.includes(origin))
+        err({
+          code: "schema",
+          file,
+          id: n.id,
+          path: at,
+          message: `${n.kind} のノードは、出どころが ${origin} の効果を持てない`,
+        });
+    });
+    if (n.kind === "start") {
+      const prev = jobBoardStarts.get(n.job);
+      if (prev !== undefined)
+        err({
+          code: "schema",
+          file,
+          id: n.id,
+          path: "kind",
+          message: `ジョブ ${n.job} の職紋盤の始点が2つある（${prev}）`,
+        });
+      else jobBoardStarts.set(n.job, n.id);
+    }
+  }
+  for (const { value: n, file } of jobNodes)
+    if (!jobBoardStarts.has(n.job) && jobMap.has(n.job))
+      err({
+        code: "schema",
+        file,
+        id: n.id,
+        path: "job",
+        message: `ジョブ ${n.job} の職紋盤に始点が無い`,
+      });
+  const starters = new Map<string, string>();
+  for (const { value: n, file } of starNodes)
+    for (const j of n.startFor ?? []) {
+      const prev = starters.get(j);
+      if (prev !== undefined)
+        err({
+          code: "schema",
+          file,
+          id: n.id,
+          path: "startFor",
+          message: `ジョブ ${j} の始点が2つある（${prev}）`,
+        });
+      else starters.set(j, n.id);
+    }
+  const inConstellation = new Map<string, string>();
+  for (const { value: c, file } of constellations) {
+    checkText(c.text, file, c.id);
+    c.nodes.forEach((nodeId, i) => {
+      const at = `nodes.${String(i)}`;
+      if (!refCheck(starMap, "ノード", nodeId, file, c.id, at)) return;
+      const prev = inConstellation.get(nodeId);
+      if (prev !== undefined)
+        err({
+          code: "schema",
+          file,
+          id: c.id,
+          path: at,
+          message: `ノード ${nodeId} は、ほかの星座（${prev}）にも入っている`,
+        });
+      else inConstellation.set(nodeId, c.id);
+    });
+    if (refCheck(effectMap, "効果", c.completionEffect, file, c.id, "completionEffect")) {
+      const origin = effectMap.get(c.completionEffect)?.origin;
+      if (origin !== "constellation")
+        err({
+          code: "schema",
+          file,
+          id: c.id,
+          path: "completionEffect",
+          message: `完成ボーナスの効果の出どころが constellation ではない（${String(origin)}）`,
+        });
+    }
+  }
+
+  // 12. 地域：敵・出口の参照、候補地点が区画と広さの中にあるか、町は区画を持たない
+  const regionMap = new Map(regions.map((r) => [r.value.id, r.value]));
+  const enemyMap = new Map(enemies.map((e) => [e.value.id, e.value]));
+  for (const { value: r, file } of regions) {
+    checkText(r.text, file, r.id);
+    const inside = (p: { x: number; y: number }): boolean =>
+      p.x >= 0 && p.y >= 0 && p.x <= r.size.width && p.y <= r.size.height;
+    const sections = r.sections ?? [];
+    if (r.kind === "town" && (sections.length > 0 || (r.packSpawns ?? []).length > 0))
+      err({
+        code: "schema",
+        file,
+        id: r.id,
+        path: "sections",
+        message: "町には敵の区画・群れを置かない",
+      });
+    if (r.kind === "dungeon" && sections.length === 0)
+      err({
+        code: "schema",
+        file,
+        id: r.id,
+        path: "sections",
+        message: "ダンジョンには区画が必要",
+      });
+    sections.forEach((sec, i) => {
+      if (sec.levels.min > sec.levels.max)
+        err({
+          code: "schema",
+          file,
+          id: r.id,
+          path: `sections.${String(i)}.levels`,
+          message: "最小が最大を超えている",
+        });
+      sec.enemies.forEach((e, j) => {
+        refCheck(enemyMap, "敵", e, file, r.id, `sections.${String(i)}.enemies.${String(j)}`);
+      });
+    });
+    const points: [string, { x: number; y: number }[]][] = [
+      ["packSpawns", r.packSpawns ?? []],
+      ["eliteSpawns", r.eliteSpawns ?? []],
+      ["woodChests", r.woodChests ?? []],
+      ["oldChests", r.oldChests ?? []],
+    ];
+    for (const [key, list] of points)
+      list.forEach((p, i) => {
+        if (!inside(p))
+          err({
+            code: "schema",
+            file,
+            id: r.id,
+            path: `${key}.${String(i)}`,
+            message: "地域の広さの外にある",
+          });
+        else if (!sections.some((sec) => inRect(p, sec.rect)))
+          err({
+            code: "schema",
+            file,
+            id: r.id,
+            path: `${key}.${String(i)}`,
+            message: "どの区画にも入っていない",
+          });
+      });
+    if (!inside(r.entrance))
+      err({ code: "schema", file, id: r.id, path: "entrance", message: "地域の広さの外にある" });
+    (r.fixedEnemies ?? []).forEach((f, i) => {
+      refCheck(enemyMap, "敵", f.enemy, file, r.id, `fixedEnemies.${String(i)}.enemy`);
+      if (!inside(f.at))
+        err({
+          code: "schema",
+          file,
+          id: r.id,
+          path: `fixedEnemies.${String(i)}.at`,
+          message: "地域の広さの外にある",
+        });
+    });
+    (r.secrets ?? []).forEach((x, i) => {
+      checkText(x.text, file, r.id);
+      if (!inside(x.at))
+        err({
+          code: "schema",
+          file,
+          id: r.id,
+          path: `secrets.${String(i)}.at`,
+          message: "地域の広さの外にある",
+        });
+    });
+    (r.exits ?? []).forEach((x, i) => {
+      if (!regionMap.has(x.to) && !invalidIds.has(x.to))
+        err({
+          code: "unknown-ref",
+          file,
+          id: r.id,
+          path: `exits.${String(i)}.to`,
+          message: `地域 ${x.to} がない`,
+        });
+      if (x.requires !== undefined)
+        refCheck(enemyMap, "敵", x.requires.defeated, file, r.id, `exits.${String(i)}.requires`);
+    });
+    (r.fixedEnemies ?? []).forEach((f, i) => {
+      for (const [j, a] of (f.anchors ?? []).entries())
+        if (!inside(a))
+          err({
+            code: "schema",
+            file,
+            id: r.id,
+            path: `fixedEnemies.${String(i)}.anchors.${String(j)}`,
+            message: "地域の広さの外にある",
+          });
+      const def = enemyMap.get(f.enemy);
+      if (
+        def?.attacks.some((a) => a.delivery.type === "burrow") === true &&
+        (f.anchors ?? []).length < 2
+      )
+        err({
+          code: "schema",
+          file,
+          id: r.id,
+          path: `fixedEnemies.${String(i)}.anchors`,
+          message: "根渡りをする敵には、現れる地点が2つ以上いる",
+        });
+    });
+  }
+
+  // 13. クエスト：地域・敵の参照、段階のIDの重なり
+  const stageIds = new Set<string>();
+  for (const { value: q, file } of quests) {
+    checkText(q.text, file, q.id);
+    q.stages.forEach((st, i) => {
+      checkText(st.text, file, q.id);
+      if (stageIds.has(st.id))
+        err({
+          code: "duplicate-id",
+          file,
+          id: q.id,
+          path: `stages.${String(i)}.id`,
+          message: `段階 ${st.id} が重複している`,
+        });
+      stageIds.add(st.id);
+      if (st.trigger.type === "enterRegion" && !regionMap.has(st.trigger.region))
+        err({
+          code: "unknown-ref",
+          file,
+          id: q.id,
+          path: `stages.${String(i)}.trigger.region`,
+          message: `地域 ${st.trigger.region} がない`,
+        });
+      if (st.trigger.type === "defeat")
+        refCheck(enemyMap, "敵", st.trigger.enemy, file, q.id, `stages.${String(i)}.trigger.enemy`);
+    });
+  }
+
   if (errors.length > 0 || manifest === undefined) return { ok: false, errors };
 
-  // 11. 仮値の一覧
+  // 14. 仮値の一覧
   const provisional: ProvisionalEntry[] = [];
   const collect = (
     collection: string,
@@ -1027,6 +1539,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   collect("affixes", affixes);
   collect("materials", materials);
   collect("dropProfiles", dropProfiles);
+  collect("starNodes", starNodes);
+  collect("constellations", constellations);
+  collect("jobNodes", jobNodes);
+  collect("regions", regions);
+  collect("quests", quests);
 
   return {
     ok: true,
@@ -1048,6 +1565,14 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       affixes: new Map(affixes.map((a) => [a.value.id, a.value])),
       materials: materialMap,
       dropProfiles: dropMap,
+      starNodes: starMap,
+      starLinks,
+      constellations: new Map(constellations.map((c) => [c.value.id, c.value])),
+      jobNodes: jobNodeMap,
+      jobLinks,
+      jobBoardStarts,
+      regions: regionMap,
+      quests: new Map(quests.map((q) => [q.value.id, q.value])),
     },
     provisional,
   };

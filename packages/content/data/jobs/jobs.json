@@ -49,7 +49,16 @@
       "jin": 10,
       "ri": 5,
       "kon": 5
-    }
+    },
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-WARRIOR-SWEEP",
+      "SKL-WARRIOR-CHARGE",
+      "SKL-WARRIOR-WARCRY",
+      "SKL-WARRIOR-EARTHSPLITTER",
+      "SKL-WARRIOR-WHIRLWIND"
+    ],
+    "startingWeapon": "BASE-WPN-GREATSWORD-T1"
   },
   {
     "id": "JOB-ROGUE",
@@ -101,6 +110,15 @@
       "ailmentChance": 0.25
     },
     "provisional": true,
-    "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5）"
+    "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5）",
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-ROGUE-FLURRY",
+      "SKL-ROGUE-PIERCE",
+      "SKL-ROGUE-SHADOWSTEP",
+      "SKL-ROGUE-POISON",
+      "SKL-ROGUE-SMOKE"
+    ],
+    "startingWeapon": "BASE-WPN-DAGGER-T1"
   }
 ]

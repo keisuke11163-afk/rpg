@@ -1,0 +1,591 @@
+[
+  {
+    "id": "EFF-SM-GOU-HP",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-HP-MAX",
+        "value": 12
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.02
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-GOU-ARMOR",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.06
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-HP-MAX",
+        "value": 4
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-GOU-MELEE",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.06,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-GOU-STAGGER",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.08
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.02,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-JIN-CRIT",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-CRIT-CHANCE",
+        "value": 0.08
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-CRIT-MULTIPLIER",
+        "value": 0.04
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-JIN-EVASION",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-EVASION",
+        "value": 0.06
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.01
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-JIN-SPEED",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ATTACK-SPEED",
+        "value": 0.03
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.01
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-JIN-POISON",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 0.06,
+        "filter": {
+          "allOf": ["TAG-AIL-POISON"]
+        }
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-AILMENT-DURATION",
+        "value": 0.3,
+        "filter": {
+          "allOf": ["TAG-AIL-POISON"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-SM-GJ-MOVE",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.02
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-EVASION",
+        "value": 0.02
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+  },
+  {
+    "id": "EFF-NT-SWORD-AURA",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-NT-SWORD-AURA",
+        "value": 0.1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-NT-HUNT",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-NT-HUNT",
+        "value": 0.25
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-NT-SEVERING",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.2,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE"]
+        }
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-NT-BROKEN-MELEE",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-NT-IRON-SKIN",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5。「ガード中は崩されない」はガードの操作が無いので省く"
+  },
+  {
+    "id": "EFF-NT-FOCUS",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-NT-FOCUS",
+        "value": 0.4
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-NT-SHADOW-STEP",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-NT-SHADOW-STEP",
+        "value": 0.25
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-NT-CORRODE",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-NT-CORRODE",
+        "value": 0.1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-NT-GALE",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-MOVE-SPEED",
+        "value": 0.08
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-NT-GALE",
+        "value": 0.2
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-NT-LAYERS",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.15
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-EVASION",
+        "value": 0.15
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-WARD-MAX",
+        "value": 0.15
+      }
+    ],
+    "conditions": [
+      {
+        "type": "factAtLeast",
+        "fact": "armor.heavy.count",
+        "value": 1
+      },
+      {
+        "type": "factAtLeast",
+        "fact": "armor.light.count",
+        "value": 1
+      },
+      {
+        "type": "factAtLeast",
+        "fact": "armor.robe.count",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5「重ね着の妙」：重装・軽装・法衣を全て装備していると、全防御+15%"
+  },
+  {
+    "id": "EFF-NT-CYCLE",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-NT-CYCLE",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-NT-VESSEL",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-NT-VESSEL",
+        "value": 0.1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.5「星の器」：この星域の共鳴紋の効果の上限+10%（40% → 50%）。盤の評価で扱う"
+  },
+  {
+    "id": "EFF-MUT-HEAVY",
+    "origin": "mutation",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-STAGGER",
+        "value": 0.6,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE"]
+        }
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.3,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE"]
+        }
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-ATTACK-SPEED",
+        "value": -0.3
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-MUT-HEAVY",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.6「重撃化」。近接の技は重撃のタグを得る（闘志の獲得）。攻撃速度-30%は全ての攻撃に"
+  },
+  {
+    "id": "EFF-MUT-BLOOD-BLADE",
+    "origin": "mutation",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-MUT-BLOOD-BLADE",
+        "value": 1
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": -0.3,
+        "filter": {
+          "allOf": ["TAG-AIL-BLEED"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.6「血の刃」。「出血の持続ダメージそのものは減る」の量は記載が無いので -30%（docs/progress D-STAR-13）"
+  },
+  {
+    "id": "EFF-BUFF-FOCUS",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-CRIT-CHANCE",
+        "value": 0.4
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "狙い澄まし：同じ敵に3秒当て続けている間"
+  },
+  {
+    "id": "EFF-BUFF-SHADOW-STEP",
+    "origin": "notableStar",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE-TAKEN",
+        "value": -0.25
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "影踏み：回避に成功した後1秒間"
+  },
+  {
+    "id": "EFF-STAR-SHADOW-BACKSTAB",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-BACKSTAB-CRIT",
+        "value": 0.01
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の影法師座の小星の値（docs/progress D-FIN-3）"
+  },
+  {
+    "id": "EFF-CONST-SHADOW",
+    "origin": "constellation",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-CONST-SHADOW-SET",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4：影縫いの装束の仮想部位（セット装備は MVP の範囲の外なので、MVPでは働かない。docs/progress D-FIN-3）"
+  }
+]

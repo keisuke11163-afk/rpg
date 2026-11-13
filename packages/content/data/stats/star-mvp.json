@@ -1,0 +1,74 @@
+[
+  {
+    "id": "STAT-NT-SWORD-AURA",
+    "text": "stat.nt-sword-aura",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NT-HUNT",
+    "text": "stat.nt-hunt",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NT-BROKEN-MELEE",
+    "text": "stat.nt-broken-melee",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NT-FOCUS",
+    "text": "stat.nt-focus",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NT-SHADOW-STEP",
+    "text": "stat.nt-shadow-step",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NT-CORRODE",
+    "text": "stat.nt-corrode",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NT-GALE",
+    "text": "stat.nt-gale",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NT-CYCLE",
+    "text": "stat.nt-cycle",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-NT-VESSEL",
+    "text": "stat.nt-vessel",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-MUT-HEAVY",
+    "text": "stat.mut-heavy",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-MUT-BLOOD-BLADE",
+    "text": "stat.mut-blood-blade",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-CONST-SHADOW-SET",
+    "text": "stat.const-shadow-set",
+    "unit": "flat",
+    "min": 0
+  }
+]

@@ -13,7 +13,7 @@ import {
   staggerValue,
 } from "./ailments.ts";
 import { type DamageAttacker, type DamageSkill, type HitResult, computeHit } from "./damage.ts";
-import { type DamageApplied, Health } from "./health.ts";
+import { type DamageApplied, Health, type HealthConfig } from "./health.ts";
 import { isBehind } from "./shapes.ts";
 import { TimedEffects } from "./timed-effects.ts";
 
@@ -42,6 +42,8 @@ export interface CombatantInit {
   readonly facing?: number;
   readonly maxHp: number;
   readonly maxWard?: number;
+  /** 魔障が回復し始めるまでの秒数（省略で2秒）。 */
+  readonly wardRechargeDelay?: number;
   readonly isBoss?: boolean;
   readonly resist?: Partial<Record<Element, number>>;
   readonly armor?: number;
@@ -65,6 +67,8 @@ export class Combatant {
   evasion: number;
   /** 移動しているか（出血の2倍に使う）。 */
   moving = false;
+  /** 崩されない（天極「重荷の誇り」の4部位など。印 beStaggered の禁止）。崩し値を受けない。 */
+  staggerImmune = false;
   /** 一定時間だけかかっている効果（戦吼の威圧など）。 */
   readonly statuses = new TimedEffects();
   private readonly db: ContentDb;
@@ -87,18 +91,60 @@ export class Combatant {
     this.health = new Health({
       maxHp: init.maxHp,
       ...(init.maxWard === undefined ? {} : { maxWard: init.maxWard }),
+      ...(init.wardRechargeDelay === undefined
+        ? {}
+        : { wardRechargeDelay: init.wardRechargeDelay }),
     });
     this.ailments = new AilmentState(db);
     this.stagger = new StaggerGauge(init.staggerProfile, init.maxHp);
   }
 
-  /** 受けるダメージの倍率（崩れている間・一定時間の効果）。 */
+  /**
+   * 自分の能力値による、受けるダメージ・崩し値の倍率（プレイヤーの装備・自己強化。能力値の評価から渡す）。
+   * 一定時間の効果（statuses）の倍率に掛ける。
+   */
+  ownReceived: ReceivedMultipliers = { damage: 1, stagger: 1 };
+
+  /**
+   * 能力値が変わったとき（装備・星辰盤・職紋盤・ロードアウト・転職）に、最大HP・最大魔障・魔障が
+   * 回復し始めるまでの秒数をその場で変える（作り直さない）。HP・魔障は割合を保ち、増えても回復しない
+   * （Health.resize）。崩しゲージの最大値も最大HPに合わせ、溜まった割合を保つ（StaggerGauge.planResize）。
+   * 状態異常・崩れているか・一定時間の効果・魔障の回復の待ち時間は、そのまま残る。
+   * 値が不正なら、何も変えずに RangeError（両方を検証してから反映する）。
+   */
+  resize(config: HealthConfig): void {
+    const health = this.health.planResize(config);
+    const stagger = this.stagger.planResize(config.maxHp);
+    this.health.commitResize(health);
+    this.stagger.commitResize(stagger);
+  }
+
+  /**
+   * 状態異常を付ける入口（ヒット以外：毒だまり・煙玉・反撃・出血の移動など）。
+   * ダメージを受けない間（ボスの段階の切り替え・根渡り）は付けずに false（docs/progress Q-U19-2 の確定）。
+   */
+  applyAilment(app: AilmentApplication): boolean {
+    if (this.health.invulnerable || this.health.dead) return false;
+    this.ailments.apply(app);
+    return true;
+  }
+
+  /** 受けるダメージの倍率（崩れている間・一定時間の効果・自分の能力値）。 */
   get takenMultiplier(): number {
     return this.stagger.takenMultiplier * this.receivedMultipliers().damage;
   }
 
-  /** 一定時間の効果による、受けるダメージ・崩し値の倍率（効果が変わったときだけ計算し直す）。 */
+  /** 一定時間の効果と自分の能力値による、受けるダメージ・崩し値の倍率。 */
   receivedMultipliers(): ReceivedMultipliers {
+    const t = this.timedReceived();
+    return {
+      damage: t.damage * this.ownReceived.damage,
+      stagger: t.stagger * this.ownReceived.stagger,
+    };
+  }
+
+  /** 一定時間の効果による、受けるダメージ・崩し値の倍率（効果が変わったときだけ計算し直す）。 */
+  private timedReceived(): ReceivedMultipliers {
     if (this.receivedVersion !== this.statuses.version) {
       this.receivedVersion = this.statuses.version;
       const instances = this.statuses.instances();
@@ -140,8 +186,10 @@ export class Combatant {
    * 複数の戦う者を「全て検証してから全て反映する」ために使う（EnemyField.update）。
    * 計画は、作ってから反映するまでの間に、この戦う者の HP・状態異常・崩しゲージ・一定時間の効果・
    * 移動中かが変わらない場合だけ正しい。
+   * options.invulnerable は、持続ダメージを受けないかをこの計画だけ決める（省略で今の health.invulnerable。
+   * 反映の前に無敵を切り替える敵が、切り替えた後の値で計算するため。Enemy.planUpdate）。
    */
-  planUpdate(dt: number): CombatantUpdatePlan {
+  planUpdate(dt: number, options?: { readonly invulnerable?: boolean }): CombatantUpdatePlan {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const target = {
@@ -153,7 +201,7 @@ export class Combatant {
     // 各属性が有限でも、合計は溢れうる
     const total = sumDot(dot.damage);
     // 持続ダメージを受けてから時間を進める（従来の takeDamage(total) → update(dt) と同じ）
-    const health = this.health.planUpdate(dt, total);
+    const health = this.health.planUpdate(dt, total, options?.invulnerable);
     const stagger = this.stagger.planUpdate(dt);
     return { owner: this, dt, dot, total, health, stagger };
   }
@@ -209,6 +257,14 @@ export interface HitInput {
   readonly fullStagger?: boolean;
   /** 必ず会心にする（急所穿ちの5点）。 */
   readonly forceCrit?: boolean;
+  /** このヒットだけの受けるダメージの倍率（母樹の根冠の毒・背向けの外套など。省略で1）。 */
+  readonly extraTakenMultiplier?: number;
+  /** このヒットの全ての付与率への加算（武具連携「双牙」の2撃目+20%など）。 */
+  readonly extraAilmentChance?: number;
+  /** このヒットの全ての付与率に掛ける倍率（武具連携「双斧」の-25%＝×0.75）。 */
+  readonly ailmentChanceMultiplier?: number;
+  /** 背面からのヒットとして扱う（背向けの外套の移動の技の後）。 */
+  readonly forceBackstab?: boolean;
   /** 背面からのヒットの補正（メインジョブの職能。盗賊は会心率+10%・付与率+25%。仕様書5.6）。 */
   readonly backstabBonus?: { readonly critChance: number; readonly ailmentChance: number };
 }
@@ -238,7 +294,12 @@ export interface HitReport {
 export function resolveHit(input: HitInput): HitReport {
   const { db, attacker, skill, target, rng } = input;
   const backstab =
-    target.facing !== undefined && isBehind(input.attackerPosition, target.position, target.facing);
+    input.forceBackstab === true ||
+    (target.facing !== undefined &&
+      isBehind(input.attackerPosition, target.position, target.facing));
+  const extra = input.extraTakenMultiplier ?? 1;
+  if (!(Number.isFinite(extra) && extra >= 0))
+    throw new RangeError(`このヒットの受けるダメージの倍率は0以上の有限の数（${String(extra)}）`);
   const hit = computeHit(
     attacker,
     skill,
@@ -246,7 +307,7 @@ export function resolveHit(input: HitInput): HitReport {
       resist: target.resist,
       armor: target.armor,
       evasion: target.evasion,
-      takenMultiplier: target.takenMultiplier,
+      takenMultiplier: target.takenMultiplier * extra,
     },
     {
       rng,
@@ -260,6 +321,19 @@ export function resolveHit(input: HitInput): HitReport {
   // 1. 計算と検証（受ける側の状態は変えない）
   // 経過時間0で進めるのは、takeDamage(hit.total) と同じ結果（Health.planUpdate を参照）
   const health = target.health.planUpdate(0, hit.total);
+  // ダメージを受けない間（ボスの段階の切り替え・根渡り）のヒットは、ダメージ・状態異常・崩しを全て与えない
+  // （プレイヤーの回避の無敵と同じく、ヒットそのものを無効にする。docs/progress Q-U19-2 の確定）。
+  // 判定はこの計画の段階で行い、無効なら何も反映しない（状態異常の判定の乱数も消費しない）
+  if (target.health.invulnerable)
+    return {
+      targetId: target.id,
+      hit,
+      backstab,
+      applied: health.applied,
+      ailments: [],
+      staggerValue: 0,
+      staggerBroke: false,
+    };
   const tags = [...skill.tags, ...(skill.kind === "weapon" ? (attacker.weapon?.tags ?? []) : [])];
   const weaponUid = attacker.weapon?.uid;
   const ailments = rollAilments({
@@ -269,9 +343,17 @@ export function resolveHit(input: HitInput): HitReport {
     tags,
     ...(input.skillChance === undefined ? {} : { skillChance: input.skillChance }),
     ...(weaponUid === undefined ? {} : { weaponUid }),
-    ...(backstab && input.backstabBonus !== undefined
-      ? { extraChance: input.backstabBonus.ailmentChance }
+    ...((backstab && input.backstabBonus !== undefined) || input.extraAilmentChance !== undefined
+      ? {
+          extraChance:
+            (backstab && input.backstabBonus !== undefined
+              ? input.backstabBonus.ailmentChance
+              : 0) + (input.extraAilmentChance ?? 0),
+        }
       : {}),
+    ...(input.ailmentChanceMultiplier === undefined
+      ? {}
+      : { chanceMultiplier: input.ailmentChanceMultiplier }),
     rng,
   });
   const ailmentPlans = ailments.map((a) => target.ailments.planApply(a));
@@ -282,6 +364,7 @@ export function resolveHit(input: HitInput): HitReport {
     tags,
     ...(input.staggerCoefficient === undefined ? {} : { coefficient: input.staggerCoefficient }),
     ...(weaponUid === undefined ? {} : { weaponUid }),
+    targetImmune: target.staggerImmune,
   });
   const scaled = value * target.receivedMultipliers().stagger;
   // 激化した突進は、当たれば崩しゲージを満タンにする（それ以外は、受ける崩し値の倍率をかけて加える）

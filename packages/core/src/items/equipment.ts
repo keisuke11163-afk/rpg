@@ -1,8 +1,9 @@
 import type { Attributes } from "../character/progression.ts";
 import type { DamageWeapon } from "../combat/damage.ts";
-import type { ItemBaseDef } from "../content/item.ts";
+import type { StarRegion } from "../content/board.ts";
+import type { ArmorType, ItemBaseDef } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
-import type { EquipSlot } from "../content/registries.ts";
+import type { EquipSlot, FactId } from "../content/registries.ts";
 import type { EffectInstance } from "../effects/evaluate.ts";
 import { type ItemInstance, itemEffectInstances } from "./generate.ts";
 import type { Inventory } from "./inventory.ts";
@@ -21,6 +22,41 @@ export const MVP_EQUIP_SLOTS = [
   "ring2",
 ] as const satisfies readonly EquipSlot[];
 export type MvpEquipSlot = (typeof MVP_EQUIP_SLOTS)[number];
+
+/** 防具の部位（統一ボーナスを数える部位。仕様書v0.2 3.3）。 */
+export const ARMOR_SLOTS = [
+  "head",
+  "body",
+  "hands",
+  "feet",
+  "belt",
+] as const satisfies readonly MvpEquipSlot[];
+/** 統一ボーナスに必要な、同じ防具種の部位の数（仕様書v0.2 3.3：4部位以上）。 */
+export const UNIFORM_PIECES = 4;
+
+/** 防具・盾の基礎性能の効果（値は装備ごとに差し替える。出どころは装備の uid）。 */
+export const DEFENSE_EFFECTS = {
+  armor: "EFF-BASE-ARMOR",
+  evasion: "EFF-BASE-EVASION",
+  ward: "EFF-BASE-WARD",
+} as const;
+
+/** 統一ボーナスの効果（仕様書v0.2 3.3。軽装の「回避した直後の移動速度」は、回避したときの一定時間の効果）。 */
+export const UNIFORM_EFFECTS: Readonly<Record<ArmorType, string>> = {
+  heavy: "EFF-UNIFORM-HEAVY",
+  light: "EFF-UNIFORM-LIGHT-DODGE",
+  robe: "EFF-UNIFORM-ROBE",
+};
+
+/** 強化1段階ごとの基礎性能（仕様書v0.2 3.9：+5%。+10で+50%）。 */
+export const ENHANCE_STEP = 0.05;
+/** 強化値の上限（仕様書v0.2 3.9）。 */
+export const MAX_ENHANCE = 10;
+
+/** 強化による基礎性能の倍率（1 ＋ 0.05 × 強化値）。 */
+export function enhanceMultiplier(item: { readonly enhance?: number }): number {
+  return 1 + ENHANCE_STEP * (item.enhance ?? 0);
+}
 
 /** 要求値を満たさないときの基礎性能の倍率（仕様書v0.2 2.2：基礎性能が-40%）。 */
 export const UNMET_REQUIREMENT_MULTIPLIER = 0.6;
@@ -78,6 +114,13 @@ export class Equipment {
 
   constructor(db: ContentDb) {
     this.db = db;
+  }
+
+  /** 同じ装備の写し（比較の表示で、装備したときの能力値を、状態を変えずに計算するため）。 */
+  clone(): Equipment {
+    const out = new Equipment(this.db);
+    for (const [s, i] of this.slots) out.slots.set(s, i);
+    return out;
   }
 
   get(slot: MvpEquipSlot): ItemInstance | undefined {
@@ -142,6 +185,76 @@ export class Equipment {
     return this.entries().flatMap(([, item]) => itemEffectInstances(this.db, item));
   }
 
+  /**
+   * 防具・盾の基礎性能（防具値・回避値・魔障）の効果。強化（+5%／段階）と要求値の未達（-40%）を掛ける
+   * （仕様書v0.2 3.3・3.9）。統一ボーナスの常に効く効果（重装・法衣）も含める。
+   */
+  defenseEffects(attributes: Attributes): EffectInstance[] {
+    const out: EffectInstance[] = [];
+    for (const [, item] of this.entries()) {
+      const base = this.baseOf(item);
+      const d = base.defense;
+      if (d === undefined) continue;
+      const m = basePerformanceMultiplier(base, attributes) * enhanceMultiplier(item);
+      const source = { kind: "equipment", ref: item.uid };
+      for (const key of ["armor", "evasion", "ward"] as const) {
+        const v = d[key];
+        if (v !== undefined) out.push({ effectId: DEFENSE_EFFECTS[key], source, values: [v * m] });
+      }
+    }
+    const uniform = this.uniformType();
+    if (uniform !== undefined && uniform !== "light")
+      out.push({ effectId: UNIFORM_EFFECTS[uniform], source: { kind: "uniform", ref: uniform } });
+    return out;
+  }
+
+  /**
+   * 条件・数に使う事実（仕様書の「重装4部位以上」「主手が空」「二刀流」など）：防具種ごとの部位の数・
+   * 主手が空なら1・副手に武器（二刀流）なら1。
+   */
+  facts(): Partial<Record<FactId, number>> {
+    const out: Partial<Record<FactId, number>> = {
+      "armor.heavy.count": 0,
+      "armor.light.count": 0,
+      "armor.robe.count": 0,
+      "mainHand.empty": this.slots.has("mainHand") ? 0 : 1,
+    };
+    for (const slot of ARMOR_SLOTS) {
+      const item = this.slots.get(slot);
+      const t = item === undefined ? undefined : this.baseOf(item).defense?.type;
+      if (t !== undefined) out[`armor.${t}.count`] = (out[`armor.${t}.count`] ?? 0) + 1;
+    }
+    const off = this.slots.get("offHand");
+    out.dualWield = off !== undefined && this.baseOf(off).category === "weapon" ? 1 : 0;
+    out["enhance.total"] = this.entries().reduce((s, [, i]) => s + (i.enhance ?? 0), 0);
+    const main = this.slots.get("mainHand");
+    out.twoHanded = main !== undefined && isTwoHanded(this.baseOf(main)) ? 1 : 0;
+    return out;
+  }
+
+  /** 星域ごとの共鳴紋の数（仕様書v0.2 6.1 I-01・I-02）。 */
+  resonance(): Partial<Record<StarRegion, number>> {
+    const out: Partial<Record<StarRegion, number>> = {};
+    for (const [, item] of this.entries())
+      for (const a of item.affixes) {
+        const r = this.db.affixes.get(a.id)?.resonance;
+        if (r !== undefined) out[r] = (out[r] ?? 0) + 1;
+      }
+    return out;
+  }
+
+  /** 統一ボーナスの防具種（防具の5部位のうち4部位以上が同じ種類。仕様書v0.2 3.3）。無ければ undefined。 */
+  uniformType(): ArmorType | undefined {
+    const counts = new Map<ArmorType, number>();
+    for (const slot of ARMOR_SLOTS) {
+      const item = this.slots.get(slot);
+      const t = item === undefined ? undefined : this.baseOf(item).defense?.type;
+      if (t !== undefined) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    for (const [t, n] of counts) if (n >= UNIFORM_PIECES) return t;
+    return undefined;
+  }
+
   /** 部位ごとの装備のタグ（条件「主手に剣系」などの判定に使う）。 */
   equippedTags(): Partial<Record<EquipSlot, readonly string[]>> {
     const out: Partial<Record<EquipSlot, readonly string[]>> = {};
@@ -151,17 +264,32 @@ export class Equipment {
 
   /**
    * 主手の武器（ダメージの計算に渡す形）と攻撃速度（回/秒。武器の基礎の値）。主手が空なら undefined。
-   * 要求値を満たさなければ、基礎ダメージ（基礎性能）だけ -40%。会心率・攻撃速度は変わらない（仕様書v0.2 3.9）。
+   * 基礎ダメージ（基礎性能）だけに、強化（+5%／段階）と要求値の未達（-40%）を掛ける。会心率・攻撃速度は変わらない
+   * （仕様書v0.2 3.9）。
    */
   mainWeapon(
     attributes: Attributes,
   ): { readonly weapon: DamageWeapon; readonly attackSpeed: number } | undefined {
-    const item = this.slots.get("mainHand");
+    return this.weaponIn("mainHand", attributes);
+  }
+
+  /** 副手の武器（二刀流。仕様書v0.2 3.2：それぞれの手の武器のダメージを使う）。盾・空なら undefined。 */
+  offWeapon(
+    attributes: Attributes,
+  ): { readonly weapon: DamageWeapon; readonly attackSpeed: number } | undefined {
+    return this.weaponIn("offHand", attributes);
+  }
+
+  private weaponIn(
+    slot: "mainHand" | "offHand",
+    attributes: Attributes,
+  ): { readonly weapon: DamageWeapon; readonly attackSpeed: number } | undefined {
+    const item = this.slots.get(slot);
     if (item === undefined) return undefined;
     const base = this.baseOf(item);
     const w = base.weapon;
     if (w === undefined) return undefined;
-    const m = basePerformanceMultiplier(base, attributes);
+    const m = basePerformanceMultiplier(base, attributes) * enhanceMultiplier(item);
     return {
       weapon: {
         uid: item.uid,

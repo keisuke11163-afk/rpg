@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cloudCenters,
   Combatant,
   type ContentDb,
   Enemy,
@@ -367,5 +368,28 @@ describe("行動の流れ（補助仕様書10.2）", () => {
     separate([a, b, s]);
     expect(s.position).toEqual({ x: 0.3, y: 0 });
     expect(b.position.x - a.position.x).toBeGreaterThan(0.2);
+  });
+});
+
+describe("雲の置き方（cloudCenters。docs/progress D-U21-3）", () => {
+  it("1つ目は相手の位置、残りは出した敵と反対側へ離して ±fanDeg に並べる", () => {
+    const [a, b, c] = cloudCenters(
+      { count: 3, spread: 2, fanDeg: 90 },
+      { x: 0, y: 0 },
+      { x: -5, y: 0 },
+    );
+    expect(a).toEqual({ x: 0, y: 0 });
+    // 反対側（+x）の向きから ±90°：真上と真下
+    expect(b?.x).toBeCloseTo(0);
+    expect(b?.y).toBeCloseTo(-2);
+    expect(c?.x).toBeCloseTo(0);
+    expect(c?.y).toBeCloseTo(2);
+  });
+
+  it("2つなら反対側の真後ろ、1つなら相手の位置だけ", () => {
+    const two = cloudCenters({ count: 2, spread: 3 }, { x: 1, y: 1 }, { x: 1, y: -4 });
+    expect(two[1]?.x).toBeCloseTo(1);
+    expect(two[1]?.y).toBeCloseTo(4);
+    expect(cloudCenters({}, { x: 2, y: 3 }, { x: 0, y: 0 })).toEqual([{ x: 2, y: 3 }]);
   });
 });

@@ -45,6 +45,13 @@ export class Inventory {
     return true;
   }
 
+  /** 同じ uid の装備を入れ替える（並びの位置は同じ。強化・クラフトの結果）。無ければ RangeError。 */
+  replaceItem(item: ItemInstance): void {
+    const i = this.itemList.findIndex((x) => x.uid === item.uid);
+    if (i < 0) throw new RangeError(`${item.uid} が無い`);
+    this.itemList[i] = item;
+  }
+
   /** 装備を取り出す。無ければ undefined。 */
   removeItem(uid: string): ItemInstance | undefined {
     const i = this.itemList.findIndex((x) => x.uid === uid);
@@ -55,6 +62,24 @@ export class Inventory {
   addGold(amount: number): void {
     requireCount(amount, "金貨");
     this.goldValue = requireSafeTotal(this.goldValue + amount, "金貨の合計");
+  }
+
+  /** 金貨を使う。足りなければ、何も変えずに false。 */
+  spendGold(amount: number): boolean {
+    requireCount(amount, "金貨");
+    if (this.goldValue < amount) return false;
+    this.goldValue -= amount;
+    return true;
+  }
+
+  /** 素材を使う。足りなければ、何も変えずに false。 */
+  spendMaterial(id: string, count: number): boolean {
+    requireCount(count, `素材 ${id} の数`);
+    const have = this.material(id);
+    if (have < count) return false;
+    if (have === count) this.materialCounts.delete(id);
+    else this.materialCounts.set(id, have - count);
+    return true;
   }
 
   addMaterial(id: string, count: number): void {

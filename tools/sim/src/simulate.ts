@@ -94,8 +94,13 @@ export interface SimResult {
   readonly totalDamage: number;
   readonly hitDamage: number;
   readonly dotDamage: number;
-  /** 倒したヒット・持続ダメージのうち、的の残りHPを超えた分（集計に含めない。参考の値）。 */
+  /**
+   * 倒したヒット・持続ダメージのうち、的の残りHPを超えた分と、ボスの段階の境目で止まって減らなかった分
+   * （集計に含めない。参考の値）。
+   */
   readonly overkillDamage: number;
+  /** ダメージを受けなかった時間（ボスの段階の切り替え・根渡り。秒）。 */
+  readonly invulnerableSeconds: number;
   /** totalDamage ÷ seconds。 */
   readonly dps: number;
   readonly skills: readonly SkillStats[];
@@ -314,11 +319,37 @@ export function simulate(
   let overkillDamage = 0;
   // 的の残りHP（HPのない的は倒れない）。実際にHPを減らした分だけを与えたダメージとして集計する
   let remainingHp = target.maxHp ?? Infinity;
+  // ボスの段階：境目より下には減らず、境目に届くと invulnerable 秒の間ダメージを受けない
+  const thresholds = target.phases?.thresholds ?? [];
+  let phase = 1;
+  let invulnerableUntil = 0;
+  let phaseStartedAt = 0;
+  let invulnerableSeconds = 0;
+  const floorHp = (): number => {
+    const t = thresholds[phase - 1];
+    return t === undefined || target.maxHp === undefined ? 0 : target.maxHp * t;
+  };
+  /** 根渡りで地中にいるか（その刻みの始まりの時刻で判定する）。 */
+  const burrowed = (t: number): boolean => {
+    const b = target.burrow;
+    if (b === undefined || phase < b.phase) return false;
+    const since = t - (phaseStartedAt + (target.phases?.invulnerable ?? 0));
+    return since >= 0 && since % b.period < b.duration;
+  };
+  /** ダメージを受けない時刻か（段階の切り替え・根渡り）。 */
+  const invulnerableAt = (t: number): boolean => t < invulnerableUntil || burrowed(t);
   /** ダメージを的のHPに与え、実際に減らした分を返す（残りHPを超えた分はオーバーキルとして分ける）。 */
-  const dealDamage = (amount: number): number => {
-    const dealt = Math.min(amount, remainingHp);
+  const dealDamage = (amount: number, at: number): number => {
+    if (invulnerableAt(at)) return 0;
+    const floor = floorHp();
+    const dealt = Math.min(amount, remainingHp - floor);
     overkillDamage += amount - dealt;
     remainingHp -= dealt;
+    if (floor > 0 && remainingHp <= floor + 1e-9) {
+      phase += 1;
+      phaseStartedAt = at;
+      invulnerableUntil = at + (target.phases?.invulnerable ?? 0);
+    }
     return dealt;
   };
   let damageTaken = 0;
@@ -373,7 +404,7 @@ export function simulate(
           );
           stats.hits += hit.evaded ? 0 : 1;
           stats.crits += hit.crit ? 1 : 0;
-          const dealt = dealDamage(hit.total);
+          const dealt = dealDamage(hit.total, stepStart);
           stats.damage += dealt;
           hitDamage += dealt;
           // 残りHPが0になった時点で倒したとする。倒したヒットでは状態異常・崩しを新たに与えず、残りのヒットも計算しない
@@ -419,15 +450,21 @@ export function simulate(
     // 持続ダメージ・崩しの時間
     // 移動している時間は、刻みの回数ではなく経過時間で決める：時刻 t までの移動の時間 ＝ t × 割合。
     // この刻みの移動の時間は、その差（端数の刻みでも、実際の幅に応じた分だけ）。割合0・1は刻み全体を1つの状態で扱う
-    const movingPart =
-      ratio <= 0 ? 0 : ratio >= 1 ? h : Math.min(h, Math.max(0, ratio * time - ratio * stepStart));
+    const movingPart = burrowed(stepStart)
+      ? h
+      : ratio <= 0
+        ? 0
+        : ratio >= 1
+          ? h
+          : Math.min(h, Math.max(0, ratio * time - ratio * stepStart));
+    if (invulnerableAt(stepStart)) invulnerableSeconds += h;
     movingSeconds += movingPart;
     const dotThisStep = tickDots(ailments, h, movingPart, {
       resist,
       takenMultiplier: stagger.takenMultiplier,
     });
     // 持続ダメージも、的の残りHPを超えた分は集計しない
-    dotDamage += dealDamage(dotThisStep);
+    dotDamage += dealDamage(dotThisStep, stepStart);
     if (remainingHp <= 0) {
       killTime = time;
       break;
@@ -463,6 +500,7 @@ export function simulate(
     targetName: target.name,
     seconds: elapsed,
     killTime,
+    invulnerableSeconds,
     totalDamage,
     hitDamage,
     dotDamage,

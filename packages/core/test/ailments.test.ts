@@ -298,6 +298,30 @@ describe("付与率（開発計画書 T5・仕様書v0.2 2.7）", () => {
     expect(bleeds / 10000).toBeGreaterThan(0.27);
     expect(bleeds / 10000).toBeLessThan(0.33);
   });
+
+  it("付与率の倍率は、足した後の付与率に掛かる（武具連携「双斧」の ×0.75）", () => {
+    const { db, attacker } = setup(["EFF-BLEED-CHANCE"]);
+    const hit = computeHit(attacker, MELEE, {}, avg);
+    const rng = Rng.fromSeed("roll-mult");
+    let bleeds = 0;
+    for (let i = 0; i < 10000; i++) {
+      if (
+        rollAilments({
+          db,
+          view: attacker.view,
+          hit,
+          tags: MELEE.tags,
+          extraChance: 0.1,
+          chanceMultiplier: 0.5,
+          rng,
+        }).some((a) => a.tag === "TAG-AIL-BLEED")
+      )
+        bleeds++;
+    }
+    // (0.3 + 0.1) × 0.5 = 0.2
+    expect(bleeds / 10000).toBeGreaterThan(0.17);
+    expect(bleeds / 10000).toBeLessThan(0.23);
+  });
 });
 
 const app = (
@@ -1116,5 +1140,31 @@ describe("AilmentState.apply の最大スタックと定義データの整合性
     expect(state.stacks("AIL-BLEED")).toBe(0);
     state.apply(bleedApp(3, 5));
     expect(state.stacks("AIL-BLEED")).toBe(1);
+  });
+});
+
+describe("V-26：付与は種類ごとに独立して判定する（仕様書v0.2 2.7）", () => {
+  it("汎用の付与率25%で、出血と毒はそれぞれ約25%、両方は約6%（独立）", () => {
+    const { db, attacker } = setup(["EFF-GENERIC-CHANCE"]);
+    const hit = computeHit(attacker, MELEE, {}, avg);
+    const rng = Rng.fromSeed("v26");
+    let bleed = 0;
+    let poison = 0;
+    let both = 0;
+    const n = 20000;
+    for (let i = 0; i < n; i++) {
+      const tags = rollAilments({ db, view: attacker.view, hit, tags: MELEE.tags, rng }).map(
+        (a) => a.tag,
+      );
+      const b = tags.includes("TAG-AIL-BLEED");
+      const p = tags.includes("TAG-AIL-POISON");
+      if (b) bleed++;
+      if (p) poison++;
+      if (b && p) both++;
+    }
+    expect(bleed / n).toBeCloseTo(0.25, 1);
+    expect(poison / n).toBeCloseTo(0.25, 1);
+    expect(both / n).toBeGreaterThan(0.05);
+    expect(both / n).toBeLessThan(0.075);
   });
 });

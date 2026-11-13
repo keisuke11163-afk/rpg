@@ -1,0 +1,38 @@
+{
+  "id": "lv20-warrior-standard",
+  "name": "Lv20・戦士・標準DPSの長剣（薙ぎ払い＋通常攻撃）",
+  "note": "U-19 の完了の条件（深淵の母樹（ENM-ABYSS-MOTHER-TREE@21）の撃破時間60〜120秒）の確認用。人形へのDPSが、そのLvの標準DPS（仕様書v0.2 2.8）とほぼ同じになるように、武器の基礎値だけを仮に決めた。実際の装備・星辰盤を積み上げたビルドは U-21",
+  "characterLevel": 20,
+  "weapon": {
+    "uid": "sim-longsword-lv20",
+    "tags": ["TAG-WPN-SWORD"],
+    "base": {
+      "physical": {
+        "min": 36,
+        "max": 66
+      }
+    },
+    "critChance": 0.05,
+    "attackSpeed": 1.4
+  },
+  "rotation": [
+    {
+      "name": "薙ぎ払い",
+      "tags": ["TAG-FORM-MELEE", "TAG-FORM-AREA"],
+      "kind": "weapon",
+      "pct": 1.3,
+      "mpCost": 4,
+      "cooldown": 0,
+      "staggerCoefficient": 0.4
+    },
+    {
+      "name": "通常攻撃",
+      "tags": ["TAG-FORM-MELEE"],
+      "kind": "weapon",
+      "pct": 1.0,
+      "mpCost": 0,
+      "cooldown": 0,
+      "staggerCoefficient": 0.3
+    }
+  ]
+}

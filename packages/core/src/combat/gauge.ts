@@ -17,6 +17,15 @@ export class JobGauge {
   /** 下限（例：職奥義「不屈の闘志」で30）。 */
   floor = 0;
 
+  /** 獲得量の倍率（職詞「闘志の獲得量+15%」など。1 ＋ 獲得量の増加。0以上）。 */
+  gainMultiplier = 1;
+  /** 攻撃を受けたときの獲得量の倍率（職紋盤「血を燃やす」で2）。gainMultiplier に掛ける。 */
+  takenGainMultiplier = 1;
+  /** 最大値の加算（職奥義「無限連撃」でコンボ点+3）。 */
+  maxBonus = 0;
+  /** 全ての段階に達している扱いにする（職奥義「鬼神化」の間）。 */
+  forceStages = false;
+
   constructor(def: GaugeDef) {
     this.def = def;
   }
@@ -25,7 +34,7 @@ export class JobGauge {
     return Math.max(this.v, this.floor);
   }
   get max(): number {
-    return this.def.max;
+    return this.def.max + this.maxBonus;
   }
   get inCombat(): boolean {
     return this.idle < OUT_OF_COMBAT_SECONDS;
@@ -34,7 +43,7 @@ export class JobGauge {
   /** 達している段階の名前（例：50以上なら empowered、100なら empowered と release）。 */
   get stages(): readonly string[] {
     const value = this.value;
-    return this.def.stages.filter((s) => value >= s.min).map((s) => s.id);
+    return this.def.stages.filter((s) => this.forceStages || value >= s.min).map((s) => s.id);
   }
 
   hasStage(stage: string): boolean {
@@ -49,7 +58,7 @@ export class JobGauge {
   /** 量を足す（最大で止める）。足した量を返す。 */
   add(amount: number): number {
     const before = this.value;
-    this.v = Math.min(this.def.max, Math.max(this.floor, this.value + amount));
+    this.v = Math.min(this.max, Math.max(this.floor, this.value + amount));
     return this.value - before;
   }
 
@@ -75,7 +84,7 @@ export class JobGauge {
       if (g.on !== "hitDealt") continue;
       gained += g.tag !== undefined && tags.has(g.tag) ? (g.tagValue ?? g.value) : g.value;
     }
-    return this.add(gained);
+    return this.add(gained * this.gainMultiplier);
   }
 
   /** 攻撃を受けたとき（最大HPの1%につき、決まった量）。 */
@@ -86,7 +95,7 @@ export class JobGauge {
     for (const g of this.def.gains) {
       if (g.on === "damageTaken") gained += (amount / maxHp) * 100 * g.valuePerPercentOfMaxHp;
     }
-    return this.add(gained);
+    return this.add(gained * this.gainMultiplier * this.takenGainMultiplier);
   }
 
   /**

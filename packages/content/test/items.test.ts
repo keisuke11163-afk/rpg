@@ -41,7 +41,7 @@ const nextUid = (): string => `itm_${String(++uidCounter)}`;
 const tolerance = (p: number, n: number): number => 5 * Math.sqrt((p * (1 - p)) / n);
 
 describe("T12：レアリティの抽選（100万回）", () => {
-  it("補正なし：通常66％・魔法26％・希少7％・固有0.8％・星座0.2％", () => {
+  it("補正なし：データの重みどおりの割合になる（仕様書v0.2 3.5 は 66／26／7／0.8／0.2。希少は D-FIN-2 で9）", () => {
     const rng = Rng.fromSeed("T12-rarity");
     const n = 1_000_000;
     const counts = new Map<ItemRarity, number>();
@@ -49,14 +49,17 @@ describe("T12：レアリティの抽選（100万回）", () => {
       const r = rollRarity(rng, { rarities: db.rarities });
       counts.set(r, (counts.get(r) ?? 0) + 1);
     }
-    const expected: Record<ItemRarity, number> = {
-      normal: 0.66,
-      magic: 0.26,
-      rare: 0.07,
-      unique: 0.008,
-      set: 0.002,
-    };
-    for (const [rarity, p] of Object.entries(expected) as [ItemRarity, number][]) {
+    const weights = rarityWeights({ rarities: db.rarities });
+    expect(Object.fromEntries(weights)).toEqual({
+      normal: 64, // 合計が100になるように、通常が残りを受け持つ（rarityWeights）
+      magic: 26,
+      rare: 9,
+      unique: 0.8,
+      set: 0.2,
+    });
+    const total = [...weights.values()].reduce((a, w) => a + w, 0);
+    for (const [rarity, w] of weights) {
+      const p = w / total;
       const actual = (counts.get(rarity) ?? 0) / n;
       expect(Math.abs(actual - p), `${rarity}: ${String(actual)}`).toBeLessThan(tolerance(p, n));
     }
@@ -72,9 +75,10 @@ describe("T12：レアリティの抽選（100万回）", () => {
       const r = rollRarity(rng, input);
       counts.set(r, (counts.get(r) ?? 0) + 1);
     }
-    expect(weights.get("rare")).toBeCloseTo(17.5, 10);
+    expect(weights.get("rare")).toBeCloseTo(22.5, 10);
+    const total = [...weights.values()].reduce((a, w) => a + w, 0);
     for (const [rarity, w] of weights) {
-      const p = w / 100;
+      const p = w / total;
       expect(Math.abs((counts.get(rarity) ?? 0) / n - p), rarity).toBeLessThan(tolerance(p, n));
     }
   });
@@ -95,6 +99,8 @@ describe("T12：ジョブに合わせたドロップ（35%）", () => {
         nextUid,
       });
       r.items.forEach((item, k) => {
+        // ユニークはジョブに合わせない（ベースを選ばない）ので、割合の分母から除く
+        if (item.rarity === "unique") return;
         items += 1;
         if (r.jobTargeted[k] === true) {
           targeted += 1;
@@ -189,13 +195,15 @@ describe("詞のデータ（仕様書v0.2 3.6）", () => {
 });
 
 describe("ドロップ（仕様書v0.2 3.5、補助仕様書5・12章）", () => {
-  it("アイテムLv：通常・魔法は敵のLv、精鋭+2、中ボス+4", () => {
+  it("アイテムLv：通常・魔法は敵のLv、精鋭+2、中ボス・章ボス+4", () => {
     expect(dropItemLevel(db, "normal", 7)).toBe(7);
     expect(dropItemLevel(db, "magic", 7)).toBe(7);
     expect(dropItemLevel(db, "elite", 7)).toBe(9);
     expect(dropItemLevel(db, "miniBoss", 11)).toBe(15);
     expect(() => dropItemLevel(db, "elite", 0)).toThrow(RangeError);
-    expect(() => dropItemLevel(db, "chapterBoss", 14)).toThrow(RangeError); // U-19 で定義する
+    expect(dropItemLevel(db, "chapterBoss", 14)).toBe(18);
+    // 深淵の母樹（Lv21）は iLv25（補助仕様書11.2：MVPでT5の詞が出る唯一の入手先）
+    expect(dropItemLevel(db, "abyssBoss", 21)).toBe(25);
   });
 
   it("ドロップの数：通常は10%で1個、魔法は60%で1〜2個、精鋭は必ず2〜4個", () => {
@@ -230,8 +238,9 @@ describe("ドロップ（仕様書v0.2 3.5、補助仕様書5・12章）", () =>
       const r = rollDrops(db, rng, { source: "miniBoss", enemyLevel: 11, tags, nextUid });
       expect(r.items.length).toBeGreaterThanOrEqual(4);
       expect(r.items.length).toBeLessThanOrEqual(6);
-      expect(r.items.some((x) => x.rarity === "rare")).toBe(true);
-      expect(r.items[0]?.rarity).toBe("rare"); // 確定の分（固有・星座はまだ作らないので希少）
+      expect(r.items.some((x) => x.rarity === "rare" || x.rarity === "unique")).toBe(true);
+      // 確定の分は希少か固有（星座はMVPの範囲外）
+      expect(["rare", "unique"]).toContain(r.items[0]?.rarity);
       expect(r.materials).toContainEqual({ material: "MAT-RETURN-LAMP", count: 1 });
       expect(r.materials).toContainEqual({ material: "MAT-AWAKENING-DUST", count: 1 });
       expect(r.itemLevel).toBe(15);
@@ -239,12 +248,32 @@ describe("ドロップ（仕様書v0.2 3.5、補助仕様書5・12章）", () =>
     }
   });
 
-  it("仮実装の確認：固有・星座はまだ作らず、その重みは通常に回る", () => {
-    const rng = Rng.fromSeed("no-unique");
+  it("ユニーク：必要LvがアイテムLv以下の「どこでも」のものだけ落ちる。専用のものと星座は落ちない（U-16）", () => {
+    const rng = Rng.fromSeed("uniques");
+    const seen = new Set<string>();
     for (let i = 0; i < 20_000; i++) {
       const r = rollDrops(db, rng, { source: "elite", enemyLevel: 5, tags, nextUid });
-      for (const item of r.items) expect(["normal", "magic", "rare"]).toContain(item.rarity);
+      for (const item of r.items) {
+        expect(item.rarity).not.toBe("set");
+        if (item.rarity !== "unique") {
+          expect(db.itemBases.get(item.base)?.unique).toBeUndefined();
+          continue;
+        }
+        const base = db.itemBases.get(item.base);
+        expect(base?.unique?.source).toBe("anywhere");
+        expect(base?.requiredLevel ?? 99).toBeLessThanOrEqual(r.itemLevel);
+        expect(item.affixes).toEqual([]);
+        seen.add(item.base);
+      }
     }
+    // アイテムLv7（精鋭Lv5）で落ちるのは、旅人の古靴（Lv2）・狼牙の首飾り（Lv6）・二股の枝（Lv4）
+    expect([...seen].sort()).toEqual(["BASE-UNQ-U02", "BASE-UNQ-U14", "BASE-UNQ-U17"]);
+    // ユニークの無いアイテムLvでは、ユニークの重みは通常に回る
+    const low = Rng.fromSeed("low");
+    for (let i = 0; i < 5000; i++)
+      for (const item of rollDrops(db, low, { source: "normal", enemyLevel: 1, tags, nextUid })
+        .items)
+        expect(item.rarity).not.toBe("unique");
   });
 
   it("金貨：通常は25%で（1＋Lv）〜2×（1＋Lv）、魔法は60%で2倍、精鋭は必ず5倍", () => {

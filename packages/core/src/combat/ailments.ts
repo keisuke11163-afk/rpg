@@ -180,6 +180,8 @@ export interface AilmentRollInput {
   readonly weaponUid?: string;
   /** 全ての種類の付与率に足す値（例：盗賊の背面判定の+25%。仕様書5.6）。 */
   readonly extraChance?: number;
+  /** 全ての種類の付与率に掛ける倍率（武器連携「双斧」の付与率-25%＝×0.75。足した後に掛ける）。 */
+  readonly chanceMultiplier?: number;
   readonly rng: Rng;
 }
 
@@ -225,12 +227,13 @@ export function ailmentCandidates(input: Omit<AilmentRollInput, "rng">): Ailment
     const flag = view.flag("ailmentApply", def.tag, hitTags, scope).resolution;
     // 付与率は、強制・禁止の印の有無にかかわらず検証する（印で NaN・Infinity を見逃さないため。U-04a の会心率と同じ）
     // extraChance：全ての付与率への加算（盗賊の背面判定の補正・毒塗りなど。U-10）
-    const rawChance = finite(
-      finite(skillChance?.[def.tag] ?? 0, `${def.id} の技の基本付与率`) +
-        chanceSums.added +
-        finite(input.extraChance ?? 0, `${def.id} の付与率への加算`),
-      `${def.id} の付与率`,
-    );
+    const rawChance =
+      finite(
+        finite(skillChance?.[def.tag] ?? 0, `${def.id} の技の基本付与率`) +
+          chanceSums.added +
+          finite(input.extraChance ?? 0, `${def.id} の付与率への加算`),
+        `${def.id} の付与率`,
+      ) * finite(input.chanceMultiplier ?? 1, `${def.id} の付与率の倍率`);
     const chance =
       flag === "forbid" ? 0 : flag === "force" ? 1 : Math.min(1, Math.max(0, rawChance));
 
@@ -297,6 +300,8 @@ interface DotInstance {
   remainingTime: number;
   /** 残りの総量（補正の前の、付与した時点の値）。 */
   remaining: number;
+  /** 延ばした秒数の合計（輝星「傷口を抉る」。元の持続の分まで）。 */
+  extended?: number;
 }
 
 interface DebuffInstance {
@@ -489,6 +494,82 @@ export class AilmentState {
     }
   }
 
+  /**
+   * 持続ダメージの持続を延ばす（輝星「傷口を抉る」：ヒットのたびに1秒、最大で元の持続の2倍まで）。
+   * 毎秒の量（総量÷元の持続）は変えず、延ばした分だけ残りの総量も増やす（延ばしても弱くならない）。
+   * 延ばしたスタックの数を返す。
+   */
+  extendDots(ailmentId: string, seconds: number, maxFactor = 2): number {
+    if (!(Number.isFinite(seconds) && seconds >= 0 && Number.isFinite(maxFactor) && maxFactor >= 1))
+      throw new RangeError("延ばす秒数は0以上、上限の倍率は1以上の有限の数");
+    let n = 0;
+    for (const inst of this.dots.get(ailmentId) ?? []) {
+      const room = inst.duration * (maxFactor - 1) - (inst.extended ?? 0);
+      const add = Math.min(seconds, Math.max(0, room));
+      if (add <= 0) continue;
+      inst.extended = (inst.extended ?? 0) + add;
+      inst.remainingTime += add;
+      inst.remaining += (inst.total / inst.duration) * add;
+      n += 1;
+    }
+    return n;
+  }
+
+  /**
+   * 持続ダメージのうち、残りの総量が最も多い1スタックを取り除き、その残りの総量と属性を返す
+   * （転変「血の刃」：出血を1スタック消費して、その残りダメージを即座に与える）。無ければ undefined。
+   * 耐性・受けるダメージの倍率は、呼び出す側でかける。
+   */
+  consumeStrongest(
+    ailmentId: string,
+  ): { readonly element: Element; readonly amount: number } | undefined {
+    const list = this.dots.get(ailmentId);
+    if (list === undefined || list.length === 0) return undefined;
+    let best = 0;
+    for (let i = 1; i < list.length; i++)
+      if ((list[i]?.remaining ?? 0) > (list[best]?.remaining ?? 0)) best = i;
+    const [inst] = list.splice(best, 1);
+    if (list.length === 0) this.dots.delete(ailmentId);
+    if (inst === undefined) return undefined;
+    return { element: inst.def.dotElement, amount: inst.remaining };
+  }
+
+  /**
+   * 持続ダメージの全てのスタックを、付与し直せる形で返す（狼牙の首飾りの潜在効果「スタック数を保つ」）。
+   * 状態は変えない。
+   */
+  allDots(ailmentId: string): AilmentApplication[] {
+    return (this.dots.get(ailmentId) ?? [])
+      .filter((inst) => inst.remainingTime > 1e-9 && inst.remaining > 1e-12)
+      .map((inst) => ({
+        ailmentId: inst.def.id,
+        tag: inst.def.tag,
+        // 毎秒の量を保つため、総量と持続は「残りの総量・残り時間」にする
+        total: inst.remaining,
+        duration: inst.remainingTime,
+        maxStacks: inst.def.stacking.mode === "stack" ? inst.def.stacking.maxStacks : undefined,
+      }));
+  }
+
+  /**
+   * 持続ダメージのうち、残りの総量が最も多い1スタックを、付与し直せる形で返す（残りの総量と残り時間。
+   * 狼牙の首飾りの出血の移動に使う）。無ければ undefined。状態は変えない。
+   */
+  strongestDot(ailmentId: string): AilmentApplication | undefined {
+    const list = this.dots.get(ailmentId) ?? [];
+    let best: DotInstance | undefined;
+    for (const inst of list) if (best === undefined || inst.remaining > best.remaining) best = inst;
+    if (best === undefined || best.remainingTime <= 1e-9) return undefined;
+    const def = best.def;
+    return {
+      ailmentId: def.id,
+      tag: def.tag,
+      total: best.remaining,
+      duration: best.remainingTime,
+      maxStacks: def.stacking.mode === "stack" ? def.stacking.maxStacks : undefined,
+    };
+  }
+
   /** 重ねている数。 */
   stacks(ailmentId: string): number {
     return this.dots.get(ailmentId)?.length ?? (this.debuffs.has(ailmentId) ? 1 : 0);
@@ -569,7 +650,7 @@ export class AilmentState {
  */
 export class StaggerGauge {
   private readonly profile: StaggerProfile;
-  private readonly maxHp: number;
+  private maxHp: number;
   private value = 0;
   private sinceLast = 0;
   private brokenFor = 0;
@@ -613,6 +694,31 @@ export class StaggerGauge {
   /** 受けるダメージの倍率（崩れている間だけ）。 */
   get takenMultiplier(): number {
     return this.broken ? this.profile.takenMultiplier : 1;
+  }
+
+  /**
+   * 最大HP（ゲージの最大値の元）が変わったときの計算と検証だけを行い、計画を返す（状態は変えない）。
+   * ゲージの値は、最大値に対する割合を保つ。崩れているか・崩れた回数・崩しを受けていない時間は変えない。
+   * - 最大HPが有限かつ正の数でない、または新しい最大値が有限・正でなければ RangeError
+   * 計画は commitResize で反映する。
+   */
+  planResize(maxHp: number): StaggerResizePlan {
+    if (!(Number.isFinite(maxHp) && maxHp > 0))
+      throw new RangeError(`最大HPは有限かつ正の数（${String(maxHp)}）`);
+    const max = requireFinite(
+      maxHp * this.profile.gaugeRatio * this.profile.growthPerBreak ** this.breakCount,
+      () => `崩しゲージの最大値（崩れた回数 ${String(this.breakCount)}）`,
+    );
+    if (!(max > 0)) throw new RangeError(`崩しゲージの最大値は正の数（${String(max)}）`);
+    // 割合（0以上1未満）× 有限の最大値なので、値は有限で最大値より小さい
+    const value = (this.value / this.max) * max;
+    return { maxHp, value };
+  }
+
+  /** planResize の計画を反映する。検証済みの値の代入だけで、例外は起きない。 */
+  commitResize(plan: StaggerResizePlan): void {
+    this.maxHp = plan.maxHp;
+    this.value = plan.value;
   }
 
   /** 崩し値を加える。崩れた場合は true を返す。崩れている間は溜まらない。 */
@@ -725,6 +831,12 @@ export class StaggerGauge {
 }
 
 /** StaggerGauge.planAdd の計画（検証済みの次の状態。commitAdd で反映する）。 */
+/** StaggerGauge.planResize の計画（検証済みの次の値。commitResize で反映する）。 */
+export interface StaggerResizePlan {
+  readonly maxHp: number;
+  readonly value: number;
+}
+
 export interface StaggerAddPlan {
   readonly value: number;
   readonly sinceLast: number;

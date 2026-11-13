@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
+import { PANEL, cellPosition } from "../src/ui/panel-layout.ts";
 
 interface Mouse {
   move(x: number, y: number): Promise<void>;
@@ -17,6 +18,7 @@ interface Keyboard {
   down(key: string): Promise<void>;
   up(key: string): Promise<void>;
   press(key: string): Promise<void>;
+  type(text: string): Promise<void>;
 }
 interface Page {
   mouse: Mouse;
@@ -37,6 +39,7 @@ interface Page {
   evaluate<T, A>(fn: (arg: A) => T, arg: A): Promise<T>;
   waitForTimeout(ms: number): Promise<void>;
   screenshot(options: { path: string }): Promise<unknown>;
+  click(selector: string): Promise<void>;
 }
 interface Browser {
   newPage(options: {
@@ -81,7 +84,7 @@ interface DummyState {
   screenY: number;
 }
 interface SkillState {
-  weapon: string;
+  weapon: string | null;
   affinity: string;
   attackSpeed: number;
   mp: number;
@@ -152,8 +155,71 @@ type DebugWindow = {
     inventory: () => InventoryInfo;
     dropLoot: () => number;
     setFrameDeltaMs: (ms: number | null) => void;
+    panel: () => PanelInfo;
+    assignSkill: (index: number, skill: string) => boolean;
+    saveNow: () => boolean;
+    stars: () => StarsInfo;
+    grantMaterial: (id: string, n: number) => number;
+    loadouts: () => {
+      active: number;
+      list: { id: number; mainHand: string | null; stars: number }[];
+      safe: boolean;
+    };
+    itemDetail: (
+      uid: string,
+    ) => { rarity: string; affixes: number; enhance: number; forgeLoad: number } | null;
+    starNodeScreen: (id: string) => { x: number; y: number } | null;
+    settings: () => {
+      dodge: string[];
+      volume: number;
+      scale: string | number;
+      keybinds: Record<string, string>;
+      rows: { x: number; y: number }[];
+    };
+    saves: () => SavesInfo;
+    region: () => RegionInfo;
+    goRegion: (id: string) => boolean;
+    die: () => boolean;
+    teleportTo: (x: number, y: number) => { x: number; y: number };
+    title: () => { slots: { slot: number; state: string }[]; selected: number | null };
+    startSlot: (slot: number, how: string) => boolean;
   };
 };
+interface StarsInfo {
+  allocated: string[];
+  active: string[];
+  dormant: Record<string, string>;
+  points: number;
+  attributes: { go: number; jin: number; ri: number; kon: number };
+  lamps: number;
+}
+interface RegionInfo {
+  id: string;
+  kind: string;
+  near: string | null;
+  chests: { x: number; y: number; kind: string; opened: boolean }[];
+  packs: number;
+  unlocked: string[];
+  deaths: number;
+  lastCause: string | null;
+  facilities: { kind: string; x: number; y: number }[];
+  stone: { x: number; y: number } | null;
+  exits: { to: string; x: number; y: number; width: number; height: number }[];
+  hp: number;
+  maxHp: number;
+}
+interface SavesInfo {
+  status: string;
+  slots: { slot: number; state: string; name: string | null; level: number | null }[];
+  keys: string[];
+}
+interface PanelInfo {
+  open: string | null;
+  lines: string[];
+  search: { query: string; hits: string[] };
+  bigMap: boolean;
+  sheet: { hp: number; mp: number; attackSpeed: number };
+}
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright") as { chromium: { launch(): Promise<Browser> } };
@@ -182,6 +248,41 @@ try {
   });
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("http://localhost:5174/");
+  await page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
+    timeout: 20000,
+  });
+  // タイトル（U-18a）：3スロット。空きのスロット1に、開発用の初期の状態で始める
+  const title0 = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.title(),
+  );
+  check(
+    "タイトルに3つのスロットがあり、最初は全て空き（U-18a）",
+    title0.slots.length === 3 && title0.slots.every((x) => x.state === "empty"),
+    `スロット ${title0.slots.map((x) => `${String(x.slot)}:${x.state}`).join(",")}`,
+  );
+  await page.screenshot({ path: `${outDir}title.png` });
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.startSlot(1, "dev"),
+  );
+  await page.waitForFunction(
+    () =>
+      document.body.dataset["stellaReady"] === "true" &&
+      document.body.dataset["stellaScene"] === "arena",
+    undefined,
+    { timeout: 20000 },
+  );
+  // ゲームは町から始まる（U-18a）。操作の確認は、開発用の試験用の場で行う
+  const startRegion = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.region(),
+  );
+  check(
+    "ゲームは町（星見の村）から始まる（U-18a）",
+    startRegion.id === "REGION-TOWN" && startRegion.kind === "town" && startRegion.packs === 0,
+    `地域 ${startRegion.id}・敵 ${String(startRegion.packs)}`,
+  );
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.goRegion("DEV-ARENA"),
+  );
   await page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
     timeout: 20000,
   });
@@ -420,9 +521,46 @@ try {
     `効果 ${s2.buffs.join(",")}・人形 ${d5.statuses.join(",")}・闘志 ${s1.fervor.toFixed(0)} → ${s2.fervor.toFixed(0)}`,
   );
 
-  // T6：Tab で大斧に替えると、薙ぎ払いが斧の変化（出血の付与率+30%）になる
-  await page.keyboard.press("Tab");
+  // T6：インベントリの画面（I）で大斧をクリックして持ち替えると、薙ぎ払いが斧の変化（出血の付与率+30%）になる
+  const panel = (): Promise<PanelInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.panel());
+  /** インベントリの枠の中央（ゲームの画面のピクセル）。 */
+  const cellCenter = (index: number): { x: number; y: number } => {
+    const c = cellPosition(index);
+    return { x: c.x + PANEL.grid.cell / 2, y: c.y + PANEL.grid.cell / 2 };
+  };
+  await waitIdle();
+  await page.keyboard.press("KeyI");
   await page.waitForTimeout(100);
+  const axeIndex = (
+    await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.inventory())
+  ).items.findIndex((i) => i.uid === "test-greataxe");
+  const axeCell = cellCenter(axeIndex);
+  await page.mouse.move(axeCell.x * 2, axeCell.y * 2);
+  await page.waitForTimeout(100);
+  const tip = await panel();
+  check(
+    "I でインベントリの画面を開き、装備を指すとツールチップと比較が出る（U-12）",
+    tip.open === "inventory" &&
+      tip.lines.includes("下級の大斧") &&
+      tip.lines.some((l) => l.includes("装備したときの変化")) &&
+      tip.lines.some((l) => l.startsWith("通常攻撃の毎秒ダメージ")),
+    `画面 ${String(tip.open)}・行 ${String(tip.lines.length)}・${tip.lines.filter((l) => l.includes("大斧") || l.startsWith("通常攻撃")).join("／")}`,
+  );
+  const hitsBeforeClick = (await dummy()).hits;
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const swapped = await skills();
+  check(
+    "画面のクリックで大斧に持ち替え、クリックで技は出ない（U-12）",
+    swapped.weapon === "test-greataxe" && (await dummy()).hits === hitsBeforeClick,
+    `武器 ${String(swapped.weapon)}`,
+  );
+  await page.keyboard.press("KeyI");
+  await page.waitForTimeout(100);
+  const closed = await panel();
+  check("I でインベントリの画面を閉じる", closed.open === null, `画面 ${String(closed.open)}`);
   await setFervor(0);
   await waitIdle();
   await clickDummy("right");
@@ -430,7 +568,7 @@ try {
   check(
     "大斧の薙ぎ払いは、斧の変化になる（T6）",
     s3.weapon === "test-greataxe" && s3.lastVariants.includes("weapon:TAG-WPNGRP-AXE"),
-    `武器 ${s3.weapon}・変化 ${s3.lastVariants.join(",")}`,
+    `武器 ${String(s3.weapon)}・変化 ${s3.lastVariants.join(",")}`,
   );
 
   // T7：闘志50以上で激化、100で破軍
@@ -443,14 +581,34 @@ try {
     s4.lastVariants.includes("stage:empowered"),
     `闘志 ${s4.fervor.toFixed(0)}・変化 ${s4.lastVariants.join(",")}`,
   );
+  // 技の枠（U-12）：キャラクターの画面で4キーの枠をクリックすると技が替わる。破軍を4キーの枠に入れる
   await waitIdle();
+  await page.keyboard.press("KeyC");
+  await page.waitForTimeout(100);
+  const slotY = PANEL.skillSlots.y + 5 * PANEL.skillSlots.row + 4;
+  const before4 = (await panel()).lines.find((l) => l.startsWith("4："));
+  await page.mouse.move((PANEL.skillSlots.x + 20) * 2, slotY * 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  const after4 = (await panel()).lines.find((l) => l.startsWith("4："));
+  check(
+    "キャラクターの画面で技の枠をクリックすると、技が替わる（U-12）",
+    before4 !== undefined && after4 !== undefined && before4 !== after4,
+    `${String(before4)} → ${String(after4)}`,
+  );
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.assignSkill(5, "SKL-WARRIOR-ROUT"),
+  );
+  await page.keyboard.press("KeyC");
+  await page.waitForTimeout(100);
   await setFervor(100);
   const d6a = await dummy();
-  await keyAtDummy("KeyR", 1400);
+  await keyAtDummy("Digit4", 1400);
   const s5 = await skills();
   const d6 = await dummy();
   check(
-    "闘志100で破軍：闘志を全て使い、受けるダメージ-20%の効果を得る（T7）",
+    "闘志100で、技の枠（4キー）に入れた破軍：闘志を全て使い、受けるダメージ-20%の効果を得る（T7）",
     (s5.uses["SKL-WARRIOR-ROUT"] ?? 0) === 1 &&
       s5.fervor <= 6 &&
       s5.buffs.includes("EFF-WARRIOR-ROUT-GUARD") &&
@@ -482,7 +640,7 @@ try {
       sr.jobLevel === 1 &&
       sr.jobLevels["JOB-WARRIOR"] === sw.jobLevel &&
       sr.weapon === "test-dagger",
-    `ジョブ ${sw.job} → ${sr.job}・ジョブLv ${JSON.stringify(sr.jobLevels)}・武器 ${sr.weapon}`,
+    `ジョブ ${sw.job} → ${sr.job}・ジョブLv ${JSON.stringify(sr.jobLevels)}・武器 ${String(sr.weapon)}`,
   );
   await page.evaluate(
     (v: number) => (window as unknown as DebugWindow).__STELLA_DEBUG__.grantXp(v),
@@ -658,7 +816,486 @@ try {
     `インベントリ ${String(inv0.items.length)} → ${String(inv2.items.length)}（近くの装備 ${String(near.length)}）`,
   );
 
+  // キャラクターの画面（C）：表示の数値と、戦闘の数値が一致する（U-12 の完了の条件）
+  await page.keyboard.press("KeyC");
+  await page.waitForTimeout(100);
+  // 最大HPの行（能力値の一覧の1行目）を指す
+  await page.mouse.move((PANEL.stats.x + 20) * 2, (PANEL.stats.y + 4) * 2);
+  await page.waitForTimeout(100);
+  const ch = await panel();
+  const ps2 = await combat();
+  const hpLine = ch.lines.find((l) => l.startsWith("最大HP"));
+  check(
+    "C でキャラクターの画面を開き、最大HPの表示が戦闘の最大HPと一致し、内訳が出る（U-12）",
+    ch.open === "character" &&
+      hpLine === `最大HP  ${String(ps2.maxHp)}` &&
+      ch.sheet.hp === ps2.maxHp &&
+      ch.lines.some((l) => l.startsWith("基礎 ")),
+    `${String(hpLine)}・戦闘の最大HP ${String(ps2.maxHp)}`,
+  );
+  await page.screenshot({ path: `${outDir}character.png` });
+  await page.keyboard.press("KeyI");
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: `${outDir}inventory.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  check(
+    "Esc で画面を閉じる",
+    (await panel()).open === null,
+    `画面 ${String((await panel()).open)}`,
+  );
+
   await page.screenshot({ path: `${outDir}arena.png` });
+
+  // 星辰盤（U-14）：T で開き、始点の隣のノードをクリックで取る。能力値の小星で能力値が増える
+  const stars = (): Promise<StarsInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.stars());
+  const st0 = await stars();
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(150);
+  const target = st0.allocated.length === 0 ? "STAR-JIN-0001" : null;
+  const pos = await page.evaluate(
+    (id: string) => (window as unknown as DebugWindow).__STELLA_DEBUG__.starNodeScreen(id),
+    target ?? "STAR-JIN-0001",
+  );
+  if (pos !== null) {
+    await page.mouse.move(pos.x * 2, pos.y * 2);
+    await page.waitForTimeout(100);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+  }
+  const st1 = await stars();
+  const boardPanel = await panel();
+  check(
+    "T で星辰盤を開き、始点の隣のノードをクリックで取ると、能力値の小星で迅が増える（U-14）",
+    boardPanel.open === "starBoard" &&
+      st1.allocated.includes("STAR-JIN-0001") &&
+      st1.active.includes("STAR-JIN-0001") &&
+      st1.attributes.jin === st0.attributes.jin + 10 &&
+      boardPanel.lines.some((l) => l.startsWith("取得済み")),
+    `取得 ${st1.allocated.join(",")}・迅 ${String(st0.attributes.jin)} → ${String(st1.attributes.jin)}・ポイント ${String(st1.allocated.length)}／${String(st1.points)}`,
+  );
+  // 設定（補助仕様書16章・D-UI-2）：何も開いていないときに Esc で開き、回避の行をクリックして K を押すと K になる。
+  // 音量の行の左クリックで上がる。初期に戻す行で戻す
+  const settings = () =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.settings());
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(100);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  const setPanel = await panel();
+  const se0 = await settings();
+  /** キャンバスの今の位置・大きさ（拡大率を変えると変わるので、クリックの位置はこれから求める）。 */
+  const canvasRect = () =>
+    page.evaluate(() => {
+      const r = document.querySelector("canvas")?.getBoundingClientRect();
+      return r === undefined ? null : { left: r.left, top: r.top, width: r.width };
+    });
+  const clickRow = async (i: number): Promise<void> => {
+    const r = (await settings()).rows[i];
+    const c = await canvasRect();
+    if (r === undefined || c === null) return;
+    const k = c.width / 640;
+    await page.mouse.move(c.left + r.x * k, c.top + r.y * k);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+  };
+  // 行の順：移動4・技6・回避（10番目）…・音量・拡大率・初期に戻す
+  await clickRow(10);
+  await page.keyboard.press("KeyK");
+  await page.waitForTimeout(100);
+  const se1 = await settings();
+  await clickRow(se1.rows.length - 3);
+  const se2 = await settings();
+  await page.screenshot({ path: `${outDir}settings.png` });
+  // 画面の拡大率：画面に合わせる → 1倍 → 2倍 →（3倍は 1280×720 に収まらないので飛ばす）→ 画面に合わせる
+  const widths: number[] = [];
+  const scales: (string | number)[] = [];
+  for (let i = 0; i < 3; i++) {
+    await clickRow(se2.rows.length - 2);
+    scales.push((await settings()).scale);
+    widths.push((await canvasRect())?.width ?? 0);
+  }
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  const se3 = await settings();
+  const afterPanel = await panel();
+  check(
+    "設定の画面の拡大率：1倍・2倍は整数倍の大きさ、窓に収まらない3倍は飛ばして「画面に合わせる」に戻る（補助仕様書16章・2章）",
+    scales.join() === "1,2,fit" && widths[0] === 640 && widths[1] === 1280 && (widths[2] ?? 0) > 0,
+    `拡大率 ${scales.join(" → ")}・キャンバスの幅 ${widths.join(" → ")}`,
+  );
+  check(
+    "Esc で設定を開き、回避を K に変えるとセーブデータの keybinds に入り、音量を上げられる（補助仕様書16章）",
+    setPanel.open === "settings" &&
+      se0.dodge.join() === "SPACE" &&
+      se1.dodge.join() === "K" &&
+      se1.keybinds["dodge"] === "K" &&
+      se2.volume > se0.volume &&
+      se3.dodge.join() === "K" &&
+      afterPanel.open === null,
+    `画面 ${String(setPanel.open)}・回避 ${se0.dodge.join()} → ${se1.dodge.join()}・音量 ${String(se0.volume)} → ${String(se2.volume)}`,
+  );
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(100);
+
+  // 星辰盤の検索（補助仕様書16章・D-UI-1）：入力欄に打つと、見つかったノードが光る。打つ間はゲームのキーが効かない
+  await page.click("input[data-stella-search]");
+  await page.keyboard.type("t");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.type("断ち切る");
+  await page.waitForTimeout(150);
+  const searched = await panel();
+  await page.screenshot({ path: `${outDir}star-search.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(50);
+  check(
+    "星辰盤の検索欄に「断ち切る」と打つと、断ち切る刃が見つかり、打つ間は T で画面が閉じない（補助仕様書16章）",
+    searched.open === "starBoard" &&
+      searched.search.hits.includes("STAR-NT-SEVERING") &&
+      searched.lines.some((l) => l.startsWith("検索「断ち切る」")),
+    `検索「${searched.search.query}」：${searched.search.hits.join(",")}・画面 ${String(searched.open)}`,
+  );
+  await page.screenshot({ path: `${outDir}star-board.png` });
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(100);
+  const searchHidden = await page.evaluate(() => {
+    const el = document.querySelector<HTMLInputElement>("input[data-stella-search]");
+    return el === null || el.style.display === "none";
+  });
+  check("星辰盤を閉じると、検索の入力欄も消える", searchHidden, String(searchHidden));
+  // M：大きな地図（補助仕様書1.1・D-UI-4）。Esc は先に地図を閉じる（設定は開かない）
+  await page.keyboard.press("KeyM");
+  await page.waitForTimeout(100);
+  const mapOpen = await panel();
+  await page.screenshot({ path: `${outDir}map.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  const mapClosed = await panel();
+  check(
+    "M で大きな地図を開き、Esc で閉じる（設定は開かない）",
+    mapOpen.bigMap && !mapClosed.bigMap && mapClosed.open === null,
+    `開く ${String(mapOpen.bigMap)}・閉じる ${String(mapClosed.bigMap)}・画面 ${String(mapClosed.open)}`,
+  );
+
+  // 鍛冶屋（U-17）：B で開き、装備を選んで強化する
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.grantMaterial("MAT-MAGIC-DUST", 10),
+  );
+  await page.keyboard.press("KeyB");
+  await page.waitForTimeout(100);
+  const invNow = await inv();
+  const pickIndex = invNow.items.findIndex((i) => i.uid === "test-axe");
+  const pickCell = cellCenter(pickIndex);
+  await page.mouse.move(pickCell.x * 2, pickCell.y * 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  // 操作の1行目（強化）をクリックする
+  await page.mouse.move((PANEL.detail.x + 20) * 2, (PANEL.detail.y + 5) * 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const axeAfter = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.itemDetail("test-axe"),
+  );
+  const smithPanel = await panel();
+  check(
+    "B で鍛冶屋を開き、装備を選んで強化すると +1 になる（U-17）",
+    smithPanel.open === "smith" &&
+      axeAfter?.enhance === 1 &&
+      smithPanel.lines.some((l) => l.startsWith("下級の片手斧 +1")),
+    `強化値 ${String(axeAfter?.enhance)}・${smithPanel.lines.find((l) => l.startsWith("下級の片手斧")) ?? "名前なし"}`,
+  );
+  await page.screenshot({ path: `${outDir}smith.png` });
+  await page.keyboard.press("KeyB");
+  await page.waitForTimeout(100);
+
+  // ロードアウト（U-20）：人形の近く（安全地帯）でインベントリの画面のロードアウト2をクリックすると切り替わる
+  const lo = (): Promise<{
+    active: number;
+    list: { id: number; mainHand: string | null; stars: number }[];
+    safe: boolean;
+  }> => page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.loadouts());
+  const dm = await dummy();
+  await walkTo(dm.x - 2.5, dm.y);
+  const lo0 = await lo();
+  await page.keyboard.press("KeyI");
+  await page.waitForTimeout(100);
+  const loadoutButton = {
+    x: PANEL.grid.x + 40 + 10,
+    y: PANEL.grid.y + PANEL.grid.rows * PANEL.grid.cell + 44 + 6,
+  };
+  await page.mouse.move(loadoutButton.x * 2, loadoutButton.y * 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const lo1 = await lo();
+  check(
+    "安全地帯（人形の近く）で、インベントリの画面からロードアウト2に切り替える（U-20）",
+    lo0.safe && lo0.active === 1 && lo1.active === 2 && lo1.list.length === 2,
+    `安全地帯 ${String(lo0.safe)}・${String(lo0.active)} → ${String(lo1.active)}・一覧 ${JSON.stringify(lo1.list)}`,
+  );
+  await page.keyboard.press("KeyI");
+  await page.waitForTimeout(100);
+
+  // セーブ・ロード（U-13）：保存してページを読み込み直すと、同じ状態から始まる
+  const saves = (): Promise<SavesInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.saves());
+  /** ページを読み込み直し、タイトルでスロット1を選んで始める。 */
+  const reload = async (how = "continue"): Promise<void> => {
+    await page.goto("http://localhost:5174/");
+    await page.waitForFunction(
+      () =>
+        document.body.dataset["stellaReady"] === "true" &&
+        document.body.dataset["stellaScene"] === "title",
+      undefined,
+      { timeout: 20000 },
+    );
+    if (how === "") return;
+    await page.evaluate(
+      (h: string) => (window as unknown as DebugWindow).__STELLA_DEBUG__.startSlot(1, h),
+      how,
+    );
+    await page.waitForFunction(
+      () =>
+        document.body.dataset["stellaReady"] === "true" &&
+        document.body.dataset["stellaScene"] === "arena",
+      undefined,
+      { timeout: 20000 },
+    );
+  };
+  const saved = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.saveNow(),
+  );
+  const sv0 = await saves();
+  const beforeReload = {
+    skills: await skills(),
+    inv: await inv(),
+    hp: (await combat()).maxHp,
+    stars: await stars(),
+  };
+  check(
+    "セーブすると、スロット1に保存される（U-13）",
+    saved && sv0.slots[0]?.state === "ok" && sv0.slots[1]?.state === "empty",
+    `${sv0.status}・スロット ${sv0.slots.map((x) => `${String(x.slot)}:${x.state}`).join(",")}`,
+  );
+  await reload();
+  const afterReload = {
+    skills: await skills(),
+    inv: await inv(),
+    hp: (await combat()).maxHp,
+    stars: await stars(),
+  };
+  check(
+    "ページを読み込み直すと、セーブデータから同じ状態で始まる（Lv・ジョブ・武器・持ち物・金貨・最大HP・星辰盤）（U-13）",
+    afterReload.skills.level === beforeReload.skills.level &&
+      afterReload.skills.job === beforeReload.skills.job &&
+      afterReload.skills.weapon === beforeReload.skills.weapon &&
+      JSON.stringify(afterReload.skills.jobLevels) ===
+        JSON.stringify(beforeReload.skills.jobLevels) &&
+      afterReload.inv.gold === beforeReload.inv.gold &&
+      afterReload.inv.items.length === beforeReload.inv.items.length &&
+      afterReload.hp === beforeReload.hp &&
+      JSON.stringify(afterReload.stars.allocated) ===
+        JSON.stringify(beforeReload.stars.allocated) &&
+      JSON.stringify(afterReload.stars.attributes) ===
+        JSON.stringify(beforeReload.stars.attributes),
+    `Lv ${String(beforeReload.skills.level)} → ${String(afterReload.skills.level)}・ジョブ ${afterReload.skills.job}・武器 ${String(afterReload.skills.weapon)}・金貨 ${String(beforeReload.inv.gold)} → ${String(afterReload.inv.gold)}・持ち物 ${String(afterReload.inv.items.length)}・最大HP ${String(afterReload.hp)}`,
+  );
+  // 設定のキーの割り当て（セーブデータ）：読み込み直しても回避は K のまま。K で回避し、スペースでは回避しない
+  const seR = await settings();
+  const dodgeBy = async (key: string): Promise<boolean> => {
+    // 前の回避が終わり、気力が戻るのを待つ（気力は毎秒20）
+    await page.waitForTimeout(1500);
+    await page.keyboard.down(key);
+    await page.waitForTimeout(60);
+    await page.keyboard.up(key);
+    const p = await player();
+    return p.dodging || p.dodgePending;
+  };
+  const bySpace = await dodgeBy("Space");
+  const byK = await dodgeBy("KeyK");
+  check(
+    "キーの割り当ては読み込み直しても残り、K で回避し、スペースでは回避しない（開発計画書6.9 settings.keybinds）",
+    seR.dodge.join() === "K" && seR.keybinds["dodge"] === "K" && byK && !bySpace,
+    `回避 ${seR.dodge.join()}・K ${String(byK)}・スペース ${String(bySpace)}`,
+  );
+  // 初期の割り当てに戻す（Esc で設定を開き、最後の行）
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await clickRow((await settings()).rows.length - 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  // 壊れたデータ：タイトルで壊れていると示し、上書きしない。新しく始めると .corrupt に退避してから保存する
+  await page.evaluate(() => {
+    window.localStorage.setItem("stella-sigil/slot1", "壊れたデータ");
+  });
+  await reload("");
+  const titleCorrupt = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.title(),
+  );
+  const untouched = await page.evaluate(() => window.localStorage.getItem("stella-sigil/slot1"));
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.startSlot(1, "dev"),
+  );
+  await page.waitForFunction(
+    () =>
+      document.body.dataset["stellaReady"] === "true" &&
+      document.body.dataset["stellaScene"] === "arena",
+    undefined,
+    { timeout: 20000 },
+  );
+  const started = await skills();
+  const sv2 = await saves();
+  const corrupt = await page.evaluate(() =>
+    window.localStorage.getItem("stella-sigil/slot1.corrupt"),
+  );
+  check(
+    "壊れたセーブデータはタイトルで検出して上書きせず、新しく始めると .corrupt に退避してから保存する（U-13）",
+    titleCorrupt.slots[0]?.state === "corrupt" &&
+      untouched === "壊れたデータ" &&
+      started.level === 15 &&
+      sv2.slots[0]?.state === "ok" &&
+      corrupt === "壊れたデータ",
+    `タイトル ${String(titleCorrupt.slots[0]?.state)}・保存の後 ${String(sv2.slots[0]?.state)}・退避 ${String(corrupt)}`,
+  );
+
+  // 町とダンジョン（U-18a）：町の施設を F で使う・出口で A1 へ・転移の石・倒れると町へ
+  const regionInfo = (): Promise<RegionInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.region());
+  const ready = (): Promise<unknown> =>
+    page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
+      timeout: 20000,
+    });
+  const tp = (x: number, y: number): Promise<unknown> =>
+    page.evaluate(
+      (a: { x: number; y: number }) =>
+        (window as unknown as DebugWindow).__STELLA_DEBUG__.teleportTo(a.x, a.y),
+      { x, y },
+    );
+  const townNow = await regionInfo();
+  const merchant = townNow.facilities.find((f) => f.kind === "merchant");
+  if (merchant !== undefined) await tp(merchant.x, merchant.y + 1.2);
+  await page.waitForTimeout(100);
+  await page.keyboard.press("KeyF");
+  await page.waitForTimeout(150);
+  const merchantPanel = await panel();
+  check(
+    "町で商人の前に立って F を押すと、商人の画面が開く（U-18a）",
+    townNow.kind === "town" &&
+      merchantPanel.open === "merchant" &&
+      merchantPanel.lines.some((l) => l.includes("品揃え")),
+    `地域 ${townNow.id}・画面 ${String(merchantPanel.open)}`,
+  );
+  await page.screenshot({ path: `${outDir}town-merchant.png` });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+  // 町の出口（右端）へ歩くと A1 に移る
+  const exit = townNow.exits.find((x) => x.to === "REGION-A1");
+  if (exit !== undefined) await tp(exit.x - 1, exit.y + exit.height / 2);
+  await page.keyboard.down("KeyD");
+  await page.waitForTimeout(600);
+  await page.keyboard.up("KeyD");
+  await ready();
+  const a1 = await regionInfo();
+  check(
+    "町の出口から歩くと、森の入口（A1）に移り、入るたびの配置で敵と宝箱がある（U-18a）",
+    a1.id === "REGION-A1" && a1.packs > 0 && a1.chests.length >= 3,
+    `地域 ${a1.id}・敵 ${String(a1.packs)}・宝箱 ${String(a1.chests.length)}`,
+  );
+  await page.screenshot({ path: `${outDir}a1.png` });
+  if (a1.stone !== null) await tp(a1.stone.x + 1, a1.stone.y);
+  await page.waitForTimeout(100);
+  await page.keyboard.press("KeyF");
+  await page.waitForTimeout(150);
+  const a1b = await regionInfo();
+  check(
+    "A1 の入口の転移の石に F で触れると、解放される（補助仕様書9.4）",
+    a1b.unlocked.includes("REGION-A1"),
+    `解放 ${a1b.unlocked.join(",")}`,
+  );
+  await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.die());
+  await page.waitForTimeout(300);
+  await ready();
+  const back = await regionInfo();
+  check(
+    "ダンジョンで倒れると、町に戻り全回復する。死亡の回数を記録し、転移の石の解放は残る（補助仕様書7章）",
+    back.id === "REGION-TOWN" &&
+      back.hp === back.maxHp &&
+      back.deaths === a1b.deaths + 1 &&
+      back.unlocked.includes("REGION-A1"),
+    `地域 ${back.id}・HP ${String(back.hp)}／${String(back.maxHp)}・死亡 ${String(back.deaths)}`,
+  );
+
+  // 母樹の間（U-19）：腐根の母樹がいて、近づくと気づいて攻撃してくる。予兆・段階の表示を撮影する
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.goRegion("REGION-A4-BOSS"),
+  );
+  await ready();
+  const room = await regionInfo();
+  const bossOf = async (): Promise<EnemyInfo | undefined> =>
+    (await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.enemies())).find(
+      (e) => e.def === "ENM-MOTHER-TREE",
+    );
+  const motherAt = await bossOf();
+  if (motherAt !== undefined) await tp(motherAt.x - 6, motherAt.y);
+  await page.waitForTimeout(2500);
+  const mother = await bossOf();
+  await page.screenshot({ path: `${outDir}mother-tree.png` });
+  check(
+    "母樹の間に腐根の母樹（HP 5,400）がいて、近づくと気づいて攻撃してくる。A5 への出口は閉じている（U-19）",
+    room.id === "REGION-A4-BOSS" &&
+      mother?.maxHp === 5400 &&
+      mother.state !== "idle" &&
+      room.exits.some((x) => x.to === "REGION-A5"),
+    `地域 ${room.id}・母樹 ${String(mother?.state)}・HP ${String(mother?.maxHp)}`,
+  );
+
+  // 討伐の祭壇（U-16）：町の祭壇の前で F を押すと、交換の画面が開き、専用ユニークの候補が並ぶ
+  await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.goRegion("REGION-TOWN"),
+  );
+  await ready();
+  const townAgain = await regionInfo();
+  const altar = townAgain.facilities.find((f) => f.kind === "altar");
+  if (altar !== undefined) await tp(altar.x, altar.y + 1.2);
+  await page.waitForTimeout(100);
+  await page.keyboard.press("KeyF");
+  await page.waitForTimeout(150);
+  const altarPanel = await panel();
+  await page.screenshot({ path: `${outDir}altar.png` });
+  check(
+    "町の討伐の祭壇で F を押すと、交換の画面が開き、母樹の専用ユニークが並ぶ（U-16）",
+    altarPanel.open === "altar" &&
+      altarPanel.lines.some((l) => l.includes("千の小傷")) &&
+      altarPanel.lines.some((l) => l.includes("討伐証")),
+    `画面 ${String(altarPanel.open)}`,
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+
+  // 職紋盤（U-15）：J で開き、最初のノードをクリックすると取れる
+  await page.keyboard.press("KeyJ");
+  await page.waitForTimeout(150);
+  const jobPanel = await panel();
+  const firstNode = jobPanel.lines.findIndex((l) => l.startsWith("□"));
+  await page.mouse.move(PANEL.slots.x * 2 + 40, PANEL.slots.y * 2 + 6);
+  await page.mouse.down({ button: "left" });
+  await page.mouse.up({ button: "left" });
+  await page.waitForTimeout(150);
+  const jobPanel2 = await panel();
+  await page.screenshot({ path: `${outDir}job-board.png` });
+  check(
+    "J で職紋盤が開き、始点の隣のノードをクリックすると取れる（U-15）",
+    jobPanel.open === "jobBoard" &&
+      firstNode >= 0 &&
+      jobPanel.lines.some((l) => l.includes("【職奥義】")) &&
+      jobPanel2.lines.some((l) => l.startsWith("■")),
+    `画面 ${String(jobPanel.open)}・取ったノード ${String(jobPanel2.lines.filter((l) => l.startsWith("■")).length)}`,
+  );
 } finally {
   await browser.close();
   await server.close();

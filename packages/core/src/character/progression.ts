@@ -39,13 +39,23 @@ export class LevelTrack {
   private lv: number;
   private stored = 0;
 
-  constructor(cap: number, level = 1) {
+  /**
+   * @param xp 今のLvの中で貯まった経験値（セーブデータから戻すとき）。0以上で、次のLvまでに必要な量より少ない有限の数。
+   *   上限のLvでは0だけ。
+   */
+  constructor(cap: number, level = 1, xp = 0) {
     if (!(Number.isSafeInteger(cap) && cap >= 1))
       throw new RangeError(`Lvの上限は1以上の整数（${String(cap)}）`);
     if (!(Number.isSafeInteger(level) && level >= 1 && level <= cap))
       throw new RangeError(`Lvは1〜${String(cap)}の整数（${String(level)}）`);
+    const limit = level >= cap ? 0 : xpToNext(level);
+    if (!(Number.isFinite(xp) && xp >= 0 && (xp < limit || xp === 0)))
+      throw new RangeError(
+        `経験値は0以上、次のLvまでの量（${String(limit)}）より少ない数（${String(xp)}）`,
+      );
     this.cap = cap;
     this.lv = level;
+    this.stored = xp;
   }
 
   get level(): number {
@@ -108,6 +118,12 @@ export interface CharacterInit {
   readonly level?: number;
   /** ジョブごとのジョブLv（省略したジョブは1）。 */
   readonly jobLevels?: Readonly<Record<string, number>>;
+  /** キャラLvの中で貯まった経験値（省略で0。セーブデータから戻すとき）。 */
+  readonly xp?: number;
+  /** ジョブごとの、ジョブLvの中で貯まった経験値（省略で0）。 */
+  readonly jobXp?: Readonly<Record<string, number>>;
+  /** メインジョブ（省略で出自。セーブデータから戻すとき）。 */
+  readonly mainJob?: string;
 }
 
 /**
@@ -125,10 +141,21 @@ export class Character {
   constructor(init: CharacterInit) {
     this.origin = init.origin;
     this.jobDefs = init.jobs;
-    this.progress = new LevelTrack(LEVEL_CAP, init.level ?? 1);
-    for (const [job, level] of Object.entries(init.jobLevels ?? {}))
-      this.jobs.set(job, new LevelTrack(JOB_LEVEL_CAP, level));
-    this.main = init.origin.id;
+    this.progress = new LevelTrack(LEVEL_CAP, init.level ?? 1, init.xp ?? 0);
+    const jobIds = new Set([
+      ...Object.keys(init.jobLevels ?? {}),
+      ...Object.keys(init.jobXp ?? {}),
+    ]);
+    for (const job of jobIds)
+      this.jobs.set(
+        job,
+        new LevelTrack(JOB_LEVEL_CAP, init.jobLevels?.[job] ?? 1, init.jobXp?.[job] ?? 0),
+      );
+    const main = init.mainJob ?? init.origin.id;
+    // メインジョブは転職と同じく、存在するジョブだけ（セーブデータの誤り）
+    if (!this.jobDefs.has(main)) throw new RangeError(`ジョブ ${main} は存在しない`);
+    this.main = main;
+    this.track(this.main);
   }
 
   get level(): number {
@@ -149,6 +176,10 @@ export class Character {
 
   jobLevel(jobId: string): number {
     return this.jobs.get(jobId)?.level ?? 1;
+  }
+  /** ジョブLvを持っているジョブ（一度でもメインにした・Lvを持つジョブ）。 */
+  get knownJobs(): string[] {
+    return [...this.jobs.keys()];
   }
   jobTrack(jobId: string): LevelTrack {
     return this.track(jobId);

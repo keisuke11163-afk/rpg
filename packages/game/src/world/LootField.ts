@@ -1,4 +1,3 @@
-// 仮実装: U-18a feature/town-and-dungeon-base で、地域の地面のアイテムに置き換える（試験用の場の地面のアイテム）
 import {
   type DropResult,
   type Inventory,

@@ -10,11 +10,24 @@ import { rollRarity } from "./rarity.ts";
 /** ジョブに合わせたドロップの割合（仕様書v0.2 3.5）。 */
 export const JOB_TARGETED_SHARE = 0.35;
 
-/**
- * 仮実装: U-16 feature/unique-items で、ユニークの抽選に置き換える。
- * ユニーク・星座のデータが無いので、落とせないレアリティとして扱う（重みは手順4で通常に回る）。
- */
-const NOT_YET_GENERATED: ReadonlySet<ItemRarity> = new Set<ItemRarity>(["unique", "set"]);
+/** 星座装備（セット）は MVP の範囲外。落とせないレアリティとして扱う（重みは手順4で通常に回る。D-U11-2）。 */
+const SET_NOT_IN_MVP: ItemRarity = "set";
+
+/** 討伐の祭壇で、専用ユニークを1つ交換するのに要る討伐証の数（仕様書v0.2 3.12）。 */
+export const ALTAR_TOKEN_COST = 10;
+
+/** 通常の抽選で落ちるユニーク（入手先が「どこでも」で、必要LvがアイテムLv以下。仕様書v0.2 3.7、補助仕様書12.1）。 */
+export function droppableUniques(db: ContentDb, itemLevel: number): ItemBaseDef[] {
+  return [...db.itemBases.values()].filter(
+    (b) => b.unique?.source === "anywhere" && b.requiredLevel <= itemLevel,
+  );
+}
+
+/** ユニークの実体（詞は無い）。 */
+export function uniqueItem(base: ItemBaseDef, uid: string, itemLevel: number): ItemInstance {
+  if (base.unique === undefined) throw new RangeError(`${base.id} はユニークのベースではない`);
+  return { uid, base: base.id, rarity: "unique", itemLevel, affixes: [] };
+}
 
 export interface DropInput {
   readonly source: DropSource;
@@ -51,9 +64,11 @@ export function dropItemLevel(db: ContentDb, source: DropSource, enemyLevel: num
   return enemyLevel + profile.itemLevelBonus;
 }
 
-/** アイテムLvで落とせるベース（必要LvがアイテムLv以下）。 */
+/** アイテムLvで落とせるベース（必要LvがアイテムLv以下。ユニークの専用のベースは除く）。 */
 export function droppableBases(db: ContentDb, itemLevel: number): ItemBaseDef[] {
-  return [...db.itemBases.values()].filter((b) => b.requiredLevel <= itemLevel);
+  return [...db.itemBases.values()].filter(
+    (b) => b.unique === undefined && b.requiredLevel <= itemLevel,
+  );
 }
 
 /** メインジョブの適性がA以上の武器のベース（仕様書v0.2 3.5 のジョブに合わせたドロップ）。 */
@@ -95,22 +110,43 @@ export function rollDrops(db: ContentDb, rng: Rng, input: DropInput): DropResult
 
   const items: ItemInstance[] = [];
   const jobTargeted: boolean[] = [];
+  // 系統詞は、倒した敵の系統（親タグを含む）のものだけ付く
+  const families =
+    input.enemyFamily === undefined ? undefined : input.tags.closure([input.enemyFamily]);
   if (rng.chance(profile.chance)) {
     if (bases.length === 0)
       throw new RangeError(`アイテムLv ${String(itemLevel)} で落とせるベースが無い`);
     const count = rng.int(profile.count.min, profile.count.max);
+    // 落とせるユニークが無いアイテムLvでは、ユニークの重みは通常に回る（D-U11-2）
+    const uniques = droppableUniques(db, itemLevel);
+    const unavailable = new Set<ItemRarity>([SET_NOT_IN_MVP]);
+    if (uniques.length === 0) unavailable.add("unique");
     for (let i = 0; i < count; i++) {
       const rarity = rollRarity(rng, {
         rarities: db.rarities,
         rareMultiplier: profile.rareMultiplier,
         ...(input.corridorBonus === undefined ? {} : { corridorBonus: input.corridorBonus }),
         ...(input.findRate === undefined ? {} : { findRate: input.findRate }),
-        unavailable: NOT_YET_GENERATED,
+        unavailable,
         rareOrBetterOnly: i < profile.guaranteedRareOrBetter,
       });
+      if (rarity === "unique") {
+        items.push(uniqueItem(rng.pick(uniques), input.nextUid(), itemLevel));
+        jobTargeted.push(false);
+        continue;
+      }
       const useJob = targeted.length > 0 && rng.chance(JOB_TARGETED_SHARE);
       const base = rng.pick(useJob ? targeted : bases);
-      items.push(generateItem(db, rng, { uid: input.nextUid(), base, rarity, itemLevel }));
+      items.push(
+        generateItem(db, rng, {
+          uid: input.nextUid(),
+          base,
+          rarity,
+          itemLevel,
+          ...(families === undefined ? {} : { families }),
+          ...(useJob && input.mainJob !== undefined ? { targetJob: input.mainJob.tag } : {}),
+        }),
+      );
       jobTargeted.push(useJob);
     }
   }

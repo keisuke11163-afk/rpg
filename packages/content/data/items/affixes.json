@@ -105,7 +105,7 @@
     "id": "AFX-PRE-HP-MAX",
     "text": "item.affix.hp-max",
     "position": "prefix",
-    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "categories": ["shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
     "effect": "EFF-AFX-HP-MAX",
     "roll": "range",
     "scale": 1,
@@ -207,7 +207,7 @@
     "id": "AFX-SUF-RESIST-FIRE",
     "text": "item.affix.resist-fire",
     "position": "suffix",
-    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "categories": ["shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
     "effect": "EFF-AFX-RESIST-FIRE",
     "roll": "range",
     "scale": 0.01,
@@ -338,5 +338,777 @@
     ],
     "provisional": true,
     "provisionalNote": "仕様書v0.2 3.6 の代表的な詞のtier表と重み（仮値）"
+  },
+  {
+    "id": "AFX-PRE-ADDED-COLD-WPN",
+    "text": "item.affix.added-cold",
+    "position": "prefix",
+    "categories": ["weapon"],
+    "effect": "EFF-PRE-ADDED-COLD-WPN",
+    "roll": "added",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 3
+      },
+      {
+        "tier": 4,
+        "min": 6,
+        "max": 12
+      },
+      {
+        "tier": 1,
+        "min": 18,
+        "max": 34
+      },
+      {
+        "tier": 0,
+        "min": 24,
+        "max": 42
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-PRE-ADDED-LIGHTNING-WPN",
+    "text": "item.affix.added-lightning",
+    "position": "prefix",
+    "categories": ["weapon"],
+    "effect": "EFF-PRE-ADDED-LIGHTNING-WPN",
+    "roll": "added",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 5
+      },
+      {
+        "tier": 4,
+        "min": 1,
+        "max": 15
+      },
+      {
+        "tier": 1,
+        "min": 2,
+        "max": 42
+      },
+      {
+        "tier": 0,
+        "min": 3,
+        "max": 50
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-PRE-ARMOR",
+    "text": "item.affix.armor",
+    "position": "prefix",
+    "categories": ["shield", "head", "body", "hands", "feet", "belt"],
+    "effect": "EFF-PRE-ARMOR",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 8,
+        "max": 15
+      },
+      {
+        "tier": 4,
+        "min": 40,
+        "max": 59
+      },
+      {
+        "tier": 1,
+        "min": 110,
+        "max": 139
+      },
+      {
+        "tier": 0,
+        "min": 150,
+        "max": 180
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-PRE-EVASION",
+    "text": "item.affix.evasion",
+    "position": "prefix",
+    "categories": ["shield", "head", "body", "hands", "feet", "belt"],
+    "effect": "EFF-PRE-EVASION",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 8,
+        "max": 15
+      },
+      {
+        "tier": 4,
+        "min": 40,
+        "max": 59
+      },
+      {
+        "tier": 1,
+        "min": 110,
+        "max": 139
+      },
+      {
+        "tier": 0,
+        "min": 150,
+        "max": 180
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-PRE-WARD",
+    "text": "item.affix.ward",
+    "position": "prefix",
+    "categories": ["shield", "head", "body", "hands", "feet", "belt"],
+    "effect": "EFF-PRE-WARD",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 4,
+        "max": 7
+      },
+      {
+        "tier": 4,
+        "min": 18,
+        "max": 25
+      },
+      {
+        "tier": 1,
+        "min": 45,
+        "max": 55
+      },
+      {
+        "tier": 0,
+        "min": 60,
+        "max": 70
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-PRE-MP-MAX",
+    "text": "item.affix.mp-max",
+    "position": "prefix",
+    "categories": ["head", "neck", "ring"],
+    "effect": "EFF-PRE-MP-MAX",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 8,
+        "max": 12
+      },
+      {
+        "tier": 4,
+        "min": 25,
+        "max": 34
+      },
+      {
+        "tier": 1,
+        "min": 55,
+        "max": 64
+      },
+      {
+        "tier": 0,
+        "min": 70,
+        "max": 80
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-RESIST-COLD",
+    "text": "item.affix.resist-cold",
+    "position": "suffix",
+    "categories": ["shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-SUF-RESIST-COLD",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 6,
+        "max": 11
+      },
+      {
+        "tier": 4,
+        "min": 24,
+        "max": 29
+      },
+      {
+        "tier": 1,
+        "min": 41,
+        "max": 45
+      },
+      {
+        "tier": 0,
+        "min": 46,
+        "max": 48
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の火耐性と同じ値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-RESIST-LIGHTNING",
+    "text": "item.affix.resist-lightning",
+    "position": "suffix",
+    "categories": ["shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-SUF-RESIST-LIGHTNING",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 6,
+        "max": 11
+      },
+      {
+        "tier": 4,
+        "min": 24,
+        "max": 29
+      },
+      {
+        "tier": 1,
+        "min": 41,
+        "max": 45
+      },
+      {
+        "tier": 0,
+        "min": 46,
+        "max": 48
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の火耐性と同じ値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-RESIST-DARK",
+    "text": "item.affix.resist-dark",
+    "position": "suffix",
+    "categories": ["shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-SUF-RESIST-DARK",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 6,
+        "max": 11
+      },
+      {
+        "tier": 4,
+        "min": 24,
+        "max": 29
+      },
+      {
+        "tier": 1,
+        "min": 41,
+        "max": 45
+      },
+      {
+        "tier": 0,
+        "min": 46,
+        "max": 48
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の火耐性と同じ値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-RESIST-HOLY",
+    "text": "item.affix.resist-holy",
+    "position": "suffix",
+    "categories": ["shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-SUF-RESIST-HOLY",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 6,
+        "max": 11
+      },
+      {
+        "tier": 4,
+        "min": 24,
+        "max": 29
+      },
+      {
+        "tier": 1,
+        "min": 41,
+        "max": 45
+      },
+      {
+        "tier": 0,
+        "min": 46,
+        "max": 48
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の火耐性と同じ値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-CRIT-MULTIPLIER",
+    "text": "item.affix.crit-multiplier",
+    "position": "suffix",
+    "categories": ["weapon", "neck"],
+    "effect": "EFF-SUF-CRIT-MULTIPLIER",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 50,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 8,
+        "max": 12
+      },
+      {
+        "tier": 4,
+        "min": 20,
+        "max": 24
+      },
+      {
+        "tier": 1,
+        "min": 35,
+        "max": 39
+      },
+      {
+        "tier": 0,
+        "min": 40,
+        "max": 44
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-ACCURACY",
+    "text": "item.affix.accuracy",
+    "position": "suffix",
+    "categories": ["weapon", "hands", "ring"],
+    "effect": "EFF-SUF-ACCURACY",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 20,
+        "max": 40
+      },
+      {
+        "tier": 4,
+        "min": 100,
+        "max": 150
+      },
+      {
+        "tier": 1,
+        "min": 250,
+        "max": 300
+      },
+      {
+        "tier": 0,
+        "min": 330,
+        "max": 380
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-ATTR-GO",
+    "text": "item.affix.attr-go",
+    "position": "suffix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring", "shield"],
+    "effect": "EFF-SUF-ATTR-GO",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 3,
+        "max": 5
+      },
+      {
+        "tier": 4,
+        "min": 12,
+        "max": 15
+      },
+      {
+        "tier": 1,
+        "min": 25,
+        "max": 28
+      },
+      {
+        "tier": 0,
+        "min": 30,
+        "max": 33
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-ATTR-JIN",
+    "text": "item.affix.attr-jin",
+    "position": "suffix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring", "shield"],
+    "effect": "EFF-SUF-ATTR-JIN",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 3,
+        "max": 5
+      },
+      {
+        "tier": 4,
+        "min": 12,
+        "max": 15
+      },
+      {
+        "tier": 1,
+        "min": 25,
+        "max": 28
+      },
+      {
+        "tier": 0,
+        "min": 30,
+        "max": 33
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-ATTR-RI",
+    "text": "item.affix.attr-ri",
+    "position": "suffix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring", "shield"],
+    "effect": "EFF-SUF-ATTR-RI",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 3,
+        "max": 5
+      },
+      {
+        "tier": 4,
+        "min": 12,
+        "max": 15
+      },
+      {
+        "tier": 1,
+        "min": 25,
+        "max": 28
+      },
+      {
+        "tier": 0,
+        "min": 30,
+        "max": 33
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-ATTR-KON",
+    "text": "item.affix.attr-kon",
+    "position": "suffix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring", "shield"],
+    "effect": "EFF-SUF-ATTR-KON",
+    "roll": "range",
+    "scale": 1,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 3,
+        "max": 5
+      },
+      {
+        "tier": 4,
+        "min": 12,
+        "max": 15
+      },
+      {
+        "tier": 1,
+        "min": 25,
+        "max": 28
+      },
+      {
+        "tier": 0,
+        "min": 30,
+        "max": 33
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-STAGGER",
+    "text": "item.affix.stagger",
+    "position": "suffix",
+    "categories": ["weapon", "hands"],
+    "effect": "EFF-SUF-STAGGER",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 8,
+        "max": 12
+      },
+      {
+        "tier": 4,
+        "min": 20,
+        "max": 24
+      },
+      {
+        "tier": 1,
+        "min": 35,
+        "max": 39
+      },
+      {
+        "tier": 0,
+        "min": 40,
+        "max": 44
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-AILMENT-DAMAGE",
+    "text": "item.affix.ailment-damage",
+    "position": "suffix",
+    "categories": ["weapon", "neck", "ring"],
+    "effect": "EFF-SUF-AILMENT-DAMAGE",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 10,
+        "max": 14
+      },
+      {
+        "tier": 4,
+        "min": 25,
+        "max": 29
+      },
+      {
+        "tier": 1,
+        "min": 45,
+        "max": 49
+      },
+      {
+        "tier": 0,
+        "min": 52,
+        "max": 56
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-SUF-FLASK-RECOVERY",
+    "text": "item.affix.flask-recovery",
+    "position": "suffix",
+    "categories": ["belt"],
+    "effect": "EFF-SUF-FLASK-RECOVERY",
+    "roll": "range",
+    "scale": 0.01,
+    "weight": 100,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 8,
+        "max": 12
+      },
+      {
+        "tier": 4,
+        "min": 18,
+        "max": 22
+      },
+      {
+        "tier": 1,
+        "min": 30,
+        "max": 34
+      },
+      {
+        "tier": 0,
+        "min": 36,
+        "max": 40
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の表に無い詞。表にある似た詞（同じ部位・同じ種類）の値と重みに合わせた仮値（docs/progress D-U11-24）"
+  },
+  {
+    "id": "AFX-PRE-JOB-WARRIOR",
+    "text": "item.affix.job-warrior",
+    "position": "prefix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-PRE-JOB-WARRIOR",
+    "roll": "fixed",
+    "scale": 0.01,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 15,
+        "max": 15
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の職詞の例（闘志の獲得量+15%）。値はtierで変えない・頭は重み2倍（docs/progress D-U11-23）",
+    "job": "TAG-JOB-WARRIOR",
+    "categoryWeights": {
+      "head": 2
+    }
+  },
+  {
+    "id": "AFX-PRE-JOB-ROGUE",
+    "text": "item.affix.job-rogue",
+    "position": "prefix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-PRE-JOB-ROGUE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の職詞の例（終結技のコンボ点+1として扱う）。頭は重み2倍（docs/progress D-U11-23）",
+    "job": "TAG-JOB-ROGUE",
+    "categoryWeights": {
+      "head": 2
+    }
+  },
+  {
+    "id": "AFX-SUF-BEAST-HUNTER",
+    "text": "item.affix.beast-hunter",
+    "position": "suffix",
+    "categories": ["feet", "ring", "neck"],
+    "effect": "EFF-SUF-BEAST-HUNTER",
+    "roll": "fixed",
+    "scale": 0.01,
+    "weight": 50,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 15,
+        "max": 15
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の系統詞の例（獣を倒すと3秒間移動速度+15%）。付く部位は仮（docs/progress D-U11-25）",
+    "family": "TAG-FAMILY-BEAST"
+  },
+  {
+    "id": "AFX-SUF-RESONANCE-GOU",
+    "text": "item.affix.resonance-gou",
+    "position": "suffix",
+    "categories": ["weapon", "shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-AFX-RESONANCE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "resonance": "gou",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6（共鳴紋は後詞の枠を1つ使う・重み25）。付く部位の記載が無いので全ての部位（docs/progress D-RES-1）"
+  },
+  {
+    "id": "AFX-SUF-RESONANCE-GOUJIN",
+    "text": "item.affix.resonance-goujin",
+    "position": "suffix",
+    "categories": ["weapon", "shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-AFX-RESONANCE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "resonance": "goujin",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6（共鳴紋は後詞の枠を1つ使う・重み25）。付く部位の記載が無いので全ての部位（docs/progress D-RES-1）"
+  },
+  {
+    "id": "AFX-SUF-RESONANCE-JIN",
+    "text": "item.affix.resonance-jin",
+    "position": "suffix",
+    "categories": ["weapon", "shield", "head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-AFX-RESONANCE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "resonance": "jin",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6（共鳴紋は後詞の枠を1つ使う・重み25）。付く部位の記載が無いので全ての部位（docs/progress D-RES-1）"
   }
 ]

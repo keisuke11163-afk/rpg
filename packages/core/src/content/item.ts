@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STAR_REGIONS } from "./board.ts";
 import { idSchema, provisionalFields, textKeySchema } from "./ids.ts";
 
 /**
@@ -72,6 +73,45 @@ const rangeSchema = z
   .strictObject({ min: z.number().nonnegative(), max: z.number().nonnegative() })
   .refine((r) => r.min <= r.max, "最小値が最大値を超えている");
 
+/** 防具種（仕様書v0.2 3.3。混成は MVP の範囲外）。 */
+export const ARMOR_TYPES = ["heavy", "light", "robe"] as const;
+export type ArmorType = (typeof ARMOR_TYPES)[number];
+
+/**
+ * ユニークの潜在効果の発動条件（仕様書v0.2 3.7 の原則3：他のシステムが条件）。
+ * pending は、参照するデータ（星座・天極・職紋盤など）がまだ無いもの（参照を検証しない。満たされない）。
+ */
+export const latentConditionSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("constellation"),
+    id: idSchema,
+    pending: z.boolean().optional(),
+  }),
+  z.strictObject({ type: z.literal("starNode"), id: idSchema, pending: z.boolean().optional() }),
+  z.strictObject({ type: z.literal("jobNode"), id: idSchema, pending: z.boolean().optional() }),
+  z.strictObject({ type: z.literal("jobMastery"), id: idSchema, pending: z.boolean().optional() }),
+  z.strictObject({ type: z.literal("mainJob"), job: idSchema }),
+  z.strictObject({ type: z.literal("enhanceAtLeast"), value: z.number().int().min(1).max(10) }),
+]);
+export type LatentCondition = z.infer<typeof latentConditionSchema>;
+
+/** ユニーク（仕様書v0.2 3.7）。ベースごとに1つのユニーク（ユニークは専用のベースとして持つ）。 */
+export const uniqueSchema = z.strictObject({
+  /** 固有効果（出どころは unique。武器なら局所）。 */
+  effects: z.array(idSchema).min(1),
+  /** 潜在効果（条件を満たすと働く。初めて満たすまでは「？？？」）。 */
+  latent: z.strictObject({
+    text: textKeySchema,
+    effects: z.array(idSchema),
+    condition: latentConditionSchema,
+  }),
+  /** 入手先：どこでも（通常の抽選）か、専用（ボスのドロップと討伐の祭壇だけ）。 */
+  source: z.enum(["anywhere", "exclusive"]),
+  /** 固有効果の説明。 */
+  description: textKeySchema,
+});
+export type UniqueDef = z.infer<typeof uniqueSchema>;
+
 /** アイテムのベース（開発計画書6.5、仕様書v0.2 3.2〜3.4、補助仕様書14章）。 */
 export const itemBaseSchema = z.strictObject({
   id: idSchema,
@@ -96,8 +136,26 @@ export const itemBaseSchema = z.strictObject({
       critChance: z.number().min(0).max(1),
     })
     .optional(),
+  /**
+   * 防具・盾の基礎性能（仕様書v0.2 3.3：防具値・回避値・魔障）。強化と要求値の未達が掛かる（3.9 の基礎性能）。
+   * type は防具種（統一ボーナスの判定。盾には無い）。
+   */
+  defense: z
+    .strictObject({
+      type: z.enum(ARMOR_TYPES).optional(),
+      armor: z.number().positive().optional(),
+      evasion: z.number().positive().optional(),
+      ward: z.number().positive().optional(),
+    })
+    .optional(),
+  /** 盾の性能（仕様書v0.2 3.2：ガード率）。MVPにはガードの操作が無いので、値を持つだけ（docs/progress D-U11-16）。 */
+  shield: z.strictObject({ guard: z.number().min(0).max(1) }).optional(),
   /** 基本刻印・武器としての特性（効果のID。出どころは implicit）。 */
   implicitEffects: z.array(idSchema).optional(),
+  /** 共鳴紋が確定で付く（その代わり詞の枠-1。星鉄の首飾り。仕様書v0.2 3.4）。 */
+  guaranteedResonance: z.boolean().optional(),
+  /** ユニークの専用のベース（通常の抽選のベースには含めない）。 */
+  unique: uniqueSchema.optional(),
   ...provisionalFields,
 });
 export type ItemBaseDef = z.infer<typeof itemBaseSchema>;
@@ -144,6 +202,17 @@ export const affixSchema = z.strictObject({
   scale: z.number().positive(),
   /** 出現の重み（仕様書v0.2 3.6：一般100、攻撃速度・会心率・移動速度・付与率50 など）。 */
   weight: z.number().positive(),
+  /** 部位ごとの重みの倍率（頭は職詞が出やすい。仕様書v0.2 3.1）。 */
+  categoryWeights: z.partialRecord(z.enum(BASE_CATEGORIES), z.number().positive()).optional(),
+  /** 系統詞：この系統のタグを持つ敵のドロップにだけ付く（仕様書v0.2 3.6・3.12）。 */
+  family: idSchema.optional(),
+  /** 職詞：このジョブのタグ（効果の条件もこのジョブ。ジョブに合わせたドロップで出やすい）。 */
+  job: idSchema.optional(),
+  /**
+   * 共鳴紋：この星域（仕様書v0.2 3.6・6.1 I-01）。1つにつき、その星域の輝星の効果の数値の部分+10%
+   * （上限+40%）。同じ星域が3つ以上で、その星域の天極が共鳴変化になる。
+   */
+  resonance: z.enum(STAR_REGIONS).optional(),
   /** 表に載っているtierの値。載っていないtierは、隣の載っているtierの間を補う。 */
   tiers: z.array(tierValueSchema).min(1),
   ...provisionalFields,
@@ -159,7 +228,16 @@ export const materialSchema = z.strictObject({
 export type MaterialDef = z.infer<typeof materialSchema>;
 
 /** ドロップの出どころ（仕様書v0.2 3.5 の敵の格とドロップ数、補助仕様書12章）。 */
-export const DROP_SOURCES = ["normal", "magic", "elite", "miniBoss", "chapterBoss"] as const;
+export const DROP_SOURCES = [
+  "normal",
+  "magic",
+  "elite",
+  "miniBoss",
+  "chapterBoss",
+  "abyssBoss",
+  "woodChest",
+  "oldChest",
+] as const;
 export type DropSource = (typeof DROP_SOURCES)[number];
 
 /** 素材のドロップ：確率で1個（chance）か、確定の数（count）。family は、その系統の敵だけ（獣牙）。 */
