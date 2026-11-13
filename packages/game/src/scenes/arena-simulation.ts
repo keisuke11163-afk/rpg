@@ -3457,7 +3457,8 @@ export class ArenaSimulation {
       now: this.elapsed,
       characterLevel: this.character.level,
       owner: this.motion.position,
-      enemies: this.field?.targets() ?? [],
+      // 試し打ちの木人も標的にする（指揮・集中で木人を狙ったとき、召喚物が実際に攻撃するように）
+      enemies: this.targets(),
       // 笏の基本刻印「召喚物のダメージ+12%」など（持ち主の能力値。召喚物はこれだけを受ける。V-05）
       minionDamage: this.view.stat("STAT-MINION-DAMAGE").increased,
       command: this.minionCommand,

@@ -6,7 +6,11 @@ import { type RawContent, FIXED_STEP_SECONDS, loadContent } from "@stella/core";
 import { loadGameContent, rawContent } from "@stella/content";
 import type { Action } from "../src/input/actions.ts";
 import type { InputFrame } from "../src/input/frame.ts";
-import { ArenaSimulation, newCharacterProfile } from "../src/scenes/arena-simulation.ts";
+import {
+  ArenaSimulation,
+  DUMMY_POSITION,
+  newCharacterProfile,
+} from "../src/scenes/arena-simulation.ts";
 import { toPixels } from "../src/world/units.ts";
 
 const STEP = FIXED_STEP_SECONDS;
@@ -122,10 +126,12 @@ describe("契約枠と召喚", () => {
   it("召喚物は持ち主に付いて来る（敵がいないとき）", () => {
     const sim = simOf();
     allSkills(sim);
+    // 木人（右）から十分に離れてから呼ぶ（木人も召喚物の標的になるため）
+    for (let i = 0; i < 240; i++) sim.frame(STEP, { ...frame(), move: { x: -1, y: 0 } });
     use(sim, "SKL-SUMMONER-SKELETON");
     const m = sim.minions[0];
     if (m === undefined) throw new Error("骸兵がいない");
-    for (let i = 0; i < 120; i++) sim.frame(STEP, { ...frame(), move: { x: 1, y: 0 } });
+    for (let i = 0; i < 120; i++) sim.frame(STEP, { ...frame(), move: { x: 0, y: 1 } });
     const p = sim.motion.position;
     expect(Math.hypot(m.position.x - p.x, m.position.y - p.y)).toBeLessThan(3);
   });
@@ -238,6 +244,28 @@ describe("指揮・魂の供儀・霊体憑依", () => {
     expect(sim.minions).toHaveLength(1);
     const buff = sim.buffs.active.find((b) => b.effectId === "EFF-SUMMONER-POSSESS-DIRE-WOLF");
     expect(buff).toBeDefined();
+  });
+});
+
+describe("試し打ちの木人", () => {
+  it("指揮・集中で木人を狙うと、召喚物が木人を攻撃する（MPとCDだけ使って何も起きない、にならない）", () => {
+    const sim = simOf();
+    allSkills(sim);
+    // 木人の近くまで歩く
+    for (let i = 0; i < 600 && DUMMY_POSITION.x - sim.motion.position.x > 4; i++)
+      sim.frame(STEP, { ...frame(), move: { x: 1, y: 0 } });
+    use(sim, "SKL-SUMMONER-DIRE-WOLF");
+    const hp = sim.dummy?.health.hp ?? 0;
+    use(sim, "SKL-SUMMONER-COMMAND", DUMMY_POSITION);
+    expect(sim.commandTarget).toBe(sim.dummy);
+    for (let i = 0; i < 600 && sim.minionField.hits === 0; i++)
+      sim.frame(
+        STEP,
+        frame([], [], { x: toPixels(DUMMY_POSITION.x), y: toPixels(DUMMY_POSITION.y) }),
+      );
+    expect(sim.minionField.hits).toBeGreaterThan(0);
+    expect(sim.dummy?.health.hp ?? hp).toBeLessThan(hp);
+    expect(sim.dps()).toBeGreaterThan(0);
   });
 });
 
