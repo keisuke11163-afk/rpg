@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { type RawContent, loadContent } from "@stella/core";
 import { rawContent } from "@stella/content";
+import type { InputFrame } from "../src/input/frame.ts";
 import { ArenaSimulation } from "../src/scenes/arena-simulation.ts";
 
 function rogueWithoutDualWield(): RawContent {
@@ -56,6 +57,29 @@ describe("転職で二刀流ができなくなる（D-AUTO-2）", () => {
     expect(sim.job.id).toBe("JOB-WARRIOR");
     expect(sim.equipment.get("offHand")?.uid).toBe("test-axe");
     expect(sim.saveData()).toEqual(before);
+  });
+
+  it("キーで転職して副手を外せないときは、理由を表示する", () => {
+    const texts: string[] = [];
+    const loaded = loadContent(rogueWithoutDualWield());
+    if (!loaded.ok) throw new Error(loaded.errors.map((e) => e.message).join("\n"));
+    const sim = new ArenaSimulation(undefined, {
+      db: loaded.content,
+      enemies: false,
+      onText: (label) => texts.push(label),
+    });
+    expect(sim.equipFromInventory("test-dagger")).toBe(true);
+    expect(sim.equipFromInventory("test-axe", "offHand")).toBe(true);
+    fill(sim);
+    const idle: InputFrame = {
+      held: new Set(),
+      pressed: new Set(),
+      move: { x: 0, y: 0 },
+      pointerWorld: { x: 0, y: 0 },
+    };
+    sim.frame(1 / 60, idle, { changeJob: true });
+    expect(sim.job.id).toBe("JOB-WARRIOR");
+    expect(texts.some((t) => t.includes("インベントリがいっぱい"))).toBe(true);
   });
 
   it("空きがあれば、副手をインベントリに戻して転職する", () => {

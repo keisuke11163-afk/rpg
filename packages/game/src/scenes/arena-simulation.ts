@@ -1901,7 +1901,13 @@ export class ArenaSimulation {
     // 時間の検証を先に行う（例外のときに入力だけが残らないように）
     const { steps } = this.clock.advance(deltaSeconds);
     if (extra.switchWeapon === true) this.switchWeapon();
-    if (extra.changeJob === true) this.changeJob();
+    if (extra.changeJob === true && this.changeJob() === "inventoryFull")
+      // 何も起きないように見えないよう、理由を出す（docs/progress D-AUTO-2）
+      this.onText?.(
+        "インベントリがいっぱいで、副手を外せない（転職しない）",
+        this.motion.position,
+        "#ff6b6b",
+      );
     this.aimPoint = { x: toMeters(input.pointerWorld.x), y: toMeters(input.pointerWorld.y) };
     this.stepInput.press(STEP_ACTIONS.filter((a) => input.pressed.has(a)));
     for (let i = 0; i < steps; i++) this.step(input);
