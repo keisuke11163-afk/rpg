@@ -498,3 +498,26 @@ export function withoutPart(
       };
   }
 }
+
+/**
+ * 武器だけを替えたビルド（片手と両手の比較。docs/progress D-FIN-4）。主手の詞をそのまま両方の手に付け、強化は+5。
+ * off を省略すると副手は空き。主手・副手以外の装備はそのまま。
+ */
+export function withWeapons(b: BenchBuild, main: string, off?: string): BenchBuild {
+  const w = b.equipment.find((e) => e.slot === "mainHand");
+  const rest = b.equipment.filter((e) => e.slot !== "mainHand" && e.slot !== "offHand");
+  const hand = (slot: "mainHand" | "offHand", base: string) => ({
+    slot,
+    base,
+    ...(w?.affixes === undefined ? {} : { affixes: w.affixes }),
+    enhance: 5,
+  });
+  return {
+    ...b,
+    equipment: [
+      hand("mainHand", main),
+      ...(off === undefined ? [] : [hand("offHand", off)]),
+      ...rest,
+    ],
+  };
+}
