@@ -28,6 +28,20 @@
     "text": "star.start.jin"
   },
   {
+    "id": "STAR-JINRI-START",
+    "kind": "start",
+    "region": "jinri",
+    "links": ["STAR-JIN-0201"],
+    "position": {
+      "x": 300,
+      "y": 60
+    },
+    "provisional": true,
+    "provisionalNote": "弓使いの始点（仕様書v0.2 4.1 の迅理域）。MVPの盤には迅理域の中身が無いので、迅域の枝（STAR-JIN-0201）につないだ仮の位置（docs/progress D-ARC-5）",
+    "startFor": ["JOB-ARCHER"],
+    "text": "star.start.jinri"
+  },
+  {
     "id": "STAR-GOU-0001",
     "kind": "minor",
     "region": "gou",

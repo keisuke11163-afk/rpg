@@ -212,7 +212,11 @@ export function prepareBench(
  * 使う技を選ぶ：①CDのある技（強化・弱体化・設置など）で使えるもの、②ゲージを全て使う技（終結技・解放技）は
  * ゲージが最大のときだけ、③CDの無い技、④通常攻撃。同じ区分の中は枠の順。
  */
-export function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Action } | undefined {
+export function chooseSkill(
+  sim: ArenaSimulation,
+  db: ContentDb,
+  tooClose = false,
+): { action: Action } | undefined {
   const def = (id: string) => db.skills.get(id);
   // 近接の距離では、瞬間移動の技（影走り）は使わない。背面を取る意味が無いとき（影法師など）は無駄になる。
   // 背向けの外套（移動の技の後は全てのヒットが背面）を着ているときだけは使う
@@ -221,7 +225,9 @@ export function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Acti
     (l) =>
       l.skill !== "SKL-BASIC-ATTACK" &&
       sim.blockOf(l.skill) === undefined &&
-      (def(l.skill)?.action.type !== "teleport" || moveBackstab),
+      (def(l.skill)?.action.type !== "teleport" || moveBackstab) &&
+      // 跳躍後退（撃ちながら後ろへ跳ぶ）は、近すぎるときだけ使う（止まって集中を溜めるため）
+      (!isLeap(def(l.skill)) || tooClose),
   );
   const full = sim.jobGauge.value >= sim.jobGauge.max - 1e-9;
   const spender = (id: string): boolean => def(id)?.gauge?.cost === "all";
@@ -240,6 +246,11 @@ export function chooseSkill(sim: ArenaSimulation, db: ContentDb): { action: Acti
       (l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill) && affordable(l.skill),
     )
   );
+}
+
+function isLeap(d: { readonly action: { readonly type: string } } | undefined): boolean {
+  const a = d?.action as { type: string; leap?: unknown } | undefined;
+  return a?.type === "projectile" && a.leap !== undefined;
 }
 
 /**
@@ -378,11 +389,37 @@ export function runBossBench(
         : dist > MELEE_GAP
           ? { x: dx, y: dy }
           : { x: 0, y: 0 };
-    const special = chooseSkill(sim, db);
+    // 適正間合いを持つジョブ（弓使い）：間合いの真ん中に立ち、止まって撃つ。近すぎれば離れ、遠ければ寄る。
+    // 雲の中にいれば、雲の外へ出る
+    const band = sim.job.preferredRange;
+    let ranged: { move: { x: number; y: number }; attack: boolean } | undefined;
+    if (band !== undefined) {
+      const clouds = sim.field?.clouds ?? [];
+      const cloud = clouds.find(
+        (c) =>
+          Math.hypot(me.x - c.center.x, me.y - c.center.y) <= c.radius + sim.player.radius + 0.2,
+      );
+      const lo = band.min + 0.5;
+      const hi = band.max - 0.5;
+      ranged = cloud
+        ? { move: { x: me.x - cloud.center.x || 1, y: me.y - cloud.center.y }, attack: true }
+        : dist > hi
+          ? { move: { x: dx, y: dy }, attack: false }
+          : dist < lo
+            ? { move: { x: -dx, y: -dy }, attack: true }
+            : { move: { x: 0, y: 0 }, attack: true };
+    }
+    const special = chooseSkill(sim, db, band !== undefined && dist < band.close + 0.5);
     // 近接の距離まで寄ってから技を使う（技の間は動けないので、離れたまま押すと届かない）
     const canAttack = spot === undefined || (spot.melee && atSpot);
     const held = new Set<Action>(
-      canAttack && dist <= MELEE_GAP + 0.2 ? [special?.action ?? "skill1"] : [],
+      ranged !== undefined
+        ? ranged.attack
+          ? [special?.action ?? "skill1"]
+          : []
+        : canAttack && dist <= MELEE_GAP + 0.2
+          ? [special?.action ?? "skill1"]
+          : [],
     );
     const pressed = new Set<Action>();
     // 予兆の回避：ボスの攻撃の予兆の終わり際に、当たる範囲にいれば、範囲の外へ回避する
@@ -392,7 +429,7 @@ export function runBossBench(
     const frame: InputFrame = {
       held: away !== undefined && dodges ? new Set<Action>() : held,
       pressed,
-      move: away !== undefined && dodges ? away : move,
+      move: away !== undefined && dodges ? away : (ranged?.move ?? move),
       pointerWorld: { x: toPixels(dest.x), y: toPixels(dest.y) },
     };
     const hpBefore = sim.player.health.hp + sim.player.health.ward;

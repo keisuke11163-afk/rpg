@@ -287,4 +287,40 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       "JBN-ROGUE-M-ENDLESS",
     ],
   },
+  {
+    id: "baseline-archer",
+    name: "基準・弓使い（希少の弓・ユニークと天極なし・ポイントをほぼ使う）",
+    job: "JOB-ARCHER",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-BOW-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07", "STAR-NT-FOCUS", "STAR-NT-CORRODE"],
+    jobNodes: [
+      "JBN-ARCHER-T7",
+      "JBN-ARCHER-B1B",
+      "JBN-ARCHER-B2B",
+      "JBN-ARCHER-RANGE",
+      "JBN-ARCHER-M-HAWK",
+    ],
+    // 跳躍後退の代わりに狙撃を入れる（止まって集中を溜めて撃つ）
+    skills: [
+      "SKL-BASIC-ATTACK",
+      "SKL-ARCHER-QUICKSHOT",
+      "SKL-ARCHER-SPREAD",
+      "SKL-ARCHER-PIERCING",
+      "SKL-ARCHER-RAIN",
+      "SKL-ARCHER-SNIPE",
+    ],
+  },
 ];
