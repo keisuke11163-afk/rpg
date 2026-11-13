@@ -2059,7 +2059,10 @@ export class ArenaSimulation {
   changeJob(): "ok" | "busy" | "cannot" | "inventoryFull" {
     if (this.current !== undefined) return "busy";
     if (!this.character.canChangeJob) return "cannot";
-    const jobs = [...this.db.jobs.keys()];
+    // 上位職・混成職は、試練で就くもの（MVP後の機能の提案 4章：形だけ）なので、転職の順番に入れない
+    const jobs = [...this.db.jobs.values()]
+      .filter((j) => j.advancedFrom === undefined || j.id === this.job.id)
+      .map((j) => j.id);
     const next = jobs[(jobs.indexOf(this.job.id) + 1) % jobs.length];
     const nextJob = next === undefined ? undefined : this.db.jobs.get(next);
     if (next === undefined || nextJob === undefined || next === this.job.id) return "cannot";

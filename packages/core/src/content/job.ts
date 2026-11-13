@@ -298,6 +298,19 @@ export const jobSchema = z.strictObject({
       closePenalty: z.number(),
     })
     .optional(),
+  /**
+   * 上位職・混成職の元のジョブ（MVP後の機能の提案 4章：データの形だけ。挙動は変えない）。
+   * 上位職は1つ（例：暗殺者 ← 盗賊）、混成職は2つ（例：魔弾射手 ← 弓使い・魔法使い。仕様書v0.2 5.8）。
+   */
+  advancedFrom: z.array(idSchema).min(1).max(2).optional(),
+  /** 上位職・混成職になるための試練（形だけ。内容は上位職ごとの仕様書で決める。M-02）。 */
+  trial: z
+    .strictObject({
+      text: textKeySchema,
+      /** 元のジョブに必要なジョブLv（仕様書v0.2 5.1：ジョブLv30）。 */
+      jobLevel: z.number().int().min(1),
+    })
+    .optional(),
   ...provisionalFields,
 });
 export type JobDef = z.infer<typeof jobSchema>;
