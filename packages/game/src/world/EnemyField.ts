@@ -6,11 +6,15 @@ import {
   ENEMY_RULES,
   Enemy,
   type EnemyAttackDef,
+  type EnemyDef,
   EnemyAttackers,
   type EnemyRank,
+  type EnemyResidue,
   type EnemyTarget,
+  type EnemyUpdatePlan,
   type HitReport,
   ProjectilePool,
+  type ProjectileTarget,
   type Rng,
   type Vec2,
   length,
@@ -84,7 +88,7 @@ export interface FieldEnemy {
 export interface FieldHooks {
   onPlayerHit(report: HitReport, enemy: Enemy, attack: EnemyAttackDef): void;
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
-  /** 敵が倒れた（経験値を得る）。 */
+  /** 敵が倒れた（経験値を得る）。1体につき1回だけ、場の更新を全て反映した後に呼ぶ。 */
   onEnemyKilled(enemy: Enemy): void;
   /** このヒットの、プレイヤーが受けるダメージの倍率（背向けの外套。省略で1）。 */
   playerTakenMultiplier?(enemy: Enemy): number;
@@ -243,6 +247,26 @@ export class EnemyField {
     if (e.notice()) this.alertPack(e);
   }
 
+  /**
+   * 1刻み進める：敵の行動・攻撃、投射物、胞子の雲、倒れた敵を消す・群れをもう一度出す。
+   *
+   * 例外安全：次の3段階で進め、場（敵・投射物・雲・倒れてからの時間・もう一度出すまでの時間・
+   * 倒した数・突進の当たった記録・乱数）が中途半端に変わった状態を残さない。
+   * 1. 計画と検証（場もプレイヤーも変えない）：経過時間、全ての敵の更新の計画（Enemy.planUpdate：
+   *    状態の経過時間の累計・移動後の位置・持続ダメージ・HP・崩しゲージの計算）、倒れてからの時間、
+   *    雲の残り時間・次に状態異常を付けるまでの時間、もう一度出すまでの時間、倒した数、
+   *    投射物の更新（相手の位置・半径の合計）と、敵が出しうる投射物・雲の値を検証する。
+   *    どれかが失敗すれば RangeError で、何も変わらない（後ろの敵の失敗で前の敵が進むことはない）。
+   * 2. 場の反映：検証済みの計画と値だけを使い、例外は起きない。
+   *    この刻みで倒れる敵（まだ倒れた状態でなく、計画の HP が0以下）も、ここで決める。
+   * 3. プレイヤーへの影響：場を全て反映し終えてから、攻撃のヒット（resolveHit と hooks）・敵が倒れたこと
+   *    （hooks.onEnemyKilled。経験値）・雲の状態異常を、起きた順（敵の順の攻撃と倒れたこと → 投射物 → 雲）に
+   *    プレイヤーへ与える。段階1で失敗すれば、onEnemyKilled も呼ばれない（経験値も入らない）。ここ（プレイヤーの計算や hooks）で
+   *    例外になった場合も、場はこの刻みを全て終えた状態で、それより後のプレイヤーへの影響だけが与えられない。
+   *
+   * 敵の行動はプレイヤーの状態を刻みの始めの値（target）でしか見ないので、プレイヤーへの影響を後に回しても
+   * 敵の動きは変わらない。ただし乱数を使う順番（敵の行動 → ヒットの計算）は変わる。
+   */
   update(
     dt: number,
     player: Combatant,
@@ -250,36 +274,77 @@ export class EnemyField {
     facing: number,
     hooks: FieldHooks,
   ): void {
+    const plan = this.plan(dt, player, invulnerable);
+    const effects = this.commit(plan, player, facing);
+    try {
+      this.applyToPlayer(effects, player, plan.invulnerable, hooks);
+    } finally {
+      // 倒れた・消えた敵の、攻撃の命中の評価を消す（倒れた敵の投射物が段階3で当たって作った分も含む）
+      this.attackers.retain(this.enemies);
+    }
+  }
+
+  /** 攻撃の命中の評価を残している敵の ID（確認用）。 */
+  cachedStatusViews(): readonly string[] {
+    return this.attackers.cachedStatusViews();
+  }
+
+  /** 1. 計画と検証（場もプレイヤーも変えない）。 */
+  private plan(dt: number, player: Combatant, invulnerable: boolean): FieldPlan {
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
+    // プレイヤーがヒットを受けない（回避の無敵）かは、この刻みの始めに決める。
+    // 段階3では、この値で無効にしたヒットに、ダメージ・状態異常・崩しを何も与えない
+    if (typeof invulnerable !== "boolean")
+      throw new RangeError(`無敵かは真偽値（${String(invulnerable)}）`);
+    // 投射物：相手（プレイヤー）の位置・半径と、今ある投射物の半径との合計
+    this.projectiles.checkUpdate(dt, [playerTarget(player)]);
+    // 敵：更新の計画（後ろの敵で失敗しても、前の敵はまだ何も変わっていない）
+    const enemies = this.views.map((v) => {
+      const enemy = v.enemy.planUpdate(dt);
+      const deadFor = requireFinite(v.deadFor + dt, `敵 ${v.enemy.id} の倒れてからの時間`);
+      checkAttacks(this.db, v.enemy.id, v.enemy.def, player);
+      // この刻みで倒れるか（倒れた状態になるのは、計画の HP が0以下のときだけ。Enemy.commitUpdate を参照）
+      const killed = v.enemy.state !== "dead" && enemy.combatant.health.hp <= 0;
+      return { enemy, deadFor, killed };
+    });
+    // 胞子の雲：残り時間と、次に状態異常を付けるまでの時間
+    const clouds = this.cloudList.map((c) => {
+      const remaining = requireFinite(c.remaining - dt, "雲の残り時間");
+      let untilNext = requireFinite(c.untilNext - dt, "雲の次に状態異常を付けるまでの時間");
+      const tick = untilNext <= 1e-9;
+      if (tick)
+        untilNext = requireFinite(untilNext + c.interval, "雲の次に状態異常を付けるまでの時間");
+      return { remaining, untilNext, tick };
+    });
+    // もう一度出すまでの時間（この刻みで群れが全て倒れる場合は 0 + dt で、dt は検証済み）
+    for (const [id, t] of this.respawn)
+      requireFinite(t + dt, `群れ ${id} をもう一度出すまでの時間`);
+    if (!Number.isSafeInteger(this.kills + this.views.length))
+      throw new RangeError(`倒した数が安全な整数でなくなる（${String(this.kills)}）`);
+    return { dt, invulnerable, enemies, clouds };
+  }
+
+  /** 2. 場の反映（検証済みの値だけを使い、例外は起きない）。プレイヤーへの影響を、起きた順に返す。 */
+  private commit(plan: FieldPlan, player: Combatant, facing: number): PlayerEffect[] {
+    const { dt } = plan;
+    const effects: PlayerEffect[] = [];
     const target: EnemyTarget = {
       position: player.position,
       radius: player.radius,
       facing,
       targetable: !player.health.dead,
     };
-    const hitPlayer = (enemy: Enemy, attack: EnemyAttackDef): void => {
-      if (invulnerable) {
-        hooks.onAvoided(enemy, attack);
-        return;
-      }
-      const report = resolveHit({
-        db: this.db,
-        attacker: this.attackers.attacker(enemy, attack),
-        attackerPosition: enemy.position,
-        skill: { tags: [], kind: "weapon", pct: 1 },
-        ...(attack.ailmentChance === undefined ? {} : { skillChance: attack.ailmentChance }),
-        staggerCoefficient: attack.staggerCoefficient,
-        target: player,
-        rng: this.rng,
-        extraTakenMultiplier: hooks.playerTakenMultiplier?.(enemy) ?? 1,
-      });
-      hooks.onPlayerHit(report, enemy, attack);
-    };
-
-    for (const v of this.views) {
+    const existingClouds = this.cloudList.length;
+    // 仲間を呼ぶと、views の後ろに敵が足される。足された敵も、従来どおりこの刻みで1回更新する
+    for (let i = 0; i < this.views.length; i++) {
+      const v = this.views[i];
+      if (v === undefined) continue;
+      const p = plan.enemies[i] ?? this.planSummoned(v, dt);
+      if (p === undefined) continue;
       const e = v.enemy;
-      const wasDead = e.state === "dead";
       if (e.state === "windup") v.hitGroups.clear();
-      for (const ev of e.update(dt, target, this.rng, this.bounds)) {
+      for (const ev of e.commitUpdate(p.enemy, target, this.rng, this.bounds)) {
         switch (ev.type) {
           case "noticed":
             this.alertPack(e);
@@ -291,7 +356,7 @@ export class EnemyField {
               if (v.hitGroups.has(ev.group)) break;
               v.hitGroups.add(ev.group);
             }
-            hitPlayer(e, ev.attack);
+            effects.push({ type: "hit", enemy: e, attack: ev.attack });
             break;
           case "projectile":
             this.projectiles.spawn({
@@ -344,49 +409,59 @@ export class EnemyField {
           }
           case "returned":
             break;
+          // 表示のための知らせ（hooks.onBossEvent）は、段階3で起きた順に渡す
           case "phase":
-            hooks.onBossEvent?.(e, "phase", ev.phase);
+            effects.push({ type: "boss", enemy: e, event: "phase", phase: ev.phase });
             break;
           case "burrow":
           case "surface":
-            hooks.onBossEvent?.(e, ev.type, e.phase);
+            effects.push({ type: "boss", enemy: e, event: ev.type, phase: e.phase });
             break;
         }
       }
-      if (e.state === "dead") {
-        if (!wasDead) hooks.onEnemyKilled(e);
-        v.deadFor += dt;
-      }
+      if (e.state === "dead") v.deadFor = p.deadFor;
+      if (p.killed) effects.push({ type: "killed", enemy: e });
     }
     separate(this.enemies);
 
-    for (const hit of this.projectiles.update(dt, [
-      { id: "player", team: "player", position: player.position, radius: player.radius },
-    ])) {
-      hitPlayer(hit.payload.enemy, hit.payload.attack);
-    }
+    for (const hit of this.projectiles.update(dt, [playerTarget(player)]))
+      effects.push({ type: "hit", enemy: hit.payload.enemy, attack: hit.payload.attack });
 
     // 胞子の雲：中にいると、間隔ごとに毒を1つ受ける（回避の無敵時間でも受ける。攻撃ではないため）
+    // 今ある雲は計画の値を、この刻みに出た雲は検証済みのデータと dt から計算した値を使う
+    const ailments: AilmentApplication[] = [];
     for (let i = this.cloudList.length - 1; i >= 0; i--) {
       const c = this.cloudList[i];
       if (c === undefined) continue;
-      c.remaining -= dt;
-      c.untilNext -= dt;
-      if (c.untilNext <= 1e-9) {
-        c.untilNext += c.interval;
-        if (
-          length({ x: player.position.x - c.center.x, y: player.position.y - c.center.y }) <=
+      const next =
+        i < existingClouds
+          ? plan.clouds[i]
+          : (() => {
+              const untilNext = -dt;
+              const tick = untilNext <= 1e-9;
+              return {
+                remaining: c.remaining - dt,
+                untilNext: tick ? untilNext + c.interval : untilNext,
+                tick,
+              };
+            })();
+      if (next === undefined) continue; // 計画は今ある雲と同じ数（ここには来ない）
+      c.remaining = next.remaining;
+      c.untilNext = next.untilNext;
+      if (
+        next.tick &&
+        length({ x: player.position.x - c.center.x, y: player.position.y - c.center.y }) <=
           c.radius + player.radius
-        )
-          player.ailments.apply(c.application);
-      }
+      )
+        ailments.push(c.application);
       if (c.remaining <= 1e-9) this.cloudList.splice(i, 1);
     }
+    for (const application of ailments) effects.push({ type: "ailment", application });
 
     // 倒れた敵を消し、群れが全て倒れたら、しばらくしてからもう一度出す（開発用の試験用の場だけ）
     this.kills += this.views.filter((v) => v.deadFor >= CORPSE_SECONDS).length;
     this.views = this.views.filter((v) => v.deadFor < CORPSE_SECONDS);
-    if (!this.respawns) return;
+    if (!this.respawns) return effects;
     for (const g of TEST_GROUPS) {
       const alive = this.views.some((v) => v.group === g.id);
       if (alive) {
@@ -396,9 +471,71 @@ export class EnemyField {
       const t = (this.respawn.get(g.id) ?? 0) + dt;
       if (t >= RESPAWN_SECONDS) {
         this.respawn.delete(g.id);
+        // 作るときと同じデータ（場を作るときに一度作れている）なので、例外は起きない
         this.spawnGroup(g);
       } else this.respawn.set(g.id, t);
     }
+    return effects;
+  }
+
+  /**
+   * この刻みに仲間を呼んで足された敵の、更新の計画（段階2の途中。従来どおり、足された刻みにも1回動く）。
+   * 足された敵は、段階1で検証した dt と検証済みのデータ（checkAttacks）で作ったばかりで、持続ダメージも
+   * 崩しもないので、計画は通常は失敗しない。それでも失敗する（極端に大きい dt で位置が有限でなくなる）ときは、
+   * その敵だけこの刻みは動かさない（undefined。場は一貫したままで、次の刻みの段階1で RangeError になる）。
+   */
+  private planSummoned(v: FieldEnemy, dt: number): FieldPlan["enemies"][number] | undefined {
+    try {
+      return { enemy: v.enemy.planUpdate(dt), deadFor: v.deadFor, killed: false };
+    } catch (error) {
+      if (error instanceof RangeError) return undefined;
+      throw error;
+    }
+  }
+
+  /** 3. プレイヤーへの影響（場を全て反映した後）。 */
+  private applyToPlayer(
+    effects: readonly PlayerEffect[],
+    player: Combatant,
+    invulnerable: boolean,
+    hooks: FieldHooks,
+  ): void {
+    for (const ef of effects) {
+      if (ef.type === "ailment") {
+        player.ailments.apply(ef.application);
+        continue;
+      }
+      if (ef.type === "killed") {
+        hooks.onEnemyKilled(ef.enemy);
+        continue;
+      }
+      if (ef.type === "boss") {
+        hooks.onBossEvent?.(ef.enemy, ef.event, ef.phase);
+        continue;
+      }
+      // 段階1で決めた無敵：ヒットを無効にし、ダメージ・状態異常・崩しを何も与えない
+      if (invulnerable) {
+        hooks.onAvoided(ef.enemy, ef.attack);
+        continue;
+      }
+      const report = resolveHit({
+        db: this.db,
+        attacker: this.attackers.attacker(ef.enemy, ef.attack),
+        attackerPosition: ef.enemy.position,
+        skill: { tags: [], kind: "weapon", pct: 1 },
+        ...(ef.attack.ailmentChance === undefined ? {} : { skillChance: ef.attack.ailmentChance }),
+        staggerCoefficient: ef.attack.staggerCoefficient,
+        target: player,
+        rng: this.rng,
+        extraTakenMultiplier: hooks.playerTakenMultiplier?.(ef.enemy) ?? 1,
+      });
+      hooks.onPlayerHit(report, ef.enemy, ef.attack);
+    }
+  }
+
+  /** もう一度出すまでの時間（群れ → 秒。確認用）。 */
+  respawnTimers(): ReadonlyMap<string, number> {
+    return new Map(this.respawn);
   }
 
   /** 確認用の状態。 */
@@ -415,5 +552,91 @@ export class EnemyField {
       hp: v.enemy.combatant.health.hp,
       maxHp: v.enemy.combatant.health.maxHp,
     }));
+  }
+}
+
+/** EnemyField.update の計画（検証済みの次の値）。 */
+interface FieldPlan {
+  readonly dt: number;
+  /** プレイヤーがこの刻みのヒットを受けない（回避の無敵。段階1で決める）。 */
+  readonly invulnerable: boolean;
+  /** views と同じ順。 */
+  readonly enemies: readonly {
+    readonly enemy: EnemyUpdatePlan;
+    readonly deadFor: number;
+    /** この刻みで倒れる（hooks.onEnemyKilled を1回呼ぶ）。 */
+    readonly killed: boolean;
+  }[];
+  /** cloudList と同じ順（この刻みの前からある雲）。 */
+  readonly clouds: readonly {
+    readonly remaining: number;
+    readonly untilNext: number;
+    readonly tick: boolean;
+  }[];
+}
+
+/** 場を反映した後に、プレイヤーへ与えるもの。 */
+type PlayerEffect =
+  | { readonly type: "hit"; readonly enemy: Enemy; readonly attack: EnemyAttackDef }
+  | { readonly type: "killed"; readonly enemy: Enemy }
+  | {
+      readonly type: "boss";
+      readonly enemy: Enemy;
+      readonly event: "phase" | "burrow" | "surface";
+      readonly phase: number;
+    }
+  | { readonly type: "ailment"; readonly application: AilmentApplication };
+
+function playerTarget(player: Combatant): ProjectileTarget {
+  return { id: "player", team: "player", position: player.position, radius: player.radius };
+}
+
+function requireFinite(value: number, what: string): number {
+  if (!Number.isFinite(value)) throw new RangeError(`${what}が有限の数でない（${String(value)}）`);
+  return value;
+}
+
+/**
+ * 敵が出しうる投射物・雲・仲間の値を検証する（反映の途中で ProjectilePool.spawn・ProjectilePool.update・
+ * 仲間を呼ぶ処理が例外を起こさないように）：速さ・射程・半径・時間・雲を並べる距離・攻撃速度の強化が
+ * 0以上の有限の数で、半径とプレイヤーの半径の合計が有限。叩きつけの後に残る雲も同じ。
+ * 仲間を呼ぶ攻撃は、呼ぶ敵と通常の格がデータにあり、呼ぶ敵の攻撃も同じく正しいこと。
+ */
+function checkAttacks(
+  db: ContentDb,
+  id: string,
+  def: EnemyDef,
+  player: Combatant,
+  seen = new Set<string>(),
+): void {
+  if (seen.has(def.id)) return;
+  seen.add(def.id);
+  const cloudValues = (c: EnemyResidue): number[] => [
+    c.radius,
+    c.duration,
+    c.interval,
+    c.radius + player.radius,
+  ];
+  for (const a of def.attacks) {
+    const d = a.delivery;
+    const values =
+      d.type === "projectile"
+        ? [d.speed, d.range, d.radius, d.radius + player.radius]
+        : d.type === "cloud"
+          ? [...cloudValues(d), d.spread ?? 0]
+          : d.type === "strike" && d.residue !== undefined
+            ? cloudValues(d.residue)
+            : d.type === "summon"
+              ? [d.radius, d.haste?.increase ?? 0, d.haste?.duration ?? 0, d.haste?.radius ?? 0]
+              : [];
+    for (const v of values)
+      if (!(Number.isFinite(v) && v >= 0))
+        throw new RangeError(`敵 ${id} の攻撃 ${a.id} の値が0以上の有限の数でない（${String(v)}）`);
+    if (d.type === "summon") {
+      const summoned = db.enemies.get(d.enemy);
+      if (summoned === undefined || !db.enemyRanks.has("normal"))
+        throw new RangeError(`敵 ${id} の攻撃 ${a.id} が呼ぶ敵 ${d.enemy} がない`);
+      checkAttacks(db, `${id} が呼ぶ ${d.enemy}`, summoned, player, seen);
+    }
   }
 }

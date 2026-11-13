@@ -54,6 +54,7 @@ function item(uid: string, base: string, affixes: ItemInstance["affixes"] = []):
 /** 戦士の出自で盗賊に転職した、装備・持ち物・倉庫・技の枠のあるキャラクター。 */
 function sampleProfile(): PlayerProfile {
   const character = new Character({
+    jobs: db.jobs,
     origin: job("JOB-WARRIOR"),
     level: 16,
     xp: 123.5,
@@ -189,7 +190,7 @@ describe("T11：保存して読み込むと、計算し直した能力値・DPS�
               itemLevel: level,
             });
           };
-          const character = new Character({ origin: job("JOB-ROGUE"), level });
+          const character = new Character({ jobs: db.jobs, origin: job("JOB-ROGUE"), level });
           const equipment = new Equipment(db);
           // 武器・防具・盾・アクセサリーを、装備できる部位に装備する（防具の基礎性能・統一ボーナスも比べる）
           for (let k = 0; k < 6; k++) {

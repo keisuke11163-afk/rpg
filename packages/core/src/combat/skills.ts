@@ -257,7 +257,10 @@ export class Cooldowns {
     return this.left.get(id) ?? 0;
   }
 
+  /** 時間を進め、終わったCDを取り除く。経過時間が0以上の有限の数でなければ、状態を変えずに RangeError。 */
   update(dt: number): void {
+    // 状態を変える前に検証する（NaN・負の数・無限大を受け付けない。ActionTimeline.update と同じ）
+    if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
     for (const [id, s] of this.left) {
       const next = s - dt;
       if (next <= 1e-9) this.left.delete(id);

@@ -371,7 +371,7 @@ export const RETURN_LAMP = "MAT-RETURN-LAMP";
 export function newCharacterProfile(db: ContentDb, originId: string, name: string): PlayerProfile {
   const origin = db.jobs.get(originId);
   if (origin === undefined) throw new RangeError(`ジョブ ${originId} がない`);
-  const character = new Character({ origin, level: 1 });
+  const character = new Character({ origin, jobs: db.jobs, level: 1 });
   const equipment = new Equipment(db);
   const base = origin.startingWeapon;
   if (base !== undefined)
@@ -405,6 +405,7 @@ export function testStartProfile(db: ContentDb): PlayerProfile {
   if (origin === undefined) throw new Error("戦士のデータがない");
   const character = new Character({
     origin,
+    jobs: db.jobs,
     level: TEST_START.level,
     jobLevels: { [origin.id]: TEST_START.jobLevel },
   });
@@ -1286,9 +1287,18 @@ export class ArenaSimulation {
     const base = this.db.itemBases.get(item.base);
     if (target === undefined || base === undefined) return false;
     if (!slotsFor(base, this.canDualWield).includes(target)) return false;
-    // 必要Lv（キャラLv）に届いていない装備は着られない（docs/progress D-EQ-1）
-    if (base.requiredLevel > this.character.level) return false;
-    if (!equipFromInventory(this.inventory, this.equipment, uid, target, this.canDualWield))
+    // 必要Lv（キャラLv）に届いていない装備は、core の equipFromInventory が何も変えずに false を返す
+    // （docs/progress D-EQ-1。ゲーム側の重複した確認は、develop の取り込みで外した）
+    if (
+      !equipFromInventory(
+        this.inventory,
+        this.equipment,
+        uid,
+        target,
+        this.canDualWield,
+        this.character.level,
+      )
+    )
       return false;
     this.equipmentChanged();
     return true;
@@ -1786,7 +1796,14 @@ export class ArenaSimulation {
       unequipToInventory(this.inventory, this.equipment, "offHand");
     const start = START_WEAPON[next];
     if (start !== undefined && this.inventory.items.some((i) => i.uid === start))
-      equipFromInventory(this.inventory, this.equipment, start, "mainHand", this.canDualWield);
+      equipFromInventory(
+        this.inventory,
+        this.equipment,
+        start,
+        "mainHand",
+        this.canDualWield,
+        this.character.level,
+      );
     this.equipmentVersion += 1;
     this.jobGaugeValue = this.newGauge();
     this.demonLeft = 0;

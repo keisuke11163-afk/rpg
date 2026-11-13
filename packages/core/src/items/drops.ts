@@ -88,7 +88,8 @@ export function jobTargetedBases(
  * 1体を倒したときのドロップ（仕様書v0.2 3.5、補助仕様書5章・12章）。
  * - アイテム：確率 chance で、count の範囲（等しい確率）の数。希少以上の確定の数だけ、希少以上から抽選
  * - ベース：35%はメインジョブの適性がA以上の武器、残りは落とせる全てのベースから等しい確率で
- * - 金貨：確率 gold.chance で、（1＋敵のLv）〜 2×（1＋敵のLv）の整数 × 倍率
+ * - 金貨：確率 gold.chance で、（1＋敵のLv）〜 2×（1＋敵のLv）の整数 × 倍率。最大の金貨が安全な整数に
+ *   収まらない敵のLv・倍率なら、乱数を使う前に RangeError
  * - 素材：確率で1個、または確定の数
  */
 export function rollDrops(db: ContentDb, rng: Rng, input: DropInput): DropResult {
@@ -96,6 +97,13 @@ export function rollDrops(db: ContentDb, rng: Rng, input: DropInput): DropResult
   if (profile === undefined)
     throw new RangeError(`ドロップの出どころ ${input.source} の定義が無い`);
   const itemLevel = dropItemLevel(db, input.source, input.enemyLevel);
+  if (
+    profile.gold !== undefined &&
+    !Number.isSafeInteger(2 * (1 + input.enemyLevel) * profile.gold.multiplier)
+  )
+    throw new RangeError(
+      `敵のLv ${String(input.enemyLevel)} の金貨（×${String(profile.gold.multiplier)}）が安全な整数に収まらない`,
+    );
   const bases = droppableBases(db, itemLevel);
   const targeted =
     input.mainJob === undefined ? [] : jobTargetedBases(bases, input.tags, input.mainJob);

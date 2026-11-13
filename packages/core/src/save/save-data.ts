@@ -510,6 +510,7 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
   try {
     character = new Character({
       origin: origin as NonNullable<typeof origin>,
+      jobs: db.jobs,
       level: c.level,
       xp: c.xp,
       mainJob: c.main_job,

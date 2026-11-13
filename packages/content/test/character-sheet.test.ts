@@ -44,7 +44,7 @@ const item = (
 });
 
 function sheetOf(origin: JobDef, equipment?: Equipment) {
-  const character = new Character({ origin, level: 5 });
+  const character = new Character({ jobs: db.jobs, origin, level: 5 });
   return buildCharacterSheet(db, tags, {
     character,
     job: origin,

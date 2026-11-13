@@ -164,6 +164,18 @@ export class Combatant {
    * - 崩しゲージ・崩しを受けていない時間の計算の溢れ（StaggerGauge.planUpdate）
    */
   update(dt: number): number {
+    return this.commitUpdate(this.planUpdate(dt));
+  }
+
+  /**
+   * update の計算と検証だけを行い、状態を変えずに計画を返す（失敗すれば RangeError で、何も変わらない）。
+   * 複数の戦う者を「全て検証してから全て反映する」ために使う（EnemyField.update）。
+   * 計画は、作ってから反映するまでの間に、この戦う者の HP・状態異常・崩しゲージ・一定時間の効果・
+   * 移動中かが変わらない場合だけ正しい。
+   * options.invulnerable は、持続ダメージを受けないかをこの計画だけ決める（省略で今の health.invulnerable。
+   * 反映の前に無敵を切り替える敵が、切り替えた後の値で計算するため。Enemy.planUpdate）。
+   */
+  planUpdate(dt: number, options?: { readonly invulnerable?: boolean }): CombatantUpdatePlan {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     const target = {
@@ -171,21 +183,38 @@ export class Combatant {
       takenMultiplier: this.takenMultiplier,
       moving: this.moving,
     };
-    // 1. 計算と検証（状態は変えない）
     const dot = this.ailments.planTick(dt, target);
     // 各属性が有限でも、合計は溢れうる
     const total = sumDot(dot.damage);
     // 持続ダメージを受けてから時間を進める（従来の takeDamage(total) → update(dt) と同じ）
-    const health = this.health.planUpdate(dt, total);
+    const health = this.health.planUpdate(dt, total, options?.invulnerable);
     const stagger = this.stagger.planUpdate(dt);
-    // 2. 反映（代入だけで、例外は起きない）
-    this.ailments.commitTick(dot);
-    this.health.commitUpdate(health);
-    this.stagger.commitUpdate(stagger);
-    // 一定時間の効果：dt は検証済みで、残りの時間を減らして切れたものを取り除くだけ（例外は起きない）
-    this.statuses.update(dt);
-    return total;
+    return { owner: this, dt, dot, total, health, stagger };
   }
+
+  /**
+   * planUpdate の計画を反映し、受けた持続ダメージの合計を返す。検証済みの値の代入だけで、例外は起きない
+   * （他の戦う者の計画を渡したときだけ Error。その場合も何も変えない）。
+   */
+  commitUpdate(plan: CombatantUpdatePlan): number {
+    if (plan.owner !== this) throw new Error("別の戦う者の計画は反映できない");
+    this.ailments.commitTick(plan.dot);
+    this.health.commitUpdate(plan.health);
+    this.stagger.commitUpdate(plan.stagger);
+    // 一定時間の効果：dt は検証済みで、残りの時間を減らして切れたものを取り除くだけ（例外は起きない）
+    this.statuses.update(plan.dt);
+    return plan.total;
+  }
+}
+
+/** Combatant.planUpdate の計画（検証済み。Combatant.commitUpdate で反映する）。 */
+export interface CombatantUpdatePlan {
+  readonly owner: Combatant;
+  readonly dt: number;
+  readonly dot: ReturnType<AilmentState["planTick"]>;
+  readonly total: number;
+  readonly health: ReturnType<Health["planUpdate"]>;
+  readonly stagger: ReturnType<StaggerGauge["planUpdate"]>;
 }
 
 /** 属性ごとの持続ダメージの合計。合計が有限でなければ RangeError。 */
@@ -239,7 +268,15 @@ export interface HitReport {
   readonly staggerBroke: boolean;
 }
 
-/** ヒットを解決する：ダメージ → HP（魔障が先）→ 状態異常 → 崩し。 */
+/**
+ * ヒットを解決する：ダメージ → HP（魔障が先）→ 状態異常 → 崩し。
+ *
+ * 例外安全：全ての計算と検証（ダメージ・HPと魔障・状態異常の判定と付与の入力・崩し値・崩しゲージ）を、
+ * 状態を変えない計画（Health.planUpdate・AilmentState.planApply・StaggerGauge.planAdd）として先に行い、
+ * 全て成功してから反映する（Combatant.update と同じ形）。反映は検証済みの値による代入だけで、例外は起きない。
+ * そのため、途中のどこで例外になっても、受ける側の HP・魔障・状態異常・崩しゲージは何も変わらない。
+ * （乱数は、従来どおりダメージ → 状態異常の順に消費する。例外のときも消費した分は戻らない）
+ */
 export function resolveHit(input: HitInput): HitReport {
   const { db, attacker, skill, target, rng } = input;
   const backstab =
@@ -267,16 +304,18 @@ export function resolveHit(input: HitInput): HitReport {
       ...(input.forceCrit === true ? { forceCrit: true } : {}),
     },
   );
+  // 1. 計算と検証（受ける側の状態は変えない）
+  // 経過時間0で進めるのは、takeDamage(hit.total) と同じ結果（Health.planUpdate を参照）
+  const health = target.health.planUpdate(0, hit.total);
   // ダメージを受けない間（ボスの段階の切り替え・根渡り）のヒットは、ダメージ・状態異常・崩しを全て与えない
-  // （プレイヤーの回避の無敵と同じく、ヒットそのものを無効にする。docs/progress Q-U19-2 の確定）
-  const invulnerable = target.health.invulnerable;
-  const applied = target.health.takeDamage(hit.total);
-  if (invulnerable)
+  // （プレイヤーの回避の無敵と同じく、ヒットそのものを無効にする。docs/progress Q-U19-2 の確定）。
+  // 判定はこの計画の段階で行い、無効なら何も反映しない（状態異常の判定の乱数も消費しない）
+  if (target.health.invulnerable)
     return {
       targetId: target.id,
       hit,
       backstab,
-      applied,
+      applied: health.applied,
       ailments: [],
       staggerValue: 0,
       staggerBroke: false,
@@ -303,7 +342,7 @@ export function resolveHit(input: HitInput): HitReport {
       : { chanceMultiplier: input.ailmentChanceMultiplier }),
     rng,
   });
-  for (const a of ailments) target.ailments.apply(a);
+  const ailmentPlans = ailments.map((a) => target.ailments.planApply(a));
   const value = staggerValue({
     db,
     view: attacker.view,
@@ -314,17 +353,22 @@ export function resolveHit(input: HitInput): HitReport {
     targetImmune: target.staggerImmune,
   });
   const scaled = value * target.receivedMultipliers().stagger;
-  const staggerBroke =
+  // 激化した突進は、当たれば崩しゲージを満タンにする（それ以外は、受ける崩し値の倍率をかけて加える）
+  const stagger =
     input.fullStagger === true && !hit.evaded
-      ? target.stagger.breakNow()
-      : target.stagger.add(scaled);
+      ? target.stagger.planBreakNow()
+      : target.stagger.planAdd(scaled);
+  // 2. 反映（検証済みの値による代入だけで、例外は起きない）
+  target.health.commitUpdate(health);
+  for (const plan of ailmentPlans) target.ailments.commitApply(plan);
+  target.stagger.commitAdd(stagger);
   return {
     targetId: target.id,
     hit,
     backstab,
-    applied,
+    applied: health.applied,
     ailments,
     staggerValue: scaled,
-    staggerBroke,
+    staggerBroke: stagger.broke,
   };
 }

@@ -88,7 +88,7 @@ describe("職紋盤の効果", () => {
   const sheet = (jobId: string, nodes: readonly string[], level = 20) => {
     const j = job(jobId);
     return buildCharacterSheet(db, tags, {
-      character: new Character({ origin: j, level, jobLevels: { [jobId]: level } }),
+      character: new Character({ jobs: db.jobs, origin: j, level, jobLevels: { [jobId]: level } }),
       job: j,
       equipment: new Equipment(db),
       starBoard: { allocation: [] },
@@ -114,7 +114,7 @@ describe("職紋盤の効果", () => {
   it("メインジョブでないジョブの職紋盤は効かない", () => {
     const j = job("JOB-ROGUE");
     const s = buildCharacterSheet(db, tags, {
-      character: new Character({ origin: j, level: 20 }),
+      character: new Character({ jobs: db.jobs, origin: j, level: 20 }),
       job: j,
       jobBoard: new JobBoardAllocation(db, "JOB-WARRIOR", trunk(3)),
     });
@@ -128,7 +128,12 @@ describe("職紋盤の効果", () => {
       const e = new Equipment(db);
       e.equip({ uid: "w", base, rarity: "normal", itemLevel: 1, affixes: [] }, "mainHand", true);
       return buildCharacterSheet(db, tags, {
-        character: new Character({ origin: j, level: 20, jobLevels: { "JOB-WARRIOR": 20 } }),
+        character: new Character({
+          jobs: db.jobs,
+          origin: j,
+          level: 20,
+          jobLevels: { "JOB-WARRIOR": 20 },
+        }),
         job: j,
         equipment: e,
         jobBoard: new JobBoardAllocation(db, "JOB-WARRIOR", path),
@@ -144,7 +149,12 @@ describe("職紋盤の効果", () => {
     const j = job("JOB-WARRIOR");
     const go = (connectors: number) =>
       buildCharacterSheet(db, tags, {
-        character: new Character({ origin: j, level: 20, jobLevels: { "JOB-WARRIOR": 20 } }),
+        character: new Character({
+          jobs: db.jobs,
+          origin: j,
+          level: 20,
+          jobLevels: { "JOB-WARRIOR": 20 },
+        }),
         job: j,
         // 始点の隣（剛+10）と、その先（剛+5・迅+5）
         starBoard: { allocation: ["STAR-GOU-0001", "STAR-GOU-0002"] },
@@ -169,7 +179,12 @@ describe("職紋盤の効果", () => {
         true,
       );
       return buildCharacterSheet(db, tags, {
-        character: new Character({ origin: j, level: 20, jobLevels: { "JOB-ROGUE": 20 } }),
+        character: new Character({
+          jobs: db.jobs,
+          origin: j,
+          level: 20,
+          jobLevels: { "JOB-ROGUE": 20 },
+        }),
         job: j,
         equipment: e,
         jobBoard: new JobBoardAllocation(db, "JOB-ROGUE", nodes),

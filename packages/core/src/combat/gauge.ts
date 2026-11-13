@@ -98,9 +98,13 @@ export class JobGauge {
     return this.add(gained * this.gainMultiplier * this.takenGainMultiplier);
   }
 
-  /** 時間を進める。戦闘外なら毎秒 decayOutOfCombat ずつ減る。 */
+  /**
+   * 時間を進める。戦闘外なら毎秒 decayOutOfCombat ずつ減る。
+   * 経過時間が0以上の有限の数でなければ、状態を変えずに RangeError。
+   */
   update(dt: number): void {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
+    // 状態を変える前に検証する（NaN・負の数・無限大を受け付けない。ActionTimeline.update と同じ）
+    if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
     const before = this.idle;
     this.idle += dt;
     const decayTime = Math.max(0, this.idle - Math.max(before, OUT_OF_COMBAT_SECONDS));

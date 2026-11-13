@@ -46,7 +46,7 @@ function sheetWith(ids: readonly string[], level = 15, enhance = 0) {
     equipment.equip(item(`itm_${String(i)}`, id, enhance), slot, true);
   });
   return buildCharacterSheet(db, tags, {
-    character: new Character({ origin: WARRIOR, level }),
+    character: new Character({ jobs: db.jobs, origin: WARRIOR, level }),
     job: WARRIOR,
     equipment,
   });
@@ -175,7 +175,7 @@ describe("詞の追加（U-11 の残り）：職詞・系統詞・一般の詞",
     );
     const gain = (origin: JobDef) =>
       buildCharacterSheet(db, tags, {
-        character: new Character({ origin, level: 5 }),
+        character: new Character({ jobs: db.jobs, origin, level: 5 }),
         job: origin,
         equipment,
       }).evaluated.view.stat("STAT-GAUGE-GAIN").increased;
@@ -262,7 +262,7 @@ describe("星座と、ユニークの潜在効果の発動（星辰盤の仮の�
     const equipment = new Equipment(db);
     equip(equipment);
     return buildCharacterSheet(db, tags, {
-      character: new Character({ origin: ROGUE, level: 15 }),
+      character: new Character({ jobs: db.jobs, origin: ROGUE, level: 15 }),
       job: ROGUE,
       equipment,
       starBoard: { allocation },

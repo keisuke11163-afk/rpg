@@ -87,7 +87,7 @@ export class Health {
    */
   takeDamage(amount: number): DamageApplied {
     requireNonNegativeFinite(amount, "ダメージ");
-    const next = this.damageStep(this.snapshot(), amount);
+    const next = this.damageStep(this.snapshot(), amount, this.invulnerable);
     this.restore(next.state);
     return next.applied;
   }
@@ -134,12 +134,14 @@ export class Health {
    * - damage・dt が0以上の有限の数でなければ RangeError
    * - 被弾からの時間（累計）が有限の数で表せなくなる（Number.MAX_VALUE 秒を超える）場合は RangeError。
    *   ただし、一度も被弾していない状態（Infinity）はそのまま
+   * invulnerable は、ダメージを受けないかをこの計画だけ決める（省略で今の invulnerable。
+   * 反映の前に invulnerable を変える呼び出し元が、変えた後の値で計算するため。Enemy.planUpdate）。
    * 計画は commitUpdate で反映する。
    */
-  planUpdate(dt: number, damage = 0): HealthUpdatePlan {
+  planUpdate(dt: number, damage = 0, invulnerable = this.invulnerable): HealthUpdatePlan {
     requireNonNegativeFinite(damage, "ダメージ");
     requireNonNegativeFinite(dt, "経過時間");
-    const hit = this.damageStep(this.snapshot(), damage);
+    const hit = this.damageStep(this.snapshot(), damage, invulnerable);
     const state = this.updateStep(hit.state, dt);
     return { ...state, applied: hit.applied };
   }
@@ -166,8 +168,9 @@ export class Health {
   private damageStep(
     state: HealthState,
     amount: number,
+    invulnerable: boolean,
   ): { state: HealthState; applied: DamageApplied } {
-    if (amount === 0 || state.hp <= 0 || this.invulnerable)
+    if (amount === 0 || state.hp <= 0 || invulnerable)
       return { state, applied: { toWard: 0, toHp: 0, died: false } };
     const toWard = Math.min(state.ward, amount);
     const ward = state.ward - toWard;

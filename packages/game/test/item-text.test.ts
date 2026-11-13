@@ -118,7 +118,7 @@ describe("表示の文章（U-12 の画面）", () => {
   });
 
   it("比較：攻撃の毎秒ダメージと能力値の変化を、良くなるものは緑・悪くなるものは赤で出す", () => {
-    const character = new Character({ origin: WARRIOR, level: 5 });
+    const character = new Character({ jobs: db.jobs, origin: WARRIOR, level: 5 });
     const equipment = new Equipment(db);
     equipment.equip(
       { uid: "gs", base: "BASE-WPN-GREATSWORD-T1", rarity: "normal", itemLevel: 1, affixes: [] },
@@ -137,7 +137,7 @@ describe("表示の文章（U-12 の画面）", () => {
   });
 
   it("キャラクターの画面：行の値と、出どころごとの内訳（装備は装備の名前）", () => {
-    const character = new Character({ origin: WARRIOR, level: 5 });
+    const character = new Character({ jobs: db.jobs, origin: WARRIOR, level: 5 });
     const equipment = new Equipment(db);
     equipment.equip(sword, "mainHand", true);
     const sheet = buildCharacterSheet(db, tags, { character, job: WARRIOR, equipment });

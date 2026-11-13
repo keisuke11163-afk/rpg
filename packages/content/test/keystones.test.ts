@@ -59,7 +59,7 @@ function sheet(origin: JobDef, allocation: readonly string[], equip?: (e: Equipm
   const e = new Equipment(db);
   equip?.(e);
   return buildCharacterSheet(db, tags, {
-    character: new Character({ origin, level: 20 }),
+    character: new Character({ jobs: db.jobs, origin, level: 20 }),
     job: origin,
     equipment: e,
     starBoard: { allocation, points: 25 },

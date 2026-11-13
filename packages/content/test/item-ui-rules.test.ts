@@ -107,7 +107,7 @@ describe("ツールチップ（補助仕様書16章）", () => {
 
 describe("装備の比較（補助仕様書16章）", () => {
   it("装備したときの変化を、今の装備を変えずに計算し、実際に装備したときの値と一致する", () => {
-    const character = new Character({ origin: WARRIOR, level: 5 });
+    const character = new Character({ jobs: db.jobs, origin: WARRIOR, level: 5 });
     const equipment = new Equipment(db);
     equipment.equip(item("gs", "BASE-WPN-GREATSWORD-T1"), "mainHand", true);
     const sword = item("sw", "BASE-WPN-LONGSWORD-T1", [
@@ -142,7 +142,7 @@ describe("装備の比較（補助仕様書16章）", () => {
   });
 
   it("変わらない能力値は、変化に出さない", () => {
-    const character = new Character({ origin: WARRIOR, level: 5 });
+    const character = new Character({ jobs: db.jobs, origin: WARRIOR, level: 5 });
     const equipment = new Equipment(db);
     equipment.equip(item("a", "BASE-WPN-LONGSWORD-T1"), "mainHand", true);
     const cmp = compareEquip(

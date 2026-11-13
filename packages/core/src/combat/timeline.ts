@@ -61,7 +61,11 @@ export class ActionTimeline {
   update(dt: number): TimelineEvents {
     // elapsed・イベントの状態を変える前に検証する（NaN・負の数・無限大を受け付けない）
     if (!Number.isFinite(dt) || dt < 0) throw new RangeError("経過時間は0以上の有限の数");
-    this.elapsed += dt;
+    // dt が有限でも、累計は Infinity に溢れうる。検証してから反映する
+    const elapsed = this.elapsed + dt;
+    if (!Number.isFinite(elapsed))
+      throw new RangeError(`経過時間の累計が有限の数にならない（${String(elapsed)}）`);
+    this.elapsed = elapsed;
     // 1/60秒を足し合わせたときの浮動小数点の誤差で、1刻み遅れないように少しだけ余裕を持たせる
     const activeStarted = !this.activeFired && this.elapsed >= this.spec.windup - 1e-9;
     if (activeStarted) this.activeFired = true;

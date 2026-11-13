@@ -85,6 +85,14 @@ export function requirementMet(base: ItemBaseDef, attributes: Attributes): boole
   return r === undefined || attributes[r.attribute] >= r.value;
 }
 
+/**
+ * 必要Lvに届いているか（キャラLv ≥ ベースの必要Lv）。{@link requirementMet} と同じ形。
+ * 要求値と違い、届いていなければ装備できない（{@link equipFromInventory} が確かめる）。
+ */
+export function levelMet(base: ItemBaseDef, level: number): boolean {
+  return level >= base.requiredLevel;
+}
+
 /** 基礎性能の倍率（要求値を満たさなければ0.6。仕様書v0.2 2.2・3.9 の基礎性能の定義）。 */
 export function basePerformanceMultiplier(base: ItemBaseDef, attributes: Attributes): number {
   return requirementMet(base, attributes) ? 1 : UNMET_REQUIREMENT_MULTIPLIER;
@@ -127,7 +135,8 @@ export class Equipment {
     });
   }
 
-  private baseOf(item: ItemInstance): ItemBaseDef {
+  /** 装備の実体のベース。ベースが無ければ RangeError。 */
+  baseOf(item: ItemInstance): ItemBaseDef {
     const base = this.db.itemBases.get(item.base);
     if (base === undefined) throw new RangeError(`ベース ${item.base} が無い`);
     return base;
@@ -295,7 +304,15 @@ export class Equipment {
 
 /**
  * インベントリの装備を装備する（外れた物はインベントリに戻す）。
- * 外れた物がインベントリに入りきらないときは、何も変えずに false（両手武器で主手と副手が外れる場合など）。
+ * 次のときは、何も変えずに false：
+ * - キャラLv（`level`）が、その装備の必要Lv（`ItemBaseDef.requiredLevel`）に届いていない
+ * - 外れた物がインベントリに入りきらない（両手武器で主手と副手が外れる場合など）
+ *
+ * 必要Lvを確かめるのはここだけにしている。{@link Equipment.equip}・{@link Equipment.displaced} は
+ * 部位の規則だけを扱う低い層で、セーブデータを読み込むときにも使う。そこで確かめると、
+ * 読み込みの順（キャラLvを戻す前に装備を戻す、など）や仕様の変更で、すでに着ている装備が
+ * 読み込めなくなるおそれがあるため。プレイヤーが装備を着る経路（画面・ロードアウトの切り替えなど）は、
+ * この関数を通す。
  */
 export function equipFromInventory(
   inventory: Inventory,
@@ -303,10 +320,12 @@ export function equipFromInventory(
   uid: string,
   slot: MvpEquipSlot,
   canDualWield: boolean,
+  level: number,
 ): boolean {
   const item = inventory.items.find((i) => i.uid === uid);
   if (item === undefined) throw new RangeError(`インベントリに ${uid} が無い`);
   const out = equipment.displaced(item, slot, canDualWield);
+  if (!levelMet(equipment.baseOf(item), level)) return false;
   // 装備する物が1枠空け、外れた物が枠を使う
   if (inventory.items.length - 1 + out.length > inventory.capacity) return false;
   inventory.removeItem(uid);

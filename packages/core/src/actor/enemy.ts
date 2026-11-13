@@ -1,7 +1,7 @@
 import type { EnemyAttackDef, EnemyDef, EnemyRankDef, EnemyResidue } from "../content/enemy.ts";
 import type { ContentDb } from "../content/load.ts";
 import { type AilmentApplication, staggerProfiles } from "../combat/ailments.ts";
-import { Combatant } from "../combat/combatant.ts";
+import { Combatant, type CombatantUpdatePlan } from "../combat/combatant.ts";
 import type { DamageAttacker } from "../combat/damage.ts";
 import { enemyAccuracy } from "../combat/defense.ts";
 import type { HitShape } from "../combat/shapes.ts";
@@ -184,6 +184,13 @@ export class Enemy {
   private burrowed = false;
   private burrowFrom: Vec2 = ZERO;
   private burrowTo: Vec2 = ZERO;
+  /**
+   * 雲（雲の攻撃・叩きつけの後の毒だまり）で付ける状態異常（雲の定義 → 付けるもの）。
+   * 作るときに計算し、検証しておく（update の途中で例外を起こさないため）。
+   */
+  private readonly cloudApplications = new Map<EnemyResidue, AilmentApplication>();
+  /** 1秒あたりに動く距離の上限（移動・うろつき・帰還・突進のうち最も速いもの）。 */
+  private readonly maxSpeed: number;
   /** 最後の刻みで受けた持続ダメージ。 */
   dotTaken = 0;
 
@@ -214,6 +221,17 @@ export class Enemy {
       evasion: (def.defense.evasionPerLevel ?? 0) * init.level,
       staggerProfile: boss ? profiles.boss : profiles.enemy,
     });
+    // 雲の状態異常は、データが正しくなければここで Error（update の途中で例外を起こさないため）
+    for (const a of def.attacks) {
+      const d = a.delivery;
+      if (d.type === "cloud") this.cloudApplications.set(d, this.cloudApplication(d));
+      if (d.type === "strike" && d.residue !== undefined)
+        this.cloudApplications.set(d.residue, this.cloudApplication(d.residue));
+    }
+    this.maxSpeed = Math.max(
+      def.moveSpeed,
+      ...def.attacks.map((a) => (a.delivery.type === "dash" ? a.delivery.speed : 0)),
+    );
     this.resetPhases();
   }
 
@@ -381,23 +399,111 @@ export class Enemy {
     this.setFacing(turnTowards(this.facingAngle, angle, toRad(this.def.turnRate) * dt));
   }
 
-  /** 1刻み進める。 */
+  /**
+   * 1刻み進める。
+   *
+   * 例外安全：次の場合は RangeError で、敵の状態（行動の状態・その経過時間・攻撃・位置・向き・
+   * クールダウン・HP・魔障・崩しゲージ・状態異常・うろつき・突進の距離・攻撃速度の強化・段階の切り替えの
+   * 残りの時間・ダメージを受けないか）も乱数の状態も何も変わらない。
+   * - 経過時間が0以上の有限の数でない（NaN・負の数・Infinity）
+   * - 今の状態の経過時間に（攻撃速度の強化の分を含めて）足すと有限でなくなる
+   * - その経過時間で最も速く動いたときに、位置が有限でなくなりうる
+   * - 戦う者の更新（持続ダメージ・魔障・崩しゲージの計算）が失敗する
+   *
+   * 順番：1. 計画（planUpdate：検証と、この刻みの後の無敵の状態での戦う者の更新の計算。状態は変えない）→
+   * 2. 反映（commitUpdate：段階の切り替えの残りの時間・無敵・戦う者・経過時間・攻撃速度の強化・
+   * クールダウンの代入で、例外は起きない）→ 3. 行動の流れ。
+   * 振る舞いは従来（経過時間・攻撃速度の強化・段階の切り替えと無敵 → クールダウン → 戦う者 → 行動の流れ）と同じ。
+   * 行動の流れは、検証済みの dt と、作るときに検証した攻撃のデータ（雲の状態異常）だけを使い、例外を起こさない。
+   */
   update(dt: number, target: EnemyTarget, rng: Rng, bounds?: Bounds): EnemyEvent[] {
-    if (!(dt >= 0)) throw new RangeError("経過時間は0以上");
-    // 攻撃の間（予兆・当たり判定・硬直）の時間は、攻撃速度の強化の分だけ速く進む
+    return this.commitUpdate(this.planUpdate(dt), target, rng, bounds);
+  }
+
+  /**
+   * update の、状態を変えない前半：経過時間・状態の経過時間の累計・移動後の位置・戦う者の更新を
+   * 全て計算して検証し、計画を返す（失敗すれば RangeError で、何も変わらない）。
+   * 複数の敵を「全て検証してから全て反映する」ために使う（EnemyField.update）。
+   * commitUpdate(plan, ...) は update(dt, ...) と同じ結果になる。
+   *
+   * 持続ダメージは、この刻みの後のダメージを受けない状態（段階の切り替えの残りの時間を dt だけ減らした後・
+   * 地中にいるか）で計算する（従来の「無敵の更新 → 戦う者の更新」と同じ）。
+   *
+   * 計画を作ってから反映するまでの間に変わってよいのは、notice()（行動の状態が待機から追跡になり、
+   * 状態の経過時間が0に戻る）だけ。位置・戦う者（HP・状態異常・崩しゲージなど）・段階は変えないこと。
+   */
+  planUpdate(dt: number): EnemyUpdatePlan {
+    this.checkUpdate(dt);
+    // 刻みの積み重ねの誤差で、ちょうど2秒の後に残らないようにする
+    const shieldLeft = this.shieldLeft - dt <= 1e-9 ? 0 : this.shieldLeft - dt;
+    const invulnerable = shieldLeft > 0 || this.burrowed;
+    return {
+      owner: this,
+      dt,
+      shieldLeft,
+      invulnerable,
+      combatant: this.combatant.planUpdate(dt, { invulnerable }),
+    };
+  }
+
+  /**
+   * planUpdate の計画を反映し、行動の流れを1刻み進める。検証済みの値だけを使い、例外は起きない
+   * （別の敵の計画を渡したときだけ Error。その場合も何も変えない）。
+   */
+  commitUpdate(
+    plan: EnemyUpdatePlan,
+    target: EnemyTarget,
+    rng: Rng,
+    bounds?: Bounds,
+  ): EnemyEvent[] {
+    if (plan.owner !== this) throw new Error("別の敵の計画は反映できない");
+    // 計画の後に notice() で状態の経過時間が0に戻っていても、累計は検証済みの値以下（有限）
+    const stateTime = this.nextStateTime(plan.dt);
+    this.shieldLeft = plan.shieldLeft;
+    this.combatant.health.invulnerable = plan.invulnerable;
+    const dotTaken = this.combatant.commitUpdate(plan.combatant);
+    return this.proceed(plan.dt, stateTime, dotTaken, target, rng, bounds);
+  }
+
+  /** 攻撃の間（予兆・当たり判定・硬直）の時間は、攻撃速度の強化の分だけ速く進む。 */
+  private nextStateTime(dt: number): number {
     const attacking =
       this.stateValue === "windup" ||
       this.stateValue === "active" ||
       this.stateValue === "recovery";
-    this.stateTime += attacking ? dt * (1 + this.hasteIncrease) : dt;
+    return this.stateTime + (attacking ? dt * (1 + this.hasteIncrease) : dt);
+  }
+
+  /** 経過時間・状態の経過時間の累計・移動後の位置を検証する（状態は変えない）。 */
+  private checkUpdate(dt: number): void {
+    if (!(Number.isFinite(dt) && dt >= 0))
+      throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
+    // 攻撃速度の強化の分を含めた、最も大きい累計で確かめる
+    const stateTime = this.stateTime + dt * (1 + this.hasteIncrease);
+    if (!Number.isFinite(stateTime))
+      throw new RangeError(`状態の経過時間の累計が有限の数でない（${String(stateTime)}）`);
+    const reach = this.maxSpeed * dt;
+    if (
+      !Number.isFinite(Math.abs(this.position.x) + reach) ||
+      !Number.isFinite(Math.abs(this.position.y) + reach)
+    )
+      throw new RangeError(`経過時間 ${String(dt)} で動くと、位置が有限の数でなくなる`);
+  }
+
+  /** 戦う者の更新の後：経過時間・クールダウンの反映と行動の流れ（検証済みの値だけを使い、例外は起きない）。 */
+  private proceed(
+    dt: number,
+    stateTime: number,
+    dotTaken: number,
+    target: EnemyTarget,
+    rng: Rng,
+    bounds: Bounds | undefined,
+  ): EnemyEvent[] {
+    this.stateTime = stateTime;
     this.hasteLeft = Math.max(0, this.hasteLeft - dt);
     if (this.hasteLeft === 0) this.hasteIncrease = 0;
-    // 刻みの積み重ねの誤差で、ちょうど2秒の後に残らないようにする
-    this.shieldLeft = this.shieldLeft - dt <= 1e-9 ? 0 : this.shieldLeft - dt;
-    this.combatant.health.invulnerable = this.shieldLeft > 0 || this.burrowed;
     this.cooldowns.update(dt);
-    // 持続ダメージ・崩しゲージ・魔障・一定時間の効果（移動していたかは、前の刻みの値を使う）
-    this.dotTaken = this.combatant.update(dt);
+    this.dotTaken = dotTaken;
     this.combatant.moving = false;
     if (this.combatant.health.dead) {
       if (this.stateValue !== "dead") this.setState("dead");
@@ -684,7 +790,7 @@ export class Enemy {
             radius: d.residue.radius,
             duration: d.residue.duration,
             interval: d.residue.interval,
-            application: this.ailmentApplication(d.residue),
+            application: this.cloudApplicationOf(d.residue),
           });
         return events;
       }
@@ -724,7 +830,7 @@ export class Enemy {
       case "cloud": {
         // 2回目からは、その瞬間の相手の位置に出す
         const center = index === 0 ? this.attackPoint : target.position;
-        const application = this.ailmentApplication(d);
+        const application = this.cloudApplicationOf(d);
         return cloudCenters(d, center, this.position).map((c) => ({
           type: "cloud" as const,
           attack,
@@ -738,8 +844,16 @@ export class Enemy {
     }
   }
 
+  /** 作るときに計算した、雲の状態異常（呼び出す側が書き換えても影響しないよう、写しを返す）。 */
+  private cloudApplicationOf(cloud: EnemyResidue): AilmentApplication {
+    const app = this.cloudApplications.get(cloud);
+    // 雲は全て作るときに計算しているので、ここには来ない
+    if (app === undefined) throw new Error(`雲の状態異常 ${cloud.ailment} が計算されていない`);
+    return { ...app };
+  }
+
   /** 雲の中で受ける状態異常（胞子・毒だまり）。 */
-  private ailmentApplication(cloud: EnemyResidue): AilmentApplication {
+  private cloudApplication(cloud: EnemyResidue): AilmentApplication {
     const def = this.db.ailmentsByTag.get(cloud.ailment);
     if (def?.kind !== "dot" && def?.kind !== "debuff")
       throw new Error(`雲の状態異常 ${cloud.ailment} は、持続ダメージか弱体化の定義が必要`);
@@ -774,10 +888,6 @@ export class Enemy {
 }
 
 /**
- * 敵の最大HP（補助仕様書10.1）：通常の敵のHP × 種類の倍率 × 格の倍率。
- * ボスは、データの最大HP（標準DPS×90秒。補助仕様書11章）。
- */
-/**
  * 雲を複数出すときの中心（予兆の表示と同じ計算を使う）。1つ目は相手の位置。残りは、相手の位置から
  * 出した敵と反対側へ spread m 離し、その向きの ±fanDeg の間に等しい角度で並べる（docs/progress D-U21-3）。
  */
@@ -804,6 +914,21 @@ export function cloudCenters(
   return out;
 }
 
+/** Enemy.planUpdate の計画（検証済み。Enemy.commitUpdate で反映する）。 */
+export interface EnemyUpdatePlan {
+  readonly owner: Enemy;
+  readonly dt: number;
+  /** この刻みの後の、段階の切り替えのダメージを受けない残りの秒数。 */
+  readonly shieldLeft: number;
+  /** この刻みの後に、ダメージを受けないか（持続ダメージの計算に使った値）。 */
+  readonly invulnerable: boolean;
+  readonly combatant: CombatantUpdatePlan;
+}
+
+/**
+ * 敵の最大HP（補助仕様書10.1）：通常の敵のHP × 種類の倍率 × 格の倍率。
+ * ボスは、データの最大HP（標準DPS×90秒。補助仕様書11章）。
+ */
 export function enemyMaxHp(def: EnemyDef, rank: EnemyRankDef, level: number): number {
   if (def.boss !== undefined) return def.boss.hp;
   return normalEnemyHp(level) * def.hpMultiplier * rank.hpMultiplier;
@@ -832,12 +957,17 @@ export class EnemyAttackers {
     this.tags = new TagIndex(db.tags);
   }
 
+  /**
+   * 一定時間の効果がかかっている敵ごとの評価（敵の ID → 効果の版と評価）。
+   * 効果が切れた敵の分はその場で、倒れた・消えた敵の分は retain で消す（溜まり続けないように）。
+   */
   private readonly statusViews = new Map<string, { version: number; view: ModifierView }>();
 
   /** 敵のLvの命中と、敵にかかっている一定時間の効果（煙玉の命中-30%など）を評価した値。 */
   private view(enemy: Enemy): ModifierView {
     const statuses = enemy.combatant.statuses;
     if (statuses.active.length === 0) {
+      this.statusViews.delete(enemy.id);
       const cached = this.views.get(enemy.level);
       if (cached !== undefined) return cached;
       const { view } = evaluateEffects(this.db, this.tags, [], {
@@ -853,6 +983,22 @@ export class EnemyAttackers {
     });
     this.statusViews.set(enemy.id, { version: statuses.version, view });
     return view;
+  }
+
+  /**
+   * 一定時間の効果の評価を、渡した敵（場に出ていて倒れていない敵）の分だけ残し、他を消す。
+   * Map の削除だけで、例外は起きない。
+   */
+  retain(enemies: Iterable<Enemy>): void {
+    if (this.statusViews.size === 0) return;
+    const keep = new Set<string>();
+    for (const e of enemies) if (e.state !== "dead") keep.add(e.id);
+    for (const id of this.statusViews.keys()) if (!keep.has(id)) this.statusViews.delete(id);
+  }
+
+  /** 一定時間の効果の評価を残している敵の ID（確認用）。 */
+  cachedStatusViews(): readonly string[] {
+    return [...this.statusViews.keys()];
   }
 
   /** 攻撃する側。攻撃の強さには、敵にかかっている衰弱（与えるダメージの低下）を含める。 */
