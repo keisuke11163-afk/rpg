@@ -112,6 +112,11 @@ export const uniqueSchema = z.strictObject({
   source: z.enum(["anywhere", "exclusive"]),
   /** 固有効果の説明。 */
   description: textKeySchema,
+  /**
+   * 残響化できるか（仕様書v0.2 3.11.5。省略すると、できる）。U09 逆さ天秤のように、ツリーに入れると
+   * 計算が二重になる恐れがあるものは false（MVP後の機能の提案 1-3）。
+   */
+  echo: z.boolean().optional(),
 });
 export type UniqueDef = z.infer<typeof uniqueSchema>;
 

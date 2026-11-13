@@ -540,3 +540,15 @@ export {
   WOOD_CHESTS,
   rollRegionLayout,
 } from "./world/layout.ts";
+export {
+  ECHO_BENEFIT_RATIO,
+  ECHO_BLESSING,
+  ECHO_BLESSING_RADIUS,
+  ECHO_SOURCE,
+  type EchoBlock,
+  MAX_ACTIVE_ECHOES,
+  echoBlock,
+  echoConflicts,
+  echoEffectInstances,
+  echoReview,
+} from "./items/echo.ts";

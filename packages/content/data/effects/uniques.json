@@ -56,7 +56,8 @@
       {
         "kind": "more",
         "stat": "STAT-DAMAGE",
-        "value": 0.6
+        "value": 0.6,
+        "drawback": true
       }
     ],
     "affects": {
@@ -172,7 +173,8 @@
       {
         "kind": "added",
         "stat": "STAT-UNQ-BLEED-TRANSFER",
-        "value": 1
+        "value": 1,
+        "echoRule": true
       }
     ],
     "affects": {

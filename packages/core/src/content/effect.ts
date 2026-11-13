@@ -61,6 +61,16 @@ export type TagFilter = z.infer<typeof tagFilterSchema>;
 const base = {
   /** この修正値が効く条件（技・ヒットのタグ）。 */
   filter: tagFilterSchema.optional(),
+  /**
+   * ユニークの固有効果の「代償」（仕様書v0.2 3.11.5：残響にしても数値は100%のまま）。
+   * 印の無い数値は「利点」として残響で50%になる（MVP後の機能の提案 1-1 案A）。
+   */
+  drawback: z.boolean().optional(),
+  /**
+   * 数値で表したルールの切り替え（例：狼牙の首飾りの「出血が移る」＝1）。残響にしても数値を変えない
+   * （3.11.5「ルール部分はそのまま」。docs/progress D-ECHO-2）。
+   */
+  echoRule: z.boolean().optional(),
 };
 
 const rangeSchema = z

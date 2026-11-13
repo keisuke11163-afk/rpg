@@ -1,4 +1,11 @@
 import type { StarNodeDef, StarRegion } from "../content/board.ts";
+import {
+  ECHO_BLESSING,
+  ECHO_BLESSING_RADIUS,
+  MAX_ACTIVE_ECHOES,
+  echoBlock,
+  echoEffectInstances,
+} from "../items/echo.ts";
 import type { Condition } from "../content/effect.ts";
 import type { ContentDb } from "../content/load.ts";
 import {
@@ -214,6 +221,11 @@ export interface StarBoardInput {
     readonly nodes: readonly string[];
     readonly completionBonus: number;
   };
+  /**
+   * 共鳴座にはめ込んだ残響（共鳴座のノード → ユニークのベース。仕様書v0.2 3.11.5・4.8）。
+   * 有効な共鳴座のうち、取った順に3つまでが働く。MVP の盤には共鳴座が無い（MVP後の機能の提案 1-2）。
+   */
+  readonly echoes?: Readonly<Record<string, string>>;
 }
 
 export interface StarBoardResult {
@@ -232,6 +244,8 @@ export interface StarBoardResult {
   readonly relicNodes: readonly string[];
   /** 遺物の写しを使って完成した星座（完成ボーナスが減る）。 */
   readonly relicCompleted: readonly string[];
+  /** 働いている残響の共鳴座（取った順・3つまで）。 */
+  readonly echoSockets: readonly string[];
   /** 有効なノード・星座・共鳴変化の効果（能力値の計算に渡す）。 */
   readonly effects: readonly EffectInstance[];
   readonly spent: number;
@@ -269,6 +283,8 @@ export function evaluateStarBoard(
   }
   // 職紋盤の接続ノード：始点の周り（盤のつながりで数えた距離）の小星は×2
   const boosted = nodesWithin(db, root, input.boostRadius ?? 0);
+  // 残響の加護を受ける輝星（働いている共鳴座が決まってから入れる。第1段階には効かせない）
+  const blessed = new Set<string>();
   const instancesOf = (ids: Iterable<string>): EffectInstance[] => {
     const out: EffectInstance[] = [];
     for (const id of ids) {
@@ -277,7 +293,9 @@ export function evaluateStarBoard(
       // 共鳴紋：その星域の輝星の効果の数値の部分を +10%／個（上限+40%。仕様書v0.2 6.1 I-01）
       const marks = n?.kind === "notable" ? (input.resonance?.[n.region] ?? 0) : 0;
       const cap = n === undefined ? RESONANCE_CAP : RESONANCE_CAP + (capBonus.get(n.region) ?? 0);
-      const amp = Math.min(cap, RESONANCE_PER_MARK * marks);
+      const amp =
+        Math.min(cap, RESONANCE_PER_MARK * marks) +
+        (n?.kind === "notable" && blessed.has(id) ? ECHO_BLESSING : 0);
       for (const effectId of n?.effects ?? []) {
         const values = amp > 0 ? amplifiedValues(db, effectId, amp) : undefined;
         out.push({
@@ -365,7 +383,16 @@ export function evaluateStarBoard(
       r !== undefined && region !== undefined && (input.resonance?.[region] ?? 0) >= r.threshold
     );
   });
+  // 残響：有効な共鳴座のうち、残響をはめ込んだもの（取った順に3つまで）
+  const echoSockets = active
+    .filter((id) => node(id)?.kind === "socket" && input.echoes?.[id] !== undefined)
+    .filter((id) => echoBlock(db, input.echoes?.[id] ?? "") === undefined)
+    .slice(0, MAX_ACTIVE_ECHOES);
+  for (const id of echoSockets)
+    for (const n of nodesWithin(db, id, ECHO_BLESSING_RADIUS)) blessed.add(n);
   const effects: EffectInstance[] = [...instancesOf(active), ...instancesOf(relicNodes)];
+  for (const id of echoSockets)
+    effects.push(...echoEffectInstances(db, input.echoes?.[id] ?? "", id));
   for (const id of resonating)
     for (const effectId of node(id)?.resonance?.effects ?? [])
       effects.push({ effectId, source: { kind: STAR_NODE_SOURCE, ref: id } });
@@ -398,6 +425,7 @@ export function evaluateStarBoard(
     resonating,
     relicNodes,
     relicCompleted,
+    echoSockets,
     effects,
     spent: input.allocation.length,
     points: input.points,
