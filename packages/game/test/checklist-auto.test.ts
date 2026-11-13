@@ -36,8 +36,25 @@ describe("チェックリスト 3-4・3-5：二刀流と基準のビルドも、
       }
     }, 120_000);
 
-  it("基準の戦士・弓使い・魔法使いはユニーク・天極を持たない（3-5 の前提）", () => {
-    for (const id of ["baseline-warrior", "baseline-archer", "baseline-mage"]) {
+  // baseline-knight：騎士（H-05 ②。ガードとパリィで受けるボット）。倒れずに勝てるが、攻める時間が短く遅い。
+  // 撃破は s1=192.3秒・s2=186.0秒・s3=169.4秒（他のジョブは90〜135秒。docs/progress の騎士の章。調整はしない）
+  it("baseline-knight：3つのシードで、倒れずに倒せる（240秒以内。ガードとパリィで受ける）", () => {
+    for (const seed of ["s1", "s2", "s3"]) {
+      const r = runBossBench(db, find("baseline-knight"), {
+        region: "REGION-A5-BOSS",
+        invincible: false,
+        seconds: 240,
+        seed,
+      });
+      expect(r.boss).toBe("ENM-ABYSS-MOTHER-TREE");
+      expect(r.deaths, `knight ${seed}`).toBe(0);
+      expect(r.killTime, `knight ${seed}`).toBeDefined();
+      expect(r.parries, `knight ${seed}`).toBeGreaterThan(0);
+    }
+  }, 120_000);
+
+  it("基準の戦士・弓使い・魔法使い・騎士はユニーク・天極を持たない（3-5 の前提）", () => {
+    for (const id of ["baseline-warrior", "baseline-archer", "baseline-mage", "baseline-knight"]) {
       const b = find(id);
       for (const e of b.equipment) expect(db.itemBases.get(e.base)?.unique).toBeUndefined();
       for (const s of b.stars) expect(db.starNodes.get(s)?.kind).not.toBe("keystone");
