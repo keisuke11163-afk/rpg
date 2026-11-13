@@ -520,8 +520,6 @@ export class ArenaSimulation {
   /** 薬瓶（補助仕様書6章）。 */
   hpFlask = new Flask();
   mpFlask = new Flask();
-  /** プレイヤーの戦う者を作ったときの、魔障が回復し始めるまでの秒数。 */
-  private wardDelay = 2;
   private readonly onExit: ((to: string) => void) | undefined;
   private readonly onDeath: (() => void) | undefined;
   private readonly onFacility: ((kind: Facility) => void) | undefined;
@@ -1988,26 +1986,29 @@ export class ArenaSimulation {
   }
 
   /**
-   * 最大HPが変わったとき（装備・転職）、HPの割合を保って作り直す（着替えで全回復しないように）。
-   * 試験用の場では、状態異常・崩しは引き継がない（docs/progress D-U12-5）。
+   * 能力値が変わったとき（着替え・星辰盤・職紋盤・ロードアウトの切り替え・転職）に、今のプレイヤーの
+   * 戦う者の最大HP・最大魔障・魔障が回復し始めるまでの秒数を、その場で変える（作り直さない）。
+   * HP・魔障は割合を保ち、増えても回復しない。状態異常・崩し・一定時間の効果・魔障の回復の待ち時間・
+   * 薬瓶の回復の途中は、そのまま残る（docs/progress D-U12-5）。
    */
   private syncPlayerMaxHp(): void {
     // 構築の途中（最初の装備）は、まだプレイヤーがいない
     const player = this.playerValue as Combatant | undefined;
-    const old = player?.health;
-    if (old === undefined || player === undefined) return;
+    if (player === undefined) return;
     this.applyDefense(player);
+    const d = this.sheetValue.defense;
+    const h = player.health;
     if (
-      old.maxHp === this.sheetValue.maxHp &&
-      old.maxWard === this.sheetValue.defense.maxWard &&
-      this.wardDelay === this.sheetValue.defense.wardRechargeDelay
+      h.maxHp === this.sheetValue.maxHp &&
+      h.maxWard === d.maxWard &&
+      h.wardRechargeDelay === d.wardRechargeDelay
     )
       return;
-    const ratio = old.hp / old.maxHp;
-    this.playerValue = this.newPlayer();
-    this.wardDelay = this.sheetValue.defense.wardRechargeDelay;
-    const lost = this.sheetValue.maxHp * (1 - ratio);
-    if (lost > 0 && ratio > 0) this.playerValue.health.takeDamage(lost);
+    player.resize({
+      maxHp: this.sheetValue.maxHp,
+      maxWard: d.maxWard,
+      wardRechargeDelay: d.wardRechargeDelay,
+    });
   }
 
   private startSkill(slot: SkillSlot, skillId: string): void {

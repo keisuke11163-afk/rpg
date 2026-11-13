@@ -650,7 +650,7 @@ export class AilmentState {
  */
 export class StaggerGauge {
   private readonly profile: StaggerProfile;
-  private readonly maxHp: number;
+  private maxHp: number;
   private value = 0;
   private sinceLast = 0;
   private brokenFor = 0;
@@ -694,6 +694,31 @@ export class StaggerGauge {
   /** 受けるダメージの倍率（崩れている間だけ）。 */
   get takenMultiplier(): number {
     return this.broken ? this.profile.takenMultiplier : 1;
+  }
+
+  /**
+   * 最大HP（ゲージの最大値の元）が変わったときの計算と検証だけを行い、計画を返す（状態は変えない）。
+   * ゲージの値は、最大値に対する割合を保つ。崩れているか・崩れた回数・崩しを受けていない時間は変えない。
+   * - 最大HPが有限かつ正の数でない、または新しい最大値が有限・正でなければ RangeError
+   * 計画は commitResize で反映する。
+   */
+  planResize(maxHp: number): StaggerResizePlan {
+    if (!(Number.isFinite(maxHp) && maxHp > 0))
+      throw new RangeError(`最大HPは有限かつ正の数（${String(maxHp)}）`);
+    const max = requireFinite(
+      maxHp * this.profile.gaugeRatio * this.profile.growthPerBreak ** this.breakCount,
+      () => `崩しゲージの最大値（崩れた回数 ${String(this.breakCount)}）`,
+    );
+    if (!(max > 0)) throw new RangeError(`崩しゲージの最大値は正の数（${String(max)}）`);
+    // 割合（0以上1未満）× 有限の最大値なので、値は有限で最大値より小さい
+    const value = (this.value / this.max) * max;
+    return { maxHp, value };
+  }
+
+  /** planResize の計画を反映する。検証済みの値の代入だけで、例外は起きない。 */
+  commitResize(plan: StaggerResizePlan): void {
+    this.maxHp = plan.maxHp;
+    this.value = plan.value;
   }
 
   /** 崩し値を加える。崩れた場合は true を返す。崩れている間は溜まらない。 */
@@ -806,6 +831,12 @@ export class StaggerGauge {
 }
 
 /** StaggerGauge.planAdd の計画（検証済みの次の状態。commitAdd で反映する）。 */
+/** StaggerGauge.planResize の計画（検証済みの次の値。commitResize で反映する）。 */
+export interface StaggerResizePlan {
+  readonly maxHp: number;
+  readonly value: number;
+}
+
 export interface StaggerAddPlan {
   readonly value: number;
   readonly sinceLast: number;

@@ -144,6 +144,7 @@ export {
   type AilmentTickPlan,
   type AilmentTickTarget,
   type StaggerAddPlan,
+  type StaggerResizePlan,
   type StaggerUpdatePlan,
 } from "./combat/ailments.ts";
 
@@ -169,6 +170,7 @@ export {
   Health,
   type DamageApplied,
   type HealthConfig,
+  type HealthResizePlan,
   type HealthUpdatePlan,
 } from "./combat/health.ts";
 export {

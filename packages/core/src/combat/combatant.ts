@@ -13,7 +13,7 @@ import {
   staggerValue,
 } from "./ailments.ts";
 import { type DamageAttacker, type DamageSkill, type HitResult, computeHit } from "./damage.ts";
-import { type DamageApplied, Health } from "./health.ts";
+import { type DamageApplied, Health, type HealthConfig } from "./health.ts";
 import { isBehind } from "./shapes.ts";
 import { TimedEffects } from "./timed-effects.ts";
 
@@ -104,6 +104,20 @@ export class Combatant {
    * 一定時間の効果（statuses）の倍率に掛ける。
    */
   ownReceived: ReceivedMultipliers = { damage: 1, stagger: 1 };
+
+  /**
+   * 能力値が変わったとき（装備・星辰盤・職紋盤・ロードアウト・転職）に、最大HP・最大魔障・魔障が
+   * 回復し始めるまでの秒数をその場で変える（作り直さない）。HP・魔障は割合を保ち、増えても回復しない
+   * （Health.resize）。崩しゲージの最大値も最大HPに合わせ、溜まった割合を保つ（StaggerGauge.planResize）。
+   * 状態異常・崩れているか・一定時間の効果・魔障の回復の待ち時間は、そのまま残る。
+   * 値が不正なら、何も変えずに RangeError（両方を検証してから反映する）。
+   */
+  resize(config: HealthConfig): void {
+    const health = this.health.planResize(config);
+    const stagger = this.stagger.planResize(config.maxHp);
+    this.health.commitResize(health);
+    this.stagger.commitResize(stagger);
+  }
 
   /**
    * 状態異常を付ける入口（ヒット以外：毒だまり・煙玉・反撃・出血の移動など）。
