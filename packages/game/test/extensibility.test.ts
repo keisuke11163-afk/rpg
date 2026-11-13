@@ -149,13 +149,13 @@ describe("位相のジョブ（魔法使い）をデータだけで足す（MVP�
     action: { type: "chain", range: 14, jumpRange: 6, chains: 0 },
   });
   // 遷移表だけが違う：最初の呪文は増えない・位相2で合成魔法（氷＋火。名前は test-fuse）
-  const gauge = (fusionText: string) => ({
+  const gauge = (fusionText: string): Record<string, unknown> => ({
     id: "GAU-TEST-PHASE",
     text: "gauge.phase",
     max: 3,
     gains: [],
     decayOutOfCombat: 0,
-    stages: [],
+    stages: [{ id: "test-fuse", min: 1, text: "gauge.phase.steam" }],
     phase: {
       elements: ["fire", "cold"],
       transitions: [
@@ -179,7 +179,10 @@ describe("位相のジョブ（魔法使い）をデータだけで足す（MVP�
       },
     },
   });
-  const withPhaseJob = (fusionText: string): RawContent => {
+  const withPhaseJob = (
+    fusionText: string,
+    patch: (g: Record<string, unknown>) => Record<string, unknown> = (g) => g,
+  ): RawContent => {
     const c = rawContent.collections;
     return {
       ...rawContent,
@@ -187,7 +190,7 @@ describe("位相のジョブ（魔法使い）をデータだけで足す（MVP�
         ...c,
         gauges: [
           ...(c.gauges ?? []),
-          { file: "test/phase-gauge.json", entries: [gauge(fusionText)] },
+          { file: "test/phase-gauge.json", entries: [patch(gauge(fusionText))] },
         ],
         skills: [
           ...(c.skills ?? []),
@@ -257,5 +260,34 @@ describe("位相のジョブ（魔法使い）をデータだけで足す（MVP�
     const bad = loadContent(withPhaseJob("gauge.phase.nope"));
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.errors.some((e) => e.code === "unknown-text")).toBe(true);
+  });
+
+  it("位相の表の誤り（位相が最大を超える・組み合わせが同じ属性や範囲外・input の重なり・対応する段階が無い）は読み込みの誤りになる", () => {
+    type Phase = {
+      transitions: unknown[];
+      fusion: { at: number; table: { elements: string[] }[] };
+    } & Record<string, unknown>;
+    const edit =
+      (f: (p: Phase, g: Record<string, unknown>) => void) =>
+      (g: Record<string, unknown>): Record<string, unknown> => {
+        const copy = structuredClone(g);
+        f(copy.phase as Phase, copy);
+        return copy;
+      };
+    const cases: Record<string, (g: Record<string, unknown>) => Record<string, unknown>> = {
+      位相が最大を超える: edit((p) => (p.fusion.at = 4)),
+      同じ属性の組み合わせ: edit(
+        (p) => p.fusion.table[0] && (p.fusion.table[0].elements = ["fire", "fire"]),
+      ),
+      "phase.elements に無い属性": edit(
+        (p) => p.fusion.table[0] && (p.fusion.table[0].elements = ["fire", "dark"]),
+      ),
+      "input の重なり": edit((p) => p.transitions.push({ input: "same", add: 1 })),
+      対応する段階が無い: edit((_, g) => (g.stages = [])),
+    };
+    for (const [name, patch] of Object.entries(cases)) {
+      const r = loadContent(withPhaseJob("gauge.phase.steam", patch));
+      expect(r.ok, name).toBe(false);
+    }
   });
 });

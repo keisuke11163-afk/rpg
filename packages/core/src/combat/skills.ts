@@ -147,6 +147,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   let hitsPerSecond: number | undefined;
   let radiusMultiplier = 1;
   let hits: number | undefined;
+  let burst: number | undefined;
   let replacedAction: SkillAction | undefined;
   let tags: readonly string[] = def.tags;
   const chance: Record<string, number> = { ...(def.ailmentChance ?? {}) };
@@ -161,6 +162,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     if (mods.hitsPerSecond !== undefined) hitsPerSecond = mods.hitsPerSecond;
     if (mods.radiusMultiplier !== undefined) radiusMultiplier *= mods.radiusMultiplier;
     if (mods.hits !== undefined) hits = mods.hits;
+    if (mods.burst !== undefined) burst = mods.burst;
     if (mods.action !== undefined) replacedAction = mods.action;
     if (mods.tags !== undefined) tags = mods.tags;
     for (const [tag, c] of Object.entries(mods.ailmentChance ?? {}))
@@ -198,7 +200,10 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
       action = { ...a, radius: a.radius * radiusMultiplier * area };
       break;
     case "projectile":
-      action = a.burst === undefined ? a : { ...a, burst: a.burst * area };
+      {
+        const b = burst ?? a.burst;
+        action = b === undefined ? a : { ...a, burst: b * area };
+      }
       break;
     case "teleport":
     case "selfBuff":

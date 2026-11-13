@@ -100,16 +100,7 @@
             "elements": ["fire", "cold"],
             "mods": {
               "pctMultiplier": 1.8,
-              "action": {
-                "type": "projectile",
-                "count": 1,
-                "spreadDeg": 0,
-                "speed": 22,
-                "range": 16,
-                "radius": 0.4,
-                "pierce": 0,
-                "burst": 3.0
-              },
+              "burst": 3.0,
               "ailmentChance": {
                 "TAG-AIL-BURN": 1
               }

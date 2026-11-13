@@ -49,6 +49,8 @@ const baseSkillModsSchema = z.strictObject({
   pctMultiplier: z.number().positive().optional(),
   /** 戦吼の範囲の倍率。 */
   radiusMultiplier: z.number().positive().optional(),
+  /** 投射物の着弾の範囲の半径（m）を置き換える・足す（蒸爆：元の動き方のまま、着弾の爆発だけを重ねる）。 */
+  burst: z.number().positive().optional(),
   /** 連撃の数を置き換える（連刃：爪は4連撃、片手剣は2連撃）。 */
   hits: z.number().int().positive().optional(),
   /** 加える挙動。 */
