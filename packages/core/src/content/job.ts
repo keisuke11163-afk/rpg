@@ -224,6 +224,21 @@ export const skillSchema = z.strictObject({
       forceCritAt: z.number().positive().optional(),
     })
     .optional(),
+  /** 技そのものの属性の変換（断罪の刃：武器ダメージの50%を聖に変換。仕様書v0.2 5.3）。 */
+  convert: z
+    .array(
+      z.strictObject({
+        from: z.enum(ELEMENTS),
+        to: z.enum(ELEMENTS),
+        value: z.number().gt(0).max(1),
+      }),
+    )
+    .optional(),
+  /**
+   * 盾の防具値のこの割合を、固定の物理ダメージとして足す（盾打ち：盾の防具値の10%。仕様書v0.2 5.3）。
+   * 盾を持っていなければ0。
+   */
+  shieldArmorRatio: z.number().positive().optional(),
   /** 使った後、自分に一定時間かかる効果（破軍の「受けるダメージ-20%」など）。 */
   selfEffects: z
     .array(z.strictObject({ effect: idSchema, duration: z.number().positive() }))
@@ -282,6 +297,30 @@ const phaseSchema = z.strictObject({
 export type PhaseDef = z.infer<typeof phaseSchema>;
 export type PhaseFusion = PhaseDef["fusion"]["table"][number];
 
+/**
+ * ガード・パリィの規則（騎士。仕様書v0.2 5.3・MVP後の機能の提案3章 H-05 ②）。
+ * ジョブがこの規則を持ち、メインジョブで盾を持っている間、技の枠2（右クリック）の押し続けがガードになる。
+ * 規則を持たないジョブは、盾を持っていても今までどおり（技の枠2は普通の技の枠）。
+ */
+const guardRuleSchema = z.strictObject({
+  /** パリィの受付（秒）：攻撃が当たる前のこの時間以内にガードを始めるとパリィ（仕様書：0.18秒）。 */
+  parryWindow: z.number().positive(),
+  /** 正面の角度（度。自分の向きを中心に、この角度の中から来る攻撃だけを防ぐ）。 */
+  frontAngleDeg: z.number().positive().max(360),
+  /** ガードで攻撃を防ぐたびに使う気力。足りなければ防げない（パリィは使わない）。 */
+  staminaCost: z.number().nonnegative(),
+  /** パリィで敵の崩しゲージに加える量（その敵の崩しゲージの最大値に対する割合）。 */
+  parryStaggerRatio: z.number().nonnegative().max(1),
+  /** 反撃権：次の攻撃のダメージに足す割合（1＝+100%）と、持っている秒数。 */
+  counterBonus: z.number().nonnegative(),
+  counterSeconds: z.number().positive(),
+  /** ガードしている間の移動の速さの倍率。 */
+  moveSpeedMultiplier: z.number().positive().max(1),
+  /** 右クリックを短く押して離しても、ガードを続ける最短の秒数。 */
+  minRaise: z.number().nonnegative(),
+});
+export type GuardRule = z.infer<typeof guardRuleSchema>;
+
 /** 職能ゲージの定義（仕様書5章）。 */
 export const gaugeSchema = z.strictObject({
   id: idSchema,
@@ -304,6 +343,10 @@ export const gaugeSchema = z.strictObject({
       z.strictObject({ on: z.literal("stationary"), perSecond: z.number() }),
       // 技の1回の使用で、直前と同じ敵に当てたとき：value（集中は+5。M-23 の仮値）
       z.strictObject({ on: z.literal("hitSameTarget"), value: z.number() }),
+      // ガードで攻撃を防いだとき：value（信念は+1。仕様書v0.2 5.3）。パリィのときは parrySuccess だけを使う
+      z.strictObject({ on: z.literal("guardSuccess"), value: z.number() }),
+      // パリィに成功したとき：value（信念は+3。仕様書v0.2 5.3）
+      z.strictObject({ on: z.literal("parrySuccess"), value: z.number() }),
     ]),
   ),
   /** 戦闘外（補助仕様書3.1：5秒間、攻撃も被弾もない）で毎秒減る量。 */
@@ -362,6 +405,11 @@ export const jobSchema = z.strictObject({
       closePenalty: z.number(),
     })
     .optional(),
+  /**
+   * ガード・パリィの規則（騎士。メインジョブのときだけ。仕様書v0.2 5.3）。省略すると、そのジョブはガードしない
+   * （盾を持っていても、技の枠2は普通の技の枠のまま）。
+   */
+  guard: guardRuleSchema.optional(),
   /**
    * 上位職・混成職の元のジョブ（MVP後の機能の提案 4章：データの形だけ。挙動は変えない）。
    * 上位職は1つ（例：暗殺者 ← 盗賊）、混成職は2つ（例：魔弾射手 ← 弓使い・魔法使い。仕様書v0.2 5.8）。

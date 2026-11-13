@@ -468,5 +468,7 @@
   "jobnode.mage.m-single.desc": "位相がなくなる代わりに、同じ属性を続けて使うたびに+8%（最大5回まで）（まだ働かない）",
   "jobnode.mage.m-silent": "無詠唱",
   "jobnode.mage.m-silent.desc": "過充填ができなくなる代わりに、詠唱速度+25%（まだ働かない）",
-  "star.start.ri": "魔法使いの始点（理域）"
+  "star.start.ri": "魔法使いの始点（理域）",
+  "stat.parry-window": "パリィの受付（秒）",
+  "stat.guard-rate": "ガード率"
 }
