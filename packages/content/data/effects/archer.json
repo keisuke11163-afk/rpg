@@ -1,0 +1,18 @@
+[
+  {
+    "id": "EFF-GAUGE-FOCUS-CRIT",
+    "origin": "jobSkill",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-CRIT-CHANCE",
+        "value": 0.01
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  }
+]

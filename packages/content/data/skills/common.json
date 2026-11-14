@@ -7,7 +7,33 @@
     "pct": 1.0,
     "mpCost": 0,
     "cooldown": 0,
-    "action": { "type": "strike", "shape": { "type": "sector", "radius": 1.6, "angleDeg": 90 } },
-    "staggerCoefficient": 0.3
+    "action": {
+      "type": "strike",
+      "shape": {
+        "type": "sector",
+        "radius": 1.6,
+        "angleDeg": 90
+      }
+    },
+    "staggerCoefficient": 0.3,
+    "weaponVariants": [
+      {
+        "weaponTag": "TAG-WPNGRP-BOW",
+        "mods": {
+          "action": {
+            "type": "projectile",
+            "count": 1,
+            "spreadDeg": 0,
+            "speed": 28,
+            "range": 18,
+            "radius": 0.15,
+            "pierce": 0
+          },
+          "tags": ["TAG-FORM-PROJECTILE"]
+        }
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "弓系の通常攻撃の矢（速さ28m/秒・射程18m）は仮（docs/progress D-ARC-2）"
   }
 ]

@@ -81,3 +81,55 @@ describe("3つ目のジョブをデータだけで足す（MVPの完成の条件
     expect(sim.uses.get(SKILL) ?? 0).toBeGreaterThan(0);
   });
 });
+
+describe("上位職・混成職のデータの形（MVP後の機能の提案 4章）", () => {
+  const withAdvanced = (entry: Record<string, unknown>): RawContent => {
+    const c = rawContent.collections;
+    return {
+      ...rawContent,
+      collections: {
+        ...c,
+        jobs: [...(c.jobs ?? []), { file: "test/advanced.json", entries: [entry] }],
+      },
+    };
+  };
+  const hybrid = {
+    id: "JOB-TEST-ARCANE-ARCHER",
+    tag: "TAG-JOB-ARCHER",
+    text: "job.archer",
+    gauge: "GAU-FOCUS",
+    skills: [],
+    affinity: { "TAG-WPN-BOW": "S" },
+    advancedFrom: ["JOB-ARCHER", "JOB-ROGUE"],
+    trial: { text: "job.archer", jobLevel: 30 },
+  };
+
+  it("元のジョブ（1つか2つ）と試練を持てる。転職の順番・出自には入らない（挙動は変えない）", () => {
+    const loaded = loadContent(withAdvanced(hybrid));
+    if (!loaded.ok) throw new Error(loaded.errors.map((e) => e.message).join("\n"));
+    const db = loaded.content;
+    expect(db.jobs.get("JOB-TEST-ARCANE-ARCHER")?.advancedFrom).toEqual([
+      "JOB-ARCHER",
+      "JOB-ROGUE",
+    ]);
+    const sim = new ArenaSimulation(undefined, { db, enemies: false });
+    const seen: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      expect(sim.changeJob()).toBe("ok");
+      seen.push(sim.job.id);
+    }
+    expect(seen).toEqual(["JOB-ROGUE", "JOB-ARCHER", "JOB-WARRIOR", "JOB-ROGUE"]);
+  });
+
+  it("元のジョブが無い・自分自身・重なり、元のジョブの無い試練は、データの誤り", () => {
+    for (const bad of [
+      { ...hybrid, advancedFrom: ["JOB-NOPE"] },
+      { ...hybrid, advancedFrom: ["JOB-TEST-ARCANE-ARCHER"] },
+      { ...hybrid, advancedFrom: ["JOB-ARCHER", "JOB-ARCHER"] },
+      { ...hybrid, advancedFrom: undefined },
+    ]) {
+      const entry = Object.fromEntries(Object.entries(bad).filter(([, v]) => v !== undefined));
+      expect(loadContent(withAdvanced(entry)).ok, JSON.stringify(bad.advancedFrom)).toBe(false);
+    }
+  });
+});

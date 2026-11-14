@@ -397,6 +397,7 @@ export class ArenaScene extends Phaser.Scene {
         xp: sim.character.progress.xp,
         traps: sim.traps.length,
         smokes: sim.smokes.length,
+        arrows: sim.arrows.active,
       }),
       // セーブ（U-13）：今すぐ保存する・スロットの一覧・最後の結果（開発版だけ）
       saveNow: () => this.saveNow(),
@@ -902,7 +903,14 @@ export class ArenaScene extends Phaser.Scene {
         toPixels(tr.center.y),
         tr.radius * PIXELS_PER_METER,
       );
-    // 残っている亀裂
+    // プレイヤーの矢（弓使い）
+    g.lineStyle(2, 0xf4e3b2, 1);
+    for (const a of sim.arrows.positions()) {
+      const x = toPixels(a.position.x);
+      const y = toPixels(a.position.y);
+      g.lineBetween(x, y, x - a.direction.x * 10, y - a.direction.y * 10);
+    }
+    // 残っている亀裂・矢の雨
     for (const z of sim.zones) {
       g.fillStyle(0xff9f43, 0.18);
       for (const part of z.parts) this.drawShape(g, part.shape, part.origin, part.facing);
@@ -1003,7 +1011,7 @@ export class ArenaScene extends Phaser.Scene {
         `持ち物：装備 ${String(sim.inventory.items.length)}／${String(sim.inventory.capacity)}・金貨 ${String(sim.inventory.gold)}・素材 ${String([...sim.inventory.materials.values()].reduce((a, b) => a + b, 0))}（F で装備を拾う・Alt で名前を全て表示）`,
         `敵：倒した数 ${String(sim.field?.kills ?? 0)}・被弾 ${String(sim.hitsTaken)}・回避で無効 ${String(sim.attacksAvoided)}・倒れた回数 ${String(sim.deaths)}${this.ailmentText()}${sim.player.stagger.broken ? "・よろめき" : ""}`,
         `セーブ：${this.saveStatus}`,
-        `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・薬瓶 Q:${String(sim.hpFlask.charges)} E:${String(sim.mpFlask.charges)}・気力 ${motion.currentStamina.toFixed(0)}・${gaugeName} ${gauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}`,
+        `HP ${sim.playerHealth.hp.toFixed(0)}・MP ${sim.mp.toFixed(0)}・薬瓶 Q:${String(sim.hpFlask.charges)} E:${String(sim.mpFlask.charges)}・気力 ${motion.currentStamina.toFixed(0)}・${gaugeName} ${gauge.value.toFixed(0)}${stageText === "" ? "" : `（${stageText}）`}${sim.inTrial ? "・試し打ちの場（振り直し無料・離れると戻る）" : ""}`,
       ].filter((line) => line !== ""),
     );
   }

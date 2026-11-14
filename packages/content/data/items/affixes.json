@@ -1032,6 +1032,29 @@
     }
   },
   {
+    "id": "AFX-PRE-JOB-ARCHER",
+    "text": "item.affix.job-archer",
+    "position": "prefix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-PRE-JOB-ARCHER",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 20,
+        "max": 20
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の職詞の例（集中の最大値+20）。頭は重み2倍（D-U11-23 と同じ）",
+    "job": "TAG-JOB-ARCHER",
+    "categoryWeights": {
+      "head": 2
+    }
+  },
+  {
     "id": "AFX-SUF-BEAST-HUNTER",
     "text": "item.affix.beast-hunter",
     "position": "suffix",

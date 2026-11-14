@@ -647,6 +647,9 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
   const checkMods = (mods: SkillMods, file: string, id: string, path: string): void => {
     for (const tagId of Object.keys(mods.ailmentChance ?? {}))
       tagOf(tagId, ["ailment"], file, id, `${path}.ailmentChance`);
+    (mods.tags ?? []).forEach((t, i) => {
+      tagOf(t, undefined, file, id, `${path}.tags.${String(i)}`);
+    });
     (mods.behaviors ?? []).forEach((b, i) => {
       const at = `${path}.behaviors.${String(i)}`;
       if (!knownHooks.has(b.hook)) {
@@ -697,6 +700,8 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       if (g.on === "hitDealt" && g.tag !== undefined)
         tagOf(g.tag, undefined, file, gauge.id, `gains.${String(i)}.tag`);
     });
+    if (gauge.pointEffect !== undefined)
+      refCheck(effectMap, "効果", gauge.pointEffect.effect, file, gauge.id, "pointEffect.effect");
   }
 
   /** 技 → それを持つジョブの職能ゲージ（段階の名前の確認に使う）。 */
@@ -740,6 +745,28 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     if (job.startingWeapon !== undefined)
       refCheck(itemBaseMap, "装備のベース", job.startingWeapon, file, job.id, "startingWeapon");
+    // 上位職・混成職の形（MVP後の機能の提案 4章）：元のジョブがあり、自分自身でなく、重ならない。試練の文章がある
+    (job.advancedFrom ?? []).forEach((from, i) => {
+      const at = `advancedFrom.${String(i)}`;
+      if (!refCheck(jobMap, "ジョブ", from, file, job.id, at)) return;
+      if (from === job.id || (job.advancedFrom ?? []).indexOf(from) !== i)
+        err({
+          code: "schema",
+          file,
+          id: job.id,
+          path: at,
+          message: `元のジョブ ${from} が自分自身か、重なっている`,
+        });
+    });
+    if (job.trial !== undefined) checkText(job.trial.text, file, job.id);
+    if (job.trial !== undefined && job.advancedFrom === undefined)
+      err({
+        code: "schema",
+        file,
+        id: job.id,
+        path: "trial",
+        message: "試練は上位職・混成職（advancedFrom がある）にだけ付ける",
+      });
   }
 
   for (const { value: skill, file } of skills) {

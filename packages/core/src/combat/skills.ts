@@ -141,6 +141,8 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   let hitsPerSecond: number | undefined;
   let radiusMultiplier = 1;
   let hits: number | undefined;
+  let replacedAction: SkillAction | undefined;
+  let tags: readonly string[] = def.tags;
   const chance: Record<string, number> = { ...(def.ailmentChance ?? {}) };
   const behaviors: SkillBehavior[] = [];
   for (const { mods } of applied) {
@@ -152,12 +154,14 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     if (mods.hitsPerSecond !== undefined) hitsPerSecond = mods.hitsPerSecond;
     if (mods.radiusMultiplier !== undefined) radiusMultiplier *= mods.radiusMultiplier;
     if (mods.hits !== undefined) hits = mods.hits;
+    if (mods.action !== undefined) replacedAction = mods.action;
+    if (mods.tags !== undefined) tags = mods.tags;
     for (const [tag, c] of Object.entries(mods.ailmentChance ?? {}))
       chance[tag] = Math.min(1, (chance[tag] ?? 0) + c);
     for (const b of mods.behaviors ?? []) behaviors.push({ hook: b.hook, params: b.params ?? {} });
   }
 
-  const a = def.action;
+  const a = replacedAction ?? def.action;
   let action: SkillAction;
   switch (a.type) {
     case "strike": {
@@ -183,8 +187,10 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
       };
       break;
     case "zone":
+    case "barrage":
       action = { ...a, radius: a.radius * radiusMultiplier * area };
       break;
+    case "projectile":
     case "teleport":
     case "selfBuff":
     case "trap":
@@ -206,7 +212,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     def,
     forceCrit,
     damage: {
-      tags: def.tags,
+      tags,
       kind: def.kind,
       pct,
       ...(def.base === undefined ? {} : { base: def.base }),

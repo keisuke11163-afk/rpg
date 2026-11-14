@@ -42,6 +42,18 @@ export interface TrapPlacement {
   readonly max: number;
 }
 
+/** 放つ投射物（弓使いの技。呼び出す側が投射物の入れ物に入れ、当たった敵にヒットを解決する）。 */
+export interface ProjectileVolley {
+  readonly skill: ResolvedSkill;
+  readonly origin: Vec2;
+  /** 1本ずつの向き（ラジアン）。 */
+  readonly angles: readonly number[];
+  readonly speed: number;
+  readonly range: number;
+  readonly radius: number;
+  readonly pierce: number;
+}
+
 /** 戦吼（自分の周りの味方を強め、敵を弱める）。 */
 export interface WarcryPulse {
   readonly origin: Vec2;
@@ -76,6 +88,7 @@ export interface ExecutionTick {
   readonly selfBuff?: { readonly effects: readonly string[]; readonly duration: number };
   readonly zone?: ZonePlacement;
   readonly trap?: TrapPlacement;
+  readonly volley?: ProjectileVolley;
   readonly pull?: PullPulse;
   /** 自分を動かす量（突進）。 */
   readonly displacement: Vec2;
@@ -170,6 +183,9 @@ export class SkillExecution {
   private readonly aimPoint: Vec2 | undefined;
   private readonly teleportTo: Vec2 | undefined;
   private hitsFired = 0;
+  private leapDone = 0;
+  /** 動作の時間が終わったか（跳躍後退は、動作と跳ぶのが両方終わったら終える）。 */
+  private timelineDone = false;
 
   /**
    * aimPoint：照準の位置（煙玉・罠は、射程内に収めた位置に置く）。
@@ -337,6 +353,71 @@ export class SkillExecution {
             : {}),
           finished: e.finished,
         };
+      }
+      case "projectile": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        // 跳躍後退：撃ちながら、向きと反対へ決まった時間で跳ぶ
+        let displacement = ZERO;
+        let leaping = false;
+        if (a.leap !== undefined) {
+          const step = Math.max(0, Math.min(dt, a.leap.duration - this.leapDone));
+          this.leapDone += dt;
+          leaping = this.leapDone < a.leap.duration - 1e-9;
+          displacement = scale(
+            dir(this.facing + Math.PI),
+            (a.leap.distance / a.leap.duration) * step,
+          );
+        }
+        // 動作の終わり（e.finished）は1回しか来ないので覚えておく。動作が跳ぶ時間より短い
+        // （攻撃速度が速い）ときも、跳び終えた時点で技を終える
+        if (e.finished) this.timelineDone = true;
+        const finished = this.timelineDone && !leaping;
+        this.finishedFlag = finished;
+        let volley: ProjectileVolley | undefined;
+        if (e.activeStarted) {
+          const spread = a.count > 1 ? (a.spreadDeg * Math.PI) / 180 : 0;
+          const angles = Array.from(
+            { length: a.count },
+            (_, i) => this.facing + (a.count > 1 ? -spread / 2 + (spread * i) / (a.count - 1) : 0),
+          );
+          volley = {
+            skill: this.skill,
+            origin: input.position,
+            angles,
+            speed: a.speed,
+            range: a.range,
+            radius: a.radius,
+            pierce: a.pierce,
+          };
+        }
+        return {
+          ...empty,
+          displacement,
+          ...(volley === undefined ? {} : { volley }),
+          finished,
+        };
+      }
+      case "barrage": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        const zones: LingeringZone[] = [];
+        if (e.activeStarted) {
+          // 矢の雨：照準の位置に、間隔ごとに円の当たり判定を出す（技倍率は1回分）
+          zones.push(
+            new LingeringZone(
+              this.skill,
+              [
+                {
+                  shape: { type: "circle", radius: a.radius },
+                  origin: this.placeAt(input.position, a.range),
+                  facing: 0,
+                },
+              ],
+              { hook: "barrage", params: { ratio: 1, interval: a.interval, duration: a.duration } },
+            ),
+          );
+        }
+        return { ...empty, zones, finished: e.finished };
       }
       case "warcry": {
         const e = (this.timeline as ActionTimeline).update(dt);

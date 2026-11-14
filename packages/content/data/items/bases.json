@@ -182,6 +182,58 @@
     "implicitEffects": ["EFF-IMP-LIFE-LEECH-05", "EFF-IMP-DUAL-ONEHAND"]
   },
   {
+    "id": "BASE-WPN-BOW-T1",
+    "text": "item.base.bow-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-BOW"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 14
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 7,
+          "max": 14
+        }
+      },
+      "attackSpeed": 1.35,
+      "critChance": 0.06
+    },
+    "implicitEffects": ["EFF-IMP-PROJ-SPEED-10"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値（両手の弓は短剣より高くした。docs/progress D-ARC-1）"
+  },
+  {
+    "id": "BASE-WPN-LONGBOW-T1",
+    "text": "item.base.longbow-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-LONGBOW"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "jin",
+      "value": 18
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 12,
+          "max": 22
+        }
+      },
+      "attackSpeed": 1.0,
+      "critChance": 0.07
+    },
+    "implicitEffects": ["EFF-IMP-RANGE-MAX-2", "EFF-IMP-MOVING-SHOT-SLOW-30"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値（両手の弓は短剣より高くした。docs/progress D-ARC-1）"
+  },
+  {
     "id": "BASE-ARM-IRON-HEAD-T1",
     "text": "item.base.iron-head-1",
     "category": "head",
@@ -610,11 +662,10 @@
       "effects": ["EFF-UNQ-U06-SURE", "EFF-UNQ-U06-INSIGHT"],
       "latent": {
         "text": "item.unique.u06.latent",
-        "effects": [],
+        "effects": ["EFF-UNQ-U06-LATENT"],
         "condition": {
           "type": "jobNode",
-          "id": "JOBNODE-ARCHER-MIND-EYE",
-          "pending": true
+          "id": "JBN-ARCHER-MIND-EYE"
         }
       },
       "source": "anywhere",
@@ -833,7 +884,10 @@
     "requiredLevel": 20,
     "relic": {
       "constellation": "CONST-VIPER",
-      "copies": { "base": 3, "perEnhance": 0.4 },
+      "copies": {
+        "base": 3,
+        "perEnhance": 0.4
+      },
       "completionBonus": 0.5
     },
     "provisional": true,

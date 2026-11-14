@@ -8,6 +8,8 @@ import {
   Cooldowns,
   type DamageAttacker,
   type DamageSkill,
+  ProjectilePool,
+  type ProjectileVolley,
   type DropSource,
   FixedStepClock,
   type Health,
@@ -56,6 +58,7 @@ import {
   MAX_LOADOUTS,
   toSaveData,
   JobGauge,
+  type EffectInstance,
   type MvpEquipSlot,
   type JobDef,
   LingeringZone,
@@ -222,11 +225,14 @@ export const TEST_WEAPONS: readonly { readonly uid: string; readonly base: strin
   { uid: "test-longsword", base: "BASE-WPN-LONGSWORD-T1" },
   { uid: "test-dagger", base: "BASE-WPN-DAGGER-T1" },
   { uid: "test-claw", base: "BASE-WPN-CLAW-T1" },
+  { uid: "test-bow", base: "BASE-WPN-BOW-T1" },
+  { uid: "test-longbow", base: "BASE-WPN-LONGBOW-T1" },
 ];
 /** ジョブの初期装備の武器（補助仕様書3.4。転職したときに持ち替える）。 */
 const START_WEAPON: Readonly<Record<string, string>> = {
   "JOB-WARRIOR": "test-greatsword",
   "JOB-ROGUE": "test-dagger",
+  "JOB-ARCHER": "test-bow",
 };
 
 /** 技の枠（補助仕様書1.1：左クリック・右クリック・1〜4 の6枠）。 */
@@ -275,7 +281,26 @@ interface Running {
   gained?: boolean;
   /** 二刀流の左右交互：この技の実行で出した当たり判定の数（偶数は主手・奇数は副手）。 */
   swings?: number;
+  /** 1回の使用で、もう敵に当てたか（集中の「同じ敵に当てるたび」は使用ごとに1回。D-ARC-3）。 */
+  targeted?: boolean;
+  /**
+   * 使う前の能力値（職能ゲージの量で値が変わる効果を、使った量のまま当てる。狙撃は集中を全て使うが、
+   * 集中の会心率は使う前の量で乗る）。無ければ、当たったときの能力値を使う。
+   */
+  castSheet?: CharacterSheet;
 }
+
+/** プレイヤーの投射物（弓使いの技・弓の通常攻撃）が当たったときに使う情報。 */
+interface PlayerArrow {
+  /** 撃った技の実行（同じ使用の中での当たった敵の記録・集中の獲得に使う）。 */
+  readonly run: Running;
+  readonly skill: ResolvedSkill;
+  /** 撃った位置（背面の判定に使う）。 */
+  readonly origin: Vec2;
+}
+
+/** 投射物の入れ物の数（散弾矢5本×連射でも足りる数）。 */
+const PLAYER_ARROWS = 96;
 
 /** 置いた煙玉。 */
 export interface SmokeZone {
@@ -385,6 +410,11 @@ const BRUSH_BLOCK_TEXT: Readonly<Record<BrushBlock, string>> = {
 
 /** 試験用の場の安全地帯（訓練用の人形の周り。m）。 */
 export const SAFE_ZONE_RADIUS = 4;
+/**
+ * 試し打ちの場（MVP後の機能の提案 5章・M-22）：訓練用の人形からこの距離（m）より離れると、試した配置を元に戻す
+ * （仮値。docs/progress D-TRIAL-2）。
+ */
+export const TRIAL_RADIUS = 8;
 
 /** 還星の灯（星辰盤の1ノードを返す。仕様書v0.2 4.13）。 */
 export const RETURN_LAMP = "MAT-RETURN-LAMP";
@@ -605,6 +635,19 @@ export class ArenaSimulation {
   private attackerVersion = "";
   private current: { slot: SkillSlot; run: Running } | undefined;
   private zoneRuns: Running[] = [];
+  /**
+   * 試し打ちの場（MVP後の機能の提案 5章）：始めたときの星辰盤・職紋盤・技の枠の写し。試している間だけある。
+   * 職紋盤の振り直しは無料になり、場を出る（人形から離れる・もう一度 F・地域を出る）と写しに戻す。
+   */
+  private trialSnapshot:
+    | {
+        readonly stars: readonly string[];
+        readonly boards: Readonly<Record<string, readonly string[]>>;
+        readonly slots: readonly (readonly [string, readonly (string | undefined)[]])[];
+      }
+    | undefined;
+  /** プレイヤーの投射物（弓使い。仕様書v0.2 5.7）。 */
+  readonly arrows = new ProjectilePool<PlayerArrow>(PLAYER_ARROWS);
   private readonly strikes: ShownStrike[] = [];
   private mpValue = 60;
   private hitStopLeft = 0;
@@ -1419,7 +1462,8 @@ export class ArenaSimulation {
   switchLoadout(id: number): "ok" | "same" | "notSafe" | "busy" | "inventoryFull" | "unknown" {
     if (!(Number.isInteger(id) && id >= 1 && id <= MAX_LOADOUTS)) return "unknown";
     if (id === this.activeLoadoutId) return "same";
-    if (this.current !== undefined) return "busy";
+    // 試し打ちの場の間は切り替えない（試した配置がロードアウトに残らないように）
+    if (this.current !== undefined || this.trialSnapshot !== undefined) return "busy";
     if (!this.inSafeZone) return "notSafe";
     const here = this.loadoutList.find((l) => l.id === this.activeLoadoutId);
     const saved = this.currentLoadout(
@@ -1524,6 +1568,66 @@ export class ArenaSimulation {
     return "ok";
   }
 
+  /** 試し打ちの場で試しているか。 */
+  get inTrial(): boolean {
+    return this.trialSnapshot !== undefined;
+  }
+
+  /** 訓練用の人形の近く（F が届く距離）にいるか。 */
+  get nearDummy(): boolean {
+    const d = this.dummy;
+    if (d === undefined) return false;
+    const p = this.motion.position;
+    return Math.hypot(d.position.x - p.x, d.position.y - p.y) <= INTERACT_DISTANCE + d.radius;
+  }
+
+  /**
+   * 試し打ちの場を始める（訓練用の人形の近くで F。安全地帯だけ・技の実行中は不可）。
+   * 今の星辰盤・職紋盤・技の枠を写しておき、その後の振り直し（職紋盤も）を無料で試せる。
+   * 装備は試す対象にしない（持ち物そのものなので、戻すと売った・分解した物と合わなくなる。D-TRIAL-1）。
+   */
+  startTrial(): boolean {
+    if (this.trialSnapshot !== undefined || this.current !== undefined) return false;
+    if (!this.inSafeZone || !this.nearDummy) return false;
+    this.trialSnapshot = {
+      stars: [...this.stars.nodes],
+      boards: this.currentJobBoards(),
+      slots: [...this.skillSlotsByJob].map(([job, slots]) => [job, [...slots]] as const),
+    };
+    this.onText?.(
+      "試し打ちの場：振り直しが無料（人形から離れると元に戻る）",
+      this.motion.position,
+      "#9fd3ff",
+    );
+    return true;
+  }
+
+  /** 試し打ちの場を終え、始めたときの星辰盤・職紋盤・技の枠に戻す。試していなければ false。 */
+  endTrial(): boolean {
+    const snap = this.trialSnapshot;
+    if (snap === undefined) return false;
+    // 1. 計画（データに無いノードなどは、ここで RangeError になり、何も変えない）
+    const stars = new StarAllocation(this.db, snap.stars);
+    const boards = Object.entries(snap.boards).map(
+      ([jobId, nodes]) => new JobBoardAllocation(this.db, jobId, nodes),
+    );
+    // 2. 反映
+    this.trialSnapshot = undefined;
+    this.starsValue = stars;
+    for (const jobId of [...this.jobBoards.keys()])
+      this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId));
+    for (const b of boards) this.jobBoards.set(b.job, b);
+    this.skillSlotsByJob.clear();
+    for (const [job, slots] of snap.slots) this.skillSlotsByJob.set(job, [...slots]);
+    this.starVersion += 1;
+    this.jobBoardVersion += 1;
+    this.attackerVersion = "";
+    this.refreshAttacker();
+    this.syncPlayerMaxHp();
+    this.onText?.("試し打ちの場を出た（元に戻した）", this.motion.position, "#9fd3ff");
+    return true;
+  }
+
   /** 星辰盤の全体の振り直し（町の星読み師。MVPでは常に無料。仕様書v0.2 4.13・補助仕様書5章）。安全地帯だけ。 */
   resetStars(): boolean {
     if (!this.inSafeZone || this.current !== undefined) return false;
@@ -1557,6 +1661,8 @@ export class ArenaSimulation {
 
   /** 職紋盤の振り直しの金貨（補助仕様書5章：20×ジョブLv）。 */
   get jobBoardRespecCost(): number {
+    // 試し打ちの場では無料（試した配置は場を出ると戻る）
+    if (this.trialSnapshot !== undefined) return 0;
     return jobBoardRespecCost(this.character.jobLevel(this.job.id));
   }
 
@@ -1629,11 +1735,14 @@ export class ArenaSimulation {
   /**
    * 星辰盤のノードを1つ返す（還星の灯を1つ使う。仕様書v0.2 4.13）。
    * 灯が無い・返すと始点からつながらなくなるノードがあるときは、何も変えずに false。
+   * 試し打ちの場では灯を使わない（場を出ると星辰盤が元に戻るため。jobBoardRespecCost と同じ考え方）。
    */
   refundStar(id: string): "ok" | "noLamp" | "blocked" {
     if (!this.stars.canRefund(id, this.starRoot)) return "blocked";
-    if (this.inventory.material(RETURN_LAMP) < 1) return "noLamp";
-    this.inventory.spendMaterial(RETURN_LAMP, 1);
+    if (this.trialSnapshot === undefined) {
+      if (this.inventory.material(RETURN_LAMP) < 1) return "noLamp";
+      this.inventory.spendMaterial(RETURN_LAMP, 1);
+    }
     this.stars.refund(id, this.starRoot);
     this.starsChanged();
     return "ok";
@@ -1745,6 +1854,33 @@ export class ArenaSimulation {
 
   /** 今の状態（セーブデータにする元）。 */
   profile(): PlayerProfile {
+    // 試し打ちの場の間は、試す前の配置を残す（読み込み直しても、試した配置は残らない）
+    const snap = this.trialSnapshot;
+    if (snap !== undefined) {
+      const p = this.liveProfile();
+      return {
+        ...p,
+        skillSlots: new Map(snap.slots.map(([job, slots]) => [job, [...slots]])),
+        starAllocation: [...snap.stars],
+        kept: {
+          ...p.kept,
+          boards: {
+            ...p.kept.boards,
+            ...Object.fromEntries(
+              [...this.jobBoards.keys()].map((jobId) => {
+                const nodes = snap.boards[jobId] ?? [];
+                const b = new JobBoardAllocation(this.db, jobId, nodes);
+                return [jobId, { board: [...b.nodes], mastery: b.mastery ?? null }];
+              }),
+            ),
+          },
+        },
+      };
+    }
+    return this.liveProfile();
+  }
+
+  private liveProfile(): PlayerProfile {
     return {
       name: this.name,
       character: this.character,
@@ -1841,7 +1977,7 @@ export class ArenaSimulation {
         character: this.character,
         job: this.job,
         equipment: this.equipment,
-        extraEffects: this.buffs.instances(),
+        extraEffects: this.extraEffects(),
       },
       item,
       target,
@@ -1901,13 +2037,22 @@ export class ArenaSimulation {
     // 時間の検証を先に行う（例外のときに入力だけが残らないように）
     const { steps } = this.clock.advance(deltaSeconds);
     if (extra.switchWeapon === true) this.switchWeapon();
-    if (extra.changeJob === true && this.changeJob() === "inventoryFull")
+    if (extra.changeJob === true) {
+      const r = this.changeJob();
       // 何も起きないように見えないよう、理由を出す（docs/progress D-AUTO-2）
-      this.onText?.(
-        "インベントリがいっぱいで、副手を外せない（転職しない）",
-        this.motion.position,
-        "#ff6b6b",
-      );
+      if (r === "inventoryFull")
+        this.onText?.(
+          "インベントリがいっぱいで、副手を外せない（転職しない）",
+          this.motion.position,
+          "#ff6b6b",
+        );
+      else if (r === "busy")
+        this.onText?.(
+          this.inTrial ? "試し打ちの場では転職できない" : "技の実行中は転職できない",
+          this.motion.position,
+          "#ff6b6b",
+        );
+    }
     this.aimPoint = { x: toMeters(input.pointerWorld.x), y: toMeters(input.pointerWorld.y) };
     this.stepInput.press(STEP_ACTIONS.filter((a) => input.pressed.has(a)));
     for (let i = 0; i < steps; i++) this.step(input);
@@ -1927,11 +2072,15 @@ export class ArenaSimulation {
    * 転職する（ジョブを順に替える）。武器はジョブの初期装備に持ち替える。
    * 転職した後に二刀流ができなくなるなら、副手の片手武器をインベントリに戻す。入りきらなければ、
    * 何も変えずに "inventoryFull"（ロードアウトの切り替えと同じ考え方。docs/progress D-AUTO-2）。
+   * 技の実行中・試し打ちの場では "busy"（場を出ても転職は戻せないので、switchLoadout と同じく断る）。
    */
   changeJob(): "ok" | "busy" | "cannot" | "inventoryFull" {
-    if (this.current !== undefined) return "busy";
+    if (this.current !== undefined || this.trialSnapshot !== undefined) return "busy";
     if (!this.character.canChangeJob) return "cannot";
-    const jobs = [...this.db.jobs.keys()];
+    // 上位職・混成職は、試練で就くもの（MVP後の機能の提案 4章：形だけ）なので、転職の順番に入れない
+    const jobs = [...this.db.jobs.values()]
+      .filter((j) => j.advancedFrom === undefined || j.id === this.job.id)
+      .map((j) => j.id);
     const next = jobs[(jobs.indexOf(this.job.id) + 1) % jobs.length];
     const nextJob = next === undefined ? undefined : this.db.jobs.get(next);
     if (next === undefined || nextJob === undefined || next === this.job.id) return "cannot";
@@ -2008,6 +2157,13 @@ export class ArenaSimulation {
     // 影走りは、対象（照準の近くの敵）がいなければ使えない（補助仕様書3.6）
     if (def.action.type === "teleport" && this.stepTarget(def.action.range) === undefined)
       return "target";
+    // 職奥義「連弩の嵐」を選ぶと、狙撃（集中を使う投射の終結技）は使えなくなる
+    if (
+      this.view.stat("STAT-JOB-NO-SNIPE").value > 0 &&
+      def.tags.includes("TAG-FORM-FINISHER") &&
+      def.tags.includes("TAG-FORM-PROJECTILE")
+    )
+      return "locked";
     // 職奥義「鬼神化」を選ぶと、解放技は使えなくなる
     if (def.tags.includes("TAG-FORM-RELEASE") && this.view.stat("STAT-JOB-DEMON").value > 0)
       return "locked";
@@ -2099,14 +2255,15 @@ export class ArenaSimulation {
 
   /** 効果（戦吼の強化など）・Lv・ジョブ・装備が変わったら、能力値を計算し直す（キャラクターの画面と同じ計算）。 */
   private refreshAttacker(): void {
-    const version = `${String(this.buffs.version)}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}|${String(this.jobBoardVersion)}|${String(this.character.jobLevel(this.job.id))}`;
+    const focus = this.gaugePointInstance();
+    const version = `${String(this.buffs.version)}|${String(Number(focus?.values?.[0] ?? 0))}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}|${String(this.jobBoardVersion)}|${String(this.character.jobLevel(this.job.id))}`;
     if (this.attackerVersion === version) return;
     this.attackerVersion = version;
     this.sheetValue = buildCharacterSheet(this.db, this.tags, {
       character: this.character,
       job: this.job,
       equipment: this.equipment,
-      extraEffects: this.buffs.instances(),
+      extraEffects: this.extraEffects(),
       starBoard: { allocation: this.stars.nodes, points: this.starPoints },
       jobBoard: this.jobBoard,
     });
@@ -2139,11 +2296,35 @@ export class ArenaSimulation {
     g.takenGainMultiplier = Math.max(0, 1 + jv.stat("STAT-GAUGE-GAIN-TAKEN").increased);
     g.floor = jv.stat("STAT-GAUGE-FLOOR").value;
     g.maxBonus = jv.stat("STAT-GAUGE-MAX-BONUS").value;
+    // 職奥義「疾風」：移動中も集中が半分の速さで増える
+    g.movingStationaryMultiplier = jv.stat("STAT-GAUGE-MOVING").value;
     // 職能ゲージの獲得量（職詞。メインジョブの条件は効果の側で判定する）
     this.jobGaugeValue.gainMultiplier = Math.max(
       0,
       1 + this.sheetValue.evaluated.view.stat("STAT-GAUGE-GAIN").increased,
     );
+  }
+
+  /**
+   * 職能ゲージの量に応じて自分にかける効果（集中：集中1につき会心率+1%（増加）。仕様書v0.2 5.7）。
+   * 量は整数に切り下げる（能力値の計算し直しを、量が1変わるごとにする）。量が0なら無し。
+   */
+  private extraEffects(): EffectInstance[] {
+    const g = this.gaugePointInstance();
+    return g === undefined ? this.buffs.instances() : [...this.buffs.instances(), g];
+  }
+
+  private gaugePointInstance(): EffectInstance | undefined {
+    const g = this.jobGaugeValue as JobGauge | undefined;
+    const pe = g?.def.pointEffect;
+    if (g === undefined || pe === undefined) return undefined;
+    const points = Math.floor(g.value + 1e-9);
+    if (points <= 0) return undefined;
+    return {
+      effectId: pe.effect,
+      source: { kind: "gauge", ref: g.def.id },
+      values: [pe.perPoint * points],
+    };
   }
 
   /**
@@ -2180,6 +2361,9 @@ export class ArenaSimulation {
     const endlessCd = def.finisher === undefined ? 0 : this.view.stat("STAT-JOB-ENDLESS-CD").value;
     const cost = def.gauge?.cost;
     const spent = cost === "all" ? this.jobGaugeValue.value : (cost ?? 0);
+    // ゲージの量で値が変わる効果（集中の会心率）を持つゲージを使う技は、使う前の能力値で当てる
+    const castSheet =
+      spent > 0 && this.jobGaugeValue.def.pointEffect !== undefined ? this.sheetValue : undefined;
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
       stages: this.jobGaugeValue.stages,
       weaponTags: this.tags.closure(this.sheetValue.weaponTags),
@@ -2240,15 +2424,27 @@ export class ArenaSimulation {
     this.noteInteractions(skillInteractions(resolved.variants));
     // 技ごとの動作の速さの能力値（例：職紋盤「素早い手」の連刃の速度+15%）
     const flurry = def.speedStat === undefined ? 1 : 1 + this.view.stat(def.speedStat).value;
+    // 長弓の特性：移動しながら撃つと速度-30%（投射物を放つ技・通常攻撃）
+    const slow = this.view.stat("STAT-MOVING-SHOT-SLOW").value;
+    const movingShot =
+      slow > 0 && this.playerValue.moving && resolved.action.type === "projectile"
+        ? Math.max(0.1, 1 - slow)
+        : 1;
     this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
     this.current = {
       slot,
       run: {
-        exec: new SkillExecution(resolved, this.motion.facing, this.attackSpeed * flurry, {
-          aimPoint: this.aimPoint,
-          ...(teleportTo === undefined ? {} : { teleportTo }),
-        }),
+        exec: new SkillExecution(
+          resolved,
+          this.motion.facing,
+          this.attackSpeed * flurry * movingShot,
+          {
+            aimPoint: this.aimPoint,
+            ...(teleportTo === undefined ? {} : { teleportTo }),
+          },
+        ),
         hit: new Map(),
+        ...(castSheet === undefined ? {} : { castSheet }),
       },
     };
   }
@@ -2312,6 +2508,7 @@ export class ArenaSimulation {
       });
       this.mpValue = Math.max(0, this.mpValue - tick.mpCost);
       this.resolveStrikes(run, tick.strikes);
+      if (tick.volley !== undefined) this.shoot(run, tick.volley);
       this.motion.displace(tick.displacement);
       if (tick.warcry !== undefined) {
         const w = tick.warcry;
@@ -2371,12 +2568,14 @@ export class ArenaSimulation {
       if (tick.finished) this.current = undefined;
     }
     for (const z of this.zoneRuns) this.resolveStrikes(z, (z.exec as LingeringZone).update(dt));
+    this.updateArrows(dt);
     this.updateSmokes(dt);
     this.updateTraps(dt);
     this.updatePuddles(dt);
     this.zoneRuns = this.zoneRuns.filter((z) => !(z.exec as LingeringZone).done);
 
     const wasDodging = this.motion.dodging;
+    const before = this.motion.position;
     this.motion.update(dt, {
       move: staggered ? ZERO : input.move,
       aim: this.current === undefined && !staggered ? aim : ZERO,
@@ -2395,6 +2594,10 @@ export class ArenaSimulation {
     const dodgeEnded = wasDodging && !(this.motion.dodging as boolean);
     if (dodgeEnded && this.sheetValue.uniform === "light")
       this.buffs.add(UNIFORM_EFFECTS.light, LIGHT_UNIFORM_SECONDS, "uniform-light");
+    const moveDelta = {
+      x: this.motion.position.x - before.x,
+      y: this.motion.position.y - before.y,
+    };
     this.playerValue.position = this.motion.position;
     this.playerValue.moving = length(input.move) > 0 && !staggered;
 
@@ -2449,6 +2652,8 @@ export class ArenaSimulation {
           report.applied.toHp + report.applied.toWard,
           this.playerValue.health.maxHp,
         );
+        // 集中：攻撃を受けると-20（仕様書v0.2 5.7）
+        this.jobGaugeValue.onHitTaken();
       },
       onAvoided: () => {
         this.avoidedAttacks += 1;
@@ -2518,6 +2723,14 @@ export class ArenaSimulation {
       const r = this.loot.pickNearestItem(this.motion.position, this.inventory);
       if (r.kind === "full")
         this.onText?.("インベントリがいっぱい", this.motion.position, "#ff6b6b");
+      // 拾う物が無く、訓練用の人形の近くなら、試し打ちの場を始める・終える（MVP後の機能の提案 5章）
+      else if (r.kind === "none" && this.nearDummy && !this.endTrial()) this.startTrial();
+    }
+    // 試し打ちの場：人形から離れたら、元に戻す
+    if (this.trialSnapshot !== undefined && this.dummy !== undefined) {
+      const d = this.dummy.position;
+      const p = this.motion.position;
+      if (Math.hypot(d.x - p.x, d.y - p.y) > TRIAL_RADIUS) this.endTrial();
     }
     // 出口（その範囲に入ると、別の地域へ移る）。閉じている出口は通れない
     if (!this.exited)
@@ -2560,6 +2773,9 @@ export class ArenaSimulation {
     // 鬼神化は、闘志が最大に届いた刻みで始まる（戦闘外の減少より先に判定する）
     this.updateDemon(dt);
     this.jobGaugeValue.update(dt);
+    // 集中：止まっている間は毎秒20（回避・跳躍後退で動いている間は動いている扱い。M-23）
+    const still = !this.playerValue.moving && !this.motion.dodging && length(moveDelta) < 1e-6;
+    this.jobGaugeValue.onStill(dt, !still);
     this.refreshAttacker();
     this.elapsed += dt;
     if (this.region === undefined) this.updateHazard();
@@ -2570,6 +2786,7 @@ export class ArenaSimulation {
   /** 当たり判定を、形に入った敵に当てる。同じ group では、1体に1回だけ。 */
   private resolveStrikes(run: Running, strikes: readonly Strike[]): void {
     let landed = false;
+    let landedOn: string | undefined;
     for (const s of strikes) {
       this.showShape(s.shape, s.origin, s.facing);
       // 二刀流：通常攻撃と連撃の技は左右交互に出て、それぞれの手の武器のダメージを使う（仕様書v0.2 3.2）
@@ -2591,13 +2808,22 @@ export class ArenaSimulation {
             s.fullStagger,
             s.forceCrit === true,
             offHand,
+            run.castSheet,
           )
-        )
+        ) {
           landed = true;
+          landedOn ??= t.id;
+        }
       }
     }
     const first = strikes[0];
-    if (!landed || first === undefined) return;
+    if (!landed || first === undefined || landedOn === undefined) return;
+    this.afterLanded(run, first.skill, landedOn);
+  }
+
+  /** 1回の当たり判定（または投射物1本）が1体以上に当たった後の、職能ゲージの獲得。 */
+  private afterLanded(run: Running, skill: ResolvedSkill, targetId: string): void {
+    const first = { skill };
     // 闘志：1回の当たり判定の発生で、当たれば1回増える（docs/progress D-U08-3）
     // 転変「重撃化」：近接の技は重撃のタグを得る（闘志の獲得が重撃の値になる）
     const base = this.tags.closure(first.skill.damage.tags);
@@ -2611,6 +2837,76 @@ export class ArenaSimulation {
       run.gained = true;
       this.jobGaugeValue.add(gain);
     }
+    // 集中：同じ敵に当てるたび+5（1回の使用で1回。docs/progress D-ARC-3）
+    if (run.targeted !== true) {
+      run.targeted = true;
+      this.jobGaugeValue.onHitTarget(targetId);
+    }
+  }
+
+  /** 投射物を放つ（投射物速度の能力値を掛ける）。入れ物がいっぱいなら、その矢は出ない。 */
+  private shoot(run: Running, v: ProjectileVolley): void {
+    const speed = v.speed * Math.max(0.1, 1 + this.view.stat("STAT-PROJECTILE-SPEED").increased);
+    for (const a of v.angles)
+      this.arrows.spawn({
+        position: v.origin,
+        direction: { x: Math.cos(a), y: Math.sin(a) },
+        speed,
+        range: v.range,
+        radius: v.radius,
+        pierce: v.pierce,
+        team: "player",
+        payload: { run, skill: v.skill, origin: v.origin },
+      });
+  }
+
+  /** 投射物を進め、当たった敵にヒットを解決する。 */
+  private updateArrows(dt: number): void {
+    if (this.arrows.active === 0) return;
+    const targets = this.targets();
+    const byId = new Map(targets.map((t) => [t.id, t]));
+    const hits = this.arrows.update(
+      dt,
+      targets.map((t) => ({ id: t.id, team: t.team, position: t.position, radius: t.radius })),
+    );
+    for (const h of hits) {
+      const t = byId.get(h.targetId);
+      if (t === undefined || t.health.dead) continue;
+      const p = h.payload;
+      this.showShape({ type: "circle", radius: 0.3 }, h.position, 0);
+      if (
+        this.hitTarget(
+          t,
+          p.skill,
+          p.skill.damage,
+          p.origin,
+          false,
+          p.skill.forceCrit,
+          false,
+          p.run.castSheet,
+        )
+      )
+        this.afterLanded(p.run, p.skill, t.id);
+    }
+  }
+
+  /**
+   * 適正間合い（メインジョブが持つとき。弓使い：敵との距離〔体の端どうし〕が6〜10mなら与ダメージ+20%（加算）、
+   * 3m以内なら-20%。仕様書v0.2 5.7）。上限は鷹の目・長弓で延び、ボーナスは職紋盤で増える。距離は今の自分の位置から。
+   */
+  rangeBonus(t: { readonly position: Vec2; readonly radius: number }): number {
+    const r = this.job.preferredRange;
+    if (r === undefined) return 0;
+    const p = this.motion.position;
+    const d = Math.max(
+      0,
+      Math.hypot(t.position.x - p.x, t.position.y - p.y) - t.radius - this.playerValue.radius,
+    );
+    const max = r.max + this.view.stat("STAT-JOB-RANGE-MAX").value;
+    if (d >= r.min - 1e-9 && d <= max + 1e-9)
+      return r.bonus + this.view.stat("STAT-JOB-RANGE-BONUS").value;
+    if (d <= r.close + 1e-9) return r.closePenalty;
+    return 0;
   }
 
   /** 初めて効いた相互作用を記録して「新しい星の巡り」として知らせる（仕様書v0.2 6.7）。 */
@@ -2674,14 +2970,15 @@ export class ArenaSimulation {
     fullStagger: boolean,
     forceCrit: boolean,
     offHand = false,
+    /** 使う前の能力値（Running.castSheet）。省略で今の能力値。 */
+    sheet: CharacterSheet = this.sheetValue,
   ): boolean {
-    const attacker =
-      (offHand ? this.sheetValue.offAttacker : undefined) ?? this.sheetValue.attacker;
-    this.lastOffHand = attacker !== this.sheetValue.attacker;
-    // 双刃座の完成ボーナス：二刀流のとき、交互攻撃の2撃目（副手）の崩し値+30%
-    const twin = this.lastOffHand ? 1 + this.view.stat("STAT-CONST-TWIN-STAGGER").value : 1;
+    const attacker = (offHand ? sheet.offAttacker : undefined) ?? sheet.attacker;
+    this.lastOffHand = attacker !== sheet.attacker;
     // 背面からの補正：メインジョブの職能（盗賊）＋短剣の基本刻印「背面からの会心率+5%（固定値）」（その武器のヒットだけ）
-    const view = this.sheetValue.evaluated.view;
+    const view = sheet.evaluated.view;
+    // 双刃座の完成ボーナス：二刀流のとき、交互攻撃の2撃目（副手）の崩し値+30%
+    const twin = this.lastOffHand ? 1 + view.stat("STAT-CONST-TWIN-STAGGER").value : 1;
     const weaponUid = damage.kind === "weapon" ? attacker.weapon?.uid : undefined;
     const scope = { weaponUid };
     const jobBonus = this.job.backstabBonus;
@@ -2713,7 +3010,7 @@ export class ArenaSimulation {
     if (hunt > 0 && t.health.hp <= t.health.maxHp * 0.5) extraTaken *= 1 + hunt;
     // 輝星「断ち切る刃」：崩れた敵への近接ダメージがさらに+20%
     const brokenMelee = view.stat("STAT-NT-BROKEN-MELEE").value;
-    if (brokenMelee > 0 && t.stagger.broken && skill.def.tags.includes("TAG-FORM-MELEE"))
+    if (brokenMelee > 0 && t.stagger.broken && skill.damage.tags.includes("TAG-FORM-MELEE"))
       extraTaken *= 1 + brokenMelee;
     // 輝星「腐食の手」：状態異常を受けている敵は、物理耐性-10%（このヒットの間だけ下げる）
     const corrode = view.stat("STAT-NT-CORRODE").value;
@@ -2726,6 +3023,7 @@ export class ArenaSimulation {
       this.ailmentTypeCount(t) >= CRITICAL_TYPES &&
       this.elapsed - (this.lastCritical.get(t.id) ?? -Infinity) >= CRITICAL_INTERVAL;
     const wasBroken = t.stagger.broken;
+    const rangeBonus = this.rangeBonus(t);
     // ダメージを受けない相手（ボスの段階の切り替え・根渡り）へのヒットは、後処理（臨界・分かれたヒット・
     // 吸収・延長など）を全て行わない（docs/progress Q-U19-2 の確定）
     const invulnerable = t.health.invulnerable;
@@ -2742,6 +3040,7 @@ export class ArenaSimulation {
       forceCrit,
       ...(bonus === undefined ? {} : { backstabBonus: bonus }),
       ...(extraTaken === 1 ? {} : { extraTakenMultiplier: extraTaken }),
+      ...(rangeBonus === 0 ? {} : { extraIncreased: rangeBonus }),
       // 背向けの外套（U16）：移動の技を使った後の一定時間、全てのヒットを背面からのヒットとして扱う
       ...(this.elapsed < this.moveBackstabUntil || allBackstab ? { forceBackstab: true } : {}),
       ...(pairing === "twinFangs" && this.lastOffHand

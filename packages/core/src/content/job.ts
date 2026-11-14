@@ -30,7 +30,7 @@ const skillBehaviorSchema = z.strictObject({
 });
 
 /** 技の変化（激化・武器による変化）で変えるもの。 */
-export const skillModsSchema = z.strictObject({
+const baseSkillModsSchema = z.strictObject({
   /** 扇形の角度を置き換える。 */
   angleDeg: z.number().positive().max(360).optional(),
   /** 当たり判定の大きさ（半径・長さ）の倍率。 */
@@ -52,7 +52,6 @@ export const skillModsSchema = z.strictObject({
   /** 加える挙動。 */
   behaviors: z.array(skillBehaviorSchema).optional(),
 });
-export type SkillMods = z.infer<typeof skillModsSchema>;
 
 /** 技の動き方。 */
 export const skillActionSchema = z.discriminatedUnion("type", [
@@ -113,6 +112,33 @@ export const skillActionSchema = z.discriminatedUnion("type", [
     allyEffects: z.array(idSchema),
     enemyEffects: z.array(idSchema).optional(),
   }),
+  // 照準の方向に投射物を放つ（弓使いの技・弓の通常攻撃。仕様書v0.2 5.7）。count が2以上なら扇状に広げる。
+  // leap があれば、撃ちながら向きと反対へ跳ぶ（跳躍後退）
+  z.strictObject({
+    type: z.literal("projectile"),
+    /** 1回に放つ数。 */
+    count: z.number().int().positive(),
+    /** 扇の広がり（度。count が1なら使わない）。 */
+    spreadDeg: z.number().nonnegative().max(360),
+    /** 速さ（m/秒）・射程（m）・半径（m）。 */
+    speed: z.number().positive(),
+    range: z.number().positive(),
+    radius: z.number().positive(),
+    /** 貫通する数（0なら最初の1体で消える）。 */
+    pierce: z.number().int().nonnegative(),
+    /** 向きと反対へ跳ぶ距離（m）と時間（秒）。 */
+    leap: z
+      .strictObject({ distance: z.number().positive(), duration: z.number().positive() })
+      .optional(),
+  }),
+  // 照準の位置（射程内）に、一定時間、間隔ごとに当たり判定を出す範囲を置く（矢の雨）
+  z.strictObject({
+    type: z.literal("barrage"),
+    range: z.number().positive(),
+    radius: z.number().positive(),
+    duration: z.number().positive(),
+    interval: z.number().positive(),
+  }),
   // 押し続けている間、一定の間隔で当たり判定を出す（旋風）
   z.strictObject({
     type: z.literal("channel"),
@@ -126,6 +152,15 @@ export const skillActionSchema = z.discriminatedUnion("type", [
   }),
 ]);
 export type SkillAction = z.infer<typeof skillActionSchema>;
+
+/** 技の変化（激化・武器による変化）。動き方・タグを置き換えることもできる（弓の通常攻撃は投射物になる）。 */
+export const skillModsSchema = baseSkillModsSchema.extend({
+  /** 動き方を置き換える（仕様書v0.2 5章：通常攻撃は弓系では投射）。 */
+  action: skillActionSchema.optional(),
+  /** 技のタグを置き換える（通常攻撃のタグは、弓系では「投射」）。 */
+  tags: z.array(idSchema).optional(),
+});
+export type SkillMods = z.infer<typeof skillModsSchema>;
 
 /** 技の定義（仕様書5章、補助仕様書3.5・3.6）。 */
 export const skillSchema = z.strictObject({
@@ -201,10 +236,18 @@ export const gaugeSchema = z.strictObject({
       }),
       // ダメージを受けたとき：最大HPの1%につき value
       z.strictObject({ on: z.literal("damageTaken"), valuePerPercentOfMaxHp: z.number() }),
+      // 攻撃を受けたとき（回避されなかったヒット1回につき。持続ダメージは含めない）：value（集中は-20）
+      z.strictObject({ on: z.literal("hitTaken"), value: z.number() }),
+      // 止まっている間：毎秒 perSecond（集中は20。M-23 の仮値）
+      z.strictObject({ on: z.literal("stationary"), perSecond: z.number() }),
+      // 技の1回の使用で、直前と同じ敵に当てたとき：value（集中は+5。M-23 の仮値）
+      z.strictObject({ on: z.literal("hitSameTarget"), value: z.number() }),
     ]),
   ),
   /** 戦闘外（補助仕様書3.1：5秒間、攻撃も被弾もない）で毎秒減る量。 */
   decayOutOfCombat: z.number().nonnegative(),
+  /** ゲージの量1につき、自分にかける効果（集中：会心率+1%（増加））。値は perPoint × 量。 */
+  pointEffect: z.strictObject({ effect: idSchema, perPoint: z.number() }).optional(),
   /** 段階（例：50以上で激化、100で解放）。 */
   stages: z.array(
     z.strictObject({ id: z.string(), min: z.number().nonnegative(), text: textKeySchema }),
@@ -241,6 +284,32 @@ export const jobSchema = z.strictObject({
   /** 背面からのヒットの補正（メインジョブのときだけ。盗賊：会心率+10%（固定値）・付与率+25%。仕様書5.6）。 */
   backstabBonus: z
     .strictObject({ critChance: z.number().min(0).max(1), ailmentChance: z.number().min(0).max(1) })
+    .optional(),
+  /**
+   * 適正間合い（メインジョブのときだけ。弓使い：敵との距離が6〜10mなら与ダメージ+20%（加算）、
+   * 3m以内なら-20%。仕様書v0.2 5.7）。上限は能力値 STAT-JOB-RANGE-MAX で延びる。
+   */
+  preferredRange: z
+    .strictObject({
+      min: z.number().nonnegative(),
+      max: z.number().nonnegative(),
+      bonus: z.number(),
+      close: z.number().nonnegative(),
+      closePenalty: z.number(),
+    })
+    .optional(),
+  /**
+   * 上位職・混成職の元のジョブ（MVP後の機能の提案 4章：データの形だけ。挙動は変えない）。
+   * 上位職は1つ（例：暗殺者 ← 盗賊）、混成職は2つ（例：魔弾射手 ← 弓使い・魔法使い。仕様書v0.2 5.8）。
+   */
+  advancedFrom: z.array(idSchema).min(1).max(2).optional(),
+  /** 上位職・混成職になるための試練（形だけ。内容は上位職ごとの仕様書で決める。M-02）。 */
+  trial: z
+    .strictObject({
+      text: textKeySchema,
+      /** 元のジョブに必要なジョブLv（仕様書v0.2 5.1：ジョブLv30）。 */
+      jobLevel: z.number().int().min(1),
+    })
     .optional(),
   ...provisionalFields,
 });

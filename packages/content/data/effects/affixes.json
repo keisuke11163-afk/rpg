@@ -528,6 +528,28 @@
     ]
   },
   {
+    "id": "EFF-PRE-JOB-ARCHER",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GAUGE-MAX-BONUS",
+        "value": 20
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "mainJob",
+        "job": "TAG-JOB-ARCHER"
+      }
+    ]
+  },
+  {
     "id": "EFF-SUF-BEAST-HUNTER",
     "origin": "affix",
     "modifiers": [
