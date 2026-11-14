@@ -1885,6 +1885,17 @@ export class ArenaSimulation {
     return true;
   }
 
+  /**
+   * 職紋盤のノードを1つ返す（右クリック）。副職紋と同じく、1つずつ返せるのは無料の試し打ちの場だけ（それ以外は
+   * 金貨で全体を振り直す。docs/progress D-SUBG-6・D-JBD-2）。返すと始点からつながらなくなるノードがあるときも false。
+   */
+  refundJobNode(id: string): boolean {
+    if (this.current !== undefined || this.trialSnapshot === undefined) return false;
+    if (!this.jobBoard.refund(id)) return false;
+    this.jobBoardChanged();
+    return true;
+  }
+
   /** 職紋盤の振り直しの金貨（補助仕様書5章：20×ジョブLv）。 */
   get jobBoardRespecCost(): number {
     // 試し打ちの場では無料（試した配置は場を出ると戻る）

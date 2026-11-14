@@ -10,7 +10,8 @@ import { createServer } from "vite";
 import { PANEL, cellPosition } from "../src/ui/panel-layout.ts";
 
 interface Mouse {
-  move(x: number, y: number): Promise<void>;
+  move(x: number, y: number, options?: { steps: number }): Promise<void>;
+  wheel(deltaX: number, deltaY: number): Promise<void>;
   down(options?: { button: "left" | "right" }): Promise<void>;
   up(options?: { button: "left" | "right" }): Promise<void>;
 }
@@ -173,6 +174,8 @@ type DebugWindow = {
       uid: string,
     ) => { rarity: string; affixes: number; enhance: number; forgeLoad: number } | null;
     starNodeScreen: (id: string) => { x: number; y: number } | null;
+    jobNodeScreen: (id: string) => { x: number; y: number } | null;
+    jobBoard: () => JobBoardInfo;
     settings: () => {
       dodge: string[];
       volume: number;
@@ -190,6 +193,17 @@ type DebugWindow = {
     subJob: () => SubJobInfo;
   };
 };
+interface JobBoardInfo {
+  job: string;
+  points: number;
+  spent: number;
+  nodes: string[];
+  rows: { label: string; x: number; y: number }[];
+  camera: { cx: number; cy: number; zoom: number };
+  inTrial: boolean;
+  area: { x: number; y: number; width: number; height: number };
+  shown: { id: string; x: number; y: number }[];
+}
 interface SubJobInfo {
   canSet: boolean;
   id: string | null;
@@ -241,8 +255,10 @@ const { chromium } = require("playwright") as { chromium: { launch(): Promise<Br
 const root = fileURLToPath(new URL("..", import.meta.url));
 const outDir = fileURLToPath(new URL("../../../artifacts/e2e/", import.meta.url));
 const subDir = fileURLToPath(new URL("../../../artifacts/e2e-subjob/", import.meta.url));
+const jobDir = fileURLToPath(new URL("../../../artifacts/e2e-jobboard/", import.meta.url));
 mkdirSync(outDir, { recursive: true });
 mkdirSync(subDir, { recursive: true });
+mkdirSync(jobDir, { recursive: true });
 
 const results: { name: string; ok: boolean; detail: string }[] = [];
 const check = (name: string, ok: boolean, detail: string): void => {
@@ -1393,25 +1409,78 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(100);
 
-  // 職紋盤（U-15）：J で開き、最初のノードをクリックすると取れる
+  // 職紋盤（U-15。図）：J で開き、始点の隣のノード（図の上の位置）を指すと右の列に説明が出て、左クリックで取れる。
+  // ホイールで拡大・何も無い所のドラッグで動く（星辰盤と同じ操作）
+  const jobBoardInfo = (): Promise<JobBoardInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.jobBoard());
   await page.keyboard.press("KeyJ");
   await page.waitForTimeout(150);
   const jobPanel = await panel();
-  const firstNode = jobPanel.lines.findIndex((l) => l.startsWith("□"));
-  await page.mouse.move(PANEL.slots.x * 2 + 40, PANEL.slots.y * 2 + 6);
-  await page.mouse.down({ button: "left" });
-  await page.mouse.up({ button: "left" });
-  await page.waitForTimeout(150);
+  const jb0 = await jobBoardInfo();
+  const firstJobNode = `${jb0.job.replace("JOB-", "JBN-")}-T1`;
+  const jp = await page.evaluate(
+    (id: string) => (window as unknown as DebugWindow).__STELLA_DEBUG__.jobNodeScreen(id),
+    firstJobNode,
+  );
+  let jobHover: PanelInfo | undefined;
+  if (jp !== null) {
+    await page.mouse.move(jp.x * 2, jp.y * 2);
+    await page.waitForTimeout(120);
+    jobHover = await panel();
+    await page.mouse.down({ button: "left" });
+    await page.mouse.up({ button: "left" });
+    await page.waitForTimeout(150);
+  }
   const jobPanel2 = await panel();
+  const jb1 = await jobBoardInfo();
   await page.screenshot({ path: `${outDir}job-board.png` });
   check(
-    "J で職紋盤が開き、始点の隣のノードをクリックすると取れる（U-15）",
+    "J で職紋盤（図）が開き、始点の隣のノードを指すと右の列に「取れる」、左クリックで取ると「取得済み」になる（U-15）",
     jobPanel.open === "jobBoard" &&
-      firstNode >= 0 &&
-      jobPanel.lines.some((l) => l.includes("【職奥義】")) &&
-      jobPanel2.lines.some((l) => l.startsWith("■")),
-    `画面 ${String(jobPanel.open)}・取ったノード ${String(jobPanel2.lines.filter((l) => l.startsWith("■")).length)}`,
+      jp !== null &&
+      !jb0.nodes.includes(firstJobNode) &&
+      jobHover?.lines.includes("取れる（左クリックで取る）") === true &&
+      jb1.nodes.includes(firstJobNode) &&
+      jb1.spent === jb0.spent + 1 &&
+      jobPanel2.lines.includes("取得済み"),
+    `画面 ${String(jobPanel.open)}・${firstJobNode} の位置 ${JSON.stringify(jp)}・取得 ${String(jb0.spent)} → ${String(jb1.spent)}／${String(jb1.points)}`,
   );
+  // ホイール・ドラッグ（図の右上の何も無い所）
+  {
+    const a = jb1.area;
+    const ex = a.x + a.width - 12;
+    const ey = a.y + 12;
+    await page.mouse.move(ex * 2, ey * 2);
+    await page.mouse.wheel(0, -120);
+    await page.waitForTimeout(120);
+    const zoomed = (await jobBoardInfo()).camera;
+    await page.mouse.down({ button: "left" });
+    await page.mouse.move((ex - 40) * 2, (ey + 30) * 2, { steps: 4 });
+    await page.mouse.up({ button: "left" });
+    await page.waitForTimeout(120);
+    const moved = await jobBoardInfo();
+    check(
+      "職紋盤の図：ホイールで拡大し、何も無い所のドラッグで動く（取得は変わらない）",
+      zoomed.zoom > jb1.camera.zoom &&
+        moved.camera.cx > zoomed.cx &&
+        moved.camera.cy < zoomed.cy &&
+        moved.spent === jb1.spent,
+      `拡大率 ${jb1.camera.zoom.toFixed(2)} → ${zoomed.zoom.toFixed(2)}・中心 (${zoomed.cx.toFixed(0)},${zoomed.cy.toFixed(0)}) → (${moved.camera.cx.toFixed(0)},${moved.camera.cy.toFixed(0)})`,
+    );
+  }
+  await page.keyboard.press("KeyJ");
+  await page.waitForTimeout(100);
+  // 星辰盤は今までどおり（職紋盤の図の変更の後も、開いて撮る）
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: `${jobDir}star-board-after.png` });
+  check(
+    "職紋盤の後も、T で星辰盤が今までどおり開く",
+    (await panel()).open === "starBoard",
+    `画面 ${String((await panel()).open)}`,
+  );
+  await page.keyboard.press("KeyT");
+  await page.waitForTimeout(100);
 
   // サブジョブ（キャラLv25から）：別の新しいキャラ（スロット2・開発用の初期の状態）で、J・C の画面を実際の入力で確かめる
   {
@@ -1473,10 +1542,43 @@ try {
     await sp.waitForTimeout(100);
     const lv24 = await levelTo(24);
     const warriorJobLv = (await spSkills()).jobLevels["JOB-WARRIOR"] ?? 0;
+    const spJob = (): Promise<JobBoardInfo> =>
+      sp.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.jobBoard());
+    const spNode = (id: string): Promise<{ x: number; y: number } | null> =>
+      sp.evaluate(
+        (i: string) => (window as unknown as DebugWindow).__STELLA_DEBUG__.jobNodeScreen(i),
+        id,
+      );
+    /** 図のノードを指す（右の列に説明が出る）。 */
+    const hoverNode = async (id: string): Promise<boolean> => {
+      const p = await spNode(id);
+      if (p === null) return false;
+      await sp.mouse.move(p.x * 2, p.y * 2);
+      await sp.waitForTimeout(120);
+      return true;
+    };
+    /** 図のノードをクリックする（左＝取る・右＝返す）。 */
+    const clickNode = async (id: string, button: "left" | "right" = "left"): Promise<boolean> => {
+      const p = await spNode(id);
+      if (p === null) return false;
+      await click(p.x, p.y, button);
+      return true;
+    };
+    /** 右の列の操作の行（文章の先頭で探す）をクリックする。 */
+    const clickRow = async (
+      prefix: string,
+      button: "left" | "right" = "left",
+    ): Promise<boolean> => {
+      const row = (await spJob()).rows.find((r) => r.label.startsWith(prefix));
+      if (row === undefined) return false;
+      await click(row.x, row.y, button);
+      return true;
+    };
     // (a) Lv24：J の画面にサブジョブの行が出ない
     await sp.keyboard.press("KeyJ");
     await sp.waitForTimeout(150);
     const j24 = await spPanel();
+    const r24 = await spJob();
     const sub24 = await sub();
     await sp.screenshot({ path: `${subDir}1-job-board-lv24.png` });
     check(
@@ -1484,6 +1586,7 @@ try {
       lv24 === 24 &&
         j24.open === "jobBoard" &&
         !j24.lines.some((l) => l.includes("サブジョブ")) &&
+        !r24.rows.some((r) => r.label.includes("サブジョブ")) &&
         !sub24.canSet &&
         sub24.id === null,
       `Lv ${String(lv24)}・画面 ${String(j24.open)}・設定できる ${String(sub24.canSet)}`,
@@ -1499,72 +1602,182 @@ try {
     await sp.waitForTimeout(150);
     const j25 = await spPanel();
     await sp.screenshot({ path: `${subDir}2-job-board-lv25.png` });
-    const toggleText = j25.lines.find((l) => l.startsWith("▶ サブジョブ"));
+    const toggleText = (await spJob()).rows.find((r) => r.label.startsWith("▶ サブジョブ"))?.label;
     check(
-      "キャラLv25：J の画面の右の列に「▶ サブジョブ・副職紋」の行が出る",
-      lv25 === 25 && j25.open === "jobBoard" && toggleText !== undefined && (await sub()).canSet,
+      "キャラLv25：J の画面の右の列の下に「▶ サブジョブ・副職紋」の行が出る",
+      lv25 === 25 &&
+        j25.open === "jobBoard" &&
+        toggleText !== undefined &&
+        j25.lines.includes(toggleText) &&
+        (await sub()).canSet,
       `Lv ${String(lv25)}・行 ${String(toggleText)}`,
     );
-    // 行をクリック（右の列の下から上へ探す。最後の行がこの行）
     const inSubView = (lines: string[]): boolean =>
       lines.some((l) => l.includes("左クリック：次・右クリック：前"));
-    for (let y = PANEL.y + PANEL.height - 4; y >= PANEL.detail.y; y -= 3) {
-      await click(PANEL.detail.x + 10, y);
-      if (inSubView((await spPanel()).lines)) break;
-    }
+    await clickRow("▶ サブジョブ");
     const v0 = await spPanel();
     await sp.screenshot({ path: `${subDir}3-sub-board-empty.png` });
     check(
       "「▶ サブジョブ・副職紋」の行をクリックすると、副職紋の面に替わる",
       inSubView(v0.lines) &&
         v0.lines.some((l) => l.includes("サブジョブを選ぶと、副職紋を取れる")) &&
-        v0.lines.some((l) => l.includes("職紋盤に戻る")),
+        (await spJob()).rows.some((r) => r.label.includes("職紋盤に戻る")),
       `行数 ${String(v0.lines.length)}`,
     );
     // サブジョブを選ぶ（右の列の最初の行を左クリックで次の候補へ）。戦士になるまで進める
     for (let i = 0; i < 6 && (await sub()).id !== "JOB-WARRIOR"; i++)
-      await click(PANEL.detail.x + 10, PANEL.detail.y + 3);
+      await clickRow("サブジョブ：");
     const s1 = await sub();
     const v1 = await spPanel();
+    await sp.mouse.move(2, 2);
+    await sp.waitForTimeout(100);
     await sp.screenshot({ path: `${subDir}4-sub-board-warrior.png` });
     check(
-      "サブジョブの行を左クリックして戦士を選ぶと、サブジョブが設定される（サブの技が使える）",
+      "サブジョブの行を左クリックして戦士を選ぶと、サブジョブが設定され、戦士の盤が図に出る",
       s1.id === "JOB-WARRIOR" &&
         s1.mainJob === "JOB-ROGUE" &&
         s1.skills.includes("SKL-WARRIOR-WARCRY") &&
-        v1.lines.some((l) => l.startsWith("■") && l.includes("戦士")),
+        v1.lines.some((l) => l.startsWith("■") && l.includes("戦士")) &&
+        (await spNode("JBN-WARRIOR-T1")) !== null &&
+        (await spNode("JBN-ROGUE-T1")) === null,
       `サブ ${String(s1.id)}・戦士のジョブLv ${String(warriorJobLv)}・サブの技 ${s1.skills.join(",")}・副職紋ポイント ${String(s1.points)}`,
     );
-    // 副職紋のノードを左クリックで取る（左の列の最初の取れるノード）
-    const takeRowY = PANEL.slots.y + 3;
-    const nodeLine = v1.lines.find((l) => l.startsWith("□"));
-    await click(PANEL.slots.x + 40, takeRowY);
+    // 副職紋のノードを指して左クリックで取る（始点の隣）
+    await hoverNode("JBN-WARRIOR-T1");
+    const h1 = await spPanel();
+    await clickNode("JBN-WARRIOR-T1");
     const s2 = await sub();
     const v2 = await spPanel();
     await sp.screenshot({ path: `${subDir}5-sub-board-node-taken.png` });
     check(
-      "副職紋のノードを左クリックで取ると、ポイントが減り、取得したノードが増える",
-      nodeLine !== undefined &&
+      "副職紋のノードを指すと「取れる」、左クリックで取ると、ポイントが減り、取得したノードが増える",
+      h1.lines.includes("取れる（左クリックで取る）") &&
         s1.points > 0 &&
         s2.spent === s1.spent + 1 &&
-        s2.nodes.length === s1.nodes.length + 1 &&
+        s2.nodes.includes("JBN-WARRIOR-T1") &&
         s2.points - s2.spent === s1.points - s1.spent - 1 &&
-        v2.lines.some((l) => l.startsWith("■") && !v1.lines.includes(l)),
-      `取得 ${String(s1.nodes.length)} → ${String(s2.nodes.length)}・消費 ${String(s1.spent)} → ${String(s2.spent)}／${String(s2.points)}・行 ${String(nodeLine)}`,
+        v2.lines.includes("取得済み"),
+      `取得 ${String(s1.nodes.length)} → ${String(s2.nodes.length)}・消費 ${String(s1.spent)} → ${String(s2.spent)}／${String(s2.points)}`,
+    );
+    // ゲージ系のノード（T4：闘志の獲得）を指すと「【サブでは働かない】」（D-SUB-15）。職奥義は取れない
+    await hoverNode("JBN-WARRIOR-T4");
+    const hInert = await spPanel();
+    await sp.screenshot({ path: `${subDir}5b-sub-board-inert-hover.png` });
+    for (const id of ["JBN-WARRIOR-T2", "JBN-WARRIOR-T3", "JBN-WARRIOR-T4", "JBN-WARRIOR-T5"])
+      await clickNode(id);
+    await clickNode("JBN-WARRIOR-C1");
+    await hoverNode("JBN-WARRIOR-C1");
+    const hEx = await spPanel();
+    const s2b = await sub();
+    await sp.screenshot({ path: `${subDir}5c-sub-board-excluded-hover.png` });
+    check(
+      "副職紋：ゲージ系のノードを指すと右の列に「【サブでは働かない】」、接続ノードは取れず理由が出る",
+      hInert.lines.some((l) => l.startsWith("【サブでは働かない】")) &&
+        hInert.lines.some((l) => l.includes("サブジョブでは働かない")) &&
+        !s2b.nodes.includes("JBN-WARRIOR-C1") &&
+        s2b.nodes.includes("JBN-WARRIOR-T5") &&
+        hEx.lines.some((l) => l.includes("副職紋では、職奥義と星辰盤への接続ノードは取れない")),
+      `取得 ${s2b.nodes.join(",")}`,
+    );
+    // 右クリック：試し打ちの場の外では返せない
+    await clickNode("JBN-WARRIOR-T5", "right");
+    const s2c = await sub();
+    check(
+      "副職紋：試し打ちの場の外で右クリックしても返らない（1つずつ返せるのは試し打ちの場だけ）",
+      s2c.nodes.includes("JBN-WARRIOR-T5") && s2c.spent === s2b.spent,
+      `取得 ${String(s2c.spent)}`,
     );
     // 職紋盤に戻る行（クリック）
-    for (let y = PANEL.y + PANEL.height - 4; y >= PANEL.detail.y; y -= 3) {
-      await click(PANEL.detail.x + 10, y);
-      if (!inSubView((await spPanel()).lines)) break;
-    }
+    await clickRow("▶ 職紋盤に戻る");
     const back = await spPanel();
     check(
       "「▶ 職紋盤に戻る」の行をクリックすると、職紋盤の面に戻る",
-      !inSubView(back.lines) && back.lines.some((l) => l.startsWith("▶ サブジョブ")),
+      !inSubView(back.lines) &&
+        (await spJob()).rows.some((r) => r.label.startsWith("▶ サブジョブ")) &&
+        (await spNode("JBN-ROGUE-T1")) !== null,
       `画面 ${String(back.open)}`,
     );
     await sp.keyboard.press("KeyJ");
     await sp.waitForTimeout(100);
+
+    // (c2) 試し打ちの場（人形の近くで F）：職紋盤の取得・返却（右クリック）・全ての振り直し（無料）。副職紋の返却も
+    {
+      const dm = await sp.evaluate(() =>
+        (window as unknown as DebugWindow).__STELLA_DEBUG__.dummy(),
+      );
+      await sp.evaluate(
+        (a: { x: number; y: number }) =>
+          (window as unknown as DebugWindow).__STELLA_DEBUG__.teleportTo(a.x, a.y),
+        { x: dm.x - 1.2, y: dm.y },
+      );
+      await sp.waitForTimeout(100);
+      await sp.keyboard.press("KeyF");
+      await sp.waitForTimeout(150);
+      await sp.keyboard.press("KeyJ");
+      await sp.waitForTimeout(150);
+      const t0 = await spJob();
+      for (const id of ["JBN-ROGUE-T1", "JBN-ROGUE-T2", "JBN-ROGUE-B2A", "JBN-ROGUE-T3"])
+        await clickNode(id);
+      await hoverNode("JBN-ROGUE-B2B");
+      const tHover = await spPanel();
+      await sp.screenshot({ path: `${jobDir}rogue-states-hover-available.png` });
+      await hoverNode("JBN-ROGUE-M-SILENT");
+      const tHoverBlocked = await spPanel();
+      await sp.screenshot({ path: `${jobDir}rogue-states-hover-blocked.png` });
+      const t1 = await spJob();
+      // T1 を返すと T2 以降がつながらないので返らない。末端の B2A は返る
+      await clickNode("JBN-ROGUE-T1", "right");
+      const t2 = await spJob();
+      await clickNode("JBN-ROGUE-B2A", "right");
+      const t3 = await spJob();
+      check(
+        "試し打ちの場：職紋盤のノードを左クリックで取り、右クリックで返す（つながりが切れるノードは返らない）。指すと状態が出る",
+        t0.inTrial &&
+          t1.spent === t0.spent + 4 &&
+          tHover.lines.includes("取れる（左クリックで取る）") &&
+          tHoverBlocked.lines.some((l) => l.startsWith("取れない：取ったノードの隣ではない")) &&
+          t2.nodes.includes("JBN-ROGUE-T1") &&
+          t2.spent === t1.spent &&
+          !t3.nodes.includes("JBN-ROGUE-B2A") &&
+          t3.spent === t1.spent - 1,
+        `試し打ち ${String(t0.inTrial)}・取得 ${String(t0.spent)} → ${String(t1.spent)} → ${String(t2.spent)} → ${String(t3.spent)}`,
+      );
+      await clickRow("▶ 全て振り直す");
+      const t4 = await spJob();
+      check(
+        "試し打ちの場：「▶ 全て振り直す」の行をクリックすると、職紋盤が全て返る（無料）",
+        t4.spent === 0 && t4.nodes.length === 0,
+        `取得 ${String(t4.spent)}`,
+      );
+      // 副職紋の面：右クリックで返す・全て振り直す
+      await clickRow("▶ サブジョブ");
+      const u0 = await sub();
+      await clickNode("JBN-WARRIOR-T5", "right");
+      const u1 = await sub();
+      await clickRow("▶ 副職紋を全て振り直す");
+      const u2 = await sub();
+      check(
+        "試し打ちの場：副職紋のノードを右クリックで返し、「▶ 副職紋を全て振り直す」で全て返る",
+        u0.nodes.includes("JBN-WARRIOR-T5") &&
+          !u1.nodes.includes("JBN-WARRIOR-T5") &&
+          u1.spent === u0.spent - 1 &&
+          u2.spent === 0,
+        `副職紋 ${String(u0.spent)} → ${String(u1.spent)} → ${String(u2.spent)}`,
+      );
+      await clickRow("▶ 職紋盤に戻る");
+      await sp.keyboard.press("KeyJ");
+      await sp.waitForTimeout(100);
+      // 試し打ちの場を終える（F）：取得は始める前に戻る
+      await sp.keyboard.press("KeyF");
+      await sp.waitForTimeout(150);
+      const t5 = await spJob();
+      const u5 = await sub();
+      check(
+        "試し打ちの場を終えると、職紋盤・副職紋の取得が始める前に戻る",
+        !t5.inTrial && t5.spent === t0.spent && u5.nodes.includes("JBN-WARRIOR-T5"),
+        `職紋盤 ${String(t5.spent)}・副職紋 ${String(u5.spent)}`,
+      );
+    }
 
     // (d) C の画面：技の枠（キー4）をクリックして、サブの技（戦吼）を入れる
     await waitSpIdle();
@@ -1637,6 +1850,44 @@ try {
     );
     await sp.keyboard.press("KeyI");
     await sp.waitForTimeout(100);
+
+    // (f) 6つのジョブの職紋盤の図を撮る（G で転職して J）。全てのノードが図の範囲に収まっているか
+    {
+      const seen: string[] = [];
+      const fits: string[] = [];
+      for (let i = 0; i < 6; i++) {
+        await waitSpIdle();
+        await sp.keyboard.press("KeyJ");
+        await sp.waitForTimeout(150);
+        await sp.mouse.move(2, 2);
+        await sp.waitForTimeout(60);
+        const info = await spJob();
+        seen.push(info.job);
+        await sp.screenshot({ path: `${jobDir}job-${String(i + 1)}-${info.job}.png` });
+        const a = info.area;
+        const inside =
+          info.shown.length >= 20 &&
+          info.shown.every(
+            (p) =>
+              p.x >= a.x + 4 &&
+              p.y >= a.y + 4 &&
+              p.x <= a.x + a.width - 4 &&
+              p.y <= a.y + a.height - 4,
+          );
+        fits.push(
+          `${info.job}:${inside ? "収まる" : "はみ出す"}（${info.camera.zoom.toFixed(2)}）`,
+        );
+        await sp.keyboard.press("KeyJ");
+        await sp.waitForTimeout(80);
+        await sp.keyboard.press("KeyG");
+        await sp.waitForTimeout(150);
+      }
+      check(
+        "6つのジョブの職紋盤の図が開き、盤の全体が最初から図の範囲に収まる",
+        new Set(seen).size === 6 && fits.every((f) => f.includes("収まる")),
+        fits.join("・"),
+      );
+    }
   }
 } finally {
   await browser.close();

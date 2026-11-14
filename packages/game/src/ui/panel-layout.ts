@@ -40,7 +40,8 @@ export type PanelTarget =
   | { readonly kind: "item"; readonly index: number }
   | { readonly kind: "stat"; readonly index: number }
   | { readonly kind: "skillSlot"; readonly index: number }
-  | { readonly kind: "starNode"; readonly id: string };
+  | { readonly kind: "starNode"; readonly id: string }
+  | { readonly kind: "jobNode"; readonly id: string };
 
 /** インベントリの画面で、画面の位置が指しているもの（何も指していなければ undefined）。 */
 export function inventoryTarget(x: number, y: number): PanelTarget | undefined {

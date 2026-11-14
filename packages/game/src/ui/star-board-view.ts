@@ -1,6 +1,7 @@
 import type { ContentDb, StarBoardResult, StarNodeDef } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
 import { PANEL } from "./panel-layout.ts";
+import { type BoardCamera, boardToScreen, nodeAtScreen, screenToBoard } from "./board-view.ts";
 import { TEXT_COLOR, type TextLine, effectText, statName } from "./item-text.ts";
 
 /** 星辰盤の画面の表示の範囲（画面のピクセル）。 */
@@ -14,27 +15,16 @@ export const BOARD_AREA = {
 export const BOARD_DETAIL = { x: BOARD_AREA.x + BOARD_AREA.width + 8, y: PANEL.y + 22, width: 208 };
 export const ZOOM = { min: 0.4, max: 2.5, initial: 0.6 } as const;
 
-/** 星辰盤の表示の視点（盤の座標の中心と、拡大率）。 */
-export interface BoardCamera {
-  readonly cx: number;
-  readonly cy: number;
-  readonly zoom: number;
-}
+export type { BoardCamera } from "./board-view.ts";
 
 /** 盤の座標 → 画面のピクセル。 */
 export function toScreen(cam: BoardCamera, p: { x: number; y: number }): { x: number; y: number } {
-  return {
-    x: BOARD_AREA.x + BOARD_AREA.width / 2 + (p.x - cam.cx) * cam.zoom,
-    y: BOARD_AREA.y + BOARD_AREA.height / 2 + (p.y - cam.cy) * cam.zoom,
-  };
+  return boardToScreen(BOARD_AREA, cam, p);
 }
 
 /** 画面のピクセル → 盤の座標。 */
 export function toBoard(cam: BoardCamera, s: { x: number; y: number }): { x: number; y: number } {
-  return {
-    x: cam.cx + (s.x - BOARD_AREA.x - BOARD_AREA.width / 2) / cam.zoom,
-    y: cam.cy + (s.y - BOARD_AREA.y - BOARD_AREA.height / 2) / cam.zoom,
-  };
+  return screenToBoard(BOARD_AREA, cam, s);
 }
 
 /** ノードの半径（画面のピクセル。種類で変える）。 */
@@ -51,24 +41,9 @@ export function nodeAt(
   x: number,
   y: number,
 ): StarNodeDef | undefined {
-  if (
-    x < BOARD_AREA.x ||
-    y < BOARD_AREA.y ||
-    x >= BOARD_AREA.x + BOARD_AREA.width ||
-    y >= BOARD_AREA.y + BOARD_AREA.height
-  )
-    return undefined;
-  let best: StarNodeDef | undefined;
-  let bestD = Infinity;
-  for (const n of db.starNodes.values()) {
-    const s = toScreen(cam, n.position);
-    const d = Math.hypot(s.x - x, s.y - y);
-    if (d <= nodeRadius(n.kind, cam.zoom) + 2 && d < bestD) {
-      best = n;
-      bestD = d;
-    }
-  }
-  return best;
+  return nodeAtScreen(db.starNodes.values(), BOARD_AREA, cam, x, y, (n) =>
+    nodeRadius(n.kind, cam.zoom),
+  );
 }
 
 /** 拡大率を範囲に収める。 */
