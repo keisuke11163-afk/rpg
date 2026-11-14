@@ -66,6 +66,7 @@ import {
   type PanelTarget,
   cellPosition,
   characterTarget,
+  statCell,
   inventoryTarget,
   stashCellAt,
   stashCellPosition,
@@ -741,11 +742,11 @@ export class EquipmentPanel {
     );
     const rows: SheetRow[] = sheetRows(db, sheet);
     rows.forEach((row, i) => {
-      const y = PANEL.stats.y + i * PANEL.stats.row;
+      const cell = statCell(i, rows.length);
+      const y = cell.y;
       const hovered = this.hovered?.kind === "stat" && this.hovered.index === i;
-      if (hovered)
-        this.g.fillStyle(0x2a2934, 1).fillRect(PANEL.stats.x - 2, y - 1, PANEL.stats.width, 11);
-      this.line(PANEL.stats.x, y, { text: sheetRowText(db, row), color: TEXT_COLOR.normal }, 0);
+      if (hovered) this.g.fillStyle(0x2a2934, 1).fillRect(cell.x - 2, y - 1, cell.width, 11);
+      this.line(cell.x, y, { text: sheetRowText(db, row), color: TEXT_COLOR.normal }, 0);
     });
     // 技の枠（補助仕様書1.1：左クリック・右クリック・1〜4。左クリックで次の技・右クリックで前の技）
     const k = PANEL.skillSlots;
@@ -1211,7 +1212,8 @@ export class EquipmentPanel {
       if (n === undefined) return { text: id, color: TEXT_COLOR.dim };
       const taken = board.has(id);
       const can = board.allocateBlock(id, points) === undefined;
-      const mark = taken ? "■" : can ? "□" : "・";
+      // 印のあとは全角の空白：半角の空白だと、長い本文（空白なし）が次の行へ送られ、印だけの行が残る
+      const mark = `${taken ? "■" : can ? "□" : "・"}\u3000`;
       const kind = n.kind === "mastery" ? "【職奥義】" : n.kind === "connector" ? "【接続】" : "";
       const name = n.text === undefined ? "" : `${text(n.text as TextKey)}：`;
       const desc =
@@ -1219,7 +1221,7 @@ export class EquipmentPanel {
           ? text(n.description as TextKey)
           : (n.effects ?? []).map((e) => effectText(db, e)).join("・");
       return {
-        text: `${mark} ${kind}${name}${desc}`,
+        text: `${mark}${kind}${name}${desc}`,
         color: taken ? TEXT_COLOR.highlight : can ? TEXT_COLOR.good : TEXT_COLOR.dim,
       };
     };
@@ -1355,7 +1357,7 @@ export class EquipmentPanel {
           ly,
           [
             {
-              text: `${taken ? "■" : can ? "□" : "・"} ${inert ? text("subjob.board.inert") : ""}${name}${desc}`,
+              text: `${taken ? "■" : can ? "□" : "・"}\u3000${inert ? text("subjob.board.inert") : ""}${name}${desc}`,
               color: taken
                 ? TEXT_COLOR.highlight
                 : can && !inert
@@ -1393,6 +1395,14 @@ export class EquipmentPanel {
           },
         });
       }
+    // 左の列の終わりに、副職紋で取れないノードの断り書き（先頭の行は動かさない：最初の取れるノードの位置を変えない）
+    if (sub !== undefined && board !== undefined)
+      this.lines(
+        PANEL.slots.x,
+        ly + LINE,
+        [{ text: text("subjob.board.block.sub-only-minor"), color: TEXT_COLOR.dim }],
+        lw,
+      );
     // 右の列：サブジョブの選択・候補・振り直し・戻る
     const d = PANEL.detail;
     let y: number = d.y;
