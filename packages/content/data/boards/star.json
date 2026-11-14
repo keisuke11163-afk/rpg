@@ -56,6 +56,20 @@
     "text": "star.start.ri"
   },
   {
+    "id": "STAR-GOUKON-START",
+    "kind": "start",
+    "region": "goukon",
+    "links": ["STAR-GOU-0004"],
+    "position": {
+      "x": -120,
+      "y": 190
+    },
+    "provisional": true,
+    "provisionalNote": "騎士の始点（仕様書v0.2 4.1 の剛魂域）。MVPの盤には剛魂域の中身が無いので、剛域の枝（STAR-GOU-0004）につないだ仮の位置（docs/progress D-KNT-9。弓使いの D-ARC-5・魔法使いの D-MAG-10 と同じ考え方）",
+    "startFor": ["JOB-KNIGHT"],
+    "text": "star.start.goukon"
+  },
+  {
     "id": "STAR-GOU-0001",
     "kind": "minor",
     "region": "gou",

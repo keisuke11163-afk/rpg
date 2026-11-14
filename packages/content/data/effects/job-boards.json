@@ -673,5 +673,120 @@
       "ailmentBase": false
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-KNT-ARMOR",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.06
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-KNT-MELEE",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.06,
+        "filter": {
+          "allOf": ["TAG-FORM-MELEE"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-KNT-SPEED",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ATTACK-SPEED",
+        "value": 0.04
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-KNT-HP",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-HP-MAX",
+        "value": 0.06
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-KNT-SHIELDWORK",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GUARD-RATE",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-KNT-BULWARK",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-ARMOR",
+        "value": 0.15
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
+  },
+  {
+    "id": "EFF-JBN-KNT-VIGOR",
+    "origin": "jobNode",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-HP-MAX",
+        "value": 0.1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self"
   }
 ]

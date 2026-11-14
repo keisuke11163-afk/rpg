@@ -556,5 +556,23 @@
     "text": "stat.gauge-start",
     "unit": "flat",
     "min": 0
+  },
+  {
+    "id": "STAT-PARRY-WINDOW",
+    "text": "stat.parry-window",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-GUARD-RATE",
+    "text": "stat.guard-rate",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-HP-REGEN",
+    "text": "stat.hp-regen",
+    "unit": "ratio",
+    "min": 0
   }
 ]

@@ -198,6 +198,7 @@ export {
   skillSchema,
   type Affinity,
   type GaugeDef,
+  type GuardRule,
   type PhaseDef,
   type PhaseFusion,
   type JobDef,
@@ -207,6 +208,7 @@ export {
 } from "./content/job.ts";
 export { SKILL_HOOKS, SKILL_HOOK_PARAMS, type SkillHook } from "./content/hooks.ts";
 export { JobGauge, OUT_OF_COMBAT_SECONDS } from "./combat/gauge.ts";
+export { GuardState, isInFront, type GuardOutcome, type IncomingAttack } from "./combat/guard.ts";
 export { TimedEffects } from "./combat/timed-effects.ts";
 export {
   AFFINITY_ATTACK_SPEED,

@@ -215,6 +215,19 @@ export class JobGauge {
   }
 
   /**
+   * ガードで攻撃を防いだ・パリィに成功したとき（信念：ガード+1・パリィ+3。仕様書v0.2 5.3）。
+   * パリィのときは、パリィの量だけを足す（ガードの量は足さない）。その獲得を持たないゲージでは何も起きない
+   * （信念を持たないジョブ・サブジョブ。サブジョブは職能ゲージを受け継がない）。足した量を返す。
+   */
+  onGuard(parry: boolean): number {
+    this.markCombat();
+    const kind = parry ? "parrySuccess" : "guardSuccess";
+    let gained = 0;
+    for (const g of this.def.gains) if (g.on === kind) gained += g.value;
+    return gained === 0 ? 0 : this.add(gained * this.gainMultiplier);
+  }
+
+  /**
    * 技の1回の使用で、敵に当たったとき（使用ごとに1回。docs/progress D-ARC-3）。
    * 直前に当てた敵と同じなら決まった量が増える（集中+5）。違えば、その敵を覚えるだけ。
    */

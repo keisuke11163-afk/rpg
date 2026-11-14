@@ -233,6 +233,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
       kind: def.kind,
       pct,
       ...(def.base === undefined ? {} : { base: def.base }),
+      ...(def.convert === undefined ? {} : { convert: def.convert }),
     },
     action,
     staggerCoefficient: baseCoefficient * (1 + staggerInc),

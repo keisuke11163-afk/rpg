@@ -104,6 +104,7 @@ interface SkillState {
   traps: number;
   smokes: number;
   arrows: number;
+  guarding: boolean;
 }
 interface EnemyInfo {
   id: string;
@@ -733,12 +734,38 @@ try {
       sm1.fervor === 1,
     `ジョブ ${sm.job}・武器 ${String(sm.weapon)}・位相 ${String(sm.fervor)} → ${String(sm1.fervor)}・ヒット ${String(dm1.hits - dm0.hits)}回`,
   );
-  // 戦士 → 盗賊に戻す（以降の確認は盗賊の短剣で行う）
+  // 騎士（仕様書v0.2 5.3・H-05 ②）：G で転職すると下級の長剣と小盾を持つ。右クリックの押し続けは技ではなくガード
+  // （盾を持っているあいだ）。押している間だけガードを上げ、離すと下ろす。ガードしても技は使わない
   await waitIdle();
   await page.keyboard.press("KeyG");
   await page.waitForTimeout(100);
-  await page.keyboard.press("KeyG");
-  await page.waitForTimeout(100);
+  const sk = await skills();
+  const dk0 = await dummy();
+  await page.mouse.move(dk0.screenX * 2, dk0.screenY * 2);
+  await page.waitForTimeout(50);
+  await page.mouse.down({ button: "right" });
+  await page.waitForTimeout(400);
+  const sk1 = await skills();
+  await page.mouse.up({ button: "right" });
+  await page.waitForTimeout(500);
+  const sk2 = await skills();
+  check(
+    "Gで騎士に転職し（下級の長剣と小盾）、右クリックを押し続けるとガードを上げ、離すと下ろす（技は使わない）（騎士）",
+    sk.job === "JOB-KNIGHT" &&
+      sk.weapon === "test-longsword" &&
+      !sk.guarding &&
+      sk1.guarding &&
+      !sk2.guarding &&
+      sk1.executing === null &&
+      JSON.stringify(sk2.uses) === JSON.stringify(sk.uses),
+    `ジョブ ${sk.job}・武器 ${String(sk.weapon)}・ガード ${String(sk.guarding)} → 押し続け ${String(sk1.guarding)} → 離した ${String(sk2.guarding)}`,
+  );
+  // 騎士 → 戦士 → 盗賊に戻す（以降の確認は盗賊の短剣で行う）
+  for (let i = 0; i < 2; i++) {
+    await waitIdle();
+    await page.keyboard.press("KeyG");
+    await page.waitForTimeout(100);
+  }
 
   // 16〜19. 敵（補助仕様書10章）
   const enemies = (): Promise<EnemyInfo[]> =>

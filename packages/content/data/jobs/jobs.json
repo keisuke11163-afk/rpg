@@ -239,5 +239,76 @@
       "SKL-MAGE-METEOR"
     ],
     "startingWeapon": "BASE-WPN-STAFF-T1"
+  },
+  {
+    "id": "JOB-KNIGHT",
+    "tag": "TAG-JOB-KNIGHT",
+    "text": "job.knight",
+    "gauge": "GAU-FAITH",
+    "skills": [
+      {
+        "skill": "SKL-KNIGHT-SHIELD-BASH",
+        "level": 1
+      },
+      {
+        "skill": "SKL-KNIGHT-JUDGMENT",
+        "level": 3
+      },
+      {
+        "skill": "SKL-KNIGHT-TAUNT",
+        "level": 5
+      },
+      {
+        "skill": "SKL-KNIGHT-SHIELD-CHARGE",
+        "level": 7
+      },
+      {
+        "skill": "SKL-KNIGHT-SANCTUARY",
+        "level": 10
+      },
+      {
+        "skill": "SKL-KNIGHT-AUREOLE",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-SWORD": "S",
+      "TAG-WPN-SHIELD": "S",
+      "TAG-WPN-SPEAR": "A",
+      "TAG-WPN-GREATSWORD": "B",
+      "TAG-WPN-SCEPTER": "B",
+      "TAG-WPN-MACE": "A",
+      "TAG-WPN-GREATMACE": "A"
+    },
+    "originAttributes": {
+      "go": 15,
+      "jin": 5,
+      "ri": 5,
+      "kon": 15
+    },
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLvは仮値（補助仕様書3.5）。初期能力値は補助仕様書3.2（剛15・迅5・理5・魂15）。適性は仕様書v0.2 5.3（弓Cは書かなければC）。ガードの規則の数値（正面の角度・気力・反撃権の秒数など）は仕様書に無い仮値（docs/progress D-KNT-1・D-KNT-2。パリィの連打の対策 parryCooldown は D-KNT-10）",
+    "guard": {
+      "parryWindow": 0.18,
+      "frontAngleDeg": 180,
+      "staminaCost": 15,
+      "parryStaggerRatio": 0.35,
+      "counterBonus": 1.0,
+      "counterSeconds": 4,
+      "moveSpeedMultiplier": 0.6,
+      "minRaise": 0.3,
+      "parryCooldown": 0.6
+    },
+    "passiveEffects": ["EFF-KNIGHT-OATH-GUARDIAN"],
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-KNIGHT-SANCTUARY",
+      "SKL-KNIGHT-SHIELD-BASH",
+      "SKL-KNIGHT-JUDGMENT",
+      "SKL-KNIGHT-TAUNT",
+      "SKL-KNIGHT-SHIELD-CHARGE"
+    ],
+    "startingWeapon": "BASE-WPN-LONGSWORD-T1",
+    "startingOffHand": "BASE-SHD-BUCKLER-T1"
   }
 ]

@@ -58,6 +58,7 @@ import {
   type LoadoutRecord,
   MAX_LOADOUTS,
   toSaveData,
+  GuardState,
   JobGauge,
   type EffectInstance,
   type MvpEquipSlot,
@@ -93,6 +94,9 @@ import {
   jobBoardRespecCost,
   type ModifierView,
   isBehind,
+  isInFront,
+  type GuardOutcome,
+  type ItemBaseDef,
   ALTAR_TOKEN_COST,
   uniqueItem,
   FLASK_FILL,
@@ -229,6 +233,8 @@ export const TEST_WEAPONS: readonly { readonly uid: string; readonly base: strin
   { uid: "test-bow", base: "BASE-WPN-BOW-T1" },
   { uid: "test-longbow", base: "BASE-WPN-LONGBOW-T1" },
   { uid: "test-staff", base: "BASE-WPN-STAFF-T1" },
+  // 騎士の初期の副手（下級の盾。ガードの規則を持つジョブだけが、盾でガードする）
+  { uid: "test-buckler", base: "BASE-SHD-BUCKLER-T1" },
 ];
 /** ジョブの初期装備の武器（補助仕様書3.4。転職したときに持ち替える）。 */
 const START_WEAPON: Readonly<Record<string, string>> = {
@@ -236,6 +242,11 @@ const START_WEAPON: Readonly<Record<string, string>> = {
   "JOB-ROGUE": "test-dagger",
   "JOB-ARCHER": "test-bow",
   "JOB-MAGE": "test-staff",
+  "JOB-KNIGHT": "test-longsword",
+};
+/** ジョブの初期装備の副手（騎士の盾。転職したときに持ち替える）。 */
+const START_OFFHAND: Readonly<Record<string, string>> = {
+  "JOB-KNIGHT": "test-buckler",
 };
 
 /** 技の枠（補助仕様書1.1：左クリック・右クリック・1〜4 の6枠）。 */
@@ -291,6 +302,8 @@ interface Running {
    * 集中の会心率は使う前の量で乗る）。無ければ、当たったときの能力値を使う。
    */
   castSheet?: CharacterSheet;
+  /** 反撃権（騎士のパリィの後の次の攻撃）で、この技の全てのヒットに足すダメージの加算（1＝+100%）。 */
+  counter?: number;
 }
 
 /** プレイヤーの投射物（弓使いの技・弓の通常攻撃）が当たったときに使う情報。 */
@@ -436,6 +449,19 @@ export function newCharacterProfile(db: ContentDb, originId: string, name: strin
     equipment.equip(
       { uid: "itm_000001", base, rarity: "normal", itemLevel: 1, affixes: [] },
       "mainHand",
+      true,
+    );
+  // 騎士の盾（副手）。uid は武器の次の番号（拾った物の uid と重ならないように、続きから始まる）
+  if (origin.startingOffHand !== undefined)
+    equipment.equip(
+      {
+        uid: "itm_000002",
+        base: origin.startingOffHand,
+        rarity: "normal",
+        itemLevel: 1,
+        affixes: [],
+      },
+      "offHand",
       true,
     );
   return {
@@ -1073,6 +1099,53 @@ export class ArenaSimulation {
   /** メインジョブの職能ゲージ（戦士は闘志・盗賊はコンボ点）。 */
   get jobGauge(): JobGauge {
     return this.jobGaugeValue;
+  }
+
+  /**
+   * ガード・パリィの状態（メインジョブがガードの規則を持つときだけ。騎士。仕様書v0.2 5.3・MVP後の機能の提案3章 H-05 ②）。
+   * 規則を持たないジョブは undefined（盾を持っていても、技の枠2は今までどおり普通の技の枠）。
+   */
+  get guard(): GuardState | undefined {
+    const rule = this.job.guard;
+    if (rule === undefined) {
+      this.guardValue = undefined;
+      return undefined;
+    }
+    if (this.guardValue === undefined || this.guardValue.rule !== rule)
+      this.guardValue = new GuardState(rule);
+    return this.guardValue;
+  }
+  private guardValue: GuardState | undefined;
+  /** 光輪の盾を投げた後、この時刻（秒）まではガードできない。 */
+  private guardLockedUntil = -Infinity;
+  private parries = 0;
+  private guards = 0;
+
+  /** 装備している盾のベース（無ければ undefined）。 */
+  private get shieldBase(): ItemBaseDef | undefined {
+    const off = this.equipment.get("offHand");
+    const base = off === undefined ? undefined : this.db.itemBases.get(off.base);
+    return base?.shield === undefined ? undefined : base;
+  }
+
+  /** 盾のガード率（盾の基礎値＋能力値のガード率。0〜1。盾が無ければ0）。 */
+  get guardRate(): number {
+    const base = this.shieldBase;
+    if (base?.shield === undefined) return 0;
+    return Math.min(1, Math.max(0, base.shield.guard + this.view.stat("STAT-GUARD-RATE").value));
+  }
+
+  /** ガードができる状態か（ガードの規則を持つメインジョブで、盾を持っている）。 */
+  get canGuard(): boolean {
+    return this.job.guard !== undefined && this.shieldBase !== undefined;
+  }
+
+  /** ガードで防いだ回数・パリィに成功した回数（確認用）。 */
+  get guardCount(): number {
+    return this.guards;
+  }
+  get parryCount(): number {
+    return this.parries;
   }
   get maxMp(): number {
     return this.sheetValue.maxMp;
@@ -2110,6 +2183,21 @@ export class ArenaSimulation {
         this.canDualWield,
         this.character.level,
       );
+    // 騎士の盾（副手）。無ければ（売った・別の物を持っている）、そのまま
+    const startOff = START_OFFHAND[next];
+    if (
+      startOff !== undefined &&
+      this.equipment.get("offHand") === undefined &&
+      this.inventory.items.some((i) => i.uid === startOff)
+    )
+      equipFromInventory(
+        this.inventory,
+        this.equipment,
+        startOff,
+        "offHand",
+        this.canDualWield,
+        this.character.level,
+      );
     this.equipmentVersion += 1;
     this.jobGaugeValue = this.newGauge();
     this.demonLeft = 0;
@@ -2450,6 +2538,11 @@ export class ArenaSimulation {
         ? Math.max(0.1, 1 - slow)
         : 1;
     this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
+    // 反撃権（騎士：パリィの後の次の攻撃のダメージ+100%）：ダメージを与える技の使用で使い切る。戦吼などは使わない
+    const counter = def.pct > 0 ? (this.guard?.consumeCounter(this.elapsed) ?? 0) : 0;
+    // 光輪の盾は、戻ってくるまでガードできない（仮：決まった秒数）
+    if (def.guardEffect?.mode === "lock")
+      this.guardLockedUntil = this.elapsed + def.guardEffect.seconds;
     this.current = {
       slot,
       run: {
@@ -2464,6 +2557,7 @@ export class ArenaSimulation {
         ),
         hit: new Map(),
         ...(castSheet === undefined ? {} : { castSheet }),
+        ...(counter > 0 ? { counter } : {}),
       },
     };
   }
@@ -2504,10 +2598,37 @@ export class ArenaSimulation {
     const dodge = dodgePressed && !staggered;
     if (dodge) this.current = undefined; // 回避で技を取り消せる
 
+    // ガード（騎士。H-05 ②：盾を持っているあいだ、技の枠2＝右クリックの押し続けはガードに固定する）。
+    // 技の実行中・回避中・よろめいている間・光輪の盾が戻るまでは上げられない
+    const guard = this.guard;
+    const guardOn = guard !== undefined && this.canGuard;
+    if (guard !== undefined)
+      guard.input(
+        this.elapsed,
+        guardOn && held("skill2"),
+        guardOn && pressed.has("skill2"),
+        guardOn &&
+          !staggered &&
+          !this.motion.dodging &&
+          !dodge &&
+          this.current === undefined &&
+          this.elapsed >= this.guardLockedUntil,
+      );
+
     // 技を使い始める（照準の方向へ）。枠の順に、使えるものを1つ。押し続けている間は繰り返し使う（補助仕様書1.1）
-    if (this.current === undefined && !this.motion.dodging && !dodge && !staggered) {
+    // ガードを上げている間は、新しく技を使えない。ガードできる騎士の右クリック（技の枠2）は、技ではなくガード
+    if (
+      this.current === undefined &&
+      !this.motion.dodging &&
+      !dodge &&
+      !staggered &&
+      guard?.raised !== true
+    ) {
       const use = this.loadout.find(
-        (l) => (held(l.action) || pressed.has(l.action)) && this.blockOf(l.skill) === undefined,
+        (l) =>
+          (held(l.action) || pressed.has(l.action)) &&
+          !(guardOn && l.action === "skill2") &&
+          this.blockOf(l.skill) === undefined,
       );
       if (use !== undefined) {
         this.motion.update(0, { move: ZERO, aim, dodge: false }); // 向きだけ照準に合わせる
@@ -2587,6 +2708,8 @@ export class ArenaSimulation {
       moveMultiplier = tick.moveMultiplier;
       if (tick.finished) this.current = undefined;
     }
+    // ガードしている間は、移動が遅くなる（規則の倍率。鉄の守りで外せる予定）
+    if (guard?.raised === true) moveMultiplier *= guard.rule.moveSpeedMultiplier;
     for (const z of this.zoneRuns) this.resolveStrikes(z, (z.exec as LingeringZone).update(dt));
     this.updateArrows(dt);
     this.updateSmokes(dt);
@@ -2627,7 +2750,12 @@ export class ArenaSimulation {
       playerTakenMultiplier: (enemy) =>
         this.behindGuardMultiplier(enemy) *
         (1 - Math.min(0.99, this.view.stat("STAT-KEY-SHADOW-DELAY").value)),
-      onPlayerHit: (report, enemy, attack) => {
+      // ガード・パリィ（騎士）：敵の攻撃が当たる直前に、防ぐか・パリィかを決める
+      guardAgainst: (enemy) => this.judgeGuard(enemy),
+      onParried: (enemy) => {
+        this.onParried(enemy);
+      },
+      onPlayerHit: (report, enemy, attack, guarded) => {
         this.lastCombatAt = this.elapsed;
         if (report.hit.evaded) return;
         // 影写し（K15）：受けるダメージの35%を、4秒かけて遅れて受ける（即時の分は65%に減っている）
@@ -2672,8 +2800,9 @@ export class ArenaSimulation {
           report.applied.toHp + report.applied.toWard,
           this.playerValue.health.maxHp,
         );
-        // 集中：攻撃を受けると-20（仕様書v0.2 5.7）
-        this.jobGaugeValue.onHitTaken();
+        // 集中：攻撃を受けると-20（仕様書v0.2 5.7）。信念：ガードしていない被弾は-1（仕様書v0.2 5.3）。
+        // ガードで防いだヒットは、被弾として数えない（信念は+1になる。judgeGuard）
+        if (!guarded) this.jobGaugeValue.onHitTaken();
       },
       onAvoided: () => {
         this.avoidedAttacks += 1;
@@ -2778,6 +2907,10 @@ export class ArenaSimulation {
       } else this.playerValue = this.newPlayer();
     }
     this.mpValue = Math.min(this.maxMp, this.mpValue + this.maxMp * 0.06 * dt);
+    // 聖域（騎士）：毎秒、最大HPの割合だけ回復する（最大HPの2%）
+    const regen = this.view.stat("STAT-HP-REGEN").value;
+    if (regen > 0 && !this.playerValue.health.dead)
+      this.playerValue.health.heal(this.playerValue.health.maxHp * regen * dt * this.hpRecovery);
     const flaskHp = this.hpFlask.update(dt);
     if (flaskHp > 0 && !this.playerValue.health.dead)
       this.playerValue.health.heal(flaskHp * this.hpRecovery);
@@ -2834,6 +2967,7 @@ export class ArenaSimulation {
             s.forceCrit === true,
             offHand,
             run.castSheet,
+            run.counter,
           )
         ) {
           landed = true;
@@ -2925,6 +3059,7 @@ export class ArenaSimulation {
           c.skill.forceCrit,
           false,
           run.castSheet,
+          run.counter,
         )
       )
         landed = true;
@@ -2957,6 +3092,7 @@ export class ArenaSimulation {
           p.skill.forceCrit,
           false,
           p.run.castSheet,
+          p.run.counter,
         )
       ) {
         this.afterLanded(p.run, p.skill, t.id);
@@ -2977,6 +3113,7 @@ export class ArenaSimulation {
               p.skill.forceCrit,
               false,
               p.run.castSheet,
+              p.run.counter,
             );
           }
         }
@@ -3066,6 +3203,8 @@ export class ArenaSimulation {
     offHand = false,
     /** 使う前の能力値（Running.castSheet）。省略で今の能力値。 */
     sheet: CharacterSheet = this.sheetValue,
+    /** 反撃権（Running.counter）：この技のヒットに足すダメージの加算。 */
+    counter = 0,
   ): boolean {
     const attacker = (offHand ? sheet.offAttacker : undefined) ?? sheet.attacker;
     this.lastOffHand = attacker !== sheet.attacker;
@@ -3117,7 +3256,12 @@ export class ArenaSimulation {
       this.ailmentTypeCount(t) >= CRITICAL_TYPES &&
       this.elapsed - (this.lastCritical.get(t.id) ?? -Infinity) >= CRITICAL_INTERVAL;
     const wasBroken = t.stagger.broken;
-    const rangeBonus = this.rangeBonus(t);
+    const rangeBonus = this.rangeBonus(t) + counter;
+    // 盾打ちなど：盾の防具値の一部を、固定の物理ダメージとして足す（盾の基礎の防具値。強化・詞は含めない。D-KNT-7）
+    const shieldRatio = skill.def.shieldArmorRatio;
+    const shieldFlat =
+      shieldRatio === undefined ? 0 : (this.shieldBase?.defense?.armor ?? 0) * shieldRatio;
+    const hitSkill = shieldFlat > 0 ? { ...damage, flatPhysical: shieldFlat } : damage;
     // ダメージを受けない相手（ボスの段階の切り替え・根渡り）へのヒットは、後処理（臨界・分かれたヒット・
     // 吸収・延長など）を全て行わない（docs/progress Q-U19-2 の確定）
     const invulnerable = t.health.invulnerable;
@@ -3125,7 +3269,7 @@ export class ArenaSimulation {
       db: this.db,
       attacker,
       attackerPosition: origin,
-      skill: damage,
+      skill: hitSkill,
       skillChance: skill.ailmentChance,
       staggerCoefficient: skill.staggerCoefficient * twin,
       target: t,
@@ -3232,6 +3376,63 @@ export class ArenaSimulation {
     // 輝星「疾風の脚」：移動中は回避値+20%
     const gale = view.stat("STAT-NT-GALE").value;
     this.playerValue.evasion = this.sheetValue.defense.evasion * (moved > 1e-6 ? 1 + gale : 1);
+  }
+
+  /**
+   * 敵の攻撃が当たる直前の、ガードの結果（騎士）。パリィ＞ガード＞そのまま。
+   * - パリィ：ガードを上げてから 受付（規則0.18秒＋職詞）以内。気力は使わない。ダメージは無い
+   * - ガード：正面からの攻撃を、盾のガード率の分だけ減らす。気力（規則）を使う。足りなければ防げない
+   * - 盾突撃の最中は、ガードしている扱い（パリィの受付は無い）
+   * ガードとパリィは、ゲージ（信念）に数える。
+   */
+  private judgeGuard(enemy: Enemy): GuardOutcome {
+    const guard = this.guard;
+    if (guard === undefined || !this.canGuard || this.playerValue.health.dead)
+      return { kind: "none" };
+    const rule = guard.rule;
+    const canPay = this.motion.canSpendStamina(rule.staminaCost);
+    const running = this.current?.run.exec;
+    const bySkill =
+      running instanceof SkillExecution && running.skill.def.guardEffect?.mode === "raise";
+    let outcome: GuardOutcome;
+    if (bySkill) {
+      outcome =
+        isInFront(enemy.position, this.motion.position, this.motion.facing, rule.frontAngleDeg) &&
+        canPay &&
+        this.guardRate > 0
+          ? { kind: "guard", rate: this.guardRate }
+          : { kind: "none" };
+    } else {
+      outcome = guard.judge({
+        now: this.elapsed,
+        from: enemy.position,
+        position: this.motion.position,
+        facing: this.motion.facing,
+        guardRate: this.guardRate,
+        canPay,
+        parryWindowBonus: this.view.stat("STAT-PARRY-WINDOW").value,
+      });
+    }
+    if (outcome.kind === "guard") {
+      this.motion.spendStamina(rule.staminaCost);
+      this.guards += 1;
+      this.jobGaugeValue.onGuard(false);
+      this.onText?.("ガード", this.motion.position, "#9ad1ff");
+    }
+    return outcome;
+  }
+
+  /** パリィに成功した：敵を崩し、反撃権を得て、信念+3。ダメージは受けない。 */
+  private onParried(enemy: Enemy): void {
+    const guard = this.guard;
+    if (guard === undefined) return;
+    this.lastCombatAt = this.elapsed;
+    this.parries += 1;
+    this.jobGaugeValue.onGuard(true);
+    guard.grantCounter(this.elapsed);
+    const stagger = enemy.combatant.stagger;
+    if (!enemy.combatant.staggerImmune) stagger.add(stagger.max * guard.rule.parryStaggerRatio);
+    this.onText?.("パリィ", this.motion.position, "#ffe27a");
   }
 
   /** 背向けの外套（U16）：敵の背後にいる間、その敵から受けるダメージの倍率（1-15%）。 */

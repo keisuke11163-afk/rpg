@@ -604,5 +604,27 @@
     "scope": "self",
     "provisional": true,
     "provisionalNote": "共鳴紋の印（数は詞の resonance から数える。この効果は表示用の印だけ）"
+  },
+  {
+    "id": "EFF-PRE-JOB-KNIGHT",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-PARRY-WINDOW",
+        "value": 0.05
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "mainJob",
+        "job": "TAG-JOB-KNIGHT"
+      }
+    ]
   }
 ]
