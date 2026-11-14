@@ -494,6 +494,7 @@ export {
   CONSTELLATION_SOURCE,
   type DormantReason,
   STAR_NODE_SOURCE,
+  STAR_POINT_CAP,
   StarAllocation,
   type StarBoardInput,
   type StarBoardResult,

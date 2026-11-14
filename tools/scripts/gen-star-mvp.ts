@@ -8,6 +8,9 @@
  *   戦士・盗賊で使えないもの（ガード・召喚・投射物・サブジョブが前提）は置かない
  * - 小星は、4.2 の星域のテーマと、4.3・4.4 の例の値の大きさで作る（値は仮。docs/progress D-STAR-12）
  *
+ * - 8星域の環（仕様書v0.2 4.2。docs/progress D-RING-1〜6）：剛域→剛魂域→魂域→理魂域→理域→迅理域→迅域→剛迅域→剛域と、
+ *   中心の星核を、少ないノードの「骨組み」でつなぐ（このファイルの末尾の「8星域の環」）
+ *
  * 位置は星辰盤の画面の座標。ノードどうしが重ならないことは、テストで確かめる。
  */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -15,7 +18,14 @@ import { fileURLToPath } from "node:url";
 
 type Mod =
   | { kind: "added" | "increased"; stat: string; value: number; filter?: { allOf?: string[] } }
-  | { kind: "more"; stat: string; value: number; filter?: { allOf?: string[] } };
+  | {
+      kind: "more";
+      stat: string;
+      value: number;
+      filter?: { allOf?: string[] };
+      drawback?: boolean;
+    }
+  | { kind: "flag"; flag: string; mode: "force" | "forbid"; drawback?: boolean };
 
 interface EffectOut {
   id: string;
@@ -28,11 +38,14 @@ interface EffectOut {
   provisionalNote: string;
 }
 
+/** 星域（packages/core の STAR_REGIONS と同じ）。 */
+type Region = "gou" | "goukon" | "kon" | "rikon" | "ri" | "jinri" | "jin" | "goujin" | "core";
+
 interface NodeOut {
   id: string;
   text?: string;
-  kind: "minor" | "notable" | "mutation";
-  region: "gou" | "goujin" | "jin";
+  kind: "minor" | "notable" | "mutation" | "keystone";
+  region: Region;
   links: string[];
   effects: string[];
   position: { x: number; y: number };
@@ -512,6 +525,202 @@ chain(
   [MINOR.gjDual, MINOR.gjMove, MINOR.gjAttr],
   4,
 );
+
+// ---- 8星域の環（仕様書v0.2 4.2。骨組みだけ。docs/progress D-RING-1〜6） ----
+// 環：剛域→剛魂域→魂域→理魂域→理域→迅理域→迅域→剛迅域→剛域。中心に星核。
+// - 既存のノードの ID・効果は変えない。追加のノードから既存のノードへのつながりを、追加の側に書く
+// - 始点は取れない（StarAllocation）ので、ほかのジョブの始点は通れない。剛域・迅域の始点の脇に、
+//   始点を通らずに環を回れる小星を1つずつ置く（D-RING-3）
+// - 小星は能力値の小星だけ（仕様書4.3 の「剛／迅／理／魂+10、または2種類に+5ずつ」。星核は巡礼者座の「全能力値+3」）。
+//   新しい強さの数値は作らない（D-RING-4）
+// - 天極は、仕様書4.7 の魂域の K05 と星核の K11 の、能力値で表せる部分だけ（D-RING-5）
+const NOTE_RING =
+  "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）";
+const attr = (id: string, parts: [string, number][]): string =>
+  effect(
+    id,
+    "minorStar",
+    parts.map(([stat, value]) => add(stat, value)),
+    false,
+    "仕様書v0.2 4.3 の能力値の小星（剛／迅／理／魂+10、または2種類に+5ずつ）。8星域の環（docs/progress D-RING-4）",
+  );
+const RING = {
+  ri: attr("EFF-STAR-RI-10", [["STAT-ATTR-RI", 10]]),
+  kon: attr("EFF-STAR-KON-10", [["STAT-ATTR-KON", 10]]),
+  goukon: attr("EFF-STAR-GOKON-5", [
+    ["STAT-ATTR-GO", 5],
+    ["STAT-ATTR-KON", 5],
+  ]),
+  rikon: attr("EFF-STAR-RIKON-5", [
+    ["STAT-ATTR-RI", 5],
+    ["STAT-ATTR-KON", 5],
+  ]),
+  core: effect(
+    "EFF-STAR-ALL-3",
+    "minorStar",
+    [
+      add("STAT-ATTR-GO", 3),
+      add("STAT-ATTR-JIN", 3),
+      add("STAT-ATTR-RI", 3),
+      add("STAT-ATTR-KON", 3),
+    ],
+    false,
+    "仕様書v0.2 4.4 の巡礼者座（星核の周縁）の小星の値「全能力値+3」。星座にはしていない（docs/progress D-RING-4）",
+  ),
+} as const;
+
+// 天極の効果（affects を個別に決めるので、effect() を使わずに足す）
+function keystoneEffect(
+  id: string,
+  modifiers: Mod[],
+  affects: EffectOut["affects"],
+  note: string,
+): string {
+  effects.push({
+    id,
+    origin: "keystone",
+    modifiers,
+    affects,
+    scope: "self",
+    provisional: true,
+    provisionalNote: note,
+  });
+  return id;
+}
+const KEY = {
+  // K05 腐敗の聖杯（魂域）：状態異常のダメージ×1.5。代償：打撃値-50%（基準値は変わらない）
+  corrupt: keystoneEffect(
+    "EFF-KEY-CORRUPT",
+    [{ kind: "more", stat: "STAT-AILMENT-DAMAGE", value: 1.5 }],
+    { hit: false, ailmentBase: true },
+    "仕様書v0.2 4.7 K05「腐敗の聖杯」の利点。「死んだ敵の状態異常が近くの敵に移る」はルールフックが無いので、まだ働かない（docs/progress D-RING-5）",
+  ),
+  corruptCost: keystoneEffect(
+    "EFF-KEY-CORRUPT-COST",
+    [{ kind: "more", stat: "STAT-DAMAGE", value: 0.5, drawback: true }],
+    { hit: true, ailmentBase: false },
+    "仕様書v0.2 4.7 K05「腐敗の聖杯」の代償：打撃値-50%（基準値は変わらない＝状態異常の基準値には効かない）",
+  ),
+  // K11 均衡の天秤（星核）：付与率+50%。代償：会心しなくなる
+  balance: keystoneEffect(
+    "EFF-KEY-BALANCE",
+    [
+      { kind: "flag", flag: "crit", mode: "forbid", drawback: true },
+      inc("STAT-AILMENT-CHANCE", 0.5),
+    ],
+    { hit: true, ailmentBase: true },
+    "仕様書v0.2 4.7 K11「均衡の天秤」の、能力値で表せる部分（会心しない・付与率+50%）。「ダメージを平均で固定」「付与を蓄積にする」はルールフックが無いので、まだ働かない（docs/progress D-RING-5）",
+  ),
+} as const;
+
+/** 環のノードを1つ足す（つながりは、この新しいノードの側に書く）。 */
+function ringNode(
+  id: string,
+  region: Region,
+  links: string[],
+  effectId: string,
+  position: { x: number; y: number },
+  keystone?: { name: string; extra?: string[] },
+): string {
+  nodes.push({
+    id,
+    ...(keystone === undefined ? {} : { text: textKey(id, keystone.name) }),
+    kind: keystone === undefined ? "minor" : "keystone",
+    region,
+    links,
+    effects: [effectId, ...(keystone?.extra ?? [])],
+    position,
+    provisional: true,
+    provisionalNote: NOTE_RING,
+  });
+  return id;
+}
+
+// 始点を通らない脇道（D-RING-3）：剛域（剛迅域の弧 ↔ 剛域の幹）・迅域（剛迅域の弧 ↔ 迅域の幹）
+ringNode("STAR-SM-GOU-R-01", "gou", ["STAR-GOUJIN-0001", "STAR-GOU-0001"], MINOR.gouAttr, {
+  x: -140,
+  y: 0,
+});
+ringNode("STAR-SM-JIN-R-01", "jin", ["STAR-JIN-0011", "STAR-JIN-0001"], MINOR.jinAttr, {
+  x: 140,
+  y: 0,
+});
+
+// 迅域 → 迅理域 → 理域 → 理魂域（右下。D-RING-2：魔法使い・召喚士の始点を、迅域の STAR-JIN-0202 から付け替えた）
+// 迅理域の小星は「迅+10」：魔法使いの計測のビルドは、ここを通って迅域へ行くので、理（MP）を足すと計測が動く（D-RING-4）
+const jr = ringNode("STAR-SM-JR-A-01", "jinri", ["STAR-JIN-0201", "STAR-RI-START"], MINOR.jinAttr, {
+  x: 250,
+  y: 170,
+});
+const riA = ringNode("STAR-SM-RI-A-01", "ri", [jr, "STAR-RI-START", "STAR-RIKON-START"], RING.ri, {
+  x: 260,
+  y: 270,
+});
+const riB = ringNode("STAR-SM-RI-B-01", "ri", ["STAR-RI-START"], RING.ri, { x: 400, y: 270 });
+ringNode("STAR-SM-RI-B-02", "ri", [riB], RING.ri, { x: 470, y: 300 });
+const rkA1 = ringNode("STAR-SM-RK-A-01", "rikon", [riA, "STAR-RIKON-START"], RING.rikon, {
+  x: 250,
+  y: 410,
+});
+const rkA2 = ringNode("STAR-SM-RK-A-02", "rikon", [rkA1], RING.rikon, { x: 160, y: 470 });
+ringNode("STAR-SM-RK-B-01", "rikon", ["STAR-RIKON-START"], RING.rikon, { x: 420, y: 400 });
+
+// 魂域（下。始点は予約枠なので置かない。D-RING-6）
+const konA1 = ringNode("STAR-SM-KON-A-01", "kon", [rkA2], RING.kon, { x: 75, y: 520 });
+const konA2 = ringNode("STAR-SM-KON-A-02", "kon", [konA1], RING.kon, { x: 0, y: 540 });
+const konA3 = ringNode("STAR-SM-KON-A-03", "kon", [konA2], RING.kon, { x: -75, y: 520 });
+const konB = ringNode("STAR-SM-KON-B-01", "kon", [konA2], RING.kon, { x: 0, y: 615 });
+ringNode(
+  "STAR-KEY-CORRUPT",
+  "kon",
+  [konB],
+  KEY.corrupt,
+  { x: 0, y: 690 },
+  {
+    name: "腐敗の聖杯",
+    extra: [KEY.corruptCost],
+  },
+);
+
+// 剛魂域 → 剛域（左下。騎士の始点の STAR-GOU-0004 へのつながりは star.json のまま）
+const gkA1 = ringNode("STAR-SM-GK-A-01", "goukon", [konA3], RING.goukon, { x: -125, y: 450 });
+const gkA2 = ringNode("STAR-SM-GK-A-02", "goukon", [gkA1], RING.goukon, { x: -130, y: 370 });
+const gkA3 = ringNode("STAR-SM-GK-A-03", "goukon", [gkA2], RING.goukon, { x: -130, y: 290 });
+ringNode("STAR-SM-GK-A-04", "goukon", [gkA3, "STAR-GOU-0004", "STAR-GOUKON-START"], RING.goukon, {
+  x: -130,
+  y: 205,
+});
+
+// 星核（中心）：4つの小星の輪と、真ん中の天極。剛域・迅域・魂域・剛迅域から1本ずつの道
+const coreA1 = ringNode("STAR-SM-CORE-A-01", "core", [], RING.core, { x: 0, y: 120 });
+const coreA2 = ringNode("STAR-SM-CORE-A-02", "core", [coreA1], RING.core, { x: 60, y: 180 });
+const coreA3 = ringNode("STAR-SM-CORE-A-03", "core", [coreA2], RING.core, { x: 0, y: 240 });
+const coreA4 = ringNode("STAR-SM-CORE-A-04", "core", [coreA3, coreA1], RING.core, {
+  x: -60,
+  y: 180,
+});
+ringNode(
+  "STAR-KEY-BALANCE",
+  "core",
+  [coreA1],
+  KEY.balance,
+  { x: 0, y: 180 },
+  { name: "均衡の天秤" },
+);
+// 道：剛迅域の弧の頂点から下へ
+const t1 = ringNode("STAR-SM-CORE-T-01", "core", ["STAR-GOUJIN-0005"], RING.core, {
+  x: 0,
+  y: -90,
+});
+const t2 = ringNode("STAR-SM-CORE-T-02", "core", [t1], RING.core, { x: 0, y: -20 });
+ringNode("STAR-SM-CORE-T-03", "core", [t2, coreA1], RING.core, { x: 0, y: 50 });
+// 道：剛域の幹・迅域の幹から
+ringNode("STAR-SM-CORE-L-01", "core", ["STAR-GOU-0001", coreA4], RING.core, { x: -120, y: 60 });
+ringNode("STAR-SM-CORE-R-01", "core", ["STAR-JIN-0003", coreA2], RING.core, { x: 125, y: 140 });
+// 道：魂域から上へ
+const kc1 = ringNode("STAR-SM-KON-C-01", "kon", [konA2], RING.kon, { x: 0, y: 465 });
+const kc2 = ringNode("STAR-SM-KON-C-02", "kon", [kc1], RING.kon, { x: 0, y: 390 });
+ringNode("STAR-SM-KON-C-03", "kon", [kc2, coreA3], RING.kon, { x: 0, y: 315 });
 
 // ---- 名前つきのノードのルールフックの値（能力値） ----
 const STATS: { id: string; text: string; unit: "flat" | "ratio" | "seconds"; name: string }[] = [

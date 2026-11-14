@@ -554,5 +554,7 @@
   "jobboard.legend.taken": "取得済み",
   "jobboard.legend.available": "取れる",
   "jobboard.legend.blocked": "取れない",
-  "jobboard.legend.excluded": "副職紋では取れない"
+  "jobboard.legend.excluded": "副職紋では取れない",
+  "star.mvp.key-corrupt": "腐敗の聖杯",
+  "star.mvp.key-balance": "均衡の天秤"
 }

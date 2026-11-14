@@ -987,5 +987,410 @@
     },
     "provisional": true,
     "provisionalNote": "星辰盤の MVP の追加分（tools/scripts/gen-star-mvp.ts で作る。配置は仮。docs/progress D-STAR-12）"
+  },
+  {
+    "id": "STAR-SM-GOU-R-01",
+    "kind": "minor",
+    "region": "gou",
+    "links": ["STAR-GOUJIN-0001", "STAR-GOU-0001"],
+    "effects": ["EFF-STAR-GO-10"],
+    "position": {
+      "x": -140,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-JIN-R-01",
+    "kind": "minor",
+    "region": "jin",
+    "links": ["STAR-JIN-0011", "STAR-JIN-0001"],
+    "effects": ["EFF-STAR-JIN-10"],
+    "position": {
+      "x": 140,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-JR-A-01",
+    "kind": "minor",
+    "region": "jinri",
+    "links": ["STAR-JIN-0201", "STAR-RI-START"],
+    "effects": ["EFF-STAR-JIN-10"],
+    "position": {
+      "x": 250,
+      "y": 170
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-RI-A-01",
+    "kind": "minor",
+    "region": "ri",
+    "links": ["STAR-SM-JR-A-01", "STAR-RI-START", "STAR-RIKON-START"],
+    "effects": ["EFF-STAR-RI-10"],
+    "position": {
+      "x": 260,
+      "y": 270
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-RI-B-01",
+    "kind": "minor",
+    "region": "ri",
+    "links": ["STAR-RI-START"],
+    "effects": ["EFF-STAR-RI-10"],
+    "position": {
+      "x": 400,
+      "y": 270
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-RI-B-02",
+    "kind": "minor",
+    "region": "ri",
+    "links": ["STAR-SM-RI-B-01"],
+    "effects": ["EFF-STAR-RI-10"],
+    "position": {
+      "x": 470,
+      "y": 300
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-RK-A-01",
+    "kind": "minor",
+    "region": "rikon",
+    "links": ["STAR-SM-RI-A-01", "STAR-RIKON-START"],
+    "effects": ["EFF-STAR-RIKON-5"],
+    "position": {
+      "x": 250,
+      "y": 410
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-RK-A-02",
+    "kind": "minor",
+    "region": "rikon",
+    "links": ["STAR-SM-RK-A-01"],
+    "effects": ["EFF-STAR-RIKON-5"],
+    "position": {
+      "x": 160,
+      "y": 470
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-RK-B-01",
+    "kind": "minor",
+    "region": "rikon",
+    "links": ["STAR-RIKON-START"],
+    "effects": ["EFF-STAR-RIKON-5"],
+    "position": {
+      "x": 420,
+      "y": 400
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-KON-A-01",
+    "kind": "minor",
+    "region": "kon",
+    "links": ["STAR-SM-RK-A-02"],
+    "effects": ["EFF-STAR-KON-10"],
+    "position": {
+      "x": 75,
+      "y": 520
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-KON-A-02",
+    "kind": "minor",
+    "region": "kon",
+    "links": ["STAR-SM-KON-A-01"],
+    "effects": ["EFF-STAR-KON-10"],
+    "position": {
+      "x": 0,
+      "y": 540
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-KON-A-03",
+    "kind": "minor",
+    "region": "kon",
+    "links": ["STAR-SM-KON-A-02"],
+    "effects": ["EFF-STAR-KON-10"],
+    "position": {
+      "x": -75,
+      "y": 520
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-KON-B-01",
+    "kind": "minor",
+    "region": "kon",
+    "links": ["STAR-SM-KON-A-02"],
+    "effects": ["EFF-STAR-KON-10"],
+    "position": {
+      "x": 0,
+      "y": 615
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-KEY-CORRUPT",
+    "text": "star.mvp.key-corrupt",
+    "kind": "keystone",
+    "region": "kon",
+    "links": ["STAR-SM-KON-B-01"],
+    "effects": ["EFF-KEY-CORRUPT", "EFF-KEY-CORRUPT-COST"],
+    "position": {
+      "x": 0,
+      "y": 690
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-GK-A-01",
+    "kind": "minor",
+    "region": "goukon",
+    "links": ["STAR-SM-KON-A-03"],
+    "effects": ["EFF-STAR-GOKON-5"],
+    "position": {
+      "x": -125,
+      "y": 450
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-GK-A-02",
+    "kind": "minor",
+    "region": "goukon",
+    "links": ["STAR-SM-GK-A-01"],
+    "effects": ["EFF-STAR-GOKON-5"],
+    "position": {
+      "x": -130,
+      "y": 370
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-GK-A-03",
+    "kind": "minor",
+    "region": "goukon",
+    "links": ["STAR-SM-GK-A-02"],
+    "effects": ["EFF-STAR-GOKON-5"],
+    "position": {
+      "x": -130,
+      "y": 290
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-GK-A-04",
+    "kind": "minor",
+    "region": "goukon",
+    "links": ["STAR-SM-GK-A-03", "STAR-GOU-0004", "STAR-GOUKON-START"],
+    "effects": ["EFF-STAR-GOKON-5"],
+    "position": {
+      "x": -130,
+      "y": 205
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-A-01",
+    "kind": "minor",
+    "region": "core",
+    "links": [],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": 0,
+      "y": 120
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-A-02",
+    "kind": "minor",
+    "region": "core",
+    "links": ["STAR-SM-CORE-A-01"],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": 60,
+      "y": 180
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-A-03",
+    "kind": "minor",
+    "region": "core",
+    "links": ["STAR-SM-CORE-A-02"],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": 0,
+      "y": 240
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-A-04",
+    "kind": "minor",
+    "region": "core",
+    "links": ["STAR-SM-CORE-A-03", "STAR-SM-CORE-A-01"],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": -60,
+      "y": 180
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-KEY-BALANCE",
+    "text": "star.mvp.key-balance",
+    "kind": "keystone",
+    "region": "core",
+    "links": ["STAR-SM-CORE-A-01"],
+    "effects": ["EFF-KEY-BALANCE"],
+    "position": {
+      "x": 0,
+      "y": 180
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-T-01",
+    "kind": "minor",
+    "region": "core",
+    "links": ["STAR-GOUJIN-0005"],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": 0,
+      "y": -90
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-T-02",
+    "kind": "minor",
+    "region": "core",
+    "links": ["STAR-SM-CORE-T-01"],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": 0,
+      "y": -20
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-T-03",
+    "kind": "minor",
+    "region": "core",
+    "links": ["STAR-SM-CORE-T-02", "STAR-SM-CORE-A-01"],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": 0,
+      "y": 50
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-L-01",
+    "kind": "minor",
+    "region": "core",
+    "links": ["STAR-GOU-0001", "STAR-SM-CORE-A-04"],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": -120,
+      "y": 60
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-CORE-R-01",
+    "kind": "minor",
+    "region": "core",
+    "links": ["STAR-JIN-0003", "STAR-SM-CORE-A-02"],
+    "effects": ["EFF-STAR-ALL-3"],
+    "position": {
+      "x": 125,
+      "y": 140
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-KON-C-01",
+    "kind": "minor",
+    "region": "kon",
+    "links": ["STAR-SM-KON-A-02"],
+    "effects": ["EFF-STAR-KON-10"],
+    "position": {
+      "x": 0,
+      "y": 465
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-KON-C-02",
+    "kind": "minor",
+    "region": "kon",
+    "links": ["STAR-SM-KON-C-01"],
+    "effects": ["EFF-STAR-KON-10"],
+    "position": {
+      "x": 0,
+      "y": 390
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
+  },
+  {
+    "id": "STAR-SM-KON-C-03",
+    "kind": "minor",
+    "region": "kon",
+    "links": ["STAR-SM-KON-C-02", "STAR-SM-CORE-A-03"],
+    "effects": ["EFF-STAR-KON-10"],
+    "position": {
+      "x": 0,
+      "y": 315
+    },
+    "provisional": true,
+    "provisionalNote": "8星域の環の骨組み（tools/scripts/gen-star-mvp.ts。配置は仮。docs/progress D-RING-1）"
   }
 ]

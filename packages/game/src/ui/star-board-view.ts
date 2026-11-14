@@ -13,7 +13,11 @@ export const BOARD_AREA = {
 } as const;
 /** 右の列（ノードの説明）。 */
 export const BOARD_DETAIL = { x: BOARD_AREA.x + BOARD_AREA.width + 8, y: PANEL.y + 22, width: 208 };
-export const ZOOM = { min: 0.4, max: 2.5, initial: 0.6 } as const;
+/**
+ * 拡大率。min は、8星域の環の全体（約1,740×1,330）が表示の範囲に収まるまで縮められる値
+ * （docs/progress D-RING-8。テストで確かめる）。
+ */
+export const ZOOM = { min: 0.2, max: 2.5, initial: 0.6 } as const;
 
 export type { BoardCamera } from "./board-view.ts";
 

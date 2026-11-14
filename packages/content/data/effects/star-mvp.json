@@ -587,5 +587,181 @@
     "scope": "self",
     "provisional": true,
     "provisionalNote": "仕様書v0.2 4.4：影縫いの装束の仮想部位（セット装備は MVP の範囲の外なので、MVPでは働かない。docs/progress D-FIN-3）"
+  },
+  {
+    "id": "EFF-STAR-RI-10",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-RI",
+        "value": 10
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.3 の能力値の小星（剛／迅／理／魂+10、または2種類に+5ずつ）。8星域の環（docs/progress D-RING-4）"
+  },
+  {
+    "id": "EFF-STAR-KON-10",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-KON",
+        "value": 10
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.3 の能力値の小星（剛／迅／理／魂+10、または2種類に+5ずつ）。8星域の環（docs/progress D-RING-4）"
+  },
+  {
+    "id": "EFF-STAR-GOKON-5",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-GO",
+        "value": 5
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-KON",
+        "value": 5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.3 の能力値の小星（剛／迅／理／魂+10、または2種類に+5ずつ）。8星域の環（docs/progress D-RING-4）"
+  },
+  {
+    "id": "EFF-STAR-RIKON-5",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-RI",
+        "value": 5
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-KON",
+        "value": 5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.3 の能力値の小星（剛／迅／理／魂+10、または2種類に+5ずつ）。8星域の環（docs/progress D-RING-4）"
+  },
+  {
+    "id": "EFF-STAR-ALL-3",
+    "origin": "minorStar",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-GO",
+        "value": 3
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-JIN",
+        "value": 3
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-RI",
+        "value": 3
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-ATTR-KON",
+        "value": 3
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.4 の巡礼者座（星核の周縁）の小星の値「全能力値+3」。星座にはしていない（docs/progress D-RING-4）"
+  },
+  {
+    "id": "EFF-KEY-CORRUPT",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "more",
+        "stat": "STAT-AILMENT-DAMAGE",
+        "value": 1.5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.7 K05「腐敗の聖杯」の利点。「死んだ敵の状態異常が近くの敵に移る」はルールフックが無いので、まだ働かない（docs/progress D-RING-5）"
+  },
+  {
+    "id": "EFF-KEY-CORRUPT-COST",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "more",
+        "stat": "STAT-DAMAGE",
+        "value": 0.5,
+        "drawback": true
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.7 K05「腐敗の聖杯」の代償：打撃値-50%（基準値は変わらない＝状態異常の基準値には効かない）"
+  },
+  {
+    "id": "EFF-KEY-BALANCE",
+    "origin": "keystone",
+    "modifiers": [
+      {
+        "kind": "flag",
+        "flag": "crit",
+        "mode": "forbid",
+        "drawback": true
+      },
+      {
+        "kind": "increased",
+        "stat": "STAT-AILMENT-CHANCE",
+        "value": 0.5
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 4.7 K11「均衡の天秤」の、能力値で表せる部分（会心しない・付与率+50%）。「ダメージを平均で固定」「付与を蓄積にする」はルールフックが無いので、まだ働かない（docs/progress D-RING-5）"
   }
 ]
