@@ -29,7 +29,8 @@ import { INSCRIPTIONS, MAX_FORGE_LOAD } from "../items/crafting.ts";
  * - 版6：ボスを倒した回数（boss_kills。初回の撃破・A5 の開放）を足した（U-19）
  *
  * 版の番号を上げずに足した任意の項目（無い古いセーブもそのまま読める）：affix_library（A-5）・
- * items[].relic_nodes・items[].brushed・loadouts[].job_boards・sub_job_boards（副職紋。docs/progress D-SUB-8）。
+ * items[].relic_nodes・items[].brushed・loadouts[].job_boards・sub_job_boards（副職紋。docs/progress D-SUB-8）・
+ * loadouts[].sub_job（D-LOAD-1）。
  */
 export const SAVE_VERSION = 6;
 /** 技の枠の数（補助仕様書1.1）。 */
@@ -91,6 +92,11 @@ const loadoutSchema = z.strictObject({
    * 省略できる（版2のまま足した項目。無ければ、切り替えても今の職紋盤のまま）。
    */
   job_boards: z.record(id, z.array(id)).optional(),
+  /**
+   * サブジョブ（使っていないロードアウトだけ。使っているロードアウトの分は character.sub_job が正。docs/progress D-LOAD-1）。
+   * 省略できる（版の番号は上げない）。無ければサブジョブなし。
+   */
+  sub_job: id.optional(),
 });
 
 const commonFields = {
@@ -445,6 +451,8 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
                   Object.entries(l.jobBoards).map(([j, n]) => [j, [...n]]),
                 ),
               }),
+          // サブジョブなしは項目ごと省く（古いセーブと同じ形のまま。D-LOAD-1）
+          ...(l.subJob === undefined ? {} : { sub_job: l.subJob }),
         },
   );
   return {
@@ -661,6 +669,19 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
         jobBoards[jobId] = [...nodes];
       }
     }
+    // サブジョブ（使っていないロードアウトの分。D-LOAD-1）：character.sub_job と同じ規則（存在するジョブ・キャラLv25以上・
+    // そのロードアウトのメインジョブと違う・上位職でない）。使っているロードアウトの分は character.sub_job が正なので使わない
+    let subJob: string | undefined;
+    if (l.sub_job !== undefined && l.id !== data.active_loadout) {
+      const subId = l.sub_job;
+      const where = `ロードアウト ${String(l.id)} のサブジョブ ${subId}`;
+      const def = db.jobs.get(subId);
+      ref(def !== undefined, () => `${where} がデータに無い`);
+      ref(character.canSetSubJob, () => `キャラLvが ${String(c.level)} なのに、${where} がある`);
+      ref(subId !== l.main_job, () => `${where} が、そのロードアウトのメインジョブと同じ`);
+      ref(def?.advancedFrom === undefined, () => `${where} は上位職`);
+      subJob = subId;
+    }
     loadouts.push({
       id: l.id,
       name: l.name,
@@ -669,6 +690,7 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       starAllocation: [...l.star_allocation],
       extraEntries: [...l.extra_entries],
       ...(jobBoards === undefined ? {} : { jobBoards }),
+      ...(subJob === undefined ? {} : { subJob }),
     });
   }
   inventory.addGold(data.gold);
