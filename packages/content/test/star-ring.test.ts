@@ -218,7 +218,12 @@ describe("セーブの互換（docs/progress D-RING-2）", () => {
       fileURLToPath(new URL("./fixtures/star-board-before-ring8.json", import.meta.url)),
       "utf-8",
     ),
-  ) as { ids: string[]; links: [string, string][] };
+  ) as {
+    ids: string[];
+    links: [string, string][];
+    nodes: Record<string, { kind: string; region: string; effects: string[] }>;
+    effects: Record<string, unknown>;
+  };
 
   it("前からあったノード（star.json と star-mvp.json の旧ID）は、1つも減っていない", () => {
     expect(before.ids.length).toBe(146);
@@ -231,5 +236,22 @@ describe("セーブの互換（docs/progress D-RING-2）", () => {
       .map(([a, b]) => `${a}-${b}`)
       .sort();
     expect(removed).toEqual(["STAR-JIN-0202-STAR-RI-START", "STAR-JIN-0202-STAR-RIKON-START"]);
+  });
+
+  it("前からあったノードの種類・星域・効果の ID は、変わっていない", () => {
+    for (const [id, old] of Object.entries(before.nodes)) {
+      const now = db.starNodes.get(id);
+      expect(now?.kind, id).toBe(old.kind);
+      expect(now?.region, id).toBe(old.region);
+    }
+  });
+
+  it("前からあった星辰盤の効果（星の値）は、1つも変わっていない", () => {
+    const read = (file: string): { id: string }[] =>
+      JSON.parse(
+        readFileSync(fileURLToPath(new URL(`../data/effects/${file}`, import.meta.url)), "utf-8"),
+      ) as { id: string }[];
+    const now = new Map([...read("star.json"), ...read("star-mvp.json")].map((e) => [e.id, e]));
+    for (const [id, old] of Object.entries(before.effects)) expect(now.get(id), id).toEqual(old);
   });
 });

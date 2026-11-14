@@ -149,150 +149,2499 @@
     "STAR-VIPER-09"
   ],
   "links": [
-    ["STAR-GATE-BEAST", "STAR-JIN-0004"],
-    ["STAR-GATE-BEAST", "STAR-JIN-0101"],
-    ["STAR-GATE-BLADE", "STAR-GOU-0004"],
-    ["STAR-GATE-BLADE", "STAR-GOU-0101"],
-    ["STAR-GOU-0001", "STAR-GOU-0002"],
-    ["STAR-GOU-0001", "STAR-GOU-0201"],
-    ["STAR-GOU-0001", "STAR-GOU-START"],
-    ["STAR-GOU-0002", "STAR-GOU-0003"],
-    ["STAR-GOU-0002", "STAR-KEY-BURDEN"],
-    ["STAR-GOU-0003", "STAR-GOU-0004"],
-    ["STAR-GOU-0004", "STAR-GOUKON-START"],
-    ["STAR-GOU-0101", "STAR-GOU-0102"],
-    ["STAR-GOU-0102", "STAR-SM-BLADE-01"],
-    ["STAR-GOU-0201", "STAR-GOU-0202"],
-    ["STAR-GOU-0201", "STAR-KEY-BLOOD-PACT"],
-    ["STAR-GOU-0202", "STAR-SMITH-01"],
-    ["STAR-GOU-START", "STAR-GOUJIN-0001"],
-    ["STAR-GOUJIN-0001", "STAR-GOUJIN-0002"],
-    ["STAR-GOUJIN-0002", "STAR-GOUJIN-0003"],
-    ["STAR-GOUJIN-0003", "STAR-GOUJIN-0004"],
-    ["STAR-GOUJIN-0003", "STAR-KEY-BARE-HANDS"],
-    ["STAR-GOUJIN-0004", "STAR-GOUJIN-0005"],
-    ["STAR-GOUJIN-0005", "STAR-GOUJIN-0006"],
-    ["STAR-GOUJIN-0005", "STAR-TWIN-01"],
-    ["STAR-GOUJIN-0006", "STAR-GOUJIN-0007"],
-    ["STAR-GOUJIN-0007", "STAR-GOUJIN-0008"],
-    ["STAR-GOUJIN-0008", "STAR-GOUJIN-0009"],
-    ["STAR-GOUJIN-0009", "STAR-JIN-0011"],
-    ["STAR-GOUJIN-0009", "STAR-VANE-01"],
-    ["STAR-JIN-0001", "STAR-JIN-0002"],
-    ["STAR-JIN-0001", "STAR-JIN-0201"],
-    ["STAR-JIN-0001", "STAR-JIN-START"],
-    ["STAR-JIN-0002", "STAR-JIN-0003"],
-    ["STAR-JIN-0002", "STAR-NOTABLE-REOPEN"],
-    ["STAR-JIN-0003", "STAR-JIN-0004"],
-    ["STAR-JIN-0011", "STAR-JIN-0012"],
-    ["STAR-JIN-0011", "STAR-JIN-START"],
-    ["STAR-JIN-0012", "STAR-KEY-MYRIAD"],
-    ["STAR-JIN-0101", "STAR-JIN-0102"],
-    ["STAR-JIN-0102", "STAR-SM-BEAST-01"],
-    ["STAR-JIN-0201", "STAR-JIN-0202"],
-    ["STAR-JIN-0201", "STAR-JINRI-START"],
-    ["STAR-JIN-0201", "STAR-KEY-SHADOW-COPY"],
-    ["STAR-JIN-0202", "STAR-RI-START"],
-    ["STAR-JIN-0202", "STAR-RIKON-START"],
-    ["STAR-JIN-0202", "STAR-VIPER-01"],
-    ["STAR-MUT-BLOOD-BLADE", "STAR-SM-JIN-D-03"],
-    ["STAR-MUT-BLOOD-BLADE", "STAR-SM-JIN-E-01"],
-    ["STAR-MUT-HEAVY", "STAR-SM-GOU-C-03"],
-    ["STAR-NT-CORRODE", "STAR-SM-JIN-C-03"],
-    ["STAR-NT-CYCLE", "STAR-SM-GJ-B-03"],
-    ["STAR-NT-FOCUS", "STAR-SM-JIN-A-07"],
-    ["STAR-NT-FOCUS", "STAR-SM-JIN-D-01"],
-    ["STAR-NT-GALE", "STAR-SM-GJ-A-07"],
-    ["STAR-NT-GALE", "STAR-SM-GJ-C-01"],
-    ["STAR-NT-HUNT", "STAR-SM-BEAST-01"],
-    ["STAR-NT-IRON-SKIN", "STAR-SM-GOU-B-03"],
-    ["STAR-NT-LAYERS", "STAR-SM-GOU-D-06"],
-    ["STAR-NT-SEVERING", "STAR-SM-GOU-A-07"],
-    ["STAR-NT-SEVERING", "STAR-SM-GOU-D-01"],
-    ["STAR-NT-SHADOW-STEP", "STAR-SM-JIN-B-03"],
-    ["STAR-NT-SWORD-AURA", "STAR-SM-BLADE-01"],
-    ["STAR-NT-VESSEL-JIN", "STAR-SM-JIN-E-04"],
-    ["STAR-SHADOW-01", "STAR-SHADOW-02"],
-    ["STAR-SHADOW-01", "STAR-SM-JIN-A-03"],
-    ["STAR-SHADOW-02", "STAR-SHADOW-03"],
-    ["STAR-SHADOW-03", "STAR-SHADOW-04"],
-    ["STAR-SHADOW-04", "STAR-SHADOW-05"],
-    ["STAR-SHADOW-05", "STAR-SHADOW-06"],
-    ["STAR-SHADOW-06", "STAR-SHADOW-07"],
-    ["STAR-SM-GJ-A-01", "STAR-SM-GJ-A-02"],
-    ["STAR-SM-GJ-A-01", "STAR-TWIN-07"],
-    ["STAR-SM-GJ-A-02", "STAR-SM-GJ-A-03"],
-    ["STAR-SM-GJ-A-03", "STAR-SM-GJ-A-04"],
-    ["STAR-SM-GJ-A-04", "STAR-SM-GJ-A-05"],
-    ["STAR-SM-GJ-A-04", "STAR-SM-GJ-B-01"],
-    ["STAR-SM-GJ-A-05", "STAR-SM-GJ-A-06"],
-    ["STAR-SM-GJ-A-06", "STAR-SM-GJ-A-07"],
-    ["STAR-SM-GJ-B-01", "STAR-SM-GJ-B-02"],
-    ["STAR-SM-GJ-B-02", "STAR-SM-GJ-B-03"],
-    ["STAR-SM-GJ-C-01", "STAR-SM-GJ-C-02"],
-    ["STAR-SM-GJ-C-02", "STAR-SM-GJ-C-03"],
-    ["STAR-SM-GJ-C-03", "STAR-SM-GJ-C-04"],
-    ["STAR-SM-GOU-A-01", "STAR-SM-GOU-A-02"],
-    ["STAR-SM-GOU-A-01", "STAR-SMITH-08"],
-    ["STAR-SM-GOU-A-02", "STAR-SM-GOU-A-03"],
-    ["STAR-SM-GOU-A-03", "STAR-SM-GOU-A-04"],
-    ["STAR-SM-GOU-A-03", "STAR-SM-GOU-B-01"],
-    ["STAR-SM-GOU-A-04", "STAR-SM-GOU-A-05"],
-    ["STAR-SM-GOU-A-05", "STAR-SM-GOU-A-06"],
-    ["STAR-SM-GOU-A-06", "STAR-SM-GOU-A-07"],
-    ["STAR-SM-GOU-A-06", "STAR-SM-GOU-C-01"],
-    ["STAR-SM-GOU-B-01", "STAR-SM-GOU-B-02"],
-    ["STAR-SM-GOU-B-02", "STAR-SM-GOU-B-03"],
-    ["STAR-SM-GOU-C-01", "STAR-SM-GOU-C-02"],
-    ["STAR-SM-GOU-C-02", "STAR-SM-GOU-C-03"],
-    ["STAR-SM-GOU-D-01", "STAR-SM-GOU-D-02"],
-    ["STAR-SM-GOU-D-02", "STAR-SM-GOU-D-03"],
-    ["STAR-SM-GOU-D-03", "STAR-SM-GOU-D-04"],
-    ["STAR-SM-GOU-D-04", "STAR-SM-GOU-D-05"],
-    ["STAR-SM-GOU-D-05", "STAR-SM-GOU-D-06"],
-    ["STAR-SM-JIN-A-01", "STAR-SM-JIN-A-02"],
-    ["STAR-SM-JIN-A-01", "STAR-VIPER-09"],
-    ["STAR-SM-JIN-A-02", "STAR-SM-JIN-A-03"],
-    ["STAR-SM-JIN-A-02", "STAR-SM-JIN-B-01"],
-    ["STAR-SM-JIN-A-03", "STAR-SM-JIN-A-04"],
-    ["STAR-SM-JIN-A-04", "STAR-SM-JIN-A-05"],
-    ["STAR-SM-JIN-A-05", "STAR-SM-JIN-A-06"],
-    ["STAR-SM-JIN-A-05", "STAR-SM-JIN-C-01"],
-    ["STAR-SM-JIN-A-06", "STAR-SM-JIN-A-07"],
-    ["STAR-SM-JIN-B-01", "STAR-SM-JIN-B-02"],
-    ["STAR-SM-JIN-B-02", "STAR-SM-JIN-B-03"],
-    ["STAR-SM-JIN-C-01", "STAR-SM-JIN-C-02"],
-    ["STAR-SM-JIN-C-02", "STAR-SM-JIN-C-03"],
-    ["STAR-SM-JIN-D-01", "STAR-SM-JIN-D-02"],
-    ["STAR-SM-JIN-D-02", "STAR-SM-JIN-D-03"],
-    ["STAR-SM-JIN-E-01", "STAR-SM-JIN-E-02"],
-    ["STAR-SM-JIN-E-02", "STAR-SM-JIN-E-03"],
-    ["STAR-SM-JIN-E-03", "STAR-SM-JIN-E-04"],
-    ["STAR-SMITH-01", "STAR-SMITH-02"],
-    ["STAR-SMITH-02", "STAR-SMITH-03"],
-    ["STAR-SMITH-03", "STAR-SMITH-04"],
-    ["STAR-SMITH-04", "STAR-SMITH-05"],
-    ["STAR-SMITH-05", "STAR-SMITH-06"],
-    ["STAR-SMITH-06", "STAR-SMITH-07"],
-    ["STAR-SMITH-07", "STAR-SMITH-08"],
-    ["STAR-TWIN-01", "STAR-TWIN-02"],
-    ["STAR-TWIN-02", "STAR-TWIN-03"],
-    ["STAR-TWIN-03", "STAR-TWIN-04"],
-    ["STAR-TWIN-04", "STAR-TWIN-05"],
-    ["STAR-TWIN-05", "STAR-TWIN-06"],
-    ["STAR-TWIN-06", "STAR-TWIN-07"],
-    ["STAR-VANE-01", "STAR-VANE-02"],
-    ["STAR-VANE-02", "STAR-VANE-03"],
-    ["STAR-VANE-03", "STAR-VANE-04"],
-    ["STAR-VANE-04", "STAR-VANE-05"],
-    ["STAR-VANE-05", "STAR-VANE-06"],
-    ["STAR-VIPER-01", "STAR-VIPER-02"],
-    ["STAR-VIPER-02", "STAR-VIPER-03"],
-    ["STAR-VIPER-03", "STAR-VIPER-04"],
-    ["STAR-VIPER-04", "STAR-VIPER-05"],
-    ["STAR-VIPER-05", "STAR-VIPER-06"],
-    ["STAR-VIPER-06", "STAR-VIPER-07"],
-    ["STAR-VIPER-07", "STAR-VIPER-08"],
-    ["STAR-VIPER-08", "STAR-VIPER-09"]
-  ]
+    [
+      "STAR-GATE-BEAST",
+      "STAR-JIN-0004"
+    ],
+    [
+      "STAR-GATE-BEAST",
+      "STAR-JIN-0101"
+    ],
+    [
+      "STAR-GATE-BLADE",
+      "STAR-GOU-0004"
+    ],
+    [
+      "STAR-GATE-BLADE",
+      "STAR-GOU-0101"
+    ],
+    [
+      "STAR-GOU-0001",
+      "STAR-GOU-0002"
+    ],
+    [
+      "STAR-GOU-0001",
+      "STAR-GOU-0201"
+    ],
+    [
+      "STAR-GOU-0001",
+      "STAR-GOU-START"
+    ],
+    [
+      "STAR-GOU-0002",
+      "STAR-GOU-0003"
+    ],
+    [
+      "STAR-GOU-0002",
+      "STAR-KEY-BURDEN"
+    ],
+    [
+      "STAR-GOU-0003",
+      "STAR-GOU-0004"
+    ],
+    [
+      "STAR-GOU-0004",
+      "STAR-GOUKON-START"
+    ],
+    [
+      "STAR-GOU-0101",
+      "STAR-GOU-0102"
+    ],
+    [
+      "STAR-GOU-0102",
+      "STAR-SM-BLADE-01"
+    ],
+    [
+      "STAR-GOU-0201",
+      "STAR-GOU-0202"
+    ],
+    [
+      "STAR-GOU-0201",
+      "STAR-KEY-BLOOD-PACT"
+    ],
+    [
+      "STAR-GOU-0202",
+      "STAR-SMITH-01"
+    ],
+    [
+      "STAR-GOU-START",
+      "STAR-GOUJIN-0001"
+    ],
+    [
+      "STAR-GOUJIN-0001",
+      "STAR-GOUJIN-0002"
+    ],
+    [
+      "STAR-GOUJIN-0002",
+      "STAR-GOUJIN-0003"
+    ],
+    [
+      "STAR-GOUJIN-0003",
+      "STAR-GOUJIN-0004"
+    ],
+    [
+      "STAR-GOUJIN-0003",
+      "STAR-KEY-BARE-HANDS"
+    ],
+    [
+      "STAR-GOUJIN-0004",
+      "STAR-GOUJIN-0005"
+    ],
+    [
+      "STAR-GOUJIN-0005",
+      "STAR-GOUJIN-0006"
+    ],
+    [
+      "STAR-GOUJIN-0005",
+      "STAR-TWIN-01"
+    ],
+    [
+      "STAR-GOUJIN-0006",
+      "STAR-GOUJIN-0007"
+    ],
+    [
+      "STAR-GOUJIN-0007",
+      "STAR-GOUJIN-0008"
+    ],
+    [
+      "STAR-GOUJIN-0008",
+      "STAR-GOUJIN-0009"
+    ],
+    [
+      "STAR-GOUJIN-0009",
+      "STAR-JIN-0011"
+    ],
+    [
+      "STAR-GOUJIN-0009",
+      "STAR-VANE-01"
+    ],
+    [
+      "STAR-JIN-0001",
+      "STAR-JIN-0002"
+    ],
+    [
+      "STAR-JIN-0001",
+      "STAR-JIN-0201"
+    ],
+    [
+      "STAR-JIN-0001",
+      "STAR-JIN-START"
+    ],
+    [
+      "STAR-JIN-0002",
+      "STAR-JIN-0003"
+    ],
+    [
+      "STAR-JIN-0002",
+      "STAR-NOTABLE-REOPEN"
+    ],
+    [
+      "STAR-JIN-0003",
+      "STAR-JIN-0004"
+    ],
+    [
+      "STAR-JIN-0011",
+      "STAR-JIN-0012"
+    ],
+    [
+      "STAR-JIN-0011",
+      "STAR-JIN-START"
+    ],
+    [
+      "STAR-JIN-0012",
+      "STAR-KEY-MYRIAD"
+    ],
+    [
+      "STAR-JIN-0101",
+      "STAR-JIN-0102"
+    ],
+    [
+      "STAR-JIN-0102",
+      "STAR-SM-BEAST-01"
+    ],
+    [
+      "STAR-JIN-0201",
+      "STAR-JIN-0202"
+    ],
+    [
+      "STAR-JIN-0201",
+      "STAR-JINRI-START"
+    ],
+    [
+      "STAR-JIN-0201",
+      "STAR-KEY-SHADOW-COPY"
+    ],
+    [
+      "STAR-JIN-0202",
+      "STAR-RI-START"
+    ],
+    [
+      "STAR-JIN-0202",
+      "STAR-RIKON-START"
+    ],
+    [
+      "STAR-JIN-0202",
+      "STAR-VIPER-01"
+    ],
+    [
+      "STAR-MUT-BLOOD-BLADE",
+      "STAR-SM-JIN-D-03"
+    ],
+    [
+      "STAR-MUT-BLOOD-BLADE",
+      "STAR-SM-JIN-E-01"
+    ],
+    [
+      "STAR-MUT-HEAVY",
+      "STAR-SM-GOU-C-03"
+    ],
+    [
+      "STAR-NT-CORRODE",
+      "STAR-SM-JIN-C-03"
+    ],
+    [
+      "STAR-NT-CYCLE",
+      "STAR-SM-GJ-B-03"
+    ],
+    [
+      "STAR-NT-FOCUS",
+      "STAR-SM-JIN-A-07"
+    ],
+    [
+      "STAR-NT-FOCUS",
+      "STAR-SM-JIN-D-01"
+    ],
+    [
+      "STAR-NT-GALE",
+      "STAR-SM-GJ-A-07"
+    ],
+    [
+      "STAR-NT-GALE",
+      "STAR-SM-GJ-C-01"
+    ],
+    [
+      "STAR-NT-HUNT",
+      "STAR-SM-BEAST-01"
+    ],
+    [
+      "STAR-NT-IRON-SKIN",
+      "STAR-SM-GOU-B-03"
+    ],
+    [
+      "STAR-NT-LAYERS",
+      "STAR-SM-GOU-D-06"
+    ],
+    [
+      "STAR-NT-SEVERING",
+      "STAR-SM-GOU-A-07"
+    ],
+    [
+      "STAR-NT-SEVERING",
+      "STAR-SM-GOU-D-01"
+    ],
+    [
+      "STAR-NT-SHADOW-STEP",
+      "STAR-SM-JIN-B-03"
+    ],
+    [
+      "STAR-NT-SWORD-AURA",
+      "STAR-SM-BLADE-01"
+    ],
+    [
+      "STAR-NT-VESSEL-JIN",
+      "STAR-SM-JIN-E-04"
+    ],
+    [
+      "STAR-SHADOW-01",
+      "STAR-SHADOW-02"
+    ],
+    [
+      "STAR-SHADOW-01",
+      "STAR-SM-JIN-A-03"
+    ],
+    [
+      "STAR-SHADOW-02",
+      "STAR-SHADOW-03"
+    ],
+    [
+      "STAR-SHADOW-03",
+      "STAR-SHADOW-04"
+    ],
+    [
+      "STAR-SHADOW-04",
+      "STAR-SHADOW-05"
+    ],
+    [
+      "STAR-SHADOW-05",
+      "STAR-SHADOW-06"
+    ],
+    [
+      "STAR-SHADOW-06",
+      "STAR-SHADOW-07"
+    ],
+    [
+      "STAR-SM-GJ-A-01",
+      "STAR-SM-GJ-A-02"
+    ],
+    [
+      "STAR-SM-GJ-A-01",
+      "STAR-TWIN-07"
+    ],
+    [
+      "STAR-SM-GJ-A-02",
+      "STAR-SM-GJ-A-03"
+    ],
+    [
+      "STAR-SM-GJ-A-03",
+      "STAR-SM-GJ-A-04"
+    ],
+    [
+      "STAR-SM-GJ-A-04",
+      "STAR-SM-GJ-A-05"
+    ],
+    [
+      "STAR-SM-GJ-A-04",
+      "STAR-SM-GJ-B-01"
+    ],
+    [
+      "STAR-SM-GJ-A-05",
+      "STAR-SM-GJ-A-06"
+    ],
+    [
+      "STAR-SM-GJ-A-06",
+      "STAR-SM-GJ-A-07"
+    ],
+    [
+      "STAR-SM-GJ-B-01",
+      "STAR-SM-GJ-B-02"
+    ],
+    [
+      "STAR-SM-GJ-B-02",
+      "STAR-SM-GJ-B-03"
+    ],
+    [
+      "STAR-SM-GJ-C-01",
+      "STAR-SM-GJ-C-02"
+    ],
+    [
+      "STAR-SM-GJ-C-02",
+      "STAR-SM-GJ-C-03"
+    ],
+    [
+      "STAR-SM-GJ-C-03",
+      "STAR-SM-GJ-C-04"
+    ],
+    [
+      "STAR-SM-GOU-A-01",
+      "STAR-SM-GOU-A-02"
+    ],
+    [
+      "STAR-SM-GOU-A-01",
+      "STAR-SMITH-08"
+    ],
+    [
+      "STAR-SM-GOU-A-02",
+      "STAR-SM-GOU-A-03"
+    ],
+    [
+      "STAR-SM-GOU-A-03",
+      "STAR-SM-GOU-A-04"
+    ],
+    [
+      "STAR-SM-GOU-A-03",
+      "STAR-SM-GOU-B-01"
+    ],
+    [
+      "STAR-SM-GOU-A-04",
+      "STAR-SM-GOU-A-05"
+    ],
+    [
+      "STAR-SM-GOU-A-05",
+      "STAR-SM-GOU-A-06"
+    ],
+    [
+      "STAR-SM-GOU-A-06",
+      "STAR-SM-GOU-A-07"
+    ],
+    [
+      "STAR-SM-GOU-A-06",
+      "STAR-SM-GOU-C-01"
+    ],
+    [
+      "STAR-SM-GOU-B-01",
+      "STAR-SM-GOU-B-02"
+    ],
+    [
+      "STAR-SM-GOU-B-02",
+      "STAR-SM-GOU-B-03"
+    ],
+    [
+      "STAR-SM-GOU-C-01",
+      "STAR-SM-GOU-C-02"
+    ],
+    [
+      "STAR-SM-GOU-C-02",
+      "STAR-SM-GOU-C-03"
+    ],
+    [
+      "STAR-SM-GOU-D-01",
+      "STAR-SM-GOU-D-02"
+    ],
+    [
+      "STAR-SM-GOU-D-02",
+      "STAR-SM-GOU-D-03"
+    ],
+    [
+      "STAR-SM-GOU-D-03",
+      "STAR-SM-GOU-D-04"
+    ],
+    [
+      "STAR-SM-GOU-D-04",
+      "STAR-SM-GOU-D-05"
+    ],
+    [
+      "STAR-SM-GOU-D-05",
+      "STAR-SM-GOU-D-06"
+    ],
+    [
+      "STAR-SM-JIN-A-01",
+      "STAR-SM-JIN-A-02"
+    ],
+    [
+      "STAR-SM-JIN-A-01",
+      "STAR-VIPER-09"
+    ],
+    [
+      "STAR-SM-JIN-A-02",
+      "STAR-SM-JIN-A-03"
+    ],
+    [
+      "STAR-SM-JIN-A-02",
+      "STAR-SM-JIN-B-01"
+    ],
+    [
+      "STAR-SM-JIN-A-03",
+      "STAR-SM-JIN-A-04"
+    ],
+    [
+      "STAR-SM-JIN-A-04",
+      "STAR-SM-JIN-A-05"
+    ],
+    [
+      "STAR-SM-JIN-A-05",
+      "STAR-SM-JIN-A-06"
+    ],
+    [
+      "STAR-SM-JIN-A-05",
+      "STAR-SM-JIN-C-01"
+    ],
+    [
+      "STAR-SM-JIN-A-06",
+      "STAR-SM-JIN-A-07"
+    ],
+    [
+      "STAR-SM-JIN-B-01",
+      "STAR-SM-JIN-B-02"
+    ],
+    [
+      "STAR-SM-JIN-B-02",
+      "STAR-SM-JIN-B-03"
+    ],
+    [
+      "STAR-SM-JIN-C-01",
+      "STAR-SM-JIN-C-02"
+    ],
+    [
+      "STAR-SM-JIN-C-02",
+      "STAR-SM-JIN-C-03"
+    ],
+    [
+      "STAR-SM-JIN-D-01",
+      "STAR-SM-JIN-D-02"
+    ],
+    [
+      "STAR-SM-JIN-D-02",
+      "STAR-SM-JIN-D-03"
+    ],
+    [
+      "STAR-SM-JIN-E-01",
+      "STAR-SM-JIN-E-02"
+    ],
+    [
+      "STAR-SM-JIN-E-02",
+      "STAR-SM-JIN-E-03"
+    ],
+    [
+      "STAR-SM-JIN-E-03",
+      "STAR-SM-JIN-E-04"
+    ],
+    [
+      "STAR-SMITH-01",
+      "STAR-SMITH-02"
+    ],
+    [
+      "STAR-SMITH-02",
+      "STAR-SMITH-03"
+    ],
+    [
+      "STAR-SMITH-03",
+      "STAR-SMITH-04"
+    ],
+    [
+      "STAR-SMITH-04",
+      "STAR-SMITH-05"
+    ],
+    [
+      "STAR-SMITH-05",
+      "STAR-SMITH-06"
+    ],
+    [
+      "STAR-SMITH-06",
+      "STAR-SMITH-07"
+    ],
+    [
+      "STAR-SMITH-07",
+      "STAR-SMITH-08"
+    ],
+    [
+      "STAR-TWIN-01",
+      "STAR-TWIN-02"
+    ],
+    [
+      "STAR-TWIN-02",
+      "STAR-TWIN-03"
+    ],
+    [
+      "STAR-TWIN-03",
+      "STAR-TWIN-04"
+    ],
+    [
+      "STAR-TWIN-04",
+      "STAR-TWIN-05"
+    ],
+    [
+      "STAR-TWIN-05",
+      "STAR-TWIN-06"
+    ],
+    [
+      "STAR-TWIN-06",
+      "STAR-TWIN-07"
+    ],
+    [
+      "STAR-VANE-01",
+      "STAR-VANE-02"
+    ],
+    [
+      "STAR-VANE-02",
+      "STAR-VANE-03"
+    ],
+    [
+      "STAR-VANE-03",
+      "STAR-VANE-04"
+    ],
+    [
+      "STAR-VANE-04",
+      "STAR-VANE-05"
+    ],
+    [
+      "STAR-VANE-05",
+      "STAR-VANE-06"
+    ],
+    [
+      "STAR-VIPER-01",
+      "STAR-VIPER-02"
+    ],
+    [
+      "STAR-VIPER-02",
+      "STAR-VIPER-03"
+    ],
+    [
+      "STAR-VIPER-03",
+      "STAR-VIPER-04"
+    ],
+    [
+      "STAR-VIPER-04",
+      "STAR-VIPER-05"
+    ],
+    [
+      "STAR-VIPER-05",
+      "STAR-VIPER-06"
+    ],
+    [
+      "STAR-VIPER-06",
+      "STAR-VIPER-07"
+    ],
+    [
+      "STAR-VIPER-07",
+      "STAR-VIPER-08"
+    ],
+    [
+      "STAR-VIPER-08",
+      "STAR-VIPER-09"
+    ]
+  ],
+  "nodes": {
+    "STAR-GATE-BEAST": {
+      "kind": "gate",
+      "region": "jin",
+      "effects": []
+    },
+    "STAR-GATE-BLADE": {
+      "kind": "gate",
+      "region": "gou",
+      "effects": []
+    },
+    "STAR-GOU-0001": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GO-10"
+      ]
+    },
+    "STAR-GOU-0002": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOU-0003": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GO-10"
+      ]
+    },
+    "STAR-GOU-0004": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOU-0101": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GO-10"
+      ]
+    },
+    "STAR-GOU-0102": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GO-10"
+      ]
+    },
+    "STAR-GOU-0201": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GO-10"
+      ]
+    },
+    "STAR-GOU-0202": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOU-START": {
+      "kind": "start",
+      "region": "gou",
+      "effects": []
+    },
+    "STAR-GOUJIN-0001": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUJIN-0002": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUJIN-0003": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUJIN-0004": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUJIN-0005": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUJIN-0006": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUJIN-0007": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUJIN-0008": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUJIN-0009": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-GOUKON-START": {
+      "kind": "start",
+      "region": "goukon",
+      "effects": []
+    },
+    "STAR-JIN-0001": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-JIN-10"
+      ]
+    },
+    "STAR-JIN-0002": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-JIN-0003": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-JIN-10"
+      ]
+    },
+    "STAR-JIN-0004": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-JIN-0011": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-JIN-10"
+      ]
+    },
+    "STAR-JIN-0012": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-JIN-10"
+      ]
+    },
+    "STAR-JIN-0101": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-JIN-0102": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-JIN-0201": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-JIN-0202": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-JIN-START": {
+      "kind": "start",
+      "region": "jin",
+      "effects": []
+    },
+    "STAR-JINRI-START": {
+      "kind": "start",
+      "region": "jinri",
+      "effects": []
+    },
+    "STAR-KEY-BARE-HANDS": {
+      "kind": "keystone",
+      "region": "goujin",
+      "effects": [
+        "EFF-KEY-BARE-HANDS"
+      ]
+    },
+    "STAR-KEY-BLOOD-PACT": {
+      "kind": "keystone",
+      "region": "gou",
+      "effects": [
+        "EFF-KEY-BLOOD-PACT"
+      ]
+    },
+    "STAR-KEY-BURDEN": {
+      "kind": "keystone",
+      "region": "gou",
+      "effects": [
+        "EFF-KEY-BURDEN",
+        "EFF-KEY-BURDEN-IMMUNE"
+      ]
+    },
+    "STAR-KEY-MYRIAD": {
+      "kind": "keystone",
+      "region": "jin",
+      "effects": [
+        "EFF-KEY-MYRIAD"
+      ]
+    },
+    "STAR-KEY-SHADOW-COPY": {
+      "kind": "keystone",
+      "region": "jin",
+      "effects": [
+        "EFF-KEY-SHADOW-COPY"
+      ]
+    },
+    "STAR-MUT-BLOOD-BLADE": {
+      "kind": "mutation",
+      "region": "jin",
+      "effects": [
+        "EFF-MUT-BLOOD-BLADE"
+      ]
+    },
+    "STAR-MUT-HEAVY": {
+      "kind": "mutation",
+      "region": "gou",
+      "effects": [
+        "EFF-MUT-HEAVY"
+      ]
+    },
+    "STAR-NOTABLE-REOPEN": {
+      "kind": "notable",
+      "region": "jin",
+      "effects": [
+        "EFF-NOTABLE-REOPEN"
+      ]
+    },
+    "STAR-NT-CORRODE": {
+      "kind": "notable",
+      "region": "jin",
+      "effects": [
+        "EFF-NT-CORRODE"
+      ]
+    },
+    "STAR-NT-CYCLE": {
+      "kind": "notable",
+      "region": "goujin",
+      "effects": [
+        "EFF-NT-CYCLE"
+      ]
+    },
+    "STAR-NT-FOCUS": {
+      "kind": "notable",
+      "region": "jin",
+      "effects": [
+        "EFF-NT-FOCUS"
+      ]
+    },
+    "STAR-NT-GALE": {
+      "kind": "notable",
+      "region": "goujin",
+      "effects": [
+        "EFF-NT-GALE"
+      ]
+    },
+    "STAR-NT-HUNT": {
+      "kind": "notable",
+      "region": "jin",
+      "effects": [
+        "EFF-NT-HUNT"
+      ]
+    },
+    "STAR-NT-IRON-SKIN": {
+      "kind": "notable",
+      "region": "gou",
+      "effects": [
+        "EFF-NT-IRON-SKIN"
+      ]
+    },
+    "STAR-NT-LAYERS": {
+      "kind": "notable",
+      "region": "gou",
+      "effects": [
+        "EFF-NT-LAYERS"
+      ]
+    },
+    "STAR-NT-SEVERING": {
+      "kind": "notable",
+      "region": "gou",
+      "effects": [
+        "EFF-NT-SEVERING"
+      ]
+    },
+    "STAR-NT-SHADOW-STEP": {
+      "kind": "notable",
+      "region": "jin",
+      "effects": [
+        "EFF-NT-SHADOW-STEP"
+      ]
+    },
+    "STAR-NT-SWORD-AURA": {
+      "kind": "notable",
+      "region": "gou",
+      "effects": [
+        "EFF-NT-SWORD-AURA"
+      ]
+    },
+    "STAR-NT-VESSEL-JIN": {
+      "kind": "notable",
+      "region": "jin",
+      "effects": [
+        "EFF-NT-VESSEL"
+      ]
+    },
+    "STAR-RI-START": {
+      "kind": "start",
+      "region": "ri",
+      "effects": []
+    },
+    "STAR-RIKON-START": {
+      "kind": "start",
+      "region": "rikon",
+      "effects": []
+    },
+    "STAR-SHADOW-01": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-SHADOW-BACKSTAB"
+      ]
+    },
+    "STAR-SHADOW-02": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-SHADOW-BACKSTAB"
+      ]
+    },
+    "STAR-SHADOW-03": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-SHADOW-BACKSTAB"
+      ]
+    },
+    "STAR-SHADOW-04": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-SHADOW-BACKSTAB"
+      ]
+    },
+    "STAR-SHADOW-05": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-SHADOW-BACKSTAB"
+      ]
+    },
+    "STAR-SHADOW-06": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-SHADOW-BACKSTAB"
+      ]
+    },
+    "STAR-SHADOW-07": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-SHADOW-BACKSTAB"
+      ]
+    },
+    "STAR-SM-BEAST-01": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-CRIT"
+      ]
+    },
+    "STAR-SM-BLADE-01": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-MELEE"
+      ]
+    },
+    "STAR-SM-GJ-A-01": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-SM-GJ-MOVE"
+      ]
+    },
+    "STAR-SM-GJ-A-02": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-SM-GJ-A-03": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-SM-GJ-A-04": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-SM-GJ-MOVE"
+      ]
+    },
+    "STAR-SM-GJ-A-05": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-SM-GJ-A-06": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-SM-GJ-A-07": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-SM-GJ-MOVE"
+      ]
+    },
+    "STAR-SM-GJ-B-01": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-SM-GJ-B-02": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-SM-GJ-MOVE"
+      ]
+    },
+    "STAR-SM-GJ-B-03": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-SM-GJ-C-01": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-SM-GJ-C-02": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-SM-GJ-MOVE"
+      ]
+    },
+    "STAR-SM-GJ-C-03": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-GOJIN-5"
+      ]
+    },
+    "STAR-SM-GJ-C-04": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-SM-GOU-A-01": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-HP"
+      ]
+    },
+    "STAR-SM-GOU-A-02": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-MELEE"
+      ]
+    },
+    "STAR-SM-GOU-A-03": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-ARMOR"
+      ]
+    },
+    "STAR-SM-GOU-A-04": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-STAGGER"
+      ]
+    },
+    "STAR-SM-GOU-A-05": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GO-10"
+      ]
+    },
+    "STAR-SM-GOU-A-06": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-HP"
+      ]
+    },
+    "STAR-SM-GOU-A-07": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-MELEE"
+      ]
+    },
+    "STAR-SM-GOU-B-01": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-ARMOR"
+      ]
+    },
+    "STAR-SM-GOU-B-02": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-HP"
+      ]
+    },
+    "STAR-SM-GOU-B-03": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-ARMOR"
+      ]
+    },
+    "STAR-SM-GOU-C-01": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-STAGGER"
+      ]
+    },
+    "STAR-SM-GOU-C-02": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-MELEE"
+      ]
+    },
+    "STAR-SM-GOU-C-03": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-STAGGER"
+      ]
+    },
+    "STAR-SM-GOU-D-01": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-HP"
+      ]
+    },
+    "STAR-SM-GOU-D-02": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-ARMOR"
+      ]
+    },
+    "STAR-SM-GOU-D-03": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-GO-10"
+      ]
+    },
+    "STAR-SM-GOU-D-04": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-MELEE"
+      ]
+    },
+    "STAR-SM-GOU-D-05": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-HP"
+      ]
+    },
+    "STAR-SM-GOU-D-06": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-SM-GOU-ARMOR"
+      ]
+    },
+    "STAR-SM-JIN-A-01": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-CRIT"
+      ]
+    },
+    "STAR-SM-JIN-A-02": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-POISON"
+      ]
+    },
+    "STAR-SM-JIN-A-03": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-SPEED"
+      ]
+    },
+    "STAR-SM-JIN-A-04": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-SM-JIN-A-05": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-EVASION"
+      ]
+    },
+    "STAR-SM-JIN-A-06": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-CRIT"
+      ]
+    },
+    "STAR-SM-JIN-A-07": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-POISON"
+      ]
+    },
+    "STAR-SM-JIN-B-01": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-EVASION"
+      ]
+    },
+    "STAR-SM-JIN-B-02": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-SPEED"
+      ]
+    },
+    "STAR-SM-JIN-B-03": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-EVASION"
+      ]
+    },
+    "STAR-SM-JIN-C-01": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-POISON"
+      ]
+    },
+    "STAR-SM-JIN-C-02": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-SM-JIN-C-03": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-POISON"
+      ]
+    },
+    "STAR-SM-JIN-D-01": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-BLEED-6"
+      ]
+    },
+    "STAR-SM-JIN-D-02": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-CRIT"
+      ]
+    },
+    "STAR-SM-JIN-D-03": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-JIN-10"
+      ]
+    },
+    "STAR-SM-JIN-E-01": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-SPEED"
+      ]
+    },
+    "STAR-SM-JIN-E-02": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-EVASION"
+      ]
+    },
+    "STAR-SM-JIN-E-03": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-JIN-10"
+      ]
+    },
+    "STAR-SM-JIN-E-04": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-SM-JIN-SPEED"
+      ]
+    },
+    "STAR-SMITH-01": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-SMITH-ARMOR"
+      ]
+    },
+    "STAR-SMITH-02": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-SMITH-WEAPON"
+      ]
+    },
+    "STAR-SMITH-03": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-SMITH-ARMOR"
+      ]
+    },
+    "STAR-SMITH-04": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-SMITH-WEAPON"
+      ]
+    },
+    "STAR-SMITH-05": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-SMITH-ARMOR"
+      ]
+    },
+    "STAR-SMITH-06": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-SMITH-WEAPON"
+      ]
+    },
+    "STAR-SMITH-07": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-SMITH-ARMOR"
+      ]
+    },
+    "STAR-SMITH-08": {
+      "kind": "minor",
+      "region": "gou",
+      "effects": [
+        "EFF-STAR-SMITH-WEAPON"
+      ]
+    },
+    "STAR-TWIN-01": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-TWIN-02": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-TWIN-03": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-TWIN-04": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-TWIN-05": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-TWIN-06": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-TWIN-07": {
+      "kind": "minor",
+      "region": "goujin",
+      "effects": [
+        "EFF-STAR-TWIN-SPEED"
+      ]
+    },
+    "STAR-VANE-01": {
+      "kind": "minor",
+      "region": "jinri",
+      "effects": [
+        "EFF-STAR-VANE-MOVE"
+      ]
+    },
+    "STAR-VANE-02": {
+      "kind": "minor",
+      "region": "jinri",
+      "effects": [
+        "EFF-STAR-VANE-MOVE"
+      ]
+    },
+    "STAR-VANE-03": {
+      "kind": "minor",
+      "region": "jinri",
+      "effects": [
+        "EFF-STAR-VANE-MOVE"
+      ]
+    },
+    "STAR-VANE-04": {
+      "kind": "minor",
+      "region": "jinri",
+      "effects": [
+        "EFF-STAR-VANE-MOVE"
+      ]
+    },
+    "STAR-VANE-05": {
+      "kind": "minor",
+      "region": "jinri",
+      "effects": [
+        "EFF-STAR-VANE-MOVE"
+      ]
+    },
+    "STAR-VANE-06": {
+      "kind": "minor",
+      "region": "jinri",
+      "effects": [
+        "EFF-STAR-VANE-MOVE"
+      ]
+    },
+    "STAR-VIPER-01": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DMG"
+      ]
+    },
+    "STAR-VIPER-02": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DUR"
+      ]
+    },
+    "STAR-VIPER-03": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DMG"
+      ]
+    },
+    "STAR-VIPER-04": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DUR"
+      ]
+    },
+    "STAR-VIPER-05": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DMG"
+      ]
+    },
+    "STAR-VIPER-06": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DUR"
+      ]
+    },
+    "STAR-VIPER-07": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DMG"
+      ]
+    },
+    "STAR-VIPER-08": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DUR"
+      ]
+    },
+    "STAR-VIPER-09": {
+      "kind": "minor",
+      "region": "jin",
+      "effects": [
+        "EFF-STAR-VIPER-DMG"
+      ]
+    }
+  },
+  "effects": {
+    "EFF-KEY-BARE-HANDS": {
+      "id": "EFF-KEY-BARE-HANDS",
+      "origin": "keystone",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-KEY-BARE-HANDS",
+          "value": 1
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-KEY-BARE-HANDS-MAX",
+          "value": 30
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "conditions": [
+        {
+          "type": "factAtLeast",
+          "fact": "mainHand.empty",
+          "value": 1
+        }
+      ],
+      "provisional": true,
+      "provisionalNote": "素手の基礎ダメージと副手の2倍は、能力値の計算のルールフック（docs/progress D-STAR-7）。素手の最大ダメージの上限（STAT-KEY-BARE-HANDS-MAX。仕様書に無い。docs/progress D-FIN-5）"
+    },
+    "EFF-KEY-BLOOD-PACT": {
+      "id": "EFF-KEY-BLOOD-PACT",
+      "origin": "keystone",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-KEY-BLOOD-PACT",
+          "value": 1.5
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-HP-RECOVERY",
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "コストの支払いはゲームのルールフック（docs/progress D-STAR-6）"
+    },
+    "EFF-KEY-BURDEN": {
+      "id": "EFF-KEY-BURDEN",
+      "origin": "keystone",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-MOVE-SPEED",
+          "value": -0.12
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self"
+    },
+    "EFF-KEY-BURDEN-IMMUNE": {
+      "id": "EFF-KEY-BURDEN-IMMUNE",
+      "origin": "keystone",
+      "modifiers": [
+        {
+          "kind": "flag",
+          "flag": "beStaggered",
+          "mode": "forbid"
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "conditions": [
+        {
+          "type": "factAtLeast",
+          "fact": "armor.heavy.count",
+          "value": 4
+        }
+      ]
+    },
+    "EFF-KEY-MYRIAD": {
+      "id": "EFF-KEY-MYRIAD",
+      "origin": "keystone",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-KEY-CRITICAL",
+          "value": 0.6
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "臨界はゲームのルールフック（docs/progress D-STAR-8）"
+    },
+    "EFF-KEY-SHADOW-COPY": {
+      "id": "EFF-KEY-SHADOW-COPY",
+      "origin": "keystone",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-KEY-SHADOW-DELAY",
+          "value": 0.35
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "遅延はゲームのルールフック（docs/progress D-STAR-9）"
+    },
+    "EFF-MUT-BLOOD-BLADE": {
+      "id": "EFF-MUT-BLOOD-BLADE",
+      "origin": "mutation",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-MUT-BLOOD-BLADE",
+          "value": 1
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-AILMENT-DAMAGE",
+          "value": -0.3,
+          "filter": {
+            "allOf": [
+              "TAG-AIL-BLEED"
+            ]
+          }
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.6「血の刃」。「出血の持続ダメージそのものは減る」の量は記載が無いので -30%（docs/progress D-STAR-13）"
+    },
+    "EFF-MUT-HEAVY": {
+      "id": "EFF-MUT-HEAVY",
+      "origin": "mutation",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-STAGGER",
+          "value": 0.6,
+          "filter": {
+            "allOf": [
+              "TAG-FORM-MELEE"
+            ]
+          }
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-DAMAGE",
+          "value": 0.3,
+          "filter": {
+            "allOf": [
+              "TAG-FORM-MELEE"
+            ]
+          }
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-ATTACK-SPEED",
+          "value": -0.3
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-MUT-HEAVY",
+          "value": 1
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.6「重撃化」。近接の技は重撃のタグを得る（闘志の獲得）。攻撃速度-30%は全ての攻撃に"
+    },
+    "EFF-NOTABLE-REOPEN": {
+      "id": "EFF-NOTABLE-REOPEN",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-NOTABLE-REOPEN",
+          "value": 1
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "延長はゲームのルールフック"
+    },
+    "EFF-NT-CORRODE": {
+      "id": "EFF-NT-CORRODE",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-NT-CORRODE",
+          "value": 0.1
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+    },
+    "EFF-NT-CYCLE": {
+      "id": "EFF-NT-CYCLE",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-NT-CYCLE",
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+    },
+    "EFF-NT-FOCUS": {
+      "id": "EFF-NT-FOCUS",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-NT-FOCUS",
+          "value": 0.4
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+    },
+    "EFF-NT-GALE": {
+      "id": "EFF-NT-GALE",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-MOVE-SPEED",
+          "value": 0.08
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-NT-GALE",
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+    },
+    "EFF-NT-HUNT": {
+      "id": "EFF-NT-HUNT",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-NT-HUNT",
+          "value": 0.25
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+    },
+    "EFF-NT-IRON-SKIN": {
+      "id": "EFF-NT-IRON-SKIN",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-ARMOR",
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5。「ガード中は崩されない」はガードの操作が無いので省く"
+    },
+    "EFF-NT-LAYERS": {
+      "id": "EFF-NT-LAYERS",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-ARMOR",
+          "value": 0.15
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-EVASION",
+          "value": 0.15
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-WARD-MAX",
+          "value": 0.15
+        }
+      ],
+      "conditions": [
+        {
+          "type": "factAtLeast",
+          "fact": "armor.heavy.count",
+          "value": 1
+        },
+        {
+          "type": "factAtLeast",
+          "fact": "armor.light.count",
+          "value": 1
+        },
+        {
+          "type": "factAtLeast",
+          "fact": "armor.robe.count",
+          "value": 1
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5「重ね着の妙」：重装・軽装・法衣を全て装備していると、全防御+15%"
+    },
+    "EFF-NT-SEVERING": {
+      "id": "EFF-NT-SEVERING",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-DAMAGE",
+          "value": 0.2,
+          "filter": {
+            "allOf": [
+              "TAG-FORM-MELEE"
+            ]
+          }
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-NT-BROKEN-MELEE",
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+    },
+    "EFF-NT-SHADOW-STEP": {
+      "id": "EFF-NT-SHADOW-STEP",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-NT-SHADOW-STEP",
+          "value": 0.25
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+    },
+    "EFF-NT-SWORD-AURA": {
+      "id": "EFF-NT-SWORD-AURA",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-NT-SWORD-AURA",
+          "value": 0.1
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5・4.6・4.9 の効果。挙動はゲームのルールフック（docs/progress D-STAR-13）"
+    },
+    "EFF-NT-VESSEL": {
+      "id": "EFF-NT-VESSEL",
+      "origin": "notableStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-NT-VESSEL",
+          "value": 0.1
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.5「星の器」：この星域の共鳴紋の効果の上限+10%（40% → 50%）。盤の評価で扱う"
+    },
+    "EFF-SM-GJ-MOVE": {
+      "id": "EFF-SM-GJ-MOVE",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-MOVE-SPEED",
+          "value": 0.02
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-EVASION",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-SM-GOU-ARMOR": {
+      "id": "EFF-SM-GOU-ARMOR",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-ARMOR",
+          "value": 0.06
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-HP-MAX",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-SM-GOU-HP": {
+      "id": "EFF-SM-GOU-HP",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-HP-MAX",
+          "value": 12
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-ARMOR",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-SM-GOU-MELEE": {
+      "id": "EFF-SM-GOU-MELEE",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-DAMAGE",
+          "value": 0.06,
+          "filter": {
+            "allOf": [
+              "TAG-FORM-MELEE"
+            ]
+          }
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-SM-GOU-STAGGER": {
+      "id": "EFF-SM-GOU-STAGGER",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-STAGGER",
+          "value": 0.08
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-DAMAGE",
+          "value": 0.02,
+          "filter": {
+            "allOf": [
+              "TAG-FORM-MELEE"
+            ]
+          }
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-SM-JIN-CRIT": {
+      "id": "EFF-SM-JIN-CRIT",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-CRIT-CHANCE",
+          "value": 0.08
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-CRIT-MULTIPLIER",
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-SM-JIN-EVASION": {
+      "id": "EFF-SM-JIN-EVASION",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-EVASION",
+          "value": 0.06
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-MOVE-SPEED",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-SM-JIN-POISON": {
+      "id": "EFF-SM-JIN-POISON",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-AILMENT-DAMAGE",
+          "value": 0.06,
+          "filter": {
+            "allOf": [
+              "TAG-AIL-POISON"
+            ]
+          }
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-AILMENT-DURATION",
+          "value": 0.3,
+          "filter": {
+            "allOf": [
+              "TAG-AIL-POISON"
+            ]
+          }
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-SM-JIN-SPEED": {
+      "id": "EFF-SM-JIN-SPEED",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-ATTACK-SPEED",
+          "value": 0.03
+        },
+        {
+          "kind": "increased",
+          "stat": "STAT-MOVE-SPEED",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "小星の値は、仕様書v0.2 4.3・4.4 の例の大きさに合わせた仮値（docs/progress D-STAR-12）"
+    },
+    "EFF-STAR-BLEED-6": {
+      "id": "EFF-STAR-BLEED-6",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-AILMENT-DAMAGE",
+          "value": 0.06,
+          "filter": {
+            "allOf": [
+              "TAG-AIL-BLEED"
+            ]
+          }
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-AILMENT-DURATION",
+          "value": 0.3,
+          "filter": {
+            "allOf": [
+              "TAG-AIL-BLEED"
+            ]
+          }
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": true
+      },
+      "scope": "self"
+    },
+    "EFF-STAR-GO-10": {
+      "id": "EFF-STAR-GO-10",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-ATTR-GO",
+          "value": 10
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self"
+    },
+    "EFF-STAR-GOJIN-5": {
+      "id": "EFF-STAR-GOJIN-5",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-ATTR-GO",
+          "value": 5
+        },
+        {
+          "kind": "added",
+          "stat": "STAT-ATTR-JIN",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self"
+    },
+    "EFF-STAR-JIN-10": {
+      "id": "EFF-STAR-JIN-10",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-ATTR-JIN",
+          "value": 10
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self"
+    },
+    "EFF-STAR-SHADOW-BACKSTAB": {
+      "id": "EFF-STAR-SHADOW-BACKSTAB",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-BACKSTAB-CRIT",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "仕様書v0.2 4.4 の影法師座の小星の値（docs/progress D-FIN-3）"
+    },
+    "EFF-STAR-SMITH-ARMOR": {
+      "id": "EFF-STAR-SMITH-ARMOR",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-ARMOR",
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self"
+    },
+    "EFF-STAR-SMITH-WEAPON": {
+      "id": "EFF-STAR-SMITH-WEAPON",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-DAMAGE",
+          "value": 0.05,
+          "filter": {
+            "allOf": [
+              "TAG-ELEM-PHYSICAL"
+            ]
+          }
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "「武器の物理ダメージ+5%」を、物理ダメージ+5%（全体）として扱う（docs/progress D-STAR-11）"
+    },
+    "EFF-STAR-TWIN-SPEED": {
+      "id": "EFF-STAR-TWIN-SPEED",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-ATTACK-SPEED",
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "conditions": [
+        {
+          "type": "factAtLeast",
+          "fact": "dualWield",
+          "value": 1
+        }
+      ]
+    },
+    "EFF-STAR-VANE-MOVE": {
+      "id": "EFF-STAR-VANE-MOVE",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-MOVE-SPEED",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "hit": false,
+        "ailmentBase": false
+      },
+      "scope": "self",
+      "provisional": true,
+      "provisionalNote": "投射物速度の小星は、MVPにプレイヤーの投射物が無いので移動速度にした（docs/progress D-STAR-3）"
+    },
+    "EFF-STAR-VIPER-DMG": {
+      "id": "EFF-STAR-VIPER-DMG",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "increased",
+          "stat": "STAT-AILMENT-DAMAGE",
+          "value": 0.08,
+          "filter": {
+            "allOf": [
+              "TAG-AIL-POISON"
+            ]
+          }
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self"
+    },
+    "EFF-STAR-VIPER-DUR": {
+      "id": "EFF-STAR-VIPER-DUR",
+      "origin": "minorStar",
+      "modifiers": [
+        {
+          "kind": "added",
+          "stat": "STAT-AILMENT-DURATION",
+          "value": 0.2,
+          "filter": {
+            "allOf": [
+              "TAG-AIL-POISON"
+            ]
+          }
+        }
+      ],
+      "affects": {
+        "hit": true,
+        "ailmentBase": true
+      },
+      "scope": "self"
+    }
+  }
 }
