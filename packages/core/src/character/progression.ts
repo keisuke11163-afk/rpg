@@ -1,11 +1,31 @@
 import type { JobDef } from "../content/job.ts";
 import type { EffectInstance } from "../effects/evaluate.ts";
 
-/** MVPのキャラLv・ジョブLvの上限（補助仕様書4.1・4.3）。 */
-export const LEVEL_CAP = 20;
-export const JOB_LEVEL_CAP = 20;
+/**
+ * キャラLv・ジョブLvの上限（補助仕様書4.1・4.3）。MVPは20だったが、サブジョブ（キャラLv25で開く。仕様書v0.2 5.1）の
+ * ために25に上げた（docs/progress D-SUB-1）。経験値の式・技レベル・標準HPはLvの式なので、そのまま動く。
+ */
+export const LEVEL_CAP = 25;
+export const JOB_LEVEL_CAP = 25;
 /** 転職神殿が開くキャラLv（仕様書5.1）。 */
 export const JOB_CHANGE_LEVEL = 15;
+/** サブジョブが開くキャラLv（仕様書v0.2 5.1）。 */
+export const SUB_JOB_LEVEL = 25;
+
+/**
+ * サブジョブを設定できない理由（仕様書v0.2 5.1・docs/progress D-SUB-5）。
+ * - level：キャラLvが足りない（{@link SUB_JOB_LEVEL} 未満）
+ * - sameAsMain：メインジョブと同じジョブ
+ * - advanced：上位職・混成職（ジョブ定義の advancedFrom がある。サブジョブは基本職だけ）
+ */
+export type SubJobBlock = "level" | "sameAsMain" | "advanced";
+
+/** サブジョブを設定できない理由の、表示の文章のキー（packages/content/text/ja.json）。 */
+export const SUB_JOB_BLOCK_TEXT: Readonly<Record<SubJobBlock, string>> = {
+  level: "subjob.block.level",
+  sameAsMain: "subjob.block.same-as-main",
+  advanced: "subjob.block.advanced",
+};
 /** 追いつき補正（仕様書5.1）：最も高いジョブLv－10 未満のジョブは、ジョブ経験値×2。 */
 export const CATCH_UP = { gap: 10, multiplier: 2 } as const;
 
@@ -124,6 +144,11 @@ export interface CharacterInit {
   readonly jobXp?: Readonly<Record<string, number>>;
   /** メインジョブ（省略で出自。セーブデータから戻すとき）。 */
   readonly mainJob?: string;
+  /**
+   * サブジョブ（省略でなし。セーブデータから戻すとき）。設定できないジョブ（{@link Character.subJobBlock}）・
+   * 存在しないジョブは RangeError（セーブデータの誤り）。
+   */
+  readonly subJob?: string;
 }
 
 /**
@@ -136,6 +161,7 @@ export class Character {
   private readonly jobDefs: ReadonlyMap<string, JobDef>;
   private readonly jobs = new Map<string, LevelTrack>();
   private main: string;
+  private sub: string | undefined;
 
   /** Lv・ジョブLvは LevelTrack と同じ検証（1〜上限の整数。NaN・負の数・無限大は RangeError）。 */
   constructor(init: CharacterInit) {
@@ -156,6 +182,13 @@ export class Character {
     if (!this.jobDefs.has(main)) throw new RangeError(`ジョブ ${main} は存在しない`);
     this.main = main;
     this.track(this.main);
+    if (init.subJob !== undefined) {
+      const block = this.subJobBlock(init.subJob);
+      if (block !== undefined)
+        throw new RangeError(`サブジョブ ${init.subJob} は設定できない（${block}）`);
+      this.sub = init.subJob;
+      this.track(init.subJob);
+    }
   }
 
   get level(): number {
@@ -163,6 +196,10 @@ export class Character {
   }
   get mainJob(): string {
     return this.main;
+  }
+  /** サブジョブ（設定していなければ undefined）。 */
+  get subJob(): string | undefined {
+    return this.sub;
   }
 
   private track(jobId: string): LevelTrack {
@@ -224,6 +261,45 @@ export class Character {
     if (!this.canChangeJob || jobId === this.main) return false;
     this.main = jobId;
     this.track(jobId);
+    // サブジョブと同じジョブをメインにしたら、サブジョブを外す（docs/progress D-SUB-5）
+    if (this.sub === jobId) this.sub = undefined;
+    return true;
+  }
+
+  /** サブジョブの仕組みが開いているか（キャラLv25。仕様書v0.2 5.1）。 */
+  get canSetSubJob(): boolean {
+    return this.level >= SUB_JOB_LEVEL;
+  }
+
+  /**
+   * そのジョブをサブジョブにできない理由（できるなら undefined）。
+   * 存在しないジョブIDは RangeError（呼ぶ側の誤り。changeJob と同じ）。
+   */
+  subJobBlock(jobId: string): SubJobBlock | undefined {
+    const def = this.jobDefs.get(jobId);
+    if (def === undefined) throw new RangeError(`ジョブ ${jobId} は存在しない`);
+    if (!this.canSetSubJob) return "level";
+    if (jobId === this.main) return "sameAsMain";
+    if (def.advancedFrom !== undefined) return "advanced";
+    return undefined;
+  }
+
+  /**
+   * サブジョブを設定する（変える）。設定したら true。できない理由があれば false（何も変えない）。
+   * 今のサブジョブと同じなら false。存在しないジョブIDは、状態を変えずに RangeError。
+   * サブジョブのジョブLvは、ジョブごとのジョブLv（{@link jobLevel}）をそのまま使う。
+   */
+  setSubJob(jobId: string): boolean {
+    if (this.subJobBlock(jobId) !== undefined || jobId === this.sub) return false;
+    this.sub = jobId;
+    this.track(jobId);
+    return true;
+  }
+
+  /** サブジョブを外す。外したら true（設定していなければ false）。 */
+  clearSubJob(): boolean {
+    if (this.sub === undefined) return false;
+    this.sub = undefined;
     return true;
   }
 

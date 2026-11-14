@@ -34,6 +34,12 @@ export interface EffectInstance {
    * データの効果は値の型だけを持ち、アイテムの値をここで渡す（U-11）。
    */
   readonly values?: readonly (number | Range | undefined)[];
+  /**
+   * 出どころの読み替え（省略すると効果の定義の origin）。副職紋（サブジョブの職紋盤）は、職紋盤の効果のデータを
+   * そのまま使い、出どころを subJob として扱う（docs/progress D-SUB-3）。修正値の内訳・置き換えの優先順位に使う。
+   * 乗算を持てるかの検証はデータの origin で行う（読み替えで乗算が増えることはない）。
+   */
+  readonly origin?: EffectOrigin;
 }
 
 /** 条件の判定に使う、効果の外の事実（装備・ジョブなど）。呼び出す側が数えて渡す。 */
@@ -168,6 +174,7 @@ const REPLACE_RANK: Record<EffectOrigin, number> = {
   constellation: 2,
   schoolNode: 2,
   jobNode: 1,
+  subJob: 1,
   jobMastery: 1,
   jobSkill: 1,
   affix: 0,
@@ -414,7 +421,7 @@ export class ModifierView {
       const push = (value: Contribution["value"]): void => {
         contributions.push({
           effectId: effect.id,
-          origin: effect.origin,
+          origin: instance.origin ?? effect.origin,
           source: instance.source,
           kind: mod.kind,
           value,
@@ -515,9 +522,9 @@ export class ModifierView {
   replacement(slot: ReplaceSlot, tagIds: Iterable<string> = []): ReplacementResult {
     const context = this.context(tagIds);
     const candidates = this.applicable(this.replaces.get(slot) ?? [], context)
-      .flatMap(({ mod, effect }) =>
+      .flatMap(({ mod, effect, instance }) =>
         mod.kind === "replace"
-          ? [{ hook: mod.hook, effectId: effect.id, origin: effect.origin }]
+          ? [{ hook: mod.hook, effectId: effect.id, origin: instance.origin ?? effect.origin }]
           : [],
       )
       .sort(

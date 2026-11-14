@@ -13,9 +13,14 @@ export { FLASK_FILL, FLASK_RULES, Flask, type FlaskState } from "./character/fla
 export {
   JOB_NODE_SOURCE,
   JobBoardAllocation,
+  SUB_JOB_BOARD_MAX_POINTS,
+  SUB_JOB_NODE_SOURCE,
   type JobAllocateBlock,
+  type JobBoardRole,
   jobBoardPoints,
   jobBoardRespecCost,
+  subJobBoardPoints,
+  subJobBoardRespecCost,
 } from "./board/job-board.ts";
 export { type JobNodeDef, type JobNodeKind } from "./content/board.ts";
 export { FIXED_STEP_SECONDS, FixedStepClock, type AdvanceResult } from "./time/fixed-step.ts";
@@ -192,6 +197,8 @@ export {
 
 export {
   AFFINITIES,
+  SUB_JOB_RULES,
+  type SubJobRule,
   gaugeSchema,
   hitShapeSchema,
   jobSchema,
@@ -216,6 +223,8 @@ export {
   Minion,
   MinionSquad,
   contractCapacity,
+  contractSource,
+  jobContractCapacity,
   minionAttacker,
   minionDamageSkill,
   minionMaxHp,
@@ -226,14 +235,19 @@ export { TimedEffects } from "./combat/timed-effects.ts";
 export {
   AFFINITY_ATTACK_SPEED,
   Cooldowns,
+  SUB_SKILL_SLOT_LIMIT,
   affinityAtLeast,
+  canSlotSubSkill,
   dualWieldAffinity,
   higherAffinity,
   lowerAffinity,
   resolveSkill,
   skillBlock,
   skillUseSeconds,
+  subSkillsInSlots,
   unlockedSkills,
+  unlockedSubSkills,
+  usableAsSubSkill,
   weaponAffinity,
   type ResolvedSkill,
   type SkillBehavior,
@@ -296,6 +310,9 @@ export {
   JOB_LEVEL_CAP,
   LEVEL_CAP,
   LevelTrack,
+  SUB_JOB_BLOCK_TEXT,
+  SUB_JOB_LEVEL,
+  type SubJobBlock,
   enemyXp,
   levelGapMultiplier,
   xpToNext,

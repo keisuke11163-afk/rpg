@@ -17,6 +17,7 @@ import {
   type MvpEquipSlot,
   affixTierValues,
   emptyKeptFields,
+  xpToNext,
 } from "@stella/core";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
@@ -139,6 +140,17 @@ function shortestPath(
   return out;
 }
 
+/**
+ * 計測のキャラLv・ジョブLv（MVPの上限だった20に固定する。上限を25に上げても、撃破時間の基準を変えない。
+ * docs/progress D-SUB-1）。
+ */
+export const BENCH_LEVEL = 20;
+/** Lv1から {@link BENCH_LEVEL} にちょうど届く経験値（キャラLvとメインジョブのジョブLvが同じ量で上がる）。 */
+const BENCH_XP = Array.from({ length: BENCH_LEVEL - 1 }, (_, i) => xpToNext(i + 1)).reduce(
+  (a, b) => a + b,
+  0,
+);
+
 /** ビルドを用意したシミュレーション（ボスの間。キャラLv20・ジョブLv20・星辰盤25ポイント）。 */
 export function prepareBench(
   db: ContentDb,
@@ -158,7 +170,7 @@ export function prepareBench(
     layoutSeed: options.seed ?? "bench",
     ...(options.seed === undefined ? {} : { rngSeed: options.seed }),
   });
-  sim.gainXp(1e9);
+  sim.gainXp(BENCH_XP);
   // 装備（主手の指定が無ければ素手）
   if (!build.equipment.some((e) => e.slot === "mainHand")) sim.unequip("mainHand");
   build.equipment.forEach((e, i) => {

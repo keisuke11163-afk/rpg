@@ -71,6 +71,47 @@ export function unlockedSkills(job: JobDef, jobLevel: number): string[] {
   return job.skills.filter((s) => s.level <= jobLevel).map((s) => s.skill);
 }
 
+/** メインジョブの技の枠（6つ）のうち、サブジョブの技を入れられる数（MVP後の機能の提案 2章 ①。docs/progress D-SUB-4）。 */
+export const SUB_SKILL_SLOT_LIMIT = 2;
+
+/** 技をサブジョブの技として使えるか（技の subJobRule。戦士の解放技は使えない。docs/progress D-SUB-6）。 */
+export function usableAsSubSkill(def: SkillDef): boolean {
+  return def.subJobRule !== "unavailable";
+}
+
+/**
+ * サブジョブの技のうち、使えるもの（仕様書v0.2 5.1・docs/progress D-SUB-4）：ジョブ定義の subSkills の2つのうち、
+ * サブジョブのジョブLvで覚えているもの（{@link unlockedSkills} と同じ規則）。subSkills の順に並べる。
+ */
+export function unlockedSubSkills(sub: JobDef, subJobLevel: number): string[] {
+  const learned = new Set(unlockedSkills(sub, subJobLevel));
+  return (sub.subSkills?.skills ?? []).filter((id) => learned.has(id));
+}
+
+/** 技の枠に入っている、サブジョブの技の数。 */
+export function subSkillsInSlots(
+  slots: readonly (string | undefined)[],
+  subSkills: readonly string[],
+): number {
+  const sub = new Set(subSkills);
+  return slots.filter((s) => s !== undefined && sub.has(s)).length;
+}
+
+/**
+ * 技の枠の index にサブジョブの技を入れられるか：使えるサブジョブの技（{@link unlockedSubSkills}）で、
+ * 入れた後のサブジョブの技の数が {@link SUB_SKILL_SLOT_LIMIT} 以下のとき（index にあった技は置き換える）。
+ */
+export function canSlotSubSkill(
+  slots: readonly (string | undefined)[],
+  index: number,
+  skillId: string,
+  subSkills: readonly string[],
+): boolean {
+  if (!subSkills.includes(skillId)) return false;
+  const others = slots.map((s, i) => (i === index ? undefined : s));
+  return subSkillsInSlots(others, subSkills) < SUB_SKILL_SLOT_LIMIT;
+}
+
 /** 技の変化を決める状況。 */
 export interface SkillContext {
   /** 職能ゲージの達している段階（サブジョブの技では空。仕様書5.1「戦士の技：激化しない」）。 */

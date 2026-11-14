@@ -327,6 +327,8 @@ describe("ガードのジョブをデータだけで足す（MVP後の機能の�
                 ...knight,
                 id: JOB,
                 skills: [],
+                // 技を空にしたので、サブジョブの技（D-SUB-4。そのジョブの技から選ぶ）も持たせない
+                subSkills: undefined,
                 defaultSlots: ["SKL-BASIC-ATTACK"],
                 guard: { ...(knight.guard as object), parryWindow: 0.3 },
               },

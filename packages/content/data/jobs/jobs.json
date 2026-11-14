@@ -42,6 +42,11 @@
       "TAG-WPN-STAFF": "C"
     },
     "dualWield": "B",
+    "subSkills": {
+      "skills": ["SKL-WARRIOR-CHARGE", "SKL-WARRIOR-WARCRY"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLvは仮値（補助仕様書3.5）",
     "originAttributes": {
@@ -109,6 +114,11 @@
       "critChance": 0.1,
       "ailmentChance": 0.25
     },
+    "subSkills": {
+      "skills": ["SKL-ROGUE-SHADOWSTEP", "SKL-ROGUE-POISON"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5）",
     "defaultSlots": [
@@ -173,6 +183,11 @@
       "close": 3,
       "closePenalty": -0.2
     },
+    "subSkills": {
+      "skills": ["SKL-ARCHER-LEAP", "SKL-ARCHER-RAIN"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5。docs/progress D-ARC-2）",
     "defaultSlots": [
@@ -227,6 +242,11 @@
       "jin": 5,
       "ri": 20,
       "kon": 10
+    },
+    "subSkills": {
+      "skills": ["SKL-MAGE-FIREBALL", "SKL-MAGE-BLINK"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
     },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5。docs/progress D-MAG-5）。剣はCなので適性の表に書かない",
@@ -286,6 +306,11 @@
       "ri": 5,
       "kon": 15
     },
+    "subSkills": {
+      "skills": ["SKL-KNIGHT-TAUNT", "SKL-KNIGHT-SANCTUARY"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLvは仮値（補助仕様書3.5）。初期能力値は補助仕様書3.2（剛15・迅5・理5・魂15）。適性は仕様書v0.2 5.3（弓Cは書かなければC）。ガードの規則の数値（正面の角度・気力・反撃権の秒数など）は仕様書に無い仮値（docs/progress D-KNT-1・D-KNT-2。パリィの連打の対策 parryCooldown は D-KNT-10）",
     "guard": {
@@ -293,7 +318,7 @@
       "frontAngleDeg": 180,
       "staminaCost": 15,
       "parryStaggerRatio": 0.35,
-      "counterBonus": 1.0,
+      "counterBonus": 1,
       "counterSeconds": 4,
       "moveSpeedMultiplier": 0.6,
       "minRaise": 0.3,
@@ -355,6 +380,11 @@
       "jin": 5,
       "ri": 15,
       "kon": 15
+    },
+    "subSkills": {
+      "skills": ["SKL-SUMMONER-SKELETON", "SKL-SUMMONER-DIRE-WOLF"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
     },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLv・初期の技の枠は仮値（補助仕様書3.5と同じ考え方。docs/progress D-SUM-10）。初期能力値は補助仕様書3.2（理15・魂15）。適性は仕様書v0.2 5.5",
