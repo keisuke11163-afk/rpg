@@ -1055,6 +1055,29 @@
     }
   },
   {
+    "id": "AFX-PRE-JOB-MAGE",
+    "text": "item.affix.job-mage",
+    "position": "prefix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-PRE-JOB-MAGE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の職詞（位相を1から開始する）。頭は重み2倍（D-U11-23 と同じ）。位相を1から開始するのは、戦闘外から戦い始めるとき（docs/progress D-MAG-3）",
+    "job": "TAG-JOB-MAGE",
+    "categoryWeights": {
+      "head": 2
+    }
+  },
+  {
     "id": "AFX-SUF-BEAST-HUNTER",
     "text": "item.affix.beast-hunter",
     "position": "suffix",
@@ -1133,5 +1156,51 @@
     "resonance": "jin",
     "provisional": true,
     "provisionalNote": "仕様書v0.2 3.6（共鳴紋は後詞の枠を1つ使う・重み25）。付く部位の記載が無いので全ての部位（docs/progress D-RES-1）"
+  },
+  {
+    "id": "AFX-PRE-JOB-KNIGHT",
+    "text": "item.affix.job-knight",
+    "position": "prefix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-PRE-JOB-KNIGHT",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 0.05,
+        "max": 0.05
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の職詞（パリィ受付+0.05秒）。頭は重み2倍（D-U11-23 と同じ）。パリィの受付は、規則のガードを持つジョブ（メインジョブの騎士）だけに効く（docs/progress D-KNT-5）",
+    "job": "TAG-JOB-KNIGHT",
+    "categoryWeights": {
+      "head": 2
+    }
+  },
+  {
+    "id": "AFX-PRE-JOB-SUMMONER",
+    "text": "item.affix.job-summoner",
+    "position": "prefix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-PRE-JOB-SUMMONER",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の職詞（契約枠+1）。頭は重み2倍（D-U11-23 と同じ）。メインジョブの召喚士だけに効く（サブジョブの枠は6で固定。H-03）",
+    "job": "TAG-JOB-SUMMONER",
+    "categoryWeights": {
+      "head": 2
+    }
   }
 ]

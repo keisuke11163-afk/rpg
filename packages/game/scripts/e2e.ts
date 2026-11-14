@@ -104,6 +104,9 @@ interface SkillState {
   traps: number;
   smokes: number;
   arrows: number;
+  guarding: boolean;
+  minions: { def: string; hp: number }[];
+  contract: number;
 }
 interface EnemyInfo {
   id: string;
@@ -184,8 +187,19 @@ type DebugWindow = {
     teleportTo: (x: number, y: number) => { x: number; y: number };
     title: () => { slots: { slot: number; state: string }[]; selected: number | null };
     startSlot: (slot: number, how: string) => boolean;
+    subJob: () => SubJobInfo;
   };
 };
+interface SubJobInfo {
+  canSet: boolean;
+  id: string | null;
+  skills: string[];
+  slots: string[];
+  points: number;
+  spent: number;
+  nodes: string[];
+  mainJob: string;
+}
 interface StarsInfo {
   allocated: string[];
   active: string[];
@@ -226,7 +240,9 @@ const require = createRequire(import.meta.url);
 const { chromium } = require("playwright") as { chromium: { launch(): Promise<Browser> } };
 const root = fileURLToPath(new URL("..", import.meta.url));
 const outDir = fileURLToPath(new URL("../../../artifacts/e2e/", import.meta.url));
+const subDir = fileURLToPath(new URL("../../../artifacts/e2e-subjob/", import.meta.url));
 mkdirSync(outDir, { recursive: true });
+mkdirSync(subDir, { recursive: true });
 
 const results: { name: string; ok: boolean; detail: string }[] = [];
 const check = (name: string, ok: boolean, detail: string): void => {
@@ -708,12 +724,81 @@ try {
     sa.job === "JOB-ARCHER" && sa.weapon === "test-bow" && da2.hits > da1.hits,
     `ジョブ ${sa.job}・武器 ${String(sa.weapon)}・飛んでいる矢 ${String(flying)}・ヒット ${String(da2.hits - da1.hits)}回`,
   );
-  // 戦士 → 盗賊に戻す（以降の確認は盗賊の短剣で行う）
+  // 魔法使い（仕様書v0.2 5.4）：G で転職し、8m 離れた人形を右クリック（火球）で撃つ。火球が飛んで当たり、位相が 0 → 1 になる
+  // （転職したばかりでジョブLv1 なので、氷槍（Lv3）は使えない。位相の続きは game/test/mage.test.ts）
   await waitIdle();
   await page.keyboard.press("KeyG");
   await page.waitForTimeout(100);
+  const sm = await skills();
+  const dm0 = await dummy();
+  await page.mouse.move(dm0.screenX * 2, dm0.screenY * 2);
+  await page.waitForTimeout(50);
+  await page.mouse.down({ button: "right" });
+  await page.waitForTimeout(80);
+  await page.mouse.up({ button: "right" });
+  await page.waitForTimeout(1200);
+  const sm1 = await skills();
+  const dm1 = await dummy();
+  check(
+    "Gで魔法使いに転職し（下級の杖）、8m先の人形に火球を撃つと、当たって位相が 0 → 1 になる（魔法使い）",
+    sm.job === "JOB-MAGE" &&
+      sm.weapon === "test-staff" &&
+      sm.fervor === 0 &&
+      dm1.hits > dm0.hits &&
+      sm1.lastSkill === "SKL-MAGE-FIREBALL" &&
+      sm1.fervor === 1,
+    `ジョブ ${sm.job}・武器 ${String(sm.weapon)}・位相 ${String(sm.fervor)} → ${String(sm1.fervor)}・ヒット ${String(dm1.hits - dm0.hits)}回`,
+  );
+  // 騎士（仕様書v0.2 5.3・H-05 ②）：G で転職すると下級の長剣と小盾を持つ。右クリックの押し続けは技ではなくガード
+  // （盾を持っているあいだ）。押している間だけガードを上げ、離すと下ろす。ガードしても技は使わない
+  await waitIdle();
   await page.keyboard.press("KeyG");
   await page.waitForTimeout(100);
+  const sk = await skills();
+  const dk0 = await dummy();
+  await page.mouse.move(dk0.screenX * 2, dk0.screenY * 2);
+  await page.waitForTimeout(50);
+  await page.mouse.down({ button: "right" });
+  await page.waitForTimeout(400);
+  const sk1 = await skills();
+  await page.mouse.up({ button: "right" });
+  await page.waitForTimeout(500);
+  const sk2 = await skills();
+  check(
+    "Gで騎士に転職し（下級の長剣と小盾）、右クリックを押し続けるとガードを上げ、離すと下ろす（技は使わない）（騎士）",
+    sk.job === "JOB-KNIGHT" &&
+      sk.weapon === "test-longsword" &&
+      !sk.guarding &&
+      sk1.guarding &&
+      !sk2.guarding &&
+      sk1.executing === null &&
+      JSON.stringify(sk2.uses) === JSON.stringify(sk.uses),
+    `ジョブ ${sk.job}・武器 ${String(sk.weapon)}・ガード ${String(sk.guarding)} → 押し続け ${String(sk1.guarding)} → 離した ${String(sk2.guarding)}`,
+  );
+  // 召喚士（仕様書v0.2 5.5）：G で転職すると下級の笏を持つ。1 のキー（技の枠3＝骸兵召喚）で骸兵が現れ、契約枠を2使う
+  await waitIdle();
+  await page.keyboard.press("KeyG");
+  await page.waitForTimeout(100);
+  const ss = await skills();
+  await page.keyboard.press("Digit1");
+  await page.waitForTimeout(900);
+  const ss1 = await skills();
+  check(
+    "Gで召喚士に転職し（下級の笏）、1 のキーで骸兵を呼ぶと、骸兵が現れて契約枠を2使う（召喚士）",
+    ss.job === "JOB-SUMMONER" &&
+      ss.weapon === "test-scepter" &&
+      ss.minions.length === 0 &&
+      ss1.minions.length === 1 &&
+      ss1.minions[0]?.def === "MIN-SKELETON" &&
+      ss1.contract === 2,
+    `ジョブ ${ss.job}・武器 ${String(ss.weapon)}・召喚物 ${String(ss.minions.length)} → ${String(ss1.minions.length)}・契約枠 ${String(ss1.contract)}`,
+  );
+  // 召喚士 → 戦士 → 盗賊に戻す（以降の確認は盗賊の短剣で行う。転職で召喚物は消える）
+  for (let i = 0; i < 2; i++) {
+    await waitIdle();
+    await page.keyboard.press("KeyG");
+    await page.waitForTimeout(100);
+  }
 
   // 16〜19. 敵（補助仕様書10章）
   const enemies = (): Promise<EnemyInfo[]> =>
@@ -1327,6 +1412,219 @@ try {
       jobPanel2.lines.some((l) => l.startsWith("■")),
     `画面 ${String(jobPanel.open)}・取ったノード ${String(jobPanel2.lines.filter((l) => l.startsWith("■")).length)}`,
   );
+
+  // サブジョブ（キャラLv25から）：別の新しいキャラ（スロット2・開発用の初期の状態）で、J・C の画面を実際の入力で確かめる
+  {
+    const sp = await browser.newPage({
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: 1,
+    });
+    sp.on("pageerror", (e) => errors.push(e.message));
+    await sp.goto("http://localhost:5174/");
+    const spReady = (): Promise<unknown> =>
+      sp.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
+        timeout: 20000,
+      });
+    await spReady();
+    await sp.evaluate(() =>
+      (window as unknown as DebugWindow).__STELLA_DEBUG__.startSlot(2, "dev"),
+    );
+    await sp.waitForFunction(() => document.body.dataset["stellaScene"] === "arena", undefined, {
+      timeout: 20000,
+    });
+    await spReady();
+    await sp.evaluate(() =>
+      (window as unknown as DebugWindow).__STELLA_DEBUG__.goRegion("DEV-ARENA"),
+    );
+    await spReady();
+    const sub = (): Promise<SubJobInfo> =>
+      sp.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.subJob());
+    const spPanel = (): Promise<PanelInfo> =>
+      sp.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.panel());
+    const spSkills = (): Promise<SkillState> =>
+      sp.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.skills());
+    const click = async (
+      x: number,
+      y: number,
+      button: "left" | "right" = "left",
+    ): Promise<void> => {
+      await sp.mouse.move(x * 2, y * 2);
+      await sp.waitForTimeout(40);
+      await sp.mouse.down({ button });
+      await sp.mouse.up({ button });
+      await sp.waitForTimeout(120);
+    };
+    const levelTo = (target: number): Promise<number> =>
+      sp.evaluate((t: number) => {
+        const d = (window as unknown as DebugWindow).__STELLA_DEBUG__;
+        let lv = d.skills().level;
+        for (let i = 0; i < 100000 && lv < t; i++) lv = d.grantXp(20);
+        return lv;
+      }, target);
+    const waitSpIdle = (): Promise<unknown> =>
+      sp.waitForFunction(
+        () => (window as unknown as DebugWindow).__STELLA_DEBUG__.skills().executing === null,
+        undefined,
+        { timeout: 5000 },
+      );
+
+    // 盗賊に転職する（戦士のジョブLvは残るので、戦士をサブにできる）。キャラLv24にする
+    await sp.keyboard.press("KeyG");
+    await sp.waitForTimeout(100);
+    const lv24 = await levelTo(24);
+    const warriorJobLv = (await spSkills()).jobLevels["JOB-WARRIOR"] ?? 0;
+    // (a) Lv24：J の画面にサブジョブの行が出ない
+    await sp.keyboard.press("KeyJ");
+    await sp.waitForTimeout(150);
+    const j24 = await spPanel();
+    const sub24 = await sub();
+    await sp.screenshot({ path: `${subDir}1-job-board-lv24.png` });
+    check(
+      "キャラLv24：J の画面にサブジョブの行が出ず、設定もできない（サブジョブ）",
+      lv24 === 24 &&
+        j24.open === "jobBoard" &&
+        !j24.lines.some((l) => l.includes("サブジョブ")) &&
+        !sub24.canSet &&
+        sub24.id === null,
+      `Lv ${String(lv24)}・画面 ${String(j24.open)}・設定できる ${String(sub24.canSet)}`,
+    );
+    await sp.keyboard.press("KeyJ");
+    await sp.waitForTimeout(100);
+
+    // (b) Lv25にする
+    const lv25 = await levelTo(25);
+    await sp.waitForTimeout(100);
+    // (c) J の画面：サブジョブの行が出る
+    await sp.keyboard.press("KeyJ");
+    await sp.waitForTimeout(150);
+    const j25 = await spPanel();
+    await sp.screenshot({ path: `${subDir}2-job-board-lv25.png` });
+    const toggleText = j25.lines.find((l) => l.startsWith("▶ サブジョブ"));
+    check(
+      "キャラLv25：J の画面の右の列に「▶ サブジョブ・副職紋」の行が出る",
+      lv25 === 25 && j25.open === "jobBoard" && toggleText !== undefined && (await sub()).canSet,
+      `Lv ${String(lv25)}・行 ${String(toggleText)}`,
+    );
+    // 行をクリック（右の列の下から上へ探す。最後の行がこの行）
+    const inSubView = (lines: string[]): boolean =>
+      lines.some((l) => l.includes("左クリック：次・右クリック：前"));
+    for (let y = PANEL.y + PANEL.height - 4; y >= PANEL.detail.y; y -= 3) {
+      await click(PANEL.detail.x + 10, y);
+      if (inSubView((await spPanel()).lines)) break;
+    }
+    const v0 = await spPanel();
+    await sp.screenshot({ path: `${subDir}3-sub-board-empty.png` });
+    check(
+      "「▶ サブジョブ・副職紋」の行をクリックすると、副職紋の面に替わる",
+      inSubView(v0.lines) &&
+        v0.lines.some((l) => l.includes("サブジョブを選ぶと、副職紋を取れる")) &&
+        v0.lines.some((l) => l.includes("職紋盤に戻る")),
+      `行数 ${String(v0.lines.length)}`,
+    );
+    // サブジョブを選ぶ（右の列の最初の行を左クリックで次の候補へ）。戦士になるまで進める
+    for (let i = 0; i < 6 && (await sub()).id !== "JOB-WARRIOR"; i++)
+      await click(PANEL.detail.x + 10, PANEL.detail.y + 3);
+    const s1 = await sub();
+    const v1 = await spPanel();
+    await sp.screenshot({ path: `${subDir}4-sub-board-warrior.png` });
+    check(
+      "サブジョブの行を左クリックして戦士を選ぶと、サブジョブが設定される（サブの技が使える）",
+      s1.id === "JOB-WARRIOR" &&
+        s1.mainJob === "JOB-ROGUE" &&
+        s1.skills.includes("SKL-WARRIOR-WARCRY") &&
+        v1.lines.some((l) => l.startsWith("■") && l.includes("戦士")),
+      `サブ ${String(s1.id)}・戦士のジョブLv ${String(warriorJobLv)}・サブの技 ${s1.skills.join(",")}・副職紋ポイント ${String(s1.points)}`,
+    );
+    // 副職紋のノードを左クリックで取る（左の列の最初の取れるノード）
+    const takeRowY = PANEL.slots.y + 3;
+    const nodeLine = v1.lines.find((l) => l.startsWith("□"));
+    await click(PANEL.slots.x + 40, takeRowY);
+    const s2 = await sub();
+    const v2 = await spPanel();
+    await sp.screenshot({ path: `${subDir}5-sub-board-node-taken.png` });
+    check(
+      "副職紋のノードを左クリックで取ると、ポイントが減り、取得したノードが増える",
+      nodeLine !== undefined &&
+        s1.points > 0 &&
+        s2.spent === s1.spent + 1 &&
+        s2.nodes.length === s1.nodes.length + 1 &&
+        s2.points - s2.spent === s1.points - s1.spent - 1 &&
+        v2.lines.some((l) => l.startsWith("■") && !v1.lines.includes(l)),
+      `取得 ${String(s1.nodes.length)} → ${String(s2.nodes.length)}・消費 ${String(s1.spent)} → ${String(s2.spent)}／${String(s2.points)}・行 ${String(nodeLine)}`,
+    );
+    // 職紋盤に戻る行（クリック）
+    for (let y = PANEL.y + PANEL.height - 4; y >= PANEL.detail.y; y -= 3) {
+      await click(PANEL.detail.x + 10, y);
+      if (!inSubView((await spPanel()).lines)) break;
+    }
+    const back = await spPanel();
+    check(
+      "「▶ 職紋盤に戻る」の行をクリックすると、職紋盤の面に戻る",
+      !inSubView(back.lines) && back.lines.some((l) => l.startsWith("▶ サブジョブ")),
+      `画面 ${String(back.open)}`,
+    );
+    await sp.keyboard.press("KeyJ");
+    await sp.waitForTimeout(100);
+
+    // (d) C の画面：技の枠（キー4）をクリックして、サブの技（戦吼）を入れる
+    await waitSpIdle();
+    await sp.keyboard.press("KeyC");
+    await sp.waitForTimeout(120);
+    const slotY = PANEL.skillSlots.y + 5 * PANEL.skillSlots.row + 4;
+    let line4: string | undefined;
+    for (let i = 0; i < 12; i++) {
+      line4 = (await spPanel()).lines.find((l) => l.startsWith("4："));
+      if (line4?.includes("戦吼") === true) break;
+      await click(PANEL.skillSlots.x + 20, slotY);
+    }
+    const c1 = await spPanel();
+    const s3 = await sub();
+    await sp.mouse.move(PANEL.stats.x * 2 + 40, (PANEL.stats.y + 4) * 2);
+    await sp.waitForTimeout(100);
+    await sp.screenshot({ path: `${subDir}6-character-sub-skill.png` });
+    check(
+      "C の画面：技の枠をクリックしてサブの技（戦吼）を入れる。「（サブジョブ）」の印と、職業の行のサブの名前が出る",
+      line4?.includes("戦吼") === true &&
+        line4.includes("（サブジョブ）") &&
+        s3.slots.includes("SKL-WARRIOR-WARCRY") &&
+        c1.lines.some((l) => l.includes("盗賊") && l.includes("サブジョブ") && l.includes("戦士")),
+      `4の枠 ${String(line4)}・枠 ${s3.slots.join(",")}`,
+    );
+    // 技を実際に使う（キー4）。戦吼は強化の効果を得る
+    await sp.keyboard.press("KeyC");
+    await sp.waitForTimeout(100);
+    await waitSpIdle();
+    await sp.keyboard.press("Digit4");
+    await sp.waitForTimeout(700);
+    const s4 = await spSkills();
+    await sp.screenshot({ path: `${subDir}7-sub-skill-used.png` });
+    check(
+      "キー4でサブ戦士の戦吼を使える（使った回数が増え、強化の効果を得る）",
+      (s4.uses["SKL-WARRIOR-WARCRY"] ?? 0) === 1 && s4.buffs.includes("EFF-WARRIOR-WARCRY-ATTACK"),
+      `使った回数 ${String(s4.uses["SKL-WARRIOR-WARCRY"] ?? 0)}・効果 ${s4.buffs.join(",")}`,
+    );
+    // 突進（サブの技）も枠に入れて使う
+    await sp.evaluate(() =>
+      (window as unknown as DebugWindow).__STELLA_DEBUG__.assignSkill(5, "SKL-WARRIOR-CHARGE"),
+    );
+    await waitSpIdle();
+    await sp.waitForTimeout(300);
+    const p0 = await sp.evaluate(() =>
+      (window as unknown as DebugWindow).__STELLA_DEBUG__.player(),
+    );
+    await sp.mouse.move((p0.screenX + 80) * 2, p0.screenY * 2);
+    await sp.waitForTimeout(80);
+    await sp.keyboard.press("Digit4");
+    await sp.waitForTimeout(700);
+    const p1 = await sp.evaluate(() =>
+      (window as unknown as DebugWindow).__STELLA_DEBUG__.player(),
+    );
+    check(
+      "サブ戦士の突進を使える（右へ約8m）",
+      p1.x - p0.x > 7 && p1.x - p0.x < 8.6,
+      `右へ ${(p1.x - p0.x).toFixed(2)}m`,
+    );
+  }
 } finally {
   await browser.close();
   await server.close();

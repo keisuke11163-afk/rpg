@@ -1,0 +1,197 @@
+[
+  {
+    "id": "SKL-SUMMONER-SKELETON",
+    "text": "skill.summoner.skeleton",
+    "job": "JOB-SUMMONER",
+    "tags": ["TAG-FORM-SUMMON", "TAG-ELEM-PHYSICAL"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 8,
+    "cooldown": 0,
+    "action": {
+      "type": "summon",
+      "minion": {
+        "id": "MIN-SKELETON",
+        "text": "minion.skeleton",
+        "slots": 2,
+        "hpRatio": 0.6,
+        "radius": 0.35,
+        "moveSpeed": 4.5,
+        "sightRange": 8,
+        "attack": {
+          "tags": ["TAG-FORM-SUMMON", "TAG-FORM-MELEE", "TAG-ELEM-PHYSICAL"],
+          "base": {
+            "physical": {
+              "min": 6,
+              "max": 10
+            }
+          },
+          "interval": 1.0,
+          "range": 0.9,
+          "staggerCoefficient": 0.3
+        },
+        "sacrifice": {
+          "selfEffects": [
+            {
+              "effect": "EFF-SUMMONER-BONE-SHIELD",
+              "duration": 4
+            }
+          ]
+        },
+        "possessEffects": ["EFF-SUMMONER-POSSESS-SKELETON"],
+        "provisional": true,
+        "provisionalNote": "契約枠のコストは仕様書v0.2 5.5。HPの割合（標準HPに対する。仕様書5.1.1「付録Cで定める」が付録Cに無い）・攻撃・速さ・射程・索敵は仮（docs/progress D-SUM-2・D-SUM-3）"
+      }
+    },
+    "provisional": true,
+    "provisionalNote": "召喚士の技・召喚物の数値（MP・CDの他：召喚物のHPの割合・攻撃・速さ・射程・索敵・犠牲と憑依の中身）は仕様書v0.2 5.5 に無いので仮（docs/progress D-SUM-2〜6）"
+  },
+  {
+    "id": "SKL-SUMMONER-FIRE-SPIRIT",
+    "text": "skill.summoner.fire-spirit",
+    "job": "JOB-SUMMONER",
+    "tags": ["TAG-FORM-SUMMON", "TAG-ELEM-FIRE", "TAG-FORM-SPELL"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 12,
+    "cooldown": 0,
+    "action": {
+      "type": "summon",
+      "minion": {
+        "id": "MIN-FIRE-SPIRIT",
+        "text": "minion.fire-spirit",
+        "slots": 3,
+        "hpRatio": 0.35,
+        "radius": 0.3,
+        "moveSpeed": 4,
+        "sightRange": 9,
+        "attack": {
+          "tags": ["TAG-FORM-SUMMON", "TAG-FORM-PROJECTILE", "TAG-ELEM-FIRE"],
+          "base": {
+            "fire": {
+              "min": 8,
+              "max": 14
+            }
+          },
+          "interval": 1.4,
+          "range": 7,
+          "projectile": {
+            "speed": 14,
+            "radius": 0.2
+          },
+          "staggerCoefficient": 0.2
+        },
+        "sacrifice": {
+          "burst": {
+            "radius": 3,
+            "pct": 4
+          }
+        },
+        "possessEffects": ["EFF-SUMMONER-POSSESS-FIRE-SPIRIT"],
+        "provisional": true,
+        "provisionalNote": "契約枠のコストは仕様書v0.2 5.5。HPの割合（標準HPに対する。仕様書5.1.1「付録Cで定める」が付録Cに無い）・攻撃・速さ・射程・索敵は仮（docs/progress D-SUM-2・D-SUM-3）"
+      }
+    },
+    "provisional": true,
+    "provisionalNote": "召喚士の技・召喚物の数値（MP・CDの他：召喚物のHPの割合・攻撃・速さ・射程・索敵・犠牲と憑依の中身）は仕様書v0.2 5.5 に無いので仮（docs/progress D-SUM-2〜6）"
+  },
+  {
+    "id": "SKL-SUMMONER-DIRE-WOLF",
+    "text": "skill.summoner.dire-wolf",
+    "job": "JOB-SUMMONER",
+    "tags": ["TAG-FORM-SUMMON", "TAG-FORM-MELEE"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 15,
+    "cooldown": 0,
+    "action": {
+      "type": "summon",
+      "minion": {
+        "id": "MIN-DIRE-WOLF",
+        "text": "minion.dire-wolf",
+        "slots": 4,
+        "hpRatio": 0.8,
+        "radius": 0.4,
+        "moveSpeed": 6,
+        "sightRange": 9,
+        "attack": {
+          "tags": ["TAG-FORM-SUMMON", "TAG-FORM-MELEE", "TAG-ELEM-PHYSICAL"],
+          "base": {
+            "physical": {
+              "min": 8,
+              "max": 14
+            }
+          },
+          "interval": 0.9,
+          "range": 0.9,
+          "ailmentChance": {
+            "TAG-AIL-BLEED": 0.3
+          },
+          "staggerCoefficient": 0.3
+        },
+        "sacrifice": {
+          "selfEffects": [
+            {
+              "effect": "EFF-SUMMONER-WOLF-HASTE",
+              "duration": 4
+            }
+          ]
+        },
+        "possessEffects": ["EFF-SUMMONER-POSSESS-DIRE-WOLF"],
+        "provisional": true,
+        "provisionalNote": "契約枠のコストは仕様書v0.2 5.5。HPの割合（標準HPに対する。仕様書5.1.1「付録Cで定める」が付録Cに無い）・攻撃・速さ・射程・索敵は仮（docs/progress D-SUM-2・D-SUM-3）"
+      }
+    },
+    "provisional": true,
+    "provisionalNote": "召喚士の技・召喚物の数値（MP・CDの他：召喚物のHPの割合・攻撃・速さ・射程・索敵・犠牲と憑依の中身）は仕様書v0.2 5.5 に無いので仮（docs/progress D-SUM-2〜6）"
+  },
+  {
+    "id": "SKL-SUMMONER-COMMAND",
+    "text": "skill.summoner.command",
+    "job": "JOB-SUMMONER",
+    "tags": ["TAG-FORM-WARCRY"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 6,
+    "cooldown": 3,
+    "action": {
+      "type": "command",
+      "range": 12,
+      "duration": 8,
+      "damageBonus": 0.2
+    },
+    "provisional": true,
+    "provisionalNote": "MP6・CD3秒・+20%は仕様書v0.2 5.5。対象は照準の近くの敵（影走りと同じ選び方）、狙わせる時間8秒・探す範囲12mは仮（docs/progress D-SUM-1・D-SUM-4）"
+  },
+  {
+    "id": "SKL-SUMMONER-SACRIFICE",
+    "text": "skill.summoner.sacrifice",
+    "job": "JOB-SUMMONER",
+    "tags": ["TAG-FORM-SUMMON"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 0,
+    "cooldown": 2,
+    "action": {
+      "type": "sacrifice"
+    },
+    "provisional": true,
+    "provisionalNote": "MP0・CD2秒は仕様書v0.2 5.5。対象は照準に最も近い自分の召喚物（仮。D-SUM-1）。骨の盾4秒・-20%は仕様書。爆発の半径3m・攻撃の4倍、魔狼の+30%の持続4秒は仮（D-SUM-5）"
+  },
+  {
+    "id": "SKL-SUMMONER-POSSESS",
+    "text": "skill.summoner.possess",
+    "job": "JOB-SUMMONER",
+    "tags": ["TAG-FORM-SUMMON", "TAG-FORM-DURATION"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 20,
+    "cooldown": 15,
+    "action": {
+      "type": "possess",
+      "duration": 10
+    },
+    "provisional": true,
+    "provisionalNote": "MP20・CD15秒・10秒は仕様書v0.2 5.5。「召喚物1体の能力を自分が得る」の中身は仮（召喚物ごとの効果。D-SUM-6）。対象は照準に最も近い自分の召喚物（D-SUM-1）"
+  }
+]

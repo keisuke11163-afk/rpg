@@ -52,7 +52,27 @@ export interface ProjectileVolley {
   readonly range: number;
   readonly radius: number;
   readonly pierce: number;
+  /** 当たった場所の小さな範囲の半径（m。火球・蒸爆）。無ければ範囲は出ない。 */
+  readonly burst?: number;
 }
+
+/** 連鎖（魔法使いの雷鎖）。呼び出す側が、最初の対象を選び、近くの別の敵へ連鎖させる。 */
+export interface ChainCast {
+  readonly skill: ResolvedSkill;
+  readonly origin: Vec2;
+  readonly range: number;
+  readonly jumpRange: number;
+  readonly chains: number;
+}
+
+/**
+ * 召喚物への命令（召喚士の技。仕様書v0.2 5.5）。当たり判定が出始めたときに1回だけ知らせる。
+ * 呼び出す側が、召喚・指揮・犠牲・憑依を行う（対象の選び方・契約枠の確認も呼び出す側）。
+ */
+export type MinionOrder = Extract<
+  ResolvedSkill["action"],
+  { type: "summon" | "command" | "sacrifice" | "possess" }
+>;
 
 /** 戦吼（自分の周りの味方を強め、敵を弱める）。 */
 export interface WarcryPulse {
@@ -86,9 +106,12 @@ export interface ExecutionTick {
   readonly warcry?: WarcryPulse;
   /** 自分にかける一定時間の効果（毒塗り）。 */
   readonly selfBuff?: { readonly effects: readonly string[]; readonly duration: number };
+  /** 召喚物への命令（召喚・指揮・犠牲・憑依）。 */
+  readonly order?: MinionOrder;
   readonly zone?: ZonePlacement;
   readonly trap?: TrapPlacement;
   readonly volley?: ProjectileVolley;
+  readonly chain?: ChainCast;
   readonly pull?: PullPulse;
   /** 自分を動かす量（突進）。 */
   readonly displacement: Vec2;
@@ -316,6 +339,14 @@ export class SkillExecution {
           finished: e.finished,
         };
       }
+      case "summon":
+      case "command":
+      case "sacrifice":
+      case "possess": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        return { ...empty, ...(e.activeStarted ? { order: a } : {}), finished: e.finished };
+      }
       case "zone": {
         const e = (this.timeline as ActionTimeline).update(dt);
         this.finishedFlag = e.finished;
@@ -388,6 +419,7 @@ export class SkillExecution {
             range: a.range,
             radius: a.radius,
             pierce: a.pierce,
+            ...(a.burst === undefined ? {} : { burst: a.burst }),
           };
         }
         return {
@@ -395,6 +427,37 @@ export class SkillExecution {
           displacement,
           ...(volley === undefined ? {} : { volley }),
           finished,
+        };
+      }
+      case "blink": {
+        // 瞬移：動作の当たり判定が出る瞬間に、照準の方向へ決まった距離まで移る（照準が近ければそこまで）
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        const to = e.activeStarted ? this.placeAt(input.position, a.distance) : undefined;
+        return {
+          ...empty,
+          displacement:
+            to === undefined ? ZERO : { x: to.x - input.position.x, y: to.y - input.position.y },
+          finished: e.finished,
+        };
+      }
+      case "chain": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        return {
+          ...empty,
+          ...(e.activeStarted
+            ? {
+                chain: {
+                  skill: this.skill,
+                  origin: input.position,
+                  range: a.range,
+                  jumpRange: a.jumpRange,
+                  chains: a.chains,
+                },
+              }
+            : {}),
+          finished: e.finished,
         };
       }
       case "barrage": {

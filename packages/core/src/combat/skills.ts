@@ -71,6 +71,47 @@ export function unlockedSkills(job: JobDef, jobLevel: number): string[] {
   return job.skills.filter((s) => s.level <= jobLevel).map((s) => s.skill);
 }
 
+/** メインジョブの技の枠（6つ）のうち、サブジョブの技を入れられる数（MVP後の機能の提案 2章 ①。docs/progress D-SUB-4）。 */
+export const SUB_SKILL_SLOT_LIMIT = 2;
+
+/** 技をサブジョブの技として使えるか（技の subJobRule。戦士の解放技は使えない。docs/progress D-SUB-6）。 */
+export function usableAsSubSkill(def: SkillDef): boolean {
+  return def.subJobRule !== "unavailable";
+}
+
+/**
+ * サブジョブの技のうち、使えるもの（仕様書v0.2 5.1・docs/progress D-SUB-4）：ジョブ定義の subSkills の2つのうち、
+ * サブジョブのジョブLvで覚えているもの（{@link unlockedSkills} と同じ規則）。subSkills の順に並べる。
+ */
+export function unlockedSubSkills(sub: JobDef, subJobLevel: number): string[] {
+  const learned = new Set(unlockedSkills(sub, subJobLevel));
+  return (sub.subSkills?.skills ?? []).filter((id) => learned.has(id));
+}
+
+/** 技の枠に入っている、サブジョブの技の数。 */
+export function subSkillsInSlots(
+  slots: readonly (string | undefined)[],
+  subSkills: readonly string[],
+): number {
+  const sub = new Set(subSkills);
+  return slots.filter((s) => s !== undefined && sub.has(s)).length;
+}
+
+/**
+ * 技の枠の index にサブジョブの技を入れられるか：使えるサブジョブの技（{@link unlockedSubSkills}）で、
+ * 入れた後のサブジョブの技の数が {@link SUB_SKILL_SLOT_LIMIT} 以下のとき（index にあった技は置き換える）。
+ */
+export function canSlotSubSkill(
+  slots: readonly (string | undefined)[],
+  index: number,
+  skillId: string,
+  subSkills: readonly string[],
+): boolean {
+  if (!subSkills.includes(skillId)) return false;
+  const others = slots.map((s, i) => (i === index ? undefined : s));
+  return subSkillsInSlots(others, subSkills) < SUB_SKILL_SLOT_LIMIT;
+}
+
 /** 技の変化を決める状況。 */
 export interface SkillContext {
   /** 職能ゲージの達している段階（サブジョブの技では空。仕様書5.1「戦士の技：激化しない」）。 */
@@ -80,6 +121,8 @@ export interface SkillContext {
   readonly dualWield?: boolean;
   /** 終結技で使うゲージの量（急所穿ちのコンボ点）。 */
   readonly gaugeSpent?: number;
+  /** 呪文を変える合成魔法（位相。魔法使い）。段階の変化の後に当てはめる。label は表示・確認用（例：fusion:steam）。 */
+  readonly fusion?: { readonly id: string; readonly mods: SkillMods };
 }
 
 export interface SkillBehavior {
@@ -133,7 +176,11 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     if (ctx.stages.includes(v.stage)) applied.push({ label: `stage:${v.stage}`, mods: v.mods });
   }
 
+  if (ctx.fusion !== undefined)
+    applied.push({ label: `fusion:${ctx.fusion.id}`, mods: ctx.fusion.mods });
+
   let pct = def.pct;
+  let pctMultiplier = 1;
   let area = 1;
   let angleDeg: number | undefined;
   let staggerInc = 0;
@@ -141,12 +188,14 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   let hitsPerSecond: number | undefined;
   let radiusMultiplier = 1;
   let hits: number | undefined;
+  let burst: number | undefined;
   let replacedAction: SkillAction | undefined;
   let tags: readonly string[] = def.tags;
   const chance: Record<string, number> = { ...(def.ailmentChance ?? {}) };
   const behaviors: SkillBehavior[] = [];
   for (const { mods } of applied) {
     if (mods.pct !== undefined) pct = mods.pct;
+    if (mods.pctMultiplier !== undefined) pctMultiplier *= mods.pctMultiplier;
     if (mods.areaMultiplier !== undefined) area *= mods.areaMultiplier;
     if (mods.angleDeg !== undefined) angleDeg = mods.angleDeg;
     staggerInc += mods.staggerIncreased ?? 0;
@@ -154,6 +203,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     if (mods.hitsPerSecond !== undefined) hitsPerSecond = mods.hitsPerSecond;
     if (mods.radiusMultiplier !== undefined) radiusMultiplier *= mods.radiusMultiplier;
     if (mods.hits !== undefined) hits = mods.hits;
+    if (mods.burst !== undefined) burst = mods.burst;
     if (mods.action !== undefined) replacedAction = mods.action;
     if (mods.tags !== undefined) tags = mods.tags;
     for (const [tag, c] of Object.entries(mods.ailmentChance ?? {}))
@@ -191,9 +241,20 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
       action = { ...a, radius: a.radius * radiusMultiplier * area };
       break;
     case "projectile":
+      {
+        const b = burst ?? a.burst;
+        action = b === undefined ? a : { ...a, burst: b * area };
+      }
+      break;
     case "teleport":
     case "selfBuff":
     case "trap":
+    case "blink":
+    case "chain":
+    case "summon":
+    case "command":
+    case "sacrifice":
+    case "possess":
       action = a;
       break;
   }
@@ -202,6 +263,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   const baseCoefficient =
     def.staggerCoefficient ?? (staggerDef?.kind === "stagger" ? staggerDef.defaultCoefficient : 0);
 
+  pct *= pctMultiplier;
   // 終結技：使ったゲージの量に応じて技倍率が上がり、決まった量なら必ず会心
   const spent = ctx.gaugeSpent ?? 0;
   if (def.finisher !== undefined) pct += def.finisher.pctPerPoint * spent;
@@ -216,6 +278,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
       kind: def.kind,
       pct,
       ...(def.base === undefined ? {} : { base: def.base }),
+      ...(def.convert === undefined ? {} : { convert: def.convert }),
     },
     action,
     staggerCoefficient: baseCoefficient * (1 + staggerInc),

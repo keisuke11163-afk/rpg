@@ -259,6 +259,11 @@ export interface HitInput {
   readonly forceCrit?: boolean;
   /** このヒットだけのダメージの加算（弓使いの適正間合い）。 */
   readonly extraIncreased?: number;
+  /**
+   * このヒットでガードしている（騎士。0〜1：盾のガード率）。防具値の後に、全ての属性にかける
+   * （D-U04a-5。向き・気力の判定は呼び出す側が済ませてから渡す）。省略すると0。
+   */
+  readonly guard?: number;
   /** このヒットだけの受けるダメージの倍率（母樹の根冠の毒・背向けの外套など。省略で1）。 */
   readonly extraTakenMultiplier?: number;
   /** このヒットの全ての付与率への加算（武具連携「双牙」の2撃目+20%など）。 */
@@ -310,6 +315,7 @@ export function resolveHit(input: HitInput): HitReport {
       armor: target.armor,
       evasion: target.evasion,
       takenMultiplier: target.takenMultiplier * extra,
+      ...(input.guard === undefined ? {} : { guard: input.guard }),
     },
     {
       rng,
@@ -338,7 +344,8 @@ export function resolveHit(input: HitInput): HitReport {
       staggerBroke: false,
     };
   const tags = [...skill.tags, ...(skill.kind === "weapon" ? (attacker.weapon?.tags ?? []) : [])];
-  const weaponUid = attacker.weapon?.uid;
+  // 呪文は武器のヒットではない（computeHit と同じ。局所の効果は呪文に効かない）。武器を持っていても渡さない
+  const weaponUid = skill.kind === "weapon" ? attacker.weapon?.uid : undefined;
   const ailments = rollAilments({
     db,
     view: attacker.view,

@@ -5,7 +5,7 @@ import { AffixLibrary, BRUSH_LIMIT } from "../items/affix-library.ts";
 import { type LoadoutRecord, MAX_LOADOUTS } from "../character/loadouts.ts";
 import { ITEM_RARITIES, AFFIX_TIERS } from "../content/item.ts";
 import type { ContentDb } from "../content/load.ts";
-import { JobBoardAllocation } from "../board/job-board.ts";
+import { JobBoardAllocation, subJobBoardPoints } from "../board/job-board.ts";
 import { dualWieldAffinity } from "../combat/skills.ts";
 import {
   Equipment,
@@ -27,6 +27,9 @@ import { INSCRIPTIONS, MAX_FORGE_LOAD } from "../items/crafting.ts";
  * - 版4：解放した転移の石（unlocked_regions）と、死亡の記録（death_log）を足した（U-18a）
  * - 版5：終えたクエストの段階（quest_stages）と、見つけた隠し星（secrets_found）を足した（U-18b）
  * - 版6：ボスを倒した回数（boss_kills。初回の撃破・A5 の開放）を足した（U-19）
+ *
+ * 版の番号を上げずに足した任意の項目（無い古いセーブもそのまま読める）：affix_library（A-5）・
+ * items[].relic_nodes・items[].brushed・loadouts[].job_boards・sub_job_boards（副職紋。docs/progress D-SUB-8）。
  */
 export const SAVE_VERSION = 6;
 /** 技の枠の数（補助仕様書1.1）。 */
@@ -134,6 +137,11 @@ export const saveDataSchema = z.strictObject({
   boss_kills: z.record(id, count),
   /** 詞片の書庫（`詞のID@T数` → 数。省略できる。版の番号は上げない。docs/progress A-5）。 */
   affix_library: z.record(z.string(), count).optional(),
+  /**
+   * 副職紋の取得（サブジョブにしたジョブ → 取ったノード。取った順）。サブジョブを外す・変えても、ジョブごとに残す。
+   * 省略できる（版の番号は上げない。docs/progress D-SUB-8）。character.sub_job が今のサブジョブ。
+   */
+  sub_job_boards: z.record(id, z.array(id)).optional(),
   ...commonFields,
 });
 export type SaveData = z.infer<typeof saveDataSchema>;
@@ -338,10 +346,17 @@ export interface PlayerProfile {
   readonly kept: KeptSaveFields;
 }
 
-/** まだゲームで使っていない項目。 */
+/**
+ * まだゲームで使っていない項目。
+ * サブジョブそのものは character（Character.subJob）が持つ（docs/progress D-SUB-5）。
+ */
 export interface KeptSaveFields {
-  readonly subJob: string | null;
   readonly boards: Readonly<Record<string, { board: string[]; mastery: string | null }>>;
+  /**
+   * 副職紋の取得（ジョブ → 取ったノード。取った順）。サブジョブを外す・変えても、ジョブごとに残す
+   * （メインの職紋盤と同じ。docs/progress D-SUB-5・D-SUB-8）。
+   */
+  readonly subBoards: Readonly<Record<string, readonly string[]>>;
   readonly bossTokens: Readonly<Record<string, number>>;
   readonly discoveries: SaveData["discoveries"];
   readonly questPoints: number;
@@ -352,8 +367,8 @@ export interface KeptSaveFields {
 /** 新しいキャラクターの、まだゲームで使っていない項目の初期値。 */
 export function emptyKeptFields(): KeptSaveFields {
   return {
-    subJob: null,
     boards: {},
+    subBoards: {},
     bossTokens: {},
     discoveries: { latent_revealed: [], bonds_revealed: [], interactions_seen: [] },
     questPoints: 0,
@@ -441,7 +456,7 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
       level: c.level,
       xp: c.progress.xp,
       main_job: c.mainJob,
-      sub_job: kept.subJob,
+      sub_job: c.subJob ?? null,
     },
     jobs,
     items,
@@ -457,6 +472,13 @@ export function toSaveData(db: ContentDb, profile: PlayerProfile): SaveData {
     ...(profile.affixLibrary === undefined || Object.keys(profile.affixLibrary).length === 0
       ? {}
       : { affix_library: { ...profile.affixLibrary } }),
+    // 副職紋：取ったものがあるジョブだけ（全て空なら項目ごと省く。古いセーブと同じ形のまま）
+    ...(() => {
+      const boards = Object.entries(kept.subBoards).filter(([, nodes]) => nodes.length > 0);
+      return boards.length === 0
+        ? {}
+        : { sub_job_boards: Object.fromEntries(boards.map(([j, n]) => [j, [...n]])) };
+    })(),
     gold: profile.inventory.gold,
     materials: Object.fromEntries(profile.inventory.materials),
     boss_tokens: { ...kept.bossTokens },
@@ -558,8 +580,18 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
       `Lv・経験値が正しくない：${e instanceof Error ? e.message : String(e)}`,
     );
   }
+  // サブジョブ（仕様書v0.2 5.1・docs/progress D-SUB-5）：存在するジョブ・キャラLv25以上・メインと違う・上位職でない
+  if (c.sub_job !== null) {
+    const subId = c.sub_job;
+    ref(db.jobs.has(subId), () => `サブジョブ ${subId} がデータに無い`);
+    const block = character.subJobBlock(subId);
+    ref(block === undefined, () => `サブジョブ ${subId} は設定できない（${String(block)}）`);
+    character.setSubJob(subId);
+  }
   const mainJob = db.jobs.get(c.main_job);
-  const canDualWield = mainJob !== undefined && dualWieldAffinity(mainJob) !== undefined;
+  const subJobDef = c.sub_job === null ? undefined : db.jobs.get(c.sub_job);
+  // 二刀流はサブジョブからも受け継ぐ（1段階下げる。仕様書v0.2 5.1）。サブジョブが無ければ今までどおり
+  const canDualWield = mainJob !== undefined && dualWieldAffinity(mainJob, subJobDef) !== undefined;
   // 装備（使っているロードアウト）
   const active = data.loadouts.find((l) => l.id === data.active_loadout);
   ref(active !== undefined, () => `使っているロードアウト ${String(data.active_loadout)} が無い`);
@@ -735,13 +767,41 @@ export function fromSaveData(db: ContentDb, data: SaveData): PlayerProfile {
           );
         }
       }
+      // 副職紋（docs/progress D-SUB-2・D-SUB-8）：データにあるジョブ・上位職でない・キャラLv25以上・そのジョブの盤の
+      // 小ノードと輝星だけ（職奥義・接続ノードは取れない）・ポイント（min(20, そのジョブのジョブLv−1)）以内
+      for (const [jobId, nodes] of Object.entries(data.sub_job_boards ?? {})) {
+        const def = db.jobs.get(jobId);
+        ref(def !== undefined, () => `副職紋のジョブ ${jobId} がデータに無い`);
+        if (nodes.length === 0) continue;
+        ref(def?.advancedFrom === undefined, () => `上位職 ${jobId} の副職紋は持てない`);
+        ref(
+          character.canSetSubJob,
+          () => `キャラLvが ${String(c.level)} なのに、副職紋（${jobId}）の取得がある`,
+        );
+        try {
+          new JobBoardAllocation(db, jobId, nodes, "sub");
+        } catch (e) {
+          ref(
+            false,
+            () => `ジョブ ${jobId} の副職紋：${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        const points = subJobBoardPoints(character.jobLevel(jobId));
+        ref(
+          nodes.length <= points,
+          () =>
+            `ジョブ ${jobId} の副職紋の取得（${String(nodes.length)}）が、ポイント（${String(points)}）を超える`,
+        );
+      }
       return keptOf();
     })(),
   };
 
   function keptOf(): KeptSaveFields {
     return {
-      subJob: c.sub_job,
+      subBoards: Object.fromEntries(
+        Object.entries(data.sub_job_boards ?? {}).map(([k, n]) => [k, [...n]]),
+      ),
       boards: Object.fromEntries(
         Object.entries(data.jobs).map(([k, j]) => [
           k,

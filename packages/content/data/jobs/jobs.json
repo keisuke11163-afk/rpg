@@ -42,6 +42,11 @@
       "TAG-WPN-STAFF": "C"
     },
     "dualWield": "B",
+    "subSkills": {
+      "skills": ["SKL-WARRIOR-CHARGE", "SKL-WARRIOR-WARCRY"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLvは仮値（補助仕様書3.5）",
     "originAttributes": {
@@ -109,6 +114,11 @@
       "critChance": 0.1,
       "ailmentChance": 0.25
     },
+    "subSkills": {
+      "skills": ["SKL-ROGUE-SHADOWSTEP", "SKL-ROGUE-POISON"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5）",
     "defaultSlots": [
@@ -173,6 +183,11 @@
       "close": 3,
       "closePenalty": -0.2
     },
+    "subSkills": {
+      "skills": ["SKL-ARCHER-LEAP", "SKL-ARCHER-RAIN"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
     "provisional": true,
     "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5。docs/progress D-ARC-2）",
     "defaultSlots": [
@@ -184,5 +199,203 @@
       "SKL-ARCHER-RAIN"
     ],
     "startingWeapon": "BASE-WPN-BOW-T1"
+  },
+  {
+    "id": "JOB-MAGE",
+    "tag": "TAG-JOB-MAGE",
+    "text": "job.mage",
+    "gauge": "GAU-PHASE",
+    "skills": [
+      {
+        "skill": "SKL-MAGE-FIREBALL",
+        "level": 1
+      },
+      {
+        "skill": "SKL-MAGE-ICELANCE",
+        "level": 3
+      },
+      {
+        "skill": "SKL-MAGE-CHAIN",
+        "level": 5
+      },
+      {
+        "skill": "SKL-MAGE-BLINK",
+        "level": 7
+      },
+      {
+        "skill": "SKL-MAGE-METEOR",
+        "level": 10
+      },
+      {
+        "skill": "SKL-MAGE-BARRIER",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-STAFF": "S",
+      "TAG-WPN-TOME": "S",
+      "TAG-WPN-WAND": "S",
+      "TAG-WPN-DAGGER": "B"
+    },
+    "originAttributes": {
+      "go": 5,
+      "jin": 5,
+      "ri": 20,
+      "kon": 10
+    },
+    "subSkills": {
+      "skills": ["SKL-MAGE-FIREBALL", "SKL-MAGE-BLINK"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLvと初期能力値は仮値（補助仕様書3.2・3.5。docs/progress D-MAG-5）。剣はCなので適性の表に書かない",
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-MAGE-FIREBALL",
+      "SKL-MAGE-ICELANCE",
+      "SKL-MAGE-CHAIN",
+      "SKL-MAGE-BLINK",
+      "SKL-MAGE-METEOR"
+    ],
+    "startingWeapon": "BASE-WPN-STAFF-T1"
+  },
+  {
+    "id": "JOB-KNIGHT",
+    "tag": "TAG-JOB-KNIGHT",
+    "text": "job.knight",
+    "gauge": "GAU-FAITH",
+    "skills": [
+      {
+        "skill": "SKL-KNIGHT-SHIELD-BASH",
+        "level": 1
+      },
+      {
+        "skill": "SKL-KNIGHT-JUDGMENT",
+        "level": 3
+      },
+      {
+        "skill": "SKL-KNIGHT-TAUNT",
+        "level": 5
+      },
+      {
+        "skill": "SKL-KNIGHT-SHIELD-CHARGE",
+        "level": 7
+      },
+      {
+        "skill": "SKL-KNIGHT-SANCTUARY",
+        "level": 10
+      },
+      {
+        "skill": "SKL-KNIGHT-AUREOLE",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-SWORD": "S",
+      "TAG-WPN-SHIELD": "S",
+      "TAG-WPN-SPEAR": "A",
+      "TAG-WPN-GREATSWORD": "B",
+      "TAG-WPN-SCEPTER": "B",
+      "TAG-WPN-MACE": "A",
+      "TAG-WPN-GREATMACE": "A"
+    },
+    "originAttributes": {
+      "go": 15,
+      "jin": 5,
+      "ri": 5,
+      "kon": 15
+    },
+    "subSkills": {
+      "skills": ["SKL-KNIGHT-TAUNT", "SKL-KNIGHT-SANCTUARY"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLvは仮値（補助仕様書3.5）。初期能力値は補助仕様書3.2（剛15・迅5・理5・魂15）。適性は仕様書v0.2 5.3（弓Cは書かなければC）。ガードの規則の数値（正面の角度・気力・反撃権の秒数など）は仕様書に無い仮値（docs/progress D-KNT-1・D-KNT-2。パリィの連打の対策 parryCooldown は D-KNT-10）",
+    "guard": {
+      "parryWindow": 0.18,
+      "frontAngleDeg": 180,
+      "staminaCost": 15,
+      "parryStaggerRatio": 0.35,
+      "counterBonus": 1,
+      "counterSeconds": 4,
+      "moveSpeedMultiplier": 0.6,
+      "minRaise": 0.3,
+      "parryCooldown": 0.6
+    },
+    "passiveEffects": ["EFF-KNIGHT-OATH-GUARDIAN"],
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-KNIGHT-SANCTUARY",
+      "SKL-KNIGHT-SHIELD-BASH",
+      "SKL-KNIGHT-JUDGMENT",
+      "SKL-KNIGHT-TAUNT",
+      "SKL-KNIGHT-SHIELD-CHARGE"
+    ],
+    "startingWeapon": "BASE-WPN-LONGSWORD-T1",
+    "startingOffHand": "BASE-SHD-BUCKLER-T1"
+  },
+  {
+    "id": "JOB-SUMMONER",
+    "tag": "TAG-JOB-SUMMONER",
+    "text": "job.summoner",
+    "gauge": "GAU-CONTRACT",
+    "skills": [
+      {
+        "skill": "SKL-SUMMONER-SKELETON",
+        "level": 1
+      },
+      {
+        "skill": "SKL-SUMMONER-COMMAND",
+        "level": 3
+      },
+      {
+        "skill": "SKL-SUMMONER-FIRE-SPIRIT",
+        "level": 5
+      },
+      {
+        "skill": "SKL-SUMMONER-SACRIFICE",
+        "level": 7
+      },
+      {
+        "skill": "SKL-SUMMONER-DIRE-WOLF",
+        "level": 10
+      },
+      {
+        "skill": "SKL-SUMMONER-POSSESS",
+        "level": 12
+      }
+    ],
+    "affinity": {
+      "TAG-WPN-SCEPTER": "S",
+      "TAG-WPN-BELL": "S",
+      "TAG-WPN-STAFF": "A",
+      "TAG-WPN-SCYTHE": "A",
+      "TAG-WPN-TOME": "A",
+      "TAG-WPN-SWORD": "C"
+    },
+    "originAttributes": {
+      "go": 5,
+      "jin": 5,
+      "ri": 15,
+      "kon": 15
+    },
+    "subSkills": {
+      "skills": ["SKL-SUMMONER-SKELETON", "SKL-SUMMONER-DIRE-WOLF"],
+      "provisional": true,
+      "provisionalNote": "サブジョブの技2つの選び方は仕様書に無い仮の選択（通常攻撃・職能ゲージを前提にする技を除き、サブとして使いやすいもの。docs/progress D-SUB-4）"
+    },
+    "provisional": true,
+    "provisionalNote": "技を覚えるジョブLv・初期の技の枠は仮値（補助仕様書3.5と同じ考え方。docs/progress D-SUM-10）。初期能力値は補助仕様書3.2（理15・魂15）。適性は仕様書v0.2 5.5",
+    "defaultSlots": [
+      "SKL-BASIC-ATTACK",
+      "SKL-SUMMONER-COMMAND",
+      "SKL-SUMMONER-SKELETON",
+      "SKL-SUMMONER-FIRE-SPIRIT",
+      "SKL-SUMMONER-DIRE-WOLF",
+      "SKL-SUMMONER-SACRIFICE"
+    ],
+    "startingWeapon": "BASE-WPN-SCEPTER-T1"
   }
 ]

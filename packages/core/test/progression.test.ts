@@ -145,15 +145,21 @@ describe("Lv・経験値の入力の検証（PR #13 のレビュー指摘1。PR 
     expect(new LevelTrack(20, 20).level).toBe(20);
   });
 
-  it.each([NaN, -1, 0, Infinity, 1.5, 21])("Character のキャラLv %s は RangeError", (bad) => {
-    expect(() => new Character({ jobs: JOBS, origin: WARRIOR, level: bad })).toThrow(RangeError);
-  });
+  it.each([NaN, -1, 0, Infinity, 1.5, 26])(
+    "Character のキャラLv %s は RangeError（上限25）",
+    (bad) => {
+      expect(() => new Character({ jobs: JOBS, origin: WARRIOR, level: bad })).toThrow(RangeError);
+    },
+  );
 
-  it.each([NaN, -1, 0, Infinity, 1.5, 21])("Character のジョブLv %s は RangeError", (bad) => {
-    expect(
-      () => new Character({ jobs: JOBS, origin: WARRIOR, jobLevels: { "JOB-W": bad } }),
-    ).toThrow(RangeError);
-  });
+  it.each([NaN, -1, 0, Infinity, 1.5, 26])(
+    "Character のジョブLv %s は RangeError（上限25）",
+    (bad) => {
+      expect(
+        () => new Character({ jobs: JOBS, origin: WARRIOR, jobLevels: { "JOB-W": bad } }),
+      ).toThrow(RangeError);
+    },
+  );
 
   it.each(BAD_AMOUNTS)(
     "Character.gainXp(%s) は、キャラLv・ジョブLvを変えずに RangeError",

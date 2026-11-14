@@ -12,6 +12,7 @@ import {
   type EnemyResidue,
   type EnemyTarget,
   type EnemyUpdatePlan,
+  type GuardOutcome,
   type HitReport,
   ProjectilePool,
   type ProjectileTarget,
@@ -86,12 +87,28 @@ export interface FieldEnemy {
 
 /** 敵の攻撃を受けたときに、場面に知らせること。 */
 export interface FieldHooks {
-  onPlayerHit(report: HitReport, enemy: Enemy, attack: EnemyAttackDef): void;
+  /**
+   * プレイヤーがヒットを受けた（防げなかった分・ガードで減った分を含む）。guarded は、ガードで防いだヒットか
+   * （ガードしたヒットは被弾として数えない：信念は-1にならず+1になる。仕様書v0.2 5.3）。
+   */
+  onPlayerHit(report: HitReport, enemy: Enemy, attack: EnemyAttackDef, guarded: boolean): void;
+  /**
+   * 攻撃が当たる直前に、ガード・パリィの結果を決める（騎士。省略すると、いつも none）。
+   * guard なら、ヒットのダメージから盾のガード率の分だけ減る。parry ならヒットは起きない（onParried だけ呼ぶ）。
+   * 回避の無敵で無効にしたヒットは、ここも呼ばない。
+   */
+  guardAgainst?(enemy: Enemy, attack: EnemyAttackDef): GuardOutcome;
+  /** パリィに成功した（ダメージ・状態異常・崩しは何も受けない）。 */
+  onParried?(enemy: Enemy, attack: EnemyAttackDef): void;
   onAvoided(enemy: Enemy, attack: EnemyAttackDef): void;
   /** 敵が倒れた（経験値を得る）。1体につき1回だけ、場の更新を全て反映した後に呼ぶ。 */
   onEnemyKilled(enemy: Enemy): void;
   /** このヒットの、プレイヤーが受けるダメージの倍率（背向けの外套。省略で1）。 */
   playerTakenMultiplier?(enemy: Enemy): number;
+  /**
+   * 召喚物（味方の戦う者）がヒットを受けた（召喚士。省略できる）。召喚物には回避の無敵・ガードは無い。
+   */
+  onAllyHit?(report: HitReport, enemy: Enemy, ally: Combatant): void;
   /** ボスの段階が変わった・根渡りで潜った・現れた（表示用。省略できる）。 */
   onBossEvent?(enemy: Enemy, event: "phase" | "burrow" | "surface", phase: number): void;
 }
@@ -273,9 +290,14 @@ export class EnemyField {
     invulnerable: boolean,
     facing: number,
     hooks: FieldHooks,
+    /**
+     * 味方の戦う者（召喚物）。敵は、プレイヤーと味方のうち最も近い相手を狙い、当たり判定・投射物は味方にも当たる。
+     * 空（省略）なら、今までどおりプレイヤーだけを狙う（同じ計算・同じ乱数の順）。
+     */
+    allies: readonly Combatant[] = [],
   ): void {
-    const plan = this.plan(dt, player, invulnerable);
-    const effects = this.commit(plan, player, facing);
+    const plan = this.plan(dt, player, invulnerable, allies);
+    const effects = this.commit(plan, player, facing, allies);
     try {
       this.applyToPlayer(effects, player, plan.invulnerable, hooks);
     } finally {
@@ -290,7 +312,12 @@ export class EnemyField {
   }
 
   /** 1. 計画と検証（場もプレイヤーも変えない）。 */
-  private plan(dt: number, player: Combatant, invulnerable: boolean): FieldPlan {
+  private plan(
+    dt: number,
+    player: Combatant,
+    invulnerable: boolean,
+    allies: readonly Combatant[],
+  ): FieldPlan {
     if (!(Number.isFinite(dt) && dt >= 0))
       throw new RangeError(`経過時間は有限かつ0以上（${String(dt)}）`);
     // プレイヤーがヒットを受けない（回避の無敵）かは、この刻みの始めに決める。
@@ -298,7 +325,7 @@ export class EnemyField {
     if (typeof invulnerable !== "boolean")
       throw new RangeError(`無敵かは真偽値（${String(invulnerable)}）`);
     // 投射物：相手（プレイヤー）の位置・半径と、今ある投射物の半径との合計
-    this.projectiles.checkUpdate(dt, [playerTarget(player)]);
+    this.projectiles.checkUpdate(dt, projectileTargets(player, allies));
     // 敵：更新の計画（後ろの敵で失敗しても、前の敵はまだ何も変わっていない）
     const enemies = this.views.map((v) => {
       const enemy = v.enemy.planUpdate(dt);
@@ -326,7 +353,12 @@ export class EnemyField {
   }
 
   /** 2. 場の反映（検証済みの値だけを使い、例外は起きない）。プレイヤーへの影響を、起きた順に返す。 */
-  private commit(plan: FieldPlan, player: Combatant, facing: number): PlayerEffect[] {
+  private commit(
+    plan: FieldPlan,
+    player: Combatant,
+    facing: number,
+    allies: readonly Combatant[],
+  ): PlayerEffect[] {
     const { dt } = plan;
     const effects: PlayerEffect[] = [];
     const target: EnemyTarget = {
@@ -335,6 +367,7 @@ export class EnemyField {
       facing,
       targetable: !player.health.dead,
     };
+    const liveAllies = allies.filter((a) => !a.health.dead);
     const existingClouds = this.cloudList.length;
     // 仲間を呼ぶと、views の後ろに敵が足される。足された敵も、従来どおりこの刻みで1回更新する
     for (let i = 0; i < this.views.length; i++) {
@@ -344,12 +377,25 @@ export class EnemyField {
       if (p === undefined) continue;
       const e = v.enemy;
       if (e.state === "windup") v.hitGroups.clear();
-      for (const ev of e.commitUpdate(p.enemy, target, this.rng, this.bounds)) {
+      // 召喚物がいれば、プレイヤーと召喚物のうち最も近い相手を狙う（いなければ今までどおりプレイヤー。D-SUM-5）
+      const aim = liveAllies.length === 0 ? target : nearestTarget(e.position, target, liveAllies);
+      for (const ev of e.commitUpdate(p.enemy, aim, this.rng, this.bounds)) {
         switch (ev.type) {
           case "noticed":
             this.alertPack(e);
             break;
           case "strike":
+            // 召喚物にも当たる（同じ group の当たり判定は、相手ごとに1回だけ）
+            for (const ally of liveAllies) {
+              if (!overlapsShape(ev.shape, ev.origin, ev.facing, ally.position, ally.radius))
+                continue;
+              if (ev.group !== undefined) {
+                const key = `${ev.group}|${ally.id}`;
+                if (v.hitGroups.has(key)) continue;
+                v.hitGroups.add(key);
+              }
+              effects.push({ type: "allyHit", enemy: e, attack: ev.attack, ally });
+            }
             if (!overlapsShape(ev.shape, ev.origin, ev.facing, player.position, player.radius))
               break;
             if (ev.group !== undefined) {
@@ -424,8 +470,19 @@ export class EnemyField {
     }
     separate(this.enemies);
 
-    for (const hit of this.projectiles.update(dt, [playerTarget(player)]))
-      effects.push({ type: "hit", enemy: hit.payload.enemy, attack: hit.payload.attack });
+    for (const hit of this.projectiles.update(dt, projectileTargets(player, allies))) {
+      const ally =
+        hit.targetId === "player" ? undefined : allies.find((a) => a.id === hit.targetId);
+      if (ally === undefined)
+        effects.push({ type: "hit", enemy: hit.payload.enemy, attack: hit.payload.attack });
+      else
+        effects.push({
+          type: "allyHit",
+          enemy: hit.payload.enemy,
+          attack: hit.payload.attack,
+          ally,
+        });
+    }
 
     // 胞子の雲：中にいると、間隔ごとに毒を1つ受ける（回避の無敵時間でも受ける。攻撃ではないため）
     // 今ある雲は計画の値を、この刻みに出た雲は検証済みのデータと dt から計算した値を使う
@@ -513,9 +570,33 @@ export class EnemyField {
         hooks.onBossEvent?.(ef.enemy, ef.event, ef.phase);
         continue;
       }
+      // 召喚物へのヒット（回避の無敵・ガードは無い。倒れていれば何もしない）
+      if (ef.type === "allyHit") {
+        if (ef.ally.health.dead) continue;
+        const report = resolveHit({
+          db: this.db,
+          attacker: this.attackers.attacker(ef.enemy, ef.attack),
+          attackerPosition: ef.enemy.position,
+          skill: { tags: [], kind: "weapon", pct: 1 },
+          ...(ef.attack.ailmentChance === undefined
+            ? {}
+            : { skillChance: ef.attack.ailmentChance }),
+          staggerCoefficient: ef.attack.staggerCoefficient,
+          target: ef.ally,
+          rng: this.rng,
+        });
+        hooks.onAllyHit?.(report, ef.enemy, ef.ally);
+        continue;
+      }
       // 段階1で決めた無敵：ヒットを無効にし、ダメージ・状態異常・崩しを何も与えない
       if (invulnerable) {
         hooks.onAvoided(ef.enemy, ef.attack);
+        continue;
+      }
+      // ガード・パリィ（騎士）。パリィなら、ヒットそのものが無かったことになる（無敵と同じ）
+      const outcome = hooks.guardAgainst?.(ef.enemy, ef.attack) ?? { kind: "none" as const };
+      if (outcome.kind === "parry") {
+        hooks.onParried?.(ef.enemy, ef.attack);
         continue;
       }
       const report = resolveHit({
@@ -528,8 +609,9 @@ export class EnemyField {
         target: player,
         rng: this.rng,
         extraTakenMultiplier: hooks.playerTakenMultiplier?.(ef.enemy) ?? 1,
+        ...(outcome.kind === "guard" ? { guard: outcome.rate } : {}),
       });
-      hooks.onPlayerHit(report, ef.enemy, ef.attack);
+      hooks.onPlayerHit(report, ef.enemy, ef.attack, outcome.kind === "guard");
     }
   }
 
@@ -580,6 +662,12 @@ type PlayerEffect =
   | { readonly type: "hit"; readonly enemy: Enemy; readonly attack: EnemyAttackDef }
   | { readonly type: "killed"; readonly enemy: Enemy }
   | {
+      readonly type: "allyHit";
+      readonly enemy: Enemy;
+      readonly attack: EnemyAttackDef;
+      readonly ally: Combatant;
+    }
+  | {
       readonly type: "boss";
       readonly enemy: Enemy;
       readonly event: "phase" | "burrow" | "surface";
@@ -589,6 +677,34 @@ type PlayerEffect =
 
 function playerTarget(player: Combatant): ProjectileTarget {
   return { id: "player", team: "player", position: player.position, radius: player.radius };
+}
+
+/** 敵の投射物が当たる相手（プレイヤーと、生きている召喚物）。召喚物がいなければ今までどおりプレイヤーだけ。 */
+function projectileTargets(player: Combatant, allies: readonly Combatant[]): ProjectileTarget[] {
+  const out = [playerTarget(player)];
+  for (const a of allies)
+    if (!a.health.dead)
+      out.push({ id: a.id, team: a.team, position: a.position, radius: a.radius });
+  return out;
+}
+
+/**
+ * 敵が狙う相手：プレイヤーと召喚物のうち、最も近いもの（体の端までの距離）。倒れているプレイヤーは選ばない。
+ * 召喚物の向きは、回り込みに使う。
+ */
+function nearestTarget(at: Vec2, player: EnemyTarget, allies: readonly Combatant[]): EnemyTarget {
+  let best = player;
+  let dist = player.targetable
+    ? Math.hypot(player.position.x - at.x, player.position.y - at.y) - player.radius
+    : Infinity;
+  for (const a of allies) {
+    const d = Math.hypot(a.position.x - at.x, a.position.y - at.y) - a.radius;
+    if (d < dist) {
+      dist = d;
+      best = { position: a.position, radius: a.radius, facing: a.facing ?? 0, targetable: true };
+    }
+  }
+  return best;
 }
 
 function requireFinite(value: number, what: string): number {

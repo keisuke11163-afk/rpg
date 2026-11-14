@@ -93,6 +93,19 @@ export class PlayerMotion {
     return this.dodgeElapsed !== undefined && this.dodgeElapsed < this.config.dodgeInvulnerable;
   }
 
+  /** 気力を使えるか（ガードで攻撃を防ぐときなど。回避以外の使い道）。 */
+  canSpendStamina(cost: number): boolean {
+    return this.stamina >= cost - 1e-9;
+  }
+
+  /** 気力を使う（足りなければ使わずに false）。 */
+  spendStamina(cost: number): boolean {
+    if (!(cost >= 0) || !Number.isFinite(cost)) throw new RangeError("気力は0以上の有限の数");
+    if (!this.canSpendStamina(cost)) return false;
+    this.stamina = Math.max(0, this.stamina - cost);
+    return true;
+  }
+
   setBounds(bounds: Bounds | undefined): void {
     this.bounds = bounds;
   }

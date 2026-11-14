@@ -20,7 +20,8 @@ const find = (id: string): BenchBuild => {
 describe("チェックリスト 3-4・3-5：二刀流と基準のビルドも、深淵の母樹に勝てる（ボット）", () => {
   // 3-1〜3-3 は boss-bench.test.ts（D-FIN-7）
   // baseline-archer：弓使い（MVP後の機能の提案3章）も、間合いを保つボットで勝てる
-  for (const id of ["rogue-dual-shadow", "baseline-warrior", "baseline-archer"])
+  // baseline-mage：魔法使い（位相を回して離れて撃つボット。撃破は 弓使いより少し遅い 125秒前後）
+  for (const id of ["rogue-dual-shadow", "baseline-warrior", "baseline-archer", "baseline-mage"])
     it(`${id}：3つのシードで、倒れずに倒せる（180秒以内）`, () => {
       for (const seed of ["s1", "s2", "s3"]) {
         const r = runBossBench(db, find(id), {
@@ -35,8 +36,48 @@ describe("チェックリスト 3-4・3-5：二刀流と基準のビルドも、
       }
     }, 120_000);
 
-  it("基準の戦士・弓使いはユニーク・天極を持たない（3-5 の前提）", () => {
-    for (const id of ["baseline-warrior", "baseline-archer"]) {
+  // baseline-knight：騎士（H-05 ②。ガードとパリィで受けるボット）。倒れずに勝てるが、攻める時間が短く遅い。
+  // 撃破は s1=192.3秒・s2=186.0秒・s3=169.4秒（他のジョブは90〜135秒。docs/progress の騎士の章。調整はしない）
+  it("baseline-knight：3つのシードで、倒れずに倒せる（240秒以内。ガードとパリィで受ける）", () => {
+    for (const seed of ["s1", "s2", "s3"]) {
+      const r = runBossBench(db, find("baseline-knight"), {
+        region: "REGION-A5-BOSS",
+        invincible: false,
+        seconds: 240,
+        seed,
+      });
+      expect(r.boss).toBe("ENM-ABYSS-MOTHER-TREE");
+      expect(r.deaths, `knight ${seed}`).toBe(0);
+      expect(r.killTime, `knight ${seed}`).toBeDefined();
+      expect(r.parries, `knight ${seed}`).toBeGreaterThan(0);
+    }
+  }, 120_000);
+
+  // baseline-summoner：召喚士（骸兵・炎霊・魔狼を1体ずつ呼び、指揮で狙わせ、本人は離れて立つボット）。
+  // 撃破は s1=126.8秒・s2=123.0秒・s3=122.7秒（docs/progress の召喚士の節。調整はしない）
+  it("baseline-summoner：3つのシードで、倒れずに倒せる（180秒以内。召喚物が戦う）", () => {
+    for (const seed of ["s1", "s2", "s3"]) {
+      const r = runBossBench(db, find("baseline-summoner"), {
+        region: "REGION-A5-BOSS",
+        invincible: false,
+        seconds: 180,
+        seed,
+      });
+      expect(r.boss).toBe("ENM-ABYSS-MOTHER-TREE");
+      expect(r.deaths, `summoner ${seed}`).toBe(0);
+      expect(r.killTime, `summoner ${seed}`).toBeDefined();
+      expect(r.uses["SKL-SUMMONER-FIRE-SPIRIT"] ?? 0, `summoner ${seed}`).toBeGreaterThan(0);
+    }
+  }, 120_000);
+
+  it("基準の戦士・弓使い・魔法使い・騎士・召喚士はユニーク・天極を持たない（3-5 の前提）", () => {
+    for (const id of [
+      "baseline-warrior",
+      "baseline-archer",
+      "baseline-mage",
+      "baseline-knight",
+      "baseline-summoner",
+    ]) {
       const b = find(id);
       for (const e of b.equipment) expect(db.itemBases.get(e.base)?.unique).toBeUndefined();
       for (const s of b.stars) expect(db.starNodes.get(s)?.kind).not.toBe("keystone");

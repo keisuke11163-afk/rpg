@@ -42,6 +42,20 @@ export interface DamageSkill {
   readonly pct: number;
   /** 呪文の基礎値（技レベル1のとき）。 */
   readonly base?: Partial<Record<Element, Range>>;
+  /**
+   * 技そのものの属性の変換（断罪の刃：武器ダメージの50%を聖に変換）。装備・効果の変換と合わせて処理する。
+   * 省略すると技自身の変換は無い。
+   */
+  readonly convert?: readonly {
+    readonly from: Element;
+    readonly to: Element;
+    readonly value: number;
+  }[];
+  /**
+   * 技倍率を受けない固定の物理ダメージの追加（盾打ち：盾の防具値の10%）。呼び出す側が量を決めて渡す。
+   * 省略すると0。変換・加算・乗算は、ほかの物理ダメージと同じに受ける。
+   */
+  readonly flatPhysical?: number;
 }
 
 export interface DamageWeapon {
@@ -298,7 +312,8 @@ export function computeHit(
   const rollAt: Partial<Record<Element, number>> = {};
   for (const element of ELEMENTS) rollAt[element] = average ? 0.5 : rng.next();
 
-  const conversions = view.conversions(contextTags, scope);
+  const conversions = [...view.conversions(contextTags, scope), ...(skill.convert ?? [])];
+  const flatPhysical = finite(skill.flatPhysical ?? 0, "技の固定の物理ダメージ");
   const retags = [...view.retagging(contextTags, scope)].sort((a, b) =>
     a.effectId < b.effectId ? -1 : a.effectId > b.effectId ? 1 : 0,
   );
@@ -324,7 +339,8 @@ export function computeHit(
         baseRange === undefined ? 0 : lerp(baseRange, rollAt[element] ?? 0.5) * spellMult;
       const added = lerp(parts.added, rollAt[element] ?? 0.5);
       const fixed = lerp(parts.fixed, rollAt[element] ?? 0.5);
-      const amount = finite((base + added) * skillPct + fixed, `基礎値（${element}）`);
+      const flat = element === "physical" ? flatPhysical : 0;
+      const amount = finite((base + added) * skillPct + fixed + flat, `基礎値（${element}）`);
       if (amount > 0) before.push({ element, amount, lineage: [element] });
     }
     // 2. 変換 → 付け替え（付け替えた後は、その属性の補正だけを受ける）

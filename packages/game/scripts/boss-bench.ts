@@ -4,18 +4,23 @@
  */
 import { loadGameContent } from "@stella/content";
 import { runBossBench, withWeapons, withoutPart } from "../src/bench/boss-bench.ts";
-import { BENCH_BUILDS } from "../src/bench/builds.ts";
+import { BENCH_BUILDS, SUBJOB_BENCH_BUILDS } from "../src/bench/builds.ts";
 import type { BenchBuild } from "../src/bench/boss-bench.ts";
 
 const db = loadGameContent();
 const fmt = (n: number | undefined): string => (n === undefined ? "—" : n.toFixed(1));
-for (const region of process.argv.includes("--hands") ? [] : ["REGION-A4-BOSS", "REGION-A5-BOSS"]) {
+// サブジョブのビルド（pnpm bench -- --subjob。docs/progress D-SUBG-9）：基準のビルド（Lv20）とは別に、深淵の母樹だけを
+// 3シードで測る。指定しなければ今までと同じ出力
+const subjobOnly = process.argv.includes("--subjob");
+for (const region of process.argv.includes("--hands") || subjobOnly
+  ? []
+  : ["REGION-A4-BOSS", "REGION-A5-BOSS"]) {
   console.log(`\n■ ${region}`);
   for (const build of BENCH_BUILDS) {
     const atk = runBossBench(db, build, { region, invincible: true });
     const real = runBossBench(db, build, { region, invincible: false });
     const uses = Object.entries(atk.uses)
-      .map(([k, n]) => `${k.replace(/^SKL-(WARRIOR|ROGUE|ARCHER|BASIC)-/, "")} ${String(n)}`)
+      .map(([k, n]) => `${k.replace(/^SKL-(WARRIOR|ROGUE|ARCHER|MAGE|BASIC)-/, "")} ${String(n)}`)
       .join("・");
     const breakdown = (r: typeof atk): string =>
       Object.entries(r.takenBySource)
@@ -105,4 +110,30 @@ if (process.argv.includes("--hands")) {
   console.log("\n■ 片手と両手（REGION-A5-BOSS・攻撃面のDPS・120秒・3シードの平均）");
   for (const [name, b, main, off] of rows)
     console.log(`  ${name}：${avg(withWeapons(b, main, off)).toFixed(1)}`);
+}
+
+if (subjobOnly) {
+  console.log("\n■ サブジョブのビルド（REGION-A5-BOSS・Lv25・3シード）");
+  // 比べる基準：同じビルドをサブジョブなし・同じLv25で（技の枠は基準のビルドのまま）
+  const reference = (b: BenchBuild): BenchBuild => {
+    const base = BENCH_BUILDS.find((x) => b.id.startsWith(`${x.id}-sub-`));
+    if (base === undefined) throw new Error(`${b.id} の基準のビルドが無い`);
+    return {
+      ...base,
+      id: `${base.id}-lv25`,
+      name: `（比較）${base.name}・Lv25・サブなし`,
+      level: 25,
+    };
+  };
+  for (const build of SUBJOB_BENCH_BUILDS.flatMap((b) => [reference(b), b]))
+    for (const seed of ["s1", "s2", "s3"]) {
+      const atk = runBossBench(db, build, { region: "REGION-A5-BOSS", invincible: true, seed });
+      const real = runBossBench(db, build, { region: "REGION-A5-BOSS", invincible: false, seed });
+      const uses = Object.entries(real.uses)
+        .map(([k, n]) => `${k.replace(/^SKL-/, "")} ${String(n)}`)
+        .join("・");
+      console.log(
+        `  ${build.name}［${seed}］\n    攻撃面：撃破 ${fmt(atk.killTime)}秒・DPS ${fmt(atk.dps)}（最大HP ${fmt(atk.maxHp)}）・星 ${String(atk.starsSpent)}・職紋 ${String(atk.jobNodesSpent)}\n    通しで：撃破 ${fmt(real.killTime)}秒${real.deathTime === undefined ? "" : `・${fmt(real.deathTime)}秒で倒れた（ボスの残りHP ${(real.bossHpLeft * 100).toFixed(0)}%）`}・被弾 ${String(real.hitsTaken)}・回避 ${String(real.attacksAvoided)}\n    技：${uses}`,
+      );
+    }
 }

@@ -45,16 +45,84 @@ const baseSkillModsSchema = z.strictObject({
   hitsPerSecond: z.number().positive().optional(),
   /** 技倍率を置き換える。 */
   pct: z.number().positive().optional(),
+  /** 技倍率に掛ける（合成魔法：元の呪文のダメージ×1.8）。置き換えの後に掛ける。 */
+  pctMultiplier: z.number().positive().optional(),
   /** 戦吼の範囲の倍率。 */
   radiusMultiplier: z.number().positive().optional(),
+  /** 投射物の着弾の範囲の半径（m）を置き換える・足す（蒸爆：元の動き方のまま、着弾の爆発だけを重ねる）。 */
+  burst: z.number().positive().optional(),
   /** 連撃の数を置き換える（連刃：爪は4連撃、片手剣は2連撃）。 */
   hits: z.number().int().positive().optional(),
   /** 加える挙動。 */
   behaviors: z.array(skillBehaviorSchema).optional(),
 });
 
+/**
+ * 召喚物の定義（召喚士。仕様書v0.2 5.5）。召喚の技（action の summon）の中に持つ。
+ * 仕様書にあるのは契約枠のコスト（骸兵2・炎霊3・魔狼4・石巨人6）と、HPを標準HPに比例させること（5.1.1）だけ。
+ * それ以外（HPの割合・攻撃・速さ・射程・索敵）は仮値（docs/progress D-SUM-2・D-SUM-3）。
+ */
+export const minionSchema = z.strictObject({
+  id: idSchema,
+  text: textKeySchema,
+  /** 契約枠のコスト。 */
+  slots: z.number().int().positive(),
+  /** 最大HP ＝ 標準HP（技レベルに対応するキャラLv。5.1.1）× この割合。 */
+  hpRatio: z.number().positive(),
+  /** 当たり判定の半径（m）。 */
+  radius: z.number().positive(),
+  /** 移動の速さ（m/秒）。 */
+  moveSpeed: z.number().positive(),
+  /** 敵を見つける距離（自分から。m）。 */
+  sightRange: z.number().positive(),
+  /** 攻撃。ダメージは「召喚物の技」（基礎値 × 技レベルの倍率。仕様書v0.2 5.1.1）。 */
+  attack: z.strictObject({
+    tags: z.array(idSchema),
+    base: z.partialRecord(z.enum(ELEMENTS), range),
+    /** 攻撃の間隔（秒）。 */
+    interval: z.number().positive(),
+    /** 届く距離（体の端どうしの距離。m）。 */
+    range: z.number().positive(),
+    /** 投射物で撃つ（炎霊の火球）。省略すると、その場で当てる（近接）。 */
+    projectile: z
+      .strictObject({ speed: z.number().positive(), radius: z.number().positive() })
+      .optional(),
+    ailmentChance: z.record(idSchema, z.number().min(0).max(1)).optional(),
+    staggerCoefficient: z.number().nonnegative().optional(),
+  }),
+  /** 魂の供儀で犠牲にしたとき（仕様書v0.2 5.5：骸兵＝骨の盾・炎霊＝爆発・魔狼＝移動速度）。 */
+  sacrifice: z.strictObject({
+    /** 自分にかける一定時間の効果。 */
+    selfEffects: z
+      .array(z.strictObject({ effect: idSchema, duration: z.number().positive() }))
+      .optional(),
+    /** 召喚物の位置で爆発する（半径と、召喚物の攻撃の倍率）。 */
+    burst: z.strictObject({ radius: z.number().positive(), pct: z.number().positive() }).optional(),
+  }),
+  /** 霊体憑依で自分が得る効果（仕様書v0.2 5.5「召喚物1体の能力を自分が得る」。中身は仮。D-SUM-6）。 */
+  possessEffects: z.array(idSchema).min(1),
+  ...provisionalFields,
+});
+export type MinionDef = z.infer<typeof minionSchema>;
+
 /** 技の動き方。 */
 export const skillActionSchema = z.discriminatedUnion("type", [
+  // 召喚物を1体呼ぶ（召喚士。契約枠が足りなければ使えない）
+  z.strictObject({ type: z.literal("summon"), minion: minionSchema }),
+  // 照準の近くの敵を、全ての召喚物が狙う（指揮・集中）。その敵への召喚物のダメージに加算する
+  z.strictObject({
+    type: z.literal("command"),
+    /** 対象を探す範囲（自分から。m）。 */
+    range: z.number().positive(),
+    /** 狙わせ続ける秒数。 */
+    duration: z.number().positive(),
+    /** その敵への召喚物のダメージの加算（0.2＝+20%）。 */
+    damageBonus: z.number().nonnegative(),
+  }),
+  // 召喚物を1体犠牲にする（魂の供儀。犠牲の効果は召喚物の定義の sacrifice）
+  z.strictObject({ type: z.literal("sacrifice") }),
+  // 一定時間、召喚物1体の能力を自分が得る（霊体憑依。得る効果は召喚物の定義の possessEffects）
+  z.strictObject({ type: z.literal("possess"), duration: z.number().positive() }),
   // 当たり判定を出す（薙ぎ払い・地割り・破軍・通常攻撃）。hits があれば、間隔を空けて連撃する（連刃）
   z.strictObject({
     type: z.literal("strike"),
@@ -130,6 +198,24 @@ export const skillActionSchema = z.discriminatedUnion("type", [
     leap: z
       .strictObject({ distance: z.number().positive(), duration: z.number().positive() })
       .optional(),
+    /** 当たった場所で起きる小さな範囲の半径（m。火球・蒸爆：着弾すると範囲）。当たった敵以外の、範囲内の敵にも同じ技を当てる。 */
+    burst: z.number().positive().optional(),
+  }),
+  // 照準の方向へ、決まった距離まで瞬間移動する（魔法使いの瞬移。仕様書v0.2 5.4）。照準が近ければそこまで
+  z.strictObject({
+    type: z.literal("blink"),
+    distance: z.number().positive(),
+  }),
+  // 照準の近くの敵に当て、近くの別の敵へ決まった回数だけ連鎖する（魔法使いの雷鎖。仕様書v0.2 5.4）。
+  // 同じ敵には1回しか当たらない。対象がいなければ使えない
+  z.strictObject({
+    type: z.literal("chain"),
+    /** 最初の対象を探す範囲（自分から。m）。 */
+    range: z.number().positive(),
+    /** 連鎖先を探す範囲（今の対象から。m）。 */
+    jumpRange: z.number().positive(),
+    /** 連鎖の回数（最初の1体は含まない）。 */
+    chains: z.number().int().nonnegative(),
   }),
   // 照準の位置（射程内）に、一定時間、間隔ごとに当たり判定を出す範囲を置く（矢の雨）
   z.strictObject({
@@ -161,6 +247,10 @@ export const skillModsSchema = baseSkillModsSchema.extend({
   tags: z.array(idSchema).optional(),
 });
 export type SkillMods = z.infer<typeof skillModsSchema>;
+
+/** サブジョブの技としての規則（skillSchema の subJobRule）。 */
+export const SUB_JOB_RULES = ["unavailable"] as const;
+export type SubJobRule = (typeof SUB_JOB_RULES)[number];
 
 /** 技の定義（仕様書5章、補助仕様書3.5・3.6）。 */
 export const skillSchema = z.strictObject({
@@ -202,6 +292,32 @@ export const skillSchema = z.strictObject({
       forceCritAt: z.number().positive().optional(),
     })
     .optional(),
+  /** 技そのものの属性の変換（断罪の刃：武器ダメージの50%を聖に変換。仕様書v0.2 5.3）。 */
+  convert: z
+    .array(
+      z.strictObject({
+        from: z.enum(ELEMENTS),
+        to: z.enum(ELEMENTS),
+        value: z.number().gt(0).max(1),
+      }),
+    )
+    .optional(),
+  /**
+   * 盾の防具値のこの割合を、固定の物理ダメージとして足す（盾打ち：盾の防具値の10%。仕様書v0.2 5.3）。
+   * 盾を持っていなければ0。
+   */
+  shieldArmorRatio: z.number().positive().optional(),
+  /**
+   * ガードとの関わり（騎士。メインジョブにガードの規則があるときだけ働く）。
+   * raise＝技の実行中はガードしている扱い（盾突撃：パリィの受付はない）、
+   * lock＝使った後、決まった秒数はガードできない（光輪の盾：戻ってくるまで）。
+   */
+  guardEffect: z
+    .discriminatedUnion("mode", [
+      z.strictObject({ mode: z.literal("raise") }),
+      z.strictObject({ mode: z.literal("lock"), seconds: z.number().positive() }),
+    ])
+    .optional(),
   /** 使った後、自分に一定時間かかる効果（破軍の「受けるダメージ-20%」など）。 */
   selfEffects: z
     .array(z.strictObject({ effect: idSchema, duration: z.number().positive() }))
@@ -216,9 +332,81 @@ export const skillSchema = z.strictObject({
   dualWieldVariant: skillModsSchema.optional(),
   /** 必要な武器適性（仕様書v0.2 5.1：省略すると、どの適性でも使える）。 */
   requiredAffinity: z.enum(AFFINITIES).optional(),
+  /**
+   * サブジョブの技として使うときの規則（仕様書v0.2 5.1「簡易動作」・MVP後の機能の提案 2章の subJobRule）。
+   * unavailable＝サブジョブの技としては使えない（戦士の解放技：職能ゲージを受け継がないので闘志100にならない）。
+   * 省略すると、サブジョブの技としても使える（ゲージは受け継がない）。docs/progress D-SUB-6
+   */
+  subJobRule: z.enum(SUB_JOB_RULES).optional(),
   ...provisionalFields,
 });
 export type SkillDef = z.infer<typeof skillSchema>;
+
+/** 位相の遷移表の1行：直前の呪文との関係（first＝直前が無い・same＝同じ属性・different＝違う属性）と、位相の増え方。 */
+const phaseTransitionSchema = z.strictObject({
+  input: z.enum(["first", "same", "different"]),
+  add: z.number(),
+});
+
+/** 合成魔法の1つ：直前の2つの属性（順不同）で決まり、位相が足りているとき、次の呪文の変化（mods）に変わる。 */
+const phaseFusionRowSchema = z.strictObject({
+  /** 段階の名前（HUD・テストで使う。例：steam）。 */
+  id: z.string(),
+  text: textKeySchema,
+  elements: z.tuple([z.enum(ELEMENTS), z.enum(ELEMENTS)]),
+  /** 呪文に当てはめる変化（動き方・技倍率の倍率・状態異常の付与率など）。 */
+  mods: skillModsSchema,
+});
+
+/**
+ * 位相（魔法使い。仕様書v0.2 5.4・MVP後の機能の提案3章 H-09）の遷移表。
+ * 呪文を使うたびに、その属性と直前の属性を比べて、位相が変わる。位相が at に達すると、次の呪文が合成魔法に変わる。
+ * ゲージの量そのものが位相。直前の2つの属性は、ゲージの中に覚える（セーブしない）。
+ */
+const phaseSchema = z.strictObject({
+  /** 位相に数える属性（呪文のタグの属性）。 */
+  elements: z.array(z.enum(ELEMENTS)).min(1),
+  transitions: z.array(phaseTransitionSchema),
+  /** 属性を持たない呪文（瞬移・魔法障壁）：ignore＝何もしない・reset＝位相を開始の量に戻す。 */
+  neutral: z.enum(["ignore", "reset"]),
+  fusion: z.strictObject({
+    /** 合成魔法になる位相。 */
+    at: z.number().positive(),
+    /** 合成魔法を使った後の位相。 */
+    after: z.number().nonnegative(),
+    /** 合成魔法に変わらない呪文のタグ（隕星：範囲）。 */
+    excludeTags: z.array(idSchema),
+    table: z.array(phaseFusionRowSchema),
+  }),
+});
+export type PhaseDef = z.infer<typeof phaseSchema>;
+export type PhaseFusion = PhaseDef["fusion"]["table"][number];
+
+/**
+ * ガード・パリィの規則（騎士。仕様書v0.2 5.3・MVP後の機能の提案3章 H-05 ②）。
+ * ジョブがこの規則を持ち、メインジョブで盾を持っている間、技の枠2（右クリック）の押し続けがガードになる。
+ * 規則を持たないジョブは、盾を持っていても今までどおり（技の枠2は普通の技の枠）。
+ */
+const guardRuleSchema = z.strictObject({
+  /** パリィの受付（秒）：攻撃が当たる前のこの時間以内にガードを始めるとパリィ（仕様書：0.18秒）。 */
+  parryWindow: z.number().positive(),
+  /** 新しいパリィの受付を開ける最短の間隔（秒）。連打でパリィを続けられないようにする（仮値。D-KNT-10）。 */
+  parryCooldown: z.number().nonnegative(),
+  /** 正面の角度（度。自分の向きを中心に、この角度の中から来る攻撃だけを防ぐ）。 */
+  frontAngleDeg: z.number().positive().max(360),
+  /** ガードで攻撃を防ぐたびに使う気力。足りなければ防げない（パリィは使わない）。 */
+  staminaCost: z.number().nonnegative(),
+  /** パリィで敵の崩しゲージに加える量（その敵の崩しゲージの最大値に対する割合）。 */
+  parryStaggerRatio: z.number().nonnegative().max(1),
+  /** 反撃権：次の攻撃のダメージに足す割合（1＝+100%）と、持っている秒数。 */
+  counterBonus: z.number().nonnegative(),
+  counterSeconds: z.number().positive(),
+  /** ガードしている間の移動の速さの倍率。 */
+  moveSpeedMultiplier: z.number().positive().max(1),
+  /** 右クリックを短く押して離しても、ガードを続ける最短の秒数。 */
+  minRaise: z.number().nonnegative(),
+});
+export type GuardRule = z.infer<typeof guardRuleSchema>;
 
 /** 職能ゲージの定義（仕様書5章）。 */
 export const gaugeSchema = z.strictObject({
@@ -242,10 +430,21 @@ export const gaugeSchema = z.strictObject({
       z.strictObject({ on: z.literal("stationary"), perSecond: z.number() }),
       // 技の1回の使用で、直前と同じ敵に当てたとき：value（集中は+5。M-23 の仮値）
       z.strictObject({ on: z.literal("hitSameTarget"), value: z.number() }),
+      // ガードで攻撃を防いだとき：value（信念は+1。仕様書v0.2 5.3）。パリィのときは parrySuccess だけを使う
+      z.strictObject({ on: z.literal("guardSuccess"), value: z.number() }),
+      // パリィに成功したとき：value（信念は+3。仕様書v0.2 5.3）
+      z.strictObject({ on: z.literal("parrySuccess"), value: z.number() }),
     ]),
   ),
   /** 戦闘外（補助仕様書3.1：5秒間、攻撃も被弾もない）で毎秒減る量。 */
   decayOutOfCombat: z.number().nonnegative(),
+  /** 位相の遷移表（魔法使い。ゲージの量が位相）。省略すると、位相の仕組みを持たない。 */
+  phase: phaseSchema.optional(),
+  /**
+   * 契約枠（召喚士。仕様書v0.2 5.5）。このゲージは「使っている枠」を表し、最大値が契約枠の数になる。
+   * サブジョブのときの枠は subJobFixed に固定する（仕様書v0.2 5.1：職詞・装備で増やせない。H-03）。
+   */
+  contract: z.strictObject({ subJobFixed: z.number().int().positive() }).optional(),
   /** ゲージの量1につき、自分にかける効果（集中：会心率+1%（増加））。値は perPoint × 量。 */
   pointEffect: z.strictObject({ effect: idSchema, perPoint: z.number() }).optional(),
   /** 段階（例：50以上で激化、100で解放）。 */
@@ -257,60 +456,106 @@ export const gaugeSchema = z.strictObject({
 export type GaugeDef = z.infer<typeof gaugeSchema>;
 
 /** ジョブの定義（仕様書5章）。 */
-export const jobSchema = z.strictObject({
-  id: idSchema,
-  tag: idSchema,
-  text: textKeySchema,
-  gauge: idSchema.optional(),
-  /** 技と、覚えるジョブLv（補助仕様書3.5）。 */
-  skills: z.array(z.strictObject({ skill: idSchema, level: z.number().int().min(1) })),
-  /** 武器の種類のタグ → 適性（仕様書5章）。書かれていない武器はC。 */
-  affinity: z.record(idSchema, z.enum(AFFINITIES)),
-  /** 二刀流の適性（できないジョブは省略）。 */
-  dualWield: z.enum(AFFINITIES).optional(),
-  /** 出自にしたときの初期能力値（補助仕様書3.2）。 */
-  originAttributes: z
-    .strictObject({
-      go: z.number().int().nonnegative(),
-      jin: z.number().int().nonnegative(),
-      ri: z.number().int().nonnegative(),
-      kon: z.number().int().nonnegative(),
-    })
-    .optional(),
-  /** 技の枠の初期の並び（枠1から。補助仕様書1.1・3.5。docs/progress D-U12-9）。省略すると通常攻撃だけ。 */
-  defaultSlots: z.array(idSchema).max(6).optional(),
-  /** 出自にしたときの初期の武器のベース（補助仕様書3.4）。 */
-  startingWeapon: idSchema.optional(),
-  /** 背面からのヒットの補正（メインジョブのときだけ。盗賊：会心率+10%（固定値）・付与率+25%。仕様書5.6）。 */
-  backstabBonus: z
-    .strictObject({ critChance: z.number().min(0).max(1), ailmentChance: z.number().min(0).max(1) })
-    .optional(),
-  /**
-   * 適正間合い（メインジョブのときだけ。弓使い：敵との距離が6〜10mなら与ダメージ+20%（加算）、
-   * 3m以内なら-20%。仕様書v0.2 5.7）。上限は能力値 STAT-JOB-RANGE-MAX で延びる。
-   */
-  preferredRange: z
-    .strictObject({
-      min: z.number().nonnegative(),
-      max: z.number().nonnegative(),
-      bonus: z.number(),
-      close: z.number().nonnegative(),
-      closePenalty: z.number(),
-    })
-    .optional(),
-  /**
-   * 上位職・混成職の元のジョブ（MVP後の機能の提案 4章：データの形だけ。挙動は変えない）。
-   * 上位職は1つ（例：暗殺者 ← 盗賊）、混成職は2つ（例：魔弾射手 ← 弓使い・魔法使い。仕様書v0.2 5.8）。
-   */
-  advancedFrom: z.array(idSchema).min(1).max(2).optional(),
-  /** 上位職・混成職になるための試練（形だけ。内容は上位職ごとの仕様書で決める。M-02）。 */
-  trial: z
-    .strictObject({
-      text: textKeySchema,
-      /** 元のジョブに必要なジョブLv（仕様書v0.2 5.1：ジョブLv30）。 */
-      jobLevel: z.number().int().min(1),
-    })
-    .optional(),
-  ...provisionalFields,
-});
+export const jobSchema = z
+  .strictObject({
+    id: idSchema,
+    tag: idSchema,
+    text: textKeySchema,
+    gauge: idSchema.optional(),
+    /** 技と、覚えるジョブLv（補助仕様書3.5）。 */
+    skills: z.array(z.strictObject({ skill: idSchema, level: z.number().int().min(1) })),
+    /** 武器の種類のタグ → 適性（仕様書5章）。書かれていない武器はC。 */
+    affinity: z.record(idSchema, z.enum(AFFINITIES)),
+    /** 二刀流の適性（できないジョブは省略）。 */
+    dualWield: z.enum(AFFINITIES).optional(),
+    /** 出自にしたときの初期能力値（補助仕様書3.2）。 */
+    originAttributes: z
+      .strictObject({
+        go: z.number().int().nonnegative(),
+        jin: z.number().int().nonnegative(),
+        ri: z.number().int().nonnegative(),
+        kon: z.number().int().nonnegative(),
+      })
+      .optional(),
+    /** 技の枠の初期の並び（枠1から。補助仕様書1.1・3.5。docs/progress D-U12-9）。省略すると通常攻撃だけ。 */
+    defaultSlots: z.array(idSchema).max(6).optional(),
+    /** 出自にしたときの初期の武器のベース（補助仕様書3.4）。 */
+    startingWeapon: idSchema.optional(),
+    /** 出自にしたときの初期の副手（騎士の盾。仕様書v0.2 5.3「盾を装備して」）。省略すると副手は空。 */
+    startingOffHand: idSchema.optional(),
+    /**
+     * メインジョブのあいだ、いつも働く効果（騎士が立てる誓い。仕様書v0.2 5.3「出撃前に1つ立てる」）。
+     * 誓いを選ぶ操作はまだ無いので、守護の誓いに固定している（docs/progress D-KNT-4）。
+     */
+    passiveEffects: z.array(idSchema).optional(),
+    /** 背面からのヒットの補正（メインジョブのときだけ。盗賊：会心率+10%（固定値）・付与率+25%。仕様書5.6）。 */
+    backstabBonus: z
+      .strictObject({
+        critChance: z.number().min(0).max(1),
+        ailmentChance: z.number().min(0).max(1),
+      })
+      .optional(),
+    /**
+     * 適正間合い（メインジョブのときだけ。弓使い：敵との距離が6〜10mなら与ダメージ+20%（加算）、
+     * 3m以内なら-20%。仕様書v0.2 5.7）。上限は能力値 STAT-JOB-RANGE-MAX で延びる。
+     */
+    preferredRange: z
+      .strictObject({
+        min: z.number().nonnegative(),
+        max: z.number().nonnegative(),
+        bonus: z.number(),
+        close: z.number().nonnegative(),
+        closePenalty: z.number(),
+      })
+      .optional(),
+    /**
+     * ガード・パリィの規則（騎士。メインジョブのときだけ。仕様書v0.2 5.3）。省略すると、そのジョブはガードしない
+     * （盾を持っていても、技の枠2は普通の技の枠のまま）。
+     */
+    guard: guardRuleSchema.optional(),
+    /**
+     * 上位職・混成職の元のジョブ（MVP後の機能の提案 4章：データの形だけ。挙動は変えない）。
+     * 上位職は1つ（例：暗殺者 ← 盗賊）、混成職は2つ（例：魔弾射手 ← 弓使い・魔法使い。仕様書v0.2 5.8）。
+     */
+    advancedFrom: z.array(idSchema).min(1).max(2).optional(),
+    /** 上位職・混成職になるための試練（形だけ。内容は上位職ごとの仕様書で決める。M-02）。 */
+    trial: z
+      .strictObject({
+        text: textKeySchema,
+        /** 元のジョブに必要なジョブLv（仕様書v0.2 5.1：ジョブLv30）。 */
+        jobLevel: z.number().int().min(1),
+      })
+      .optional(),
+    /**
+     * サブジョブにしたときに使える技2つ（仕様書v0.2 5.1「技2つ（基本職の技に限る）」・docs/progress D-SUB-4）。
+     * そのジョブの技（skills）から選ぶ。使えるのは、サブジョブのジョブLvがその技を覚えるジョブLv以上のとき。
+     * 省略すると、サブジョブにしても技は使えない。
+     */
+    subSkills: z
+      .strictObject({
+        skills: z.tuple([idSchema, idSchema]),
+        ...provisionalFields,
+      })
+      .optional(),
+    ...provisionalFields,
+  })
+  .superRefine((job, ctx) => {
+    const sub = job.subSkills?.skills;
+    if (sub === undefined) return;
+    const own = new Set(job.skills.map((s) => s.skill));
+    sub.forEach((id, i) => {
+      if (!own.has(id))
+        ctx.addIssue({
+          code: "custom",
+          path: ["subSkills", "skills", i],
+          message: `サブジョブの技 ${id} は、このジョブの技（skills）に無い`,
+        });
+    });
+    if (sub[0] === sub[1])
+      ctx.addIssue({
+        code: "custom",
+        path: ["subSkills", "skills", 1],
+        message: `サブジョブの技 ${sub[1]} が重なっている`,
+      });
+  });
 export type JobDef = z.infer<typeof jobSchema>;

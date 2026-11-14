@@ -323,4 +323,159 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
       "SKL-ARCHER-SNIPE",
     ],
   },
+  {
+    id: "baseline-mage",
+    name: "基準・魔法使い（希少の杖・ユニークと天極なし・ポイントをほぼ使う。離れて撃つ）",
+    job: "JOB-MAGE",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-STAFF-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07", "STAR-NT-FOCUS", "STAR-NT-CORRODE"],
+    jobNodes: [
+      "JBN-MAGE-T7",
+      "JBN-MAGE-B1B",
+      "JBN-MAGE-B2B",
+      "JBN-MAGE-WELL",
+      "JBN-MAGE-SPELLWORK",
+    ],
+    // 呪文の位相（火・氷・火で合成魔法の蒸爆）を回す。雷鎖・瞬移・魔法障壁は入れない（雷は合成魔法が無い）
+    skills: ["SKL-BASIC-ATTACK", "SKL-MAGE-FIREBALL", "SKL-MAGE-ICELANCE", "SKL-MAGE-METEOR"],
+    // 適正間合いは無いので、ボットの立ち位置だけ決める（ボスから6〜10m）
+    standoff: { min: 6, max: 10, close: 3 },
+  },
+  {
+    id: "baseline-knight",
+    name: "基準・騎士（希少の長剣と小盾・ユニークと天極なし・ポイントをほぼ使う。ガードして受ける）",
+    job: "JOB-KNIGHT",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-LONGSWORD-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      { slot: "offHand", base: "BASE-SHD-BUCKLER-T1", enhance: 5 },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-SM-GOU-A-07", "STAR-NT-IRON-SKIN"],
+    jobNodes: [
+      "JBN-KNIGHT-T7",
+      "JBN-KNIGHT-B1B",
+      "JBN-KNIGHT-B2B",
+      "JBN-KNIGHT-BULWARK",
+      "JBN-KNIGHT-SHIELDWORK",
+    ],
+    // 盾打ち・断罪の刃を入れる（枠2はガードで固定なので空ける）。ほかの技は入れない
+    skills: [
+      "SKL-BASIC-ATTACK",
+      undefined,
+      "SKL-KNIGHT-SHIELD-BASH",
+      "SKL-KNIGHT-JUDGMENT",
+      undefined,
+      undefined,
+    ],
+  },
+  {
+    id: "baseline-summoner",
+    name: "基準・召喚士（希少の笏・ユニークと天極なし・ポイントをほぼ使う。骸兵・炎霊・魔狼を呼び、指揮で狙わせる）",
+    job: "JOB-SUMMONER",
+    equipment: [
+      {
+        slot: "mainHand",
+        base: "BASE-WPN-SCEPTER-T1",
+        affixes: [
+          "AFX-PRE-ADDED-PHYSICAL-WPN",
+          "AFX-PRE-INC-PHYSICAL-WPN",
+          "AFX-SUF-ATTACK-SPEED",
+          "AFX-SUF-CRIT-CHANCE",
+        ],
+        enhance: 5,
+      },
+      ...BASELINE_ARMOR,
+    ],
+    stars: ["STAR-VIPER-09", "STAR-SM-JIN-A-07", "STAR-NT-FOCUS", "STAR-NT-CORRODE"],
+    jobNodes: [
+      "JBN-SUMMONER-T7",
+      "JBN-SUMMONER-B1B",
+      "JBN-SUMMONER-B2B",
+      "JBN-SUMMONER-WARLORD",
+      "JBN-SUMMONER-BONEBIND",
+    ],
+    // 召喚の3つ（骸兵2＋炎霊3＋魔狼4＝9枠）と指揮。魂の供儀（召喚物が減る）・霊体憑依は入れない
+    skills: [
+      "SKL-BASIC-ATTACK",
+      "SKL-SUMMONER-COMMAND",
+      "SKL-SUMMONER-DIRE-WOLF",
+      "SKL-SUMMONER-FIRE-SPIRIT",
+      "SKL-SUMMONER-SKELETON",
+      undefined,
+    ],
+    // 召喚物が前に出るので、本人は離れて立つ（ボットの動きだけ。魔法使いと同じ）
+    standoff: { min: 6, max: 10, close: 3 },
+  },
+];
+
+const baseline = (id: string): BenchBuild => {
+  const b = BENCH_BUILDS.find((x) => x.id === id);
+  if (b === undefined) throw new Error(`ビルド ${id} が無い`);
+  return b;
+};
+
+/**
+ * サブジョブを使うビルド（キャラLv25・メインのジョブLv25・サブジョブのジョブLv20。docs/progress D-SUBG-9）。
+ * 撃破時間の基準（BENCH_BUILDS・Lv20）とは別に測る（`pnpm bench -- --subjob`）。装備・星辰盤・職紋盤は基準のビルドと同じ。
+ */
+export const SUBJOB_BENCH_BUILDS: readonly BenchBuild[] = [
+  {
+    ...baseline("baseline-warrior"),
+    id: "baseline-warrior-sub-rogue",
+    name: "基準・戦士＋サブ盗賊（Lv25。旋風斬の代わりに毒刃・副職紋で会心と付与）",
+    skills: [
+      "SKL-BASIC-ATTACK",
+      "SKL-WARRIOR-SWEEP",
+      "SKL-WARRIOR-CHARGE",
+      "SKL-WARRIOR-WARCRY",
+      "SKL-WARRIOR-EARTHSPLITTER",
+      "SKL-ROGUE-POISON",
+    ],
+    subJob: {
+      job: "JOB-ROGUE",
+      jobLevel: 20,
+      nodes: ["JBN-ROGUE-T7", "JBN-ROGUE-VITALS", "JBN-ROGUE-QUICK", "JBN-ROGUE-B1B"],
+    },
+  },
+  {
+    ...baseline("baseline-mage"),
+    id: "baseline-mage-sub-summoner",
+    name: "基準・魔法使い＋サブ召喚士（Lv25。骸兵と魔狼を前に出して、離れて撃つ。契約枠6）",
+    skills: [
+      "SKL-BASIC-ATTACK",
+      "SKL-MAGE-FIREBALL",
+      "SKL-MAGE-ICELANCE",
+      "SKL-MAGE-METEOR",
+      "SKL-SUMMONER-SKELETON",
+      "SKL-SUMMONER-DIRE-WOLF",
+    ],
+    subJob: {
+      job: "JOB-SUMMONER",
+      jobLevel: 20,
+      nodes: ["JBN-SUMMONER-T7", "JBN-SUMMONER-WARLORD", "JBN-SUMMONER-BONEBIND"],
+    },
+  },
 ];

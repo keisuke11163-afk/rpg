@@ -61,11 +61,16 @@ describe("星辰盤の形（MVPの範囲）", () => {
   const sim = new ArenaSimulation(undefined, { enemies: false });
   const db = sim.db;
 
-  it("約150ノード（剛域・剛迅域・迅域。風見座と弓使いの始点だけ迅理域）。ノードどうしが画面で重ならない", () => {
+  it("約150ノード（剛域・剛迅域・迅域。風見座と弓使い・魔法使い・騎士・召喚士の始点だけ迅理域・理域・剛魂域・理魂域）。ノードどうしが画面で重ならない", () => {
     const nodes = [...db.starNodes.values()];
     expect(nodes.length).toBeGreaterThanOrEqual(130);
     for (const n of nodes)
-      if (!n.id.startsWith("STAR-VANE-") && n.id !== "STAR-JINRI-START")
+      if (
+        !n.id.startsWith("STAR-VANE-") &&
+        !["STAR-JINRI-START", "STAR-RI-START", "STAR-GOUKON-START", "STAR-RIKON-START"].includes(
+          n.id,
+        )
+      )
         expect(["gou", "goujin", "jin"], n.id).toContain(n.region);
     for (let i = 0; i < nodes.length; i++)
       for (let j = i + 1; j < nodes.length; j++) {

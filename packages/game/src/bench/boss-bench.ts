@@ -9,6 +9,7 @@
  * 攻撃面だけを測るときは（invincible）、プレイヤーを毎フレーム全回復し、受けたダメージは記録だけする。
  */
 import {
+  Character,
   type ContentDb,
   type Enemy,
   FIXED_STEP_SECONDS,
@@ -17,6 +18,7 @@ import {
   type MvpEquipSlot,
   affixTierValues,
   emptyKeptFields,
+  xpToNext,
 } from "@stella/core";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
@@ -42,6 +44,24 @@ export interface BenchBuild {
   readonly jobNodes: readonly string[];
   /** 技の枠（1〜6。省略するとジョブの初期の並び）。破軍・罠設置は初期の枠に無いので、ここで入れる。 */
   readonly skills?: readonly (string | undefined)[];
+  /**
+   * ボットの立ち位置（適正間合いを持たないジョブが、離れて撃つとき。魔法使い）。ゲームの規則ではなく、
+   * ボットの動き方だけ。ボスとの距離（体の端から）の min〜max の真ん中に立ち、close より近ければ離れる。
+   */
+  readonly standoff?: { readonly min: number; readonly max: number; readonly close: number };
+  /** キャラLv・メインのジョブLv（省略すると、サブジョブがあれば {@link SUB_BENCH_LEVEL}、無ければ {@link BENCH_LEVEL}）。 */
+  readonly level?: number;
+  /**
+   * サブジョブ（キャラLv25で開く。仕様書v0.2 5.1）。指定すると、キャラLv・メインのジョブLvを {@link SUB_BENCH_LEVEL}
+   * にし、サブジョブのジョブLvを subJobLevel にする（サブジョブのジョブ経験値は、そのジョブをメインにして貯めたもの）。
+   * 省略すると今までどおり Lv20（撃破時間の基準を変えない）。
+   */
+  readonly subJob?: {
+    readonly job: string;
+    readonly jobLevel: number;
+    /** 取る副職紋のノード（始点からの最短の道も取る）。 */
+    readonly nodes: readonly string[];
+  };
 }
 
 export interface BenchOptions {
@@ -84,6 +104,9 @@ export interface BenchResult {
   /** 敵の攻撃を受けた回数・回避の無敵で避けた回数。 */
   readonly hitsTaken: number;
   readonly attacksAvoided: number;
+  /** ガードで防いだ回数・パリィに成功した回数（騎士）。 */
+  readonly guards: number;
+  readonly parries: number;
 }
 
 const STEP = FIXED_STEP_SECONDS;
@@ -131,6 +154,23 @@ function shortestPath(
   return out;
 }
 
+/**
+ * 計測のキャラLv・ジョブLv（MVPの上限だった20に固定する。上限を25に上げても、撃破時間の基準を変えない。
+ * docs/progress D-SUB-1）。
+ */
+export const BENCH_LEVEL = 20;
+/** Lv1から {@link BENCH_LEVEL} にちょうど届く経験値（キャラLvとメインジョブのジョブLvが同じ量で上がる）。 */
+const BENCH_XP = Array.from({ length: BENCH_LEVEL - 1 }, (_, i) => xpToNext(i + 1)).reduce(
+  (a, b) => a + b,
+  0,
+);
+
+/** サブジョブのビルドのキャラLv・メインのジョブLv（サブジョブが開くLv）。 */
+export const SUB_BENCH_LEVEL = 25;
+/** Lv1から level にちょうど届く経験値。 */
+const xpTo = (level: number): number =>
+  Array.from({ length: level - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, b) => a + b, 0);
+
 /** ビルドを用意したシミュレーション（ボスの間。キャラLv20・ジョブLv20・星辰盤25ポイント）。 */
 export function prepareBench(
   db: ContentDb,
@@ -140,7 +180,22 @@ export function prepareBench(
   const regionId = options.region ?? "REGION-A5-BOSS";
   const region = db.regions.get(regionId);
   if (region === undefined) throw new RangeError(`地域 ${regionId} が無い`);
-  const base = newCharacterProfile(db, build.job, build.name);
+  const created = newCharacterProfile(db, build.job, build.name);
+  // サブジョブのビルドだけ、サブジョブのジョブLvを持たせたキャラクターにする（無ければ今までと同じ）
+  const sub = build.subJob;
+  const origin = db.jobs.get(build.job);
+  const base =
+    sub === undefined || origin === undefined
+      ? created
+      : {
+          ...created,
+          character: new Character({
+            origin,
+            jobs: db.jobs,
+            level: 1,
+            jobLevels: { [sub.job]: sub.jobLevel },
+          }),
+        };
   // MVPの星辰盤のポイント：Lv20 の19＋クエスト4＋探索2（補助仕様書4.4）
   const profile = { ...base, kept: { ...emptyKeptFields(), questPoints: 4, explorationPoints: 2 } };
   const sim = new ArenaSimulation(new FixedStepClock(), {
@@ -150,7 +205,15 @@ export function prepareBench(
     layoutSeed: options.seed ?? "bench",
     ...(options.seed === undefined ? {} : { rngSeed: options.seed }),
   });
-  sim.gainXp(1e9);
+  sim.gainXp(
+    build.level !== undefined
+      ? xpTo(build.level)
+      : sub === undefined
+        ? BENCH_XP
+        : xpTo(SUB_BENCH_LEVEL),
+  );
+  if (sub !== undefined && sim.setSubJob(sub.job) !== "ok")
+    throw new RangeError(`サブジョブ ${sub.job} にできない`);
   // 装備（主手の指定が無ければ素手）
   if (!build.equipment.some((e) => e.slot === "mainHand")) sim.unequip("mainHand");
   build.equipment.forEach((e, i) => {
@@ -205,6 +268,19 @@ export function prepareBench(
     }))
       if (!sim.jobBoard.has(id) && !sim.allocateJobNode(id))
         throw new RangeError(`職紋盤の ${id} を取れない`);
+  // 副職紋（職奥義・接続ノードを通らない道）
+  const subBoard = sim.subJobBoard;
+  const sroot = subBoard?.root;
+  if (sub !== undefined && (subBoard === undefined || sroot === undefined))
+    throw new RangeError("副職紋の始点が無い");
+  if (subBoard !== undefined && sroot !== undefined)
+    for (const goal of sub?.nodes ?? [])
+      for (const id of shortestPath(db.jobLinks, sroot, goal, (n) => {
+        const k = db.jobNodes.get(n)?.kind;
+        return k === "start" || k === "mastery" || k === "connector";
+      }))
+        if (!subBoard.has(id) && !sim.allocateSubJobNode(id))
+          throw new RangeError(`副職紋の ${id} を取れない`);
   return sim;
 }
 
@@ -226,10 +302,14 @@ export function chooseSkill(
       l.skill !== "SKL-BASIC-ATTACK" &&
       sim.blockOf(l.skill) === undefined &&
       (def(l.skill)?.action.type !== "teleport" || moveBackstab) &&
+      // 瞬移（照準の方向へ跳ぶ）は、ボットは使わない（立ち位置を崩すだけ）
+      def(l.skill)?.action.type !== "blink" &&
       // 跳躍後退（撃ちながら後ろへ跳ぶ）は、近すぎるときだけ使う（止まって集中を溜めるため）
       (!isLeap(def(l.skill)) || tooClose),
   );
-  const full = sim.jobGauge.value >= sim.jobGauge.max - 1e-9;
+  // ガードのジョブ（騎士）は、信念が6以上で断罪の刃を使う（10まで待つと、被弾の-1で溜まりきらない。ボットの動きだけ）
+  const spendAt = sim.job.guard === undefined ? sim.jobGauge.max : sim.jobGauge.max * 0.6;
+  const full = sim.jobGauge.value >= spendAt - 1e-9;
   const spender = (id: string): boolean => def(id)?.gauge?.cost === "all";
   // CD のある技が2秒以内に使えるようになるなら、その MP を残す（CD の無い技で使い切らない）
   const reserve = Math.max(
@@ -239,12 +319,45 @@ export function chooseSkill(
       .map((l) => def(l.skill)?.mpCost ?? 0),
   );
   const affordable = (id: string): boolean => sim.mp - (def(id)?.mpCost ?? 0) >= reserve;
+  // 召喚士：まだいない種類の召喚物を先に呼ぶ（枠の順のままだと、同じ種類ばかりで枠が埋まる。ボットの動きだけ）
+  const present = new Set(sim.minions.map((m) => m.def.id));
+  const dup = (id: string): boolean => {
+    const a = def(id)?.action;
+    return a?.type === "summon" && present.has(a.minion.id);
+  };
+  const free = usable
+    .filter((l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill) && affordable(l.skill))
+    .sort((x, y) => Number(dup(x.skill)) - Number(dup(y.skill)));
   return (
     usable.find((l) => (def(l.skill)?.cooldown ?? 0) > 0 && !spender(l.skill)) ??
     usable.find((l) => spender(l.skill) && full) ??
-    usable.find(
-      (l) => (def(l.skill)?.cooldown ?? 0) === 0 && !spender(l.skill) && affordable(l.skill),
-    )
+    (sim.jobGauge.def.phase === undefined
+      ? free[0]
+      : // 位相のジョブがサブジョブの召喚の技を持つとき（サブ召喚士）は、まだいない召喚物を先に呼ぶ（ボットの動きだけ。
+        // 召喚の技を持たない基準のビルドは今までと同じ選び方）
+        (free.find((l) => def(l.skill)?.action.type === "summon" && !dup(l.skill)) ??
+        choosePhaseSpell(sim, db, free)))
+  );
+}
+
+/**
+ * 位相のジョブ（魔法使い）の呪文を選ぶ：合成魔法に変わる呪文があればそれ（枠の順の最初）、無ければ直前とは
+ * 違う属性の呪文（位相が増える）、それも無ければ枠の順の最初。
+ */
+function choosePhaseSpell<T extends { readonly skill: string }>(
+  sim: ArenaSimulation,
+  db: ContentDb,
+  free: readonly T[],
+): T | undefined {
+  const gauge = sim.jobGauge;
+  const tagsOf = (l: T): readonly string[] => db.skills.get(l.skill)?.tags ?? [];
+  return (
+    free.find((l) => gauge.fusionFor(tagsOf(l)) !== undefined) ??
+    free.find((l) => {
+      const e = gauge.phaseElementOf(tagsOf(l));
+      return e !== undefined && e !== gauge.lastSpellElement;
+    }) ??
+    free[0]
   );
 }
 
@@ -329,6 +442,35 @@ function dodgeDirection(sim: ArenaSimulation, boss: Enemy): { x: number; y: numb
     : { x: me.x - boss.position.x || 1, y: me.y - boss.position.y };
 }
 
+/**
+ * ガードするボット（騎士）：ボスの叩きつけ・薙ぎ払いが当たる直前に、右クリックを押してパリィを狙う。
+ * 予兆の残りが 0.12秒以下になったらガードを上げ（受付は0.18秒）、攻撃が終わるまで上げ続ける。
+ * 残り 0.6秒以下の間は、新しい技を始めない（技の最中はガードを上げられないため）。
+ * 自分が当たる範囲にいるときだけ。ガードできない攻撃（胞子の雲・召喚）は何もしない。
+ */
+function guardPlan(sim: ArenaSimulation, boss: Enemy): { guard: boolean; hold: boolean } {
+  const a = boss.currentAttack;
+  const none = { guard: false, hold: false };
+  if (a === undefined || a.delivery.type !== "strike" || !(a.ratio > 0)) return none;
+  if (boss.state !== "windup" && boss.state !== "active") return none;
+  const d = a.delivery;
+  const me = sim.motion.position;
+  const center = d.aim === "target" ? boss.targetPoint : boss.position;
+  const reach = d.shape.type === "line" ? d.shape.length : d.shape.radius;
+  const gap = Math.hypot(me.x - center.x, me.y - center.y) - sim.player.radius;
+  if (gap > reach + (d.aim === "target" ? 0 : boss.combatant.radius)) return none;
+  if (boss.state === "active") {
+    // 連続の叩きつけ：1回ごとに押し直す（押し続けだとパリィにならない）。次の1回の0.12秒前に上げ直す
+    const repeat = d.repeat;
+    if (repeat === undefined) return { guard: true, hold: true };
+    const into = boss.timeInState % repeat.interval;
+    const next = repeat.interval - into;
+    return { guard: into <= 0.2 || next <= 0.12, hold: into <= 0.2 || next <= 0.4 };
+  }
+  const left = (a.windup - boss.timeInState) / (1 + boss.haste);
+  return { guard: left <= 0.12, hold: left <= 0.6 };
+}
+
 /** 一番近い、生きているボス以外の敵（触手など）。 */
 function nearestAdd(sim: ArenaSimulation, me: { x: number; y: number }): Enemy | undefined {
   let best: Enemy | undefined;
@@ -360,7 +502,9 @@ export function runBossBench(
   if (boss === undefined) throw new RangeError("ボスがいない");
   const limit = options.seconds ?? 300;
   const invincible = options.invincible ?? true;
-  const dodges = options.dodge ?? !invincible;
+  // ガードできる騎士は、回避せずにパリィで受ける（攻撃面だけを測るときは、ガードに時間を使わない）
+  const guardian = !invincible && sim.canGuard;
+  const dodges = options.dodge ?? (!invincible && !guardian);
   let t = 0;
   let taken = 0;
   let killTime: number | undefined;
@@ -391,7 +535,7 @@ export function runBossBench(
           : { x: 0, y: 0 };
     // 適正間合いを持つジョブ（弓使い）：間合いの真ん中に立ち、止まって撃つ。近すぎれば離れ、遠ければ寄る。
     // 雲の中にいれば、雲の外へ出る
-    const band = sim.job.preferredRange;
+    const band = sim.job.preferredRange ?? build.standoff;
     let ranged: { move: { x: number; y: number }; attack: boolean } | undefined;
     if (band !== undefined) {
       const clouds = sim.field?.clouds ?? [];
@@ -422,6 +566,13 @@ export function runBossBench(
           : [],
     );
     const pressed = new Set<Action>();
+    // ガード（騎士）：予兆の終わり際にガードを上げる。ガードを上げている間と、その直前は攻撃しない
+    const plan = guardian ? guardPlan(sim, boss) : undefined;
+    if (plan?.hold === true) held.clear();
+    if (plan?.guard === true) {
+      held.add("skill2");
+      if (sim.guard?.raised !== true) pressed.add("skill2");
+    }
     // 予兆の回避：ボスの攻撃の予兆の終わり際に、当たる範囲にいれば、範囲の外へ回避する
     const away = dodgeDirection(sim, boss);
     if (dodges && away !== undefined) pressed.add("dodge");
@@ -430,7 +581,11 @@ export function runBossBench(
       held: away !== undefined && dodges ? new Set<Action>() : held,
       pressed,
       move: away !== undefined && dodges ? away : (ranged?.move ?? move),
-      pointerWorld: { x: toPixels(dest.x), y: toPixels(dest.y) },
+      // ガードするときは、ボットの攻撃の相手（触手）ではなく、攻撃してくるボスの方を向く
+      pointerWorld:
+        plan?.hold === true
+          ? { x: toPixels(boss.position.x), y: toPixels(boss.position.y) }
+          : { x: toPixels(dest.x), y: toPixels(dest.y) },
     };
     const hpBefore = sim.player.health.hp + sim.player.health.ward;
     sim.frame(STEP, frame);
@@ -467,6 +622,8 @@ export function runBossBench(
     takenBySource: takenBreakdown(sim, taken, t),
     hitsTaken: sim.hitsTaken,
     attacksAvoided: sim.attacksAvoided,
+    guards: sim.guardCount,
+    parries: sim.parryCount,
   };
 }
 

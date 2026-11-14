@@ -702,6 +702,38 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     if (gauge.pointEffect !== undefined)
       refCheck(effectMap, "効果", gauge.pointEffect.effect, file, gauge.id, "pointEffect.effect");
+    // 位相の遷移表（魔法使い）：除く印・合成魔法の文章と変化の参照
+    if (gauge.phase !== undefined) {
+      gauge.phase.fusion.excludeTags.forEach((t, i) => {
+        tagOf(t, undefined, file, gauge.id, `phase.fusion.excludeTags.${String(i)}`);
+      });
+      const phase = gauge.phase;
+      const bad = (path: string, message: string): void => {
+        err({ code: "schema", file, id: gauge.id, path, message });
+      };
+      if (phase.fusion.at > gauge.max)
+        bad(
+          "phase.fusion.at",
+          `合成魔法になる位相 ${String(phase.fusion.at)} が、最大 ${String(gauge.max)} を超える`,
+        );
+      const inputs = phase.transitions.map((t) => t.input);
+      if (new Set(inputs).size !== inputs.length)
+        bad("phase.transitions", "遷移表の input が重なっている");
+      phase.fusion.table.forEach((row, i) => {
+        const at = `phase.fusion.table.${String(i)}`;
+        if (row.elements[0] === row.elements[1])
+          bad(`${at}.elements`, "合成魔法の組み合わせは、違う2つの属性");
+        for (const e of row.elements)
+          if (!phase.elements.includes(e))
+            bad(`${at}.elements`, `属性 ${e} が phase.elements に無い`);
+        if (!gauge.stages.some((st) => st.id === row.id))
+          bad(`${at}.id`, `合成魔法 ${row.id} に対応する段階（stages）が無い`);
+      });
+      phase.fusion.table.forEach((row, i) => {
+        checkText(row.text, file, gauge.id);
+        checkMods(row.mods, file, gauge.id, `phase.fusion.table.${String(i)}.mods`);
+      });
+    }
   }
 
   /** 技 → それを持つジョブの職能ゲージ（段階の名前の確認に使う）。 */
@@ -745,6 +777,11 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     if (job.startingWeapon !== undefined)
       refCheck(itemBaseMap, "装備のベース", job.startingWeapon, file, job.id, "startingWeapon");
+    if (job.startingOffHand !== undefined)
+      refCheck(itemBaseMap, "装備のベース", job.startingOffHand, file, job.id, "startingOffHand");
+    (job.passiveEffects ?? []).forEach((e, i) => {
+      refCheck(effectMap, "効果", e, file, job.id, `passiveEffects.${String(i)}`);
+    });
     // 上位職・混成職の形（MVP後の機能の提案 4章）：元のジョブがあり、自分自身でなく、重ならない。試練の文章がある
     (job.advancedFrom ?? []).forEach((from, i) => {
       const at = `advancedFrom.${String(i)}`;
@@ -756,6 +793,26 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
           id: job.id,
           path: at,
           message: `元のジョブ ${from} が自分自身か、重なっている`,
+        });
+    });
+    // サブジョブの技（docs/progress D-SUB-4）：そのジョブの技にあること・重ならないことは形の検証（jobSchema）。
+    // ここでは、サブジョブで使えない技（subJobRule が unavailable）を選んでいないこと、上位職に付けていないことを確かめる
+    if (job.subSkills !== undefined && job.advancedFrom !== undefined)
+      err({
+        code: "schema",
+        file,
+        id: job.id,
+        path: "subSkills",
+        message: "上位職・混成職はサブジョブにできないので、サブジョブの技を持たない",
+      });
+    job.subSkills?.skills.forEach((id, i) => {
+      if (skillMap.get(id)?.subJobRule === "unavailable")
+        err({
+          code: "schema",
+          file,
+          id: job.id,
+          path: `subSkills.skills.${String(i)}`,
+          message: `技 ${id} はサブジョブの技として使えない（subJobRule: unavailable）`,
         });
     });
     if (job.trial !== undefined) checkText(job.trial.text, file, job.id);
@@ -799,6 +856,36 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     if (skill.action.type === "selfBuff") {
       skill.action.effects.forEach((e, i) => {
         refCheck(effectMap, "効果", e, file, skill.id, `action.effects.${String(i)}`);
+      });
+    }
+    // 召喚物（召喚士）：文章・攻撃のタグ・付与率の状態異常・犠牲と憑依の効果
+    if (skill.action.type === "summon") {
+      const m = skill.action.minion;
+      if (!(m.text in raw.texts))
+        err({
+          code: "unknown-text",
+          file,
+          id: skill.id,
+          path: "action.minion.text",
+          message: `文章のキー ${m.text} がない`,
+        });
+      m.attack.tags.forEach((t, i) => {
+        tagOf(t, undefined, file, skill.id, `action.minion.attack.tags.${String(i)}`);
+      });
+      for (const tagId of Object.keys(m.attack.ailmentChance ?? {}))
+        tagOf(tagId, ["ailment"], file, skill.id, "action.minion.attack.ailmentChance");
+      (m.sacrifice.selfEffects ?? []).forEach((e, i) => {
+        refCheck(
+          effectMap,
+          "効果",
+          e.effect,
+          file,
+          skill.id,
+          `action.minion.sacrifice.selfEffects.${String(i)}.effect`,
+        );
+      });
+      m.possessEffects.forEach((e, i) => {
+        refCheck(effectMap, "効果", e, file, skill.id, `action.minion.possessEffects.${String(i)}`);
       });
     }
     if (skill.action.type === "zone") {
