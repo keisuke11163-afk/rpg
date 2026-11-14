@@ -1612,12 +1612,17 @@ export class ArenaSimulation {
 
   /** 今の状態を、ロードアウトの形にする。 */
   private currentLoadout(base: LoadoutRecord): LoadoutRecord {
+    const sub = this.character.subJob;
     return {
-      ...base,
+      id: base.id,
+      name: base.name,
+      extraEntries: base.extraEntries,
       mainJob: this.character.mainJob,
       equipment: Object.fromEntries(this.equipment.entries().map(([s, i]) => [s, i.uid])),
       starAllocation: [...this.stars.nodes],
       jobBoards: this.currentJobBoards(),
+      // サブジョブ（D-LOAD-2）：無ければ項目ごと省く（古いロードアウトと同じ形）
+      ...(sub === undefined ? {} : { subJob: sub }),
     };
   }
 
@@ -1640,8 +1645,10 @@ export class ArenaSimulation {
   }
 
   /**
-   * ロードアウトを切り替える（仕様書v0.2 4.13）。今の装備・星辰盤・メインジョブを今のロードアウトに保存し、
-   * 切り替え先の装備（インベントリ・倉庫にある物）・星辰盤・メインジョブにする。まだ無いロードアウトは、今の状態の写しで作る。
+   * ロードアウトを切り替える（仕様書v0.2 4.13）。今の装備・星辰盤・メインジョブ・サブジョブを今のロードアウトに保存し、
+   * 切り替え先の装備（インベントリ・倉庫にある物）・星辰盤・メインジョブ・サブジョブにする。まだ無いロードアウトは、
+   * 今の状態の写しで作る。サブジョブは設定できるときだけ戻し、できなければ外す（切り替えは成功させる。D-LOAD-2・3）。
+   * 副職紋の取得はサブにしたジョブごとに別に持つので、切り替えでは変えない。
    *
    * 全て計画して確かめてから反映する：転職した後の二刀流の可否で、最終的な装備・インベントリ・倉庫を先に計算する。
    * 持っていない装備は空きにする。部位に合わない・必要Lvに届かない装備と、ほかの装備に外される装備
@@ -1670,9 +1677,10 @@ export class ArenaSimulation {
       nextJob !== undefined &&
       target.mainJob !== this.character.mainJob &&
       this.character.canChangeJob;
-    // サブジョブはロードアウトに含めない（Q-SUB-3）。メインジョブがサブジョブと同じジョブになると、サブジョブは外れる
-    const subAfter =
-      changeJob && target.mainJob === this.character.subJob ? undefined : this.subJob;
+    // サブジョブ（ロードアウトに含める。docs/progress D-LOAD-2）：切り替え先のサブジョブを、切り替えた後のメインジョブで
+    // 設定できる（キャラLv25以上・メインと別・上位職でない）ときだけ設定する。無い・設定できないときは外す
+    const mainAfter = changeJob ? target.mainJob : this.character.mainJob;
+    const subAfter = this.loadoutSubJob(target.subJob, mainAfter);
     const dual = dualWieldAffinity(changeJob ? nextJob : this.job, subAfter) !== undefined;
     // 装備：今の装備を全て脇に置き、切り替え先の装備を集めて写しの装備に付ける
     const planned = new Equipment(this.db);
@@ -1737,7 +1745,12 @@ export class ArenaSimulation {
       target,
     ].sort((a, b) => a.id - b.id);
     const subSource = this.contractAs();
+    const subBefore = this.character.subJob;
     if (changeJob && this.character.changeJob(target.mainJob)) this.jobGaugeValue = this.newGauge();
+    // サブジョブ（計画で設定できることを確かめた。副手は上の装備の計画で、二刀流の可否に合わせて済んでいる）
+    if (subAfter === undefined) this.character.clearSubJob();
+    else if (this.character.subJob !== subAfter.id && !this.character.setSubJob(subAfter.id))
+      throw new Error(`ロードアウトのサブジョブ ${subAfter.id} を設定できない（計画と合わない）`);
     for (const [slot] of this.equipment.entries()) this.equipment.unequip(slot);
     for (const uid of fromInventory) this.inventory.removeItem(uid);
     for (const uid of fromStash) this.stash.removeItem(uid);
@@ -1755,12 +1768,23 @@ export class ArenaSimulation {
     this.activeLoadoutId = id;
     this.equipmentVersion += 1;
     this.starVersion += 1;
-    // 転職でサブジョブが外れたら、技の枠のサブジョブの技・サブジョブの召喚物を片付ける
-    this.afterSubJobChanged(subSource);
+    // サブジョブが変わった・外れたら、技の枠のサブジョブの技・サブジョブの召喚物を片付ける（applySubJob と同じ後始末）
+    this.afterSubJobChanged(subSource, subBefore !== this.character.subJob);
     this.attackerVersion = "";
     this.refreshAttacker();
     this.syncPlayerMaxHp();
     return "ok";
+  }
+
+  /**
+   * ロードアウトのサブジョブを、メインジョブが mainAfter になった後に設定できるならその定義（docs/progress D-LOAD-2）。
+   * 無い・データに無い・キャラLv25未満・メインと同じ・上位職なら undefined（切り替えではサブジョブを外す。D-LOAD-3）。
+   */
+  private loadoutSubJob(subId: string | undefined, mainAfter: string): JobDef | undefined {
+    if (subId === undefined || subId === mainAfter || !this.character.canSetSubJob)
+      return undefined;
+    const def = this.db.jobs.get(subId);
+    return def === undefined || def.advancedFrom !== undefined ? undefined : def;
   }
 
   /** 試し打ちの場で試しているか。 */
@@ -1857,6 +1881,17 @@ export class ArenaSimulation {
   /** 職紋盤のノードを取る。取れなければ false。 */
   allocateJobNode(id: string): boolean {
     if (!this.jobBoard.allocate(id, this.jobBoardPoints)) return false;
+    this.jobBoardChanged();
+    return true;
+  }
+
+  /**
+   * 職紋盤のノードを1つ返す（右クリック）。副職紋と同じく、1つずつ返せるのは無料の試し打ちの場だけ（それ以外は
+   * 金貨で全体を振り直す。docs/progress D-SUBG-6・D-JBD-2）。返すと始点からつながらなくなるノードがあるときも false。
+   */
+  refundJobNode(id: string): boolean {
+    if (this.current !== undefined || this.trialSnapshot === undefined) return false;
+    if (!this.jobBoard.refund(id)) return false;
     this.jobBoardChanged();
     return true;
   }

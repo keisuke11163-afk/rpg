@@ -28,6 +28,7 @@ import {
 } from "../settings/settings.ts";
 import { loadSettings, saveSettings } from "../settings/storage.ts";
 import { SCREEN } from "../config.ts";
+import { BOARD_AREA } from "../ui/star-board-view.ts";
 import { exposeDebug } from "../debug.ts";
 import type { Action } from "../input/actions.ts";
 import { type InputFrame, InputSystem } from "../input/InputSystem.ts";
@@ -444,6 +445,20 @@ export class ArenaScene extends Phaser.Scene {
         lamps: sim.inventory.material("MAT-RETURN-LAMP"),
       }),
       starNodeScreen: (id?: number | string) => this.panel.nodeScreen(String(id)) ?? null,
+      // 職紋盤・副職紋の図（開発版だけ）：今の図のノードの画面の位置（図に出ていなければ null）・右の列の操作の行・
+      // 図の視点・メインの職紋盤の取得
+      jobNodeScreen: (id?: number | string) => this.panel.jobNodeScreen(String(id)) ?? null,
+      jobBoard: () => ({
+        job: sim.job.id,
+        points: sim.jobBoardPoints,
+        spent: sim.jobBoard.spent,
+        nodes: [...sim.jobBoard.nodes],
+        rows: [...this.panel.jobPanelRows()],
+        camera: { ...this.panel.jobBoardCamera },
+        inTrial: sim.inTrial,
+        area: { ...BOARD_AREA },
+        shown: [...this.panel.jobNodesShown()],
+      }),
       // 設定（補助仕様書16章）：今の設定と、設定の画面の行の位置
       settings: () => ({
         dodge: effectiveBindings(this.settings).dodge.map((b) => ("key" in b ? b.key : b.mouse)),
