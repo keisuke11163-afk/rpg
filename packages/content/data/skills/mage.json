@@ -1,0 +1,151 @@
+[
+  {
+    "id": "SKL-MAGE-FIREBALL",
+    "text": "skill.mage.fireball",
+    "job": "JOB-MAGE",
+    "tags": ["TAG-FORM-SPELL", "TAG-FORM-PROJECTILE", "TAG-ELEM-FIRE"],
+    "kind": "spell",
+    "pct": 1.0,
+    "mpCost": 6,
+    "cooldown": 0,
+    "base": {
+      "fire": {
+        "min": 12,
+        "max": 20
+      }
+    },
+    "useTimeMultiplier": 0.8,
+    "action": {
+      "type": "projectile",
+      "count": 1,
+      "spreadDeg": 0,
+      "speed": 22,
+      "range": 16,
+      "radius": 0.3,
+      "pierce": 0,
+      "burst": 1.5
+    },
+    "staggerCoefficient": 0.2,
+    "provisional": true,
+    "provisionalNote": "魔法使いの技の数値（詠唱の時間・弾の速さ・射程・範囲の半径・連鎖の距離・覚えるジョブLv）は仕様書v0.2 5.4 に無いので仮（docs/progress D-MAG-5）"
+  },
+  {
+    "id": "SKL-MAGE-ICELANCE",
+    "text": "skill.mage.icelance",
+    "job": "JOB-MAGE",
+    "tags": ["TAG-FORM-SPELL", "TAG-FORM-PROJECTILE", "TAG-ELEM-COLD"],
+    "kind": "spell",
+    "pct": 1.0,
+    "mpCost": 7,
+    "cooldown": 0,
+    "base": {
+      "cold": {
+        "min": 10,
+        "max": 16
+      }
+    },
+    "useTimeMultiplier": 0.8,
+    "action": {
+      "type": "projectile",
+      "count": 1,
+      "spreadDeg": 0,
+      "speed": 30,
+      "range": 18,
+      "radius": 0.25,
+      "pierce": 1
+    },
+    "staggerCoefficient": 0.2,
+    "provisional": true,
+    "provisionalNote": "魔法使いの技の数値（詠唱の時間・弾の速さ・射程・範囲の半径・連鎖の距離・覚えるジョブLv）は仕様書v0.2 5.4 に無いので仮（docs/progress D-MAG-5）"
+  },
+  {
+    "id": "SKL-MAGE-CHAIN",
+    "text": "skill.mage.chain",
+    "job": "JOB-MAGE",
+    "tags": ["TAG-FORM-SPELL", "TAG-ELEM-LIGHTNING"],
+    "kind": "spell",
+    "pct": 1.0,
+    "mpCost": 8,
+    "cooldown": 0,
+    "base": {
+      "lightning": {
+        "min": 4,
+        "max": 28
+      }
+    },
+    "useTimeMultiplier": 0.8,
+    "action": {
+      "type": "chain",
+      "range": 14,
+      "jumpRange": 6,
+      "chains": 4
+    },
+    "staggerCoefficient": 0.2,
+    "provisional": true,
+    "provisionalNote": "魔法使いの技の数値（詠唱の時間・弾の速さ・射程・範囲の半径・連鎖の距離・覚えるジョブLv）は仕様書v0.2 5.4 に無いので仮（docs/progress D-MAG-5）。連鎖で同じ敵には当たらない・連鎖でダメージは減らない（D-MAG-6）"
+  },
+  {
+    "id": "SKL-MAGE-BLINK",
+    "text": "skill.mage.blink",
+    "job": "JOB-MAGE",
+    "tags": ["TAG-FORM-SPELL", "TAG-FORM-MOVEMENT"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 10,
+    "cooldown": 4,
+    "useTimeMultiplier": 0.5,
+    "action": {
+      "type": "blink",
+      "distance": 8
+    },
+    "staggerCoefficient": 0,
+    "provisional": true,
+    "provisionalNote": "魔法使いの技の数値（詠唱の時間・弾の速さ・射程・範囲の半径・連鎖の距離・覚えるジョブLv）は仕様書v0.2 5.4 に無いので仮（docs/progress D-MAG-5）"
+  },
+  {
+    "id": "SKL-MAGE-BARRIER",
+    "text": "skill.mage.barrier",
+    "job": "JOB-MAGE",
+    "tags": ["TAG-FORM-SPELL", "TAG-FORM-DEFENSE"],
+    "kind": "weapon",
+    "pct": 0,
+    "mpCost": 15,
+    "cooldown": 12,
+    "useTimeMultiplier": 0.7,
+    "action": {
+      "type": "selfBuff",
+      "effects": ["EFF-MAGE-BARRIER"],
+      "duration": 6
+    },
+    "staggerCoefficient": 0,
+    "provisional": true,
+    "provisionalNote": "魔法使いの技の数値（詠唱の時間・弾の速さ・射程・範囲の半径・連鎖の距離・覚えるジョブLv）は仕様書v0.2 5.4 に無いので仮（docs/progress D-MAG-5）"
+  },
+  {
+    "id": "SKL-MAGE-METEOR",
+    "text": "skill.mage.meteor",
+    "job": "JOB-MAGE",
+    "tags": ["TAG-FORM-SPELL", "TAG-FORM-AREA", "TAG-ELEM-FIRE"],
+    "kind": "spell",
+    "pct": 1.0,
+    "mpCost": 30,
+    "cooldown": 10,
+    "base": {
+      "fire": {
+        "min": 80,
+        "max": 120
+      }
+    },
+    "useTimeMultiplier": 1.0,
+    "action": {
+      "type": "barrage",
+      "range": 14,
+      "radius": 3,
+      "duration": 1.0,
+      "interval": 1.0
+    },
+    "staggerCoefficient": 0.5,
+    "provisional": true,
+    "provisionalNote": "魔法使いの技の数値（詠唱の時間・弾の速さ・射程・範囲の半径・連鎖の距離・覚えるジョブLv）は仕様書v0.2 5.4 に無いので仮（docs/progress D-MAG-5）。落下の「1.0秒後」は、当たり判定が出る瞬間から数える（矢の雨と同じ仕組みで、1回だけ当たる）"
+  }
+]

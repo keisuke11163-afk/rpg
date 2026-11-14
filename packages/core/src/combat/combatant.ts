@@ -338,7 +338,8 @@ export function resolveHit(input: HitInput): HitReport {
       staggerBroke: false,
     };
   const tags = [...skill.tags, ...(skill.kind === "weapon" ? (attacker.weapon?.tags ?? []) : [])];
-  const weaponUid = attacker.weapon?.uid;
+  // 呪文は武器のヒットではない（computeHit と同じ。局所の効果は呪文に効かない）。武器を持っていても渡さない
+  const weaponUid = skill.kind === "weapon" ? attacker.weapon?.uid : undefined;
   const ailments = rollAilments({
     db,
     view: attacker.view,

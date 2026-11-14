@@ -455,5 +455,24 @@
       "ailmentBase": false
     },
     "scope": "self"
+  },
+  {
+    "id": "EFF-IMP-SPELL-DAMAGE-15",
+    "origin": "implicit",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-DAMAGE",
+        "value": 0.15,
+        "filter": {
+          "allOf": ["TAG-FORM-SPELL"]
+        }
+      }
+    ],
+    "affects": {
+      "hit": true,
+      "ailmentBase": true
+    },
+    "scope": "self"
   }
 ]

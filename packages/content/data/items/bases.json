@@ -234,6 +234,32 @@
     "provisionalNote": "要求値は補助仕様書14章の仮値（両手の弓は短剣より高くした。docs/progress D-ARC-1）"
   },
   {
+    "id": "BASE-WPN-STAFF-T1",
+    "text": "item.base.staff-1",
+    "category": "weapon",
+    "tags": ["TAG-WPN-STAFF"],
+    "tier": 1,
+    "requiredLevel": 1,
+    "requirement": {
+      "attribute": "ri",
+      "value": 18
+    },
+    "weapon": {
+      "hands": 2,
+      "damage": {
+        "physical": {
+          "min": 5,
+          "max": 9
+        }
+      },
+      "attackSpeed": 1.2,
+      "critChance": 0.06
+    },
+    "implicitEffects": ["EFF-IMP-SPELL-DAMAGE-15"],
+    "provisional": true,
+    "provisionalNote": "要求値は補助仕様書14章の仮値（両手武器の下級＝18）。魔導書・ワンドは足していない（docs/progress Q-MAG-5）"
+  },
+  {
     "id": "BASE-ARM-IRON-HEAD-T1",
     "text": "item.base.iron-head-1",
     "category": "head",

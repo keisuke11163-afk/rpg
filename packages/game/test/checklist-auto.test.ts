@@ -20,7 +20,8 @@ const find = (id: string): BenchBuild => {
 describe("チェックリスト 3-4・3-5：二刀流と基準のビルドも、深淵の母樹に勝てる（ボット）", () => {
   // 3-1〜3-3 は boss-bench.test.ts（D-FIN-7）
   // baseline-archer：弓使い（MVP後の機能の提案3章）も、間合いを保つボットで勝てる
-  for (const id of ["rogue-dual-shadow", "baseline-warrior", "baseline-archer"])
+  // baseline-mage：魔法使い（位相を回して離れて撃つボット。撃破は 弓使いより少し遅い 125秒前後）
+  for (const id of ["rogue-dual-shadow", "baseline-warrior", "baseline-archer", "baseline-mage"])
     it(`${id}：3つのシードで、倒れずに倒せる（180秒以内）`, () => {
       for (const seed of ["s1", "s2", "s3"]) {
         const r = runBossBench(db, find(id), {
@@ -35,8 +36,8 @@ describe("チェックリスト 3-4・3-5：二刀流と基準のビルドも、
       }
     }, 120_000);
 
-  it("基準の戦士・弓使いはユニーク・天極を持たない（3-5 の前提）", () => {
-    for (const id of ["baseline-warrior", "baseline-archer"]) {
+  it("基準の戦士・弓使い・魔法使いはユニーク・天極を持たない（3-5 の前提）", () => {
+    for (const id of ["baseline-warrior", "baseline-archer", "baseline-mage"]) {
       const b = find(id);
       for (const e of b.equipment) expect(db.itemBases.get(e.base)?.unique).toBeUndefined();
       for (const s of b.stars) expect(db.starNodes.get(s)?.kind).not.toBe("keystone");

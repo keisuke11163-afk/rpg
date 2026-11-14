@@ -702,6 +702,38 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
     });
     if (gauge.pointEffect !== undefined)
       refCheck(effectMap, "効果", gauge.pointEffect.effect, file, gauge.id, "pointEffect.effect");
+    // 位相の遷移表（魔法使い）：除く印・合成魔法の文章と変化の参照
+    if (gauge.phase !== undefined) {
+      gauge.phase.fusion.excludeTags.forEach((t, i) => {
+        tagOf(t, undefined, file, gauge.id, `phase.fusion.excludeTags.${String(i)}`);
+      });
+      const phase = gauge.phase;
+      const bad = (path: string, message: string): void => {
+        err({ code: "schema", file, id: gauge.id, path, message });
+      };
+      if (phase.fusion.at > gauge.max)
+        bad(
+          "phase.fusion.at",
+          `合成魔法になる位相 ${String(phase.fusion.at)} が、最大 ${String(gauge.max)} を超える`,
+        );
+      const inputs = phase.transitions.map((t) => t.input);
+      if (new Set(inputs).size !== inputs.length)
+        bad("phase.transitions", "遷移表の input が重なっている");
+      phase.fusion.table.forEach((row, i) => {
+        const at = `phase.fusion.table.${String(i)}`;
+        if (row.elements[0] === row.elements[1])
+          bad(`${at}.elements`, "合成魔法の組み合わせは、違う2つの属性");
+        for (const e of row.elements)
+          if (!phase.elements.includes(e))
+            bad(`${at}.elements`, `属性 ${e} が phase.elements に無い`);
+        if (!gauge.stages.some((st) => st.id === row.id))
+          bad(`${at}.id`, `合成魔法 ${row.id} に対応する段階（stages）が無い`);
+      });
+      phase.fusion.table.forEach((row, i) => {
+        checkText(row.text, file, gauge.id);
+        checkMods(row.mods, file, gauge.id, `phase.fusion.table.${String(i)}.mods`);
+      });
+    }
   }
 
   /** 技 → それを持つジョブの職能ゲージ（段階の名前の確認に使う）。 */

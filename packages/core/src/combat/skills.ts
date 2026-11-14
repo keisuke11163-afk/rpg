@@ -80,6 +80,8 @@ export interface SkillContext {
   readonly dualWield?: boolean;
   /** 終結技で使うゲージの量（急所穿ちのコンボ点）。 */
   readonly gaugeSpent?: number;
+  /** 呪文を変える合成魔法（位相。魔法使い）。段階の変化の後に当てはめる。label は表示・確認用（例：fusion:steam）。 */
+  readonly fusion?: { readonly id: string; readonly mods: SkillMods };
 }
 
 export interface SkillBehavior {
@@ -133,7 +135,11 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     if (ctx.stages.includes(v.stage)) applied.push({ label: `stage:${v.stage}`, mods: v.mods });
   }
 
+  if (ctx.fusion !== undefined)
+    applied.push({ label: `fusion:${ctx.fusion.id}`, mods: ctx.fusion.mods });
+
   let pct = def.pct;
+  let pctMultiplier = 1;
   let area = 1;
   let angleDeg: number | undefined;
   let staggerInc = 0;
@@ -141,12 +147,14 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   let hitsPerSecond: number | undefined;
   let radiusMultiplier = 1;
   let hits: number | undefined;
+  let burst: number | undefined;
   let replacedAction: SkillAction | undefined;
   let tags: readonly string[] = def.tags;
   const chance: Record<string, number> = { ...(def.ailmentChance ?? {}) };
   const behaviors: SkillBehavior[] = [];
   for (const { mods } of applied) {
     if (mods.pct !== undefined) pct = mods.pct;
+    if (mods.pctMultiplier !== undefined) pctMultiplier *= mods.pctMultiplier;
     if (mods.areaMultiplier !== undefined) area *= mods.areaMultiplier;
     if (mods.angleDeg !== undefined) angleDeg = mods.angleDeg;
     staggerInc += mods.staggerIncreased ?? 0;
@@ -154,6 +162,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     if (mods.hitsPerSecond !== undefined) hitsPerSecond = mods.hitsPerSecond;
     if (mods.radiusMultiplier !== undefined) radiusMultiplier *= mods.radiusMultiplier;
     if (mods.hits !== undefined) hits = mods.hits;
+    if (mods.burst !== undefined) burst = mods.burst;
     if (mods.action !== undefined) replacedAction = mods.action;
     if (mods.tags !== undefined) tags = mods.tags;
     for (const [tag, c] of Object.entries(mods.ailmentChance ?? {}))
@@ -191,9 +200,16 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
       action = { ...a, radius: a.radius * radiusMultiplier * area };
       break;
     case "projectile":
+      {
+        const b = burst ?? a.burst;
+        action = b === undefined ? a : { ...a, burst: b * area };
+      }
+      break;
     case "teleport":
     case "selfBuff":
     case "trap":
+    case "blink":
+    case "chain":
       action = a;
       break;
   }
@@ -202,6 +218,7 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   const baseCoefficient =
     def.staggerCoefficient ?? (staggerDef?.kind === "stagger" ? staggerDef.defaultCoefficient : 0);
 
+  pct *= pctMultiplier;
   // 終結技：使ったゲージの量に応じて技倍率が上がり、決まった量なら必ず会心
   const spent = ctx.gaugeSpent ?? 0;
   if (def.finisher !== undefined) pct += def.finisher.pctPerPoint * spent;

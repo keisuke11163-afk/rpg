@@ -179,6 +179,10 @@ describe("ヒットの解決（開発計画書 工程BT-2）", () => {
     effect("EFF-FORCE-BLEED", "unique", [
       { kind: "flag", flag: "ailmentApply", mode: "force", target: "TAG-AIL-BLEED" },
     ]),
+    // 武器の局所の効果（呪文のヒットには効かない）
+    effect("EFF-LOCAL-MORE", "unique", [{ kind: "more", stat: "STAT-DAMAGE", value: 2 }], {
+      locality: "local",
+    }),
   ]);
   const view = (ids: string[]) =>
     evaluateEffects(
@@ -229,6 +233,35 @@ describe("ヒットの解決（開発計画書 工程BT-2）", () => {
     expect(r.hit.total).toBeCloseTo(expected);
     expect(d.health.hp).toBeCloseTo(1000 - expected);
     expect(r.applied.toHp).toBeCloseTo(expected);
+  });
+
+  it("武器を持って呪文を当てても、状態異常の判定で例外にならず、武器の局所の効果は効かない（魔法使いの杖）", () => {
+    const SPELL: DamageSkill = {
+      tags: ["TAG-FORM-SPELL", "TAG-ELEM-FIRE"],
+      kind: "spell",
+      pct: 1,
+      base: { fire: { min: 10, max: 10 } },
+    };
+    const { view } = evaluateEffects(db, new TagIndex(db.tags), [
+      { effectId: "EFF-LOCAL-MORE", source: { kind: "equipment", ref: "w" } },
+      { effectId: "EFF-FORCE-BLEED", source: { kind: "test", ref: "b" } },
+    ]);
+    const withStaff: DamageAttacker = { ...attacker(), view };
+    const hit = (skill: DamageSkill) =>
+      resolveHit({
+        db,
+        attacker: withStaff,
+        attackerPosition: { x: 1, y: 0 },
+        skill,
+        // 呪文は武器のヒットではないので、武器の uid を状態異常の計算に渡さない
+        target: dummy(0),
+        rng: Rng.fromSeed(5),
+        roll: "average",
+      });
+    const spell = hit(SPELL);
+    expect(spell.hit.weaponUid).toBeUndefined();
+    expect(spell.hit.total).toBeCloseTo(10 * 1.0); // 局所の×2は効かない
+    expect(hit(BASIC).hit.total).toBeGreaterThan(8.5 * 1.9); // 武器のヒットには効く
   });
 
   it("ダメージを受けない間（ボスの段階の切り替え・根渡り）のヒットは、ダメージ・状態異常・崩しを与えない", () => {

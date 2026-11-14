@@ -1055,6 +1055,29 @@
     }
   },
   {
+    "id": "AFX-PRE-JOB-MAGE",
+    "text": "item.affix.job-mage",
+    "position": "prefix",
+    "categories": ["head", "body", "hands", "feet", "belt", "neck", "ring"],
+    "effect": "EFF-PRE-JOB-MAGE",
+    "roll": "fixed",
+    "scale": 1,
+    "weight": 25,
+    "tiers": [
+      {
+        "tier": 7,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "provisional": true,
+    "provisionalNote": "仕様書v0.2 3.6 の職詞（位相を1から開始する）。頭は重み2倍（D-U11-23 と同じ）。位相を1から開始するのは、戦闘外から戦い始めるとき（docs/progress D-MAG-3）",
+    "job": "TAG-JOB-MAGE",
+    "categoryWeights": {
+      "head": 2
+    }
+  },
+  {
     "id": "AFX-SUF-BEAST-HUNTER",
     "text": "item.affix.beast-hunter",
     "position": "suffix",

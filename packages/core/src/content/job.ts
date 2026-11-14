@@ -45,8 +45,12 @@ const baseSkillModsSchema = z.strictObject({
   hitsPerSecond: z.number().positive().optional(),
   /** 技倍率を置き換える。 */
   pct: z.number().positive().optional(),
+  /** 技倍率に掛ける（合成魔法：元の呪文のダメージ×1.8）。置き換えの後に掛ける。 */
+  pctMultiplier: z.number().positive().optional(),
   /** 戦吼の範囲の倍率。 */
   radiusMultiplier: z.number().positive().optional(),
+  /** 投射物の着弾の範囲の半径（m）を置き換える・足す（蒸爆：元の動き方のまま、着弾の爆発だけを重ねる）。 */
+  burst: z.number().positive().optional(),
   /** 連撃の数を置き換える（連刃：爪は4連撃、片手剣は2連撃）。 */
   hits: z.number().int().positive().optional(),
   /** 加える挙動。 */
@@ -130,6 +134,24 @@ export const skillActionSchema = z.discriminatedUnion("type", [
     leap: z
       .strictObject({ distance: z.number().positive(), duration: z.number().positive() })
       .optional(),
+    /** 当たった場所で起きる小さな範囲の半径（m。火球・蒸爆：着弾すると範囲）。当たった敵以外の、範囲内の敵にも同じ技を当てる。 */
+    burst: z.number().positive().optional(),
+  }),
+  // 照準の方向へ、決まった距離まで瞬間移動する（魔法使いの瞬移。仕様書v0.2 5.4）。照準が近ければそこまで
+  z.strictObject({
+    type: z.literal("blink"),
+    distance: z.number().positive(),
+  }),
+  // 照準の近くの敵に当て、近くの別の敵へ決まった回数だけ連鎖する（魔法使いの雷鎖。仕様書v0.2 5.4）。
+  // 同じ敵には1回しか当たらない。対象がいなければ使えない
+  z.strictObject({
+    type: z.literal("chain"),
+    /** 最初の対象を探す範囲（自分から。m）。 */
+    range: z.number().positive(),
+    /** 連鎖先を探す範囲（今の対象から。m）。 */
+    jumpRange: z.number().positive(),
+    /** 連鎖の回数（最初の1体は含まない）。 */
+    chains: z.number().int().nonnegative(),
   }),
   // 照準の位置（射程内）に、一定時間、間隔ごとに当たり判定を出す範囲を置く（矢の雨）
   z.strictObject({
@@ -220,6 +242,46 @@ export const skillSchema = z.strictObject({
 });
 export type SkillDef = z.infer<typeof skillSchema>;
 
+/** 位相の遷移表の1行：直前の呪文との関係（first＝直前が無い・same＝同じ属性・different＝違う属性）と、位相の増え方。 */
+const phaseTransitionSchema = z.strictObject({
+  input: z.enum(["first", "same", "different"]),
+  add: z.number(),
+});
+
+/** 合成魔法の1つ：直前の2つの属性（順不同）で決まり、位相が足りているとき、次の呪文の変化（mods）に変わる。 */
+const phaseFusionRowSchema = z.strictObject({
+  /** 段階の名前（HUD・テストで使う。例：steam）。 */
+  id: z.string(),
+  text: textKeySchema,
+  elements: z.tuple([z.enum(ELEMENTS), z.enum(ELEMENTS)]),
+  /** 呪文に当てはめる変化（動き方・技倍率の倍率・状態異常の付与率など）。 */
+  mods: skillModsSchema,
+});
+
+/**
+ * 位相（魔法使い。仕様書v0.2 5.4・MVP後の機能の提案3章 H-09）の遷移表。
+ * 呪文を使うたびに、その属性と直前の属性を比べて、位相が変わる。位相が at に達すると、次の呪文が合成魔法に変わる。
+ * ゲージの量そのものが位相。直前の2つの属性は、ゲージの中に覚える（セーブしない）。
+ */
+const phaseSchema = z.strictObject({
+  /** 位相に数える属性（呪文のタグの属性）。 */
+  elements: z.array(z.enum(ELEMENTS)).min(1),
+  transitions: z.array(phaseTransitionSchema),
+  /** 属性を持たない呪文（瞬移・魔法障壁）：ignore＝何もしない・reset＝位相を開始の量に戻す。 */
+  neutral: z.enum(["ignore", "reset"]),
+  fusion: z.strictObject({
+    /** 合成魔法になる位相。 */
+    at: z.number().positive(),
+    /** 合成魔法を使った後の位相。 */
+    after: z.number().nonnegative(),
+    /** 合成魔法に変わらない呪文のタグ（隕星：範囲）。 */
+    excludeTags: z.array(idSchema),
+    table: z.array(phaseFusionRowSchema),
+  }),
+});
+export type PhaseDef = z.infer<typeof phaseSchema>;
+export type PhaseFusion = PhaseDef["fusion"]["table"][number];
+
 /** 職能ゲージの定義（仕様書5章）。 */
 export const gaugeSchema = z.strictObject({
   id: idSchema,
@@ -246,6 +308,8 @@ export const gaugeSchema = z.strictObject({
   ),
   /** 戦闘外（補助仕様書3.1：5秒間、攻撃も被弾もない）で毎秒減る量。 */
   decayOutOfCombat: z.number().nonnegative(),
+  /** 位相の遷移表（魔法使い。ゲージの量が位相）。省略すると、位相の仕組みを持たない。 */
+  phase: phaseSchema.optional(),
   /** ゲージの量1につき、自分にかける効果（集中：会心率+1%（増加））。値は perPoint × 量。 */
   pointEffect: z.strictObject({ effect: idSchema, perPoint: z.number() }).optional(),
   /** 段階（例：50以上で激化、100で解放）。 */

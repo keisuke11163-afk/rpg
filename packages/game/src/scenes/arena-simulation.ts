@@ -9,6 +9,7 @@ import {
   type DamageAttacker,
   type DamageSkill,
   ProjectilePool,
+  type ChainCast,
   type ProjectileVolley,
   type DropSource,
   FixedStepClock,
@@ -227,12 +228,14 @@ export const TEST_WEAPONS: readonly { readonly uid: string; readonly base: strin
   { uid: "test-claw", base: "BASE-WPN-CLAW-T1" },
   { uid: "test-bow", base: "BASE-WPN-BOW-T1" },
   { uid: "test-longbow", base: "BASE-WPN-LONGBOW-T1" },
+  { uid: "test-staff", base: "BASE-WPN-STAFF-T1" },
 ];
 /** ジョブの初期装備の武器（補助仕様書3.4。転職したときに持ち替える）。 */
 const START_WEAPON: Readonly<Record<string, string>> = {
   "JOB-WARRIOR": "test-greatsword",
   "JOB-ROGUE": "test-dagger",
   "JOB-ARCHER": "test-bow",
+  "JOB-MAGE": "test-staff",
 };
 
 /** 技の枠（補助仕様書1.1：左クリック・右クリック・1〜4 の6枠）。 */
@@ -650,6 +653,8 @@ export class ArenaSimulation {
   readonly arrows = new ProjectilePool<PlayerArrow>(PLAYER_ARROWS);
   private readonly strikes: ShownStrike[] = [];
   private mpValue = 60;
+  /** 戦う者に反映した最大魔障（一定時間の効果で変わったら、反映し直す）。 */
+  private syncedMaxWard: number | undefined;
   private hitStopLeft = 0;
   private flashLeft = 0;
   private elapsed = 0;
@@ -2157,6 +2162,9 @@ export class ArenaSimulation {
     // 影走りは、対象（照準の近くの敵）がいなければ使えない（補助仕様書3.6）
     if (def.action.type === "teleport" && this.stepTarget(def.action.range) === undefined)
       return "target";
+    // 雷鎖（連鎖）も、最初の対象（照準の近くの敵）がいなければ使えない
+    if (def.action.type === "chain" && this.stepTarget(def.action.range) === undefined)
+      return "target";
     // 職奥義「連弩の嵐」を選ぶと、狙撃（集中を使う投射の終結技）は使えなくなる
     if (
       this.view.stat("STAT-JOB-NO-SNIPE").value > 0 &&
@@ -2296,6 +2304,8 @@ export class ArenaSimulation {
     g.takenGainMultiplier = Math.max(0, 1 + jv.stat("STAT-GAUGE-GAIN-TAKEN").increased);
     g.floor = jv.stat("STAT-GAUGE-FLOOR").value;
     g.maxBonus = jv.stat("STAT-GAUGE-MAX-BONUS").value;
+    // 職詞「位相を1から開始する」（位相のゲージだけ。最大値の後に反映する）
+    g.startValue = jv.stat("STAT-GAUGE-START").value;
     // 職奥義「疾風」：移動中も集中が半分の速さで増える
     g.movingStationaryMultiplier = jv.stat("STAT-GAUGE-MOVING").value;
     // 職能ゲージの獲得量（職詞。メインジョブの条件は効果の側で判定する）
@@ -2364,8 +2374,11 @@ export class ArenaSimulation {
     // ゲージの量で値が変わる効果（集中の会心率）を持つゲージを使う技は、使う前の能力値で当てる
     const castSheet =
       spent > 0 && this.jobGaugeValue.def.pointEffect !== undefined ? this.sheetValue : undefined;
+    // 位相（魔法使い）：位相が足りていて、直前の2つの属性の合成魔法がある呪文は、合成魔法に変わる
+    const fusion = this.jobGaugeValue.fusionFor(def.tags);
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
       stages: this.jobGaugeValue.stages,
+      ...(fusion === undefined ? {} : { fusion: { id: fusion.id, mods: fusion.mods } }),
       weaponTags: this.tags.closure(this.sheetValue.weaponTags),
       dualWield: this.sheetValue.offAttacker !== undefined,
       // 職詞「終結技のコンボ点+1として扱う」（終結技だけ。ゲージから減る量は変わらない）
@@ -2418,6 +2431,12 @@ export class ArenaSimulation {
       this.buffs.add("EFF-BUFF-SURGE", surge, "surge");
     if (def.gauge?.gainOnUse !== undefined) this.jobGaugeValue.add(def.gauge.gainOnUse);
     this.jobGaugeValue.markCombat();
+    // 位相：呪文を使うと変わる。合成魔法に変わったときは、位相を戻して直前の属性を忘れる（D-MAG-1・D-MAG-4）
+    if (def.tags.includes("TAG-FORM-SPELL")) {
+      if (fusion === undefined)
+        this.jobGaugeValue.onSpellCast(this.jobGaugeValue.phaseElementOf(def.tags));
+      else this.jobGaugeValue.useFusion();
+    }
     for (const e of def.selfEffects ?? [])
       this.buffs.add(e.effect, e.duration * this.sheetValue.effectDuration, def.id);
     this.lastSkillValue = { id: def.id, variants: resolved.variants };
@@ -2509,6 +2528,7 @@ export class ArenaSimulation {
       this.mpValue = Math.max(0, this.mpValue - tick.mpCost);
       this.resolveStrikes(run, tick.strikes);
       if (tick.volley !== undefined) this.shoot(run, tick.volley);
+      if (tick.chain !== undefined) this.castChain(run, tick.chain);
       this.motion.displace(tick.displacement);
       if (tick.warcry !== undefined) {
         const w = tick.warcry;
@@ -2777,6 +2797,11 @@ export class ArenaSimulation {
     const still = !this.playerValue.moving && !this.motion.dodging && length(moveDelta) < 1e-6;
     this.jobGaugeValue.onStill(dt, !still);
     this.refreshAttacker();
+    // 一定時間の効果で最大魔障が変わったとき（魔法障壁）は、戦う者にも反映する
+    if (this.sheetValue.defense.maxWard !== this.syncedMaxWard) {
+      this.syncedMaxWard = this.sheetValue.defense.maxWard;
+      this.syncPlayerMaxHp();
+    }
     this.elapsed += dt;
     if (this.region === undefined) this.updateHazard();
     if (this.dummy !== undefined && this.dummy.health.hp < this.dummy.health.maxHp * 0.2)
@@ -2860,6 +2885,54 @@ export class ArenaSimulation {
       });
   }
 
+  /**
+   * 連鎖（魔法使いの雷鎖。仕様書v0.2 5.4）：照準の近くの敵に当て、近くの別の敵へ決まった回数だけ連鎖する。
+   * 同じ敵には1回しか当たらない・連鎖でダメージは減らない（D-MAG-6）。線で連鎖を見せる。
+   */
+  private castChain(run: Running, c: ChainCast): void {
+    const first = this.stepTarget(c.range);
+    if (first === undefined) return;
+    const order: Combatant[] = [first];
+    for (let i = 0; i < c.chains; i++) {
+      const from = order[order.length - 1] as Combatant;
+      let next: Combatant | undefined;
+      let nextGap = Infinity;
+      for (const t of this.targets()) {
+        if (order.includes(t) || t.health.dead) continue;
+        const gap =
+          length({ x: t.position.x - from.position.x, y: t.position.y - from.position.y }) -
+          t.radius;
+        if (gap <= c.jumpRange && gap < nextGap) {
+          next = t;
+          nextGap = gap;
+        }
+      }
+      if (next === undefined) break;
+      order.push(next);
+    }
+    let from: Vec2 = c.origin;
+    let landed = false;
+    for (const t of order) {
+      const d = { x: t.position.x - from.x, y: t.position.y - from.y };
+      this.showShape({ type: "line", length: length(d), width: 0.25 }, from, Math.atan2(d.y, d.x));
+      if (
+        this.hitTarget(
+          t,
+          c.skill,
+          c.skill.damage,
+          c.origin,
+          false,
+          c.skill.forceCrit,
+          false,
+          run.castSheet,
+        )
+      )
+        landed = true;
+      from = t.position;
+    }
+    if (landed) this.afterLanded(run, c.skill, first.id);
+  }
+
   /** 投射物を進め、当たった敵にヒットを解決する。 */
   private updateArrows(dt: number): void {
     if (this.arrows.active === 0) return;
@@ -2885,8 +2958,29 @@ export class ArenaSimulation {
           false,
           p.run.castSheet,
         )
-      )
+      ) {
         this.afterLanded(p.run, p.skill, t.id);
+        // 着弾すると小さな範囲（火球・蒸爆）：当たった場所の近くの、ほかの敵にも同じダメージを与える
+        const a = p.skill.action;
+        if (a.type === "projectile" && a.burst !== undefined) {
+          this.showShape({ type: "circle", radius: a.burst }, h.position, 0);
+          for (const o of targets) {
+            if (o === t || o.health.dead) continue;
+            const d = length({ x: o.position.x - h.position.x, y: o.position.y - h.position.y });
+            if (d > a.burst + o.radius) continue;
+            this.hitTarget(
+              o,
+              p.skill,
+              p.skill.damage,
+              p.origin,
+              false,
+              p.skill.forceCrit,
+              false,
+              p.run.castSheet,
+            );
+          }
+        }
+      }
     }
   }
 
