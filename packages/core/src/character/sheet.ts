@@ -240,7 +240,15 @@ export function buildCharacterSheet(
     ...(input.extraEffects ?? []),
     ...(equipment?.effects() ?? []),
     ...(jobBoard?.effects(jobPoints) ?? []),
-    ...(subBoard?.effects(subPoints) ?? []),
+    // 職能ゲージの能力値（STAT-GAUGE-*）を変える効果は、サブジョブの副職紋では働かせない。
+    // ゲージの倍率はメインジョブのゲージにかかるので、サブの盤のゲージのノードを取ると、
+    // 受け継がないはずのゲージの効果がメインのゲージに混ざるため（docs/progress D-SUB-15）
+    ...(subBoard?.effects(subPoints) ?? []).filter(
+      (i) =>
+        !(db.effects.get(i.effectId)?.modifiers ?? []).some(
+          (m) => "stat" in m && m.stat.startsWith("STAT-GAUGE-"),
+        ),
+    ),
     // メインジョブのあいだ、いつも働く効果（騎士の誓い。サブジョブ・ほかのジョブには効かない）
     ...(job.passiveEffects ?? []).map((effectId) => ({
       effectId,

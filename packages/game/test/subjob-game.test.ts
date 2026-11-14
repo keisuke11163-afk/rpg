@@ -184,7 +184,7 @@ describe("サブジョブの技", () => {
     expect(sim.cooldowns.remaining("SKL-WARRIOR-WARCRY")).toBeGreaterThan(0);
   });
 
-  it(`サブジョブの技は、技の枠に${String(SUB_SKILL_SLOT_LIMIT)}つまで（入れ替えても増えない）`, () => {
+  it(`サブジョブの技は、技の枠に${String(SUB_SKILL_SLOT_LIMIT)}つまで（サブの技が2つなので、構造上これ以上は入らない）`, () => {
     const sim = simOf("JOB-ROGUE", 25, { "JOB-WARRIOR": 10 });
     expect(sim.setSubJob("JOB-WARRIOR")).toBe("ok");
     expect(sim.setSlotSkill(4, "SKL-WARRIOR-CHARGE")).toBe(true);

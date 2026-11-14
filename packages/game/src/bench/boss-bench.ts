@@ -49,13 +49,13 @@ export interface BenchBuild {
    * ボットの動き方だけ。ボスとの距離（体の端から）の min〜max の真ん中に立ち、close より近ければ離れる。
    */
   readonly standoff?: { readonly min: number; readonly max: number; readonly close: number };
+  /** キャラLv・メインのジョブLv（省略すると、サブジョブがあれば {@link SUB_BENCH_LEVEL}、無ければ {@link BENCH_LEVEL}）。 */
+  readonly level?: number;
   /**
    * サブジョブ（キャラLv25で開く。仕様書v0.2 5.1）。指定すると、キャラLv・メインのジョブLvを {@link SUB_BENCH_LEVEL}
    * にし、サブジョブのジョブLvを subJobLevel にする（サブジョブのジョブ経験値は、そのジョブをメインにして貯めたもの）。
    * 省略すると今までどおり Lv20（撃破時間の基準を変えない）。
    */
-  /** キャラLv・メインのジョブLv（省略すると、サブジョブがあれば {@link SUB_BENCH_LEVEL}、無ければ {@link BENCH_LEVEL}）。 */
-  readonly level?: number;
   readonly subJob?: {
     readonly job: string;
     readonly jobLevel: number;
