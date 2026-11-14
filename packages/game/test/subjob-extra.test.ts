@@ -10,6 +10,7 @@ import {
   FIXED_STEP_SECONDS,
   JobBoardAllocation,
   SUB_SKILL_SLOT_LIMIT,
+  subJobEffectWorks,
   subSkillsInSlots,
 } from "@stella/core";
 import { loadGameContent } from "@stella/content";
@@ -265,5 +266,18 @@ describe("副職紋のゲージ系ノードはメインのゲージに効かな�
     }
     const after = sim.sheet.evaluated.view.stat("STAT-GAUGE-GAIN").increased;
     expect(after).toBeGreaterThan(before);
+  });
+});
+
+describe("副職紋で働かない効果の判定（パネルの印と、シートの除外で同じ関数を使う）", () => {
+  it("職能ゲージの能力値を変える効果は働かず、それ以外（最大HPなど）は働く", () => {
+    expect(subJobEffectWorks(db, "EFF-JBN-WAR-GAIN")).toBe(false);
+    expect(subJobEffectWorks(db, "EFF-JBN-WAR-FORGE")).toBe(false);
+    // 戦士の盤の、ゲージ以外の効果が1つ以上ある（全部が働かないわけではない）
+    const effectIds = [...db.jobNodes.values()]
+      .filter((n) => n.job === "JOB-WARRIOR" && (n.kind === "minor" || n.kind === "notable"))
+      .flatMap((n) => n.effects ?? []);
+    expect(effectIds.some((e) => subJobEffectWorks(db, e))).toBe(true);
+    expect(effectIds.some((e) => !subJobEffectWorks(db, e))).toBe(true);
   });
 });

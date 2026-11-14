@@ -533,5 +533,6 @@
   "subjob.block.advanced": "上位職・混成職はサブジョブにできない",
   "subjob.board.block.sub-only-minor": "副職紋では、職奥義と星辰盤への接続ノードは取れない",
   "subjob.skill.unavailable": "サブジョブでは使えない",
+  "subjob.board.inert": "【サブでは働かない】",
   "subjob.skill.slot-limit": "サブジョブの技は、技の枠に2つまで"
 }

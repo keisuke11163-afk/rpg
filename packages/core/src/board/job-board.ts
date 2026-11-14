@@ -15,6 +15,16 @@ export function jobBoardPoints(jobLevel: number): number {
   return jobLevel - 1;
 }
 
+/**
+ * 副職紋で、この効果が働くか（docs/progress D-SUB-15）。職能ゲージの能力値（STAT-GAUGE-*）を変える効果は、
+ * サブジョブがゲージを受け継がないので働かない（メインのゲージに混ざらないように、シートから除く）。
+ */
+export function subJobEffectWorks(db: ContentDb, effectId: string): boolean {
+  return !(db.effects.get(effectId)?.modifiers ?? []).some(
+    (m) => "stat" in m && m.stat.startsWith("STAT-GAUGE-"),
+  );
+}
+
 /** 職紋盤の振り直しの金貨（補助仕様書5章：20 × ジョブLv）。 */
 export function jobBoardRespecCost(jobLevel: number): number {
   return 20 * (jobBoardPoints(jobLevel) + 1);

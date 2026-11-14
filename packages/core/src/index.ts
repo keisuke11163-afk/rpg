@@ -20,6 +20,7 @@ export {
   jobBoardPoints,
   jobBoardRespecCost,
   subJobBoardPoints,
+  subJobEffectWorks,
   subJobBoardRespecCost,
 } from "./board/job-board.ts";
 export { type JobNodeDef, type JobNodeKind } from "./content/board.ts";

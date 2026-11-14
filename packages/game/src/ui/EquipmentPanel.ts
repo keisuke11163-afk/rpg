@@ -21,6 +21,7 @@ import {
   Rng,
   sheetRows,
   ALTAR_TOKEN_COST,
+  subJobEffectWorks,
 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
 import { type ArenaSimulation, SKILL_SLOTS, type SkillSlot } from "../scenes/arena-simulation.ts";
@@ -1345,14 +1346,21 @@ export class EquipmentPanel {
           n.description !== undefined
             ? text(n.description as TextKey)
             : (n.effects ?? []).map((e) => effectText(db, e)).join("・");
+        // ゲージの能力値を変える効果だけのノードは、サブジョブでは働かない（D-SUB-15）。取ってもポイントが無駄になる
+        const effects = n.effects ?? [];
+        const inert = effects.length > 0 && !effects.some((e) => subJobEffectWorks(db, e));
         const top = ly;
         ly = this.lines(
           PANEL.slots.x,
           ly,
           [
             {
-              text: `${taken ? "■" : can ? "□" : "・"} ${name}${desc}`,
-              color: taken ? TEXT_COLOR.highlight : can ? TEXT_COLOR.good : TEXT_COLOR.dim,
+              text: `${taken ? "■" : can ? "□" : "・"} ${inert ? text("subjob.board.inert") : ""}${name}${desc}`,
+              color: taken
+                ? TEXT_COLOR.highlight
+                : can && !inert
+                  ? TEXT_COLOR.good
+                  : TEXT_COLOR.dim,
             },
           ],
           lw,
