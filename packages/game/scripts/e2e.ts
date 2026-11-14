@@ -1624,6 +1624,19 @@ try {
       p1.x - p0.x > 7 && p1.x - p0.x < 8.6,
       `右へ ${(p1.x - p0.x).toFixed(2)}m`,
     );
+    // (e) I の画面：サブジョブのあるロードアウトは「番号 メイン＋サブ」が出る（docs/progress D-LOAD-5）
+    await waitSpIdle();
+    await sp.keyboard.press("KeyI");
+    await sp.waitForTimeout(150);
+    const inv = await spPanel();
+    await sp.screenshot({ path: `${subDir}8-inventory-loadout-sub.png` });
+    check(
+      "I の画面：ロードアウトの列の下に、サブジョブのあるロードアウトの「1 盗賊＋戦士」が出る",
+      inv.open === "inventory" && inv.lines.includes("サブジョブ：1 盗賊＋戦士"),
+      `画面 ${String(inv.open)}・行 ${String(inv.lines.find((l) => l.startsWith("サブジョブ")))}`,
+    );
+    await sp.keyboard.press("KeyI");
+    await sp.waitForTimeout(100);
   }
 } finally {
   await browser.close();

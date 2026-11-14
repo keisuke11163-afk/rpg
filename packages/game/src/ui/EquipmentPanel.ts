@@ -680,6 +680,21 @@ export class EquipmentPanel {
         color: active ? TEXT_COLOR.highlight : TEXT_COLOR.normal,
       });
     }
+    // サブジョブのあるロードアウトだけ「番号 メイン＋サブ」を下に出す（無ければ今までと同じ画面。D-LOAD-5）
+    const withSub = sim.loadouts.flatMap((l) => {
+      const main = db.jobs.get(l.mainJob);
+      const sub = l.subJob === undefined ? undefined : db.jobs.get(l.subJob);
+      return main === undefined || sub === undefined
+        ? []
+        : [`${String(l.id)} ${text(main.text as TextKey)}＋${text(sub.text as TextKey)}`];
+    });
+    if (withSub.length > 0)
+      this.line(
+        lo.x,
+        lo.y + lo.h + 3,
+        { text: `${text("subjob.title")}：${withSub.join("・")}`, color: TEXT_COLOR.dim },
+        PANEL.detail.x - lo.x - 4,
+      );
     // ツールチップと比較
     const d = PANEL.detail;
     const target = this.hovered;

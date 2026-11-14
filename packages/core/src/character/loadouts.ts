@@ -23,6 +23,12 @@ export interface LoadoutRecord {
    * （docs/progress D-AUTO-3）。使っているロードアウトの分は、セーブデータの jobs[].board_allocation が正。
    */
   readonly jobBoards?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * サブジョブのジョブID（仕様書v0.2 4.13「メインジョブ・サブジョブの選択も含む」。docs/progress D-LOAD-1）。
+   * 省略は「サブジョブなし」（古いロードアウトも同じ）：切り替えるとサブジョブを外す。
+   * 副職紋の取得はサブにしたジョブごとに別に持ち、ロードアウトには含めない（D-SUBG-7）。
+   */
+  readonly subJob?: string;
 }
 
 /** 新しいロードアウト（空の装備・星辰盤）。 */

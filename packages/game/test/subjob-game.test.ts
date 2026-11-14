@@ -145,7 +145,7 @@ describe("サブジョブの選択", () => {
 });
 
 describe("ロードアウトの切り替え", () => {
-  it("サブジョブはロードアウトに含めない。切り替えでメインがサブと同じジョブになるとサブが外れ、枠のサブの技も戻る", () => {
+  it("サブジョブはロードアウトごと（D-LOAD-2）。サブの無いロードアウトに切り替えると外れ、戻すと戻る", () => {
     const sim = simOf("JOB-WARRIOR", 25, { "JOB-ROGUE": 10 });
     for (let i = 0; i < 600 && sim.motion.position.x < DUMMY_POSITION.x - 2; i++)
       sim.frame(STEP, frame([], undefined, { x: 1, y: 0 }));
@@ -161,8 +161,9 @@ describe("ロードアウトの切り替え", () => {
     expect(sim.subJob).toBeUndefined();
     expect(sim.switchLoadout(1)).toBe("ok");
     expect(sim.job.id).toBe("JOB-WARRIOR");
-    expect(sim.subJob).toBeUndefined(); // ロードアウト1に戻っても、サブジョブは戻らない（Q-SUB-3）
-    expect(slotsOf(sim)).toEqual(warriorSlots);
+    // ロードアウト1に戻ると、サブジョブも戻る（以前は戻らなかった。Q-SUB-3 → D-LOAD-2）。戦士の枠の毒塗りも残る
+    expect(sim.subJob?.id).toBe("JOB-ROGUE");
+    expect(slotsOf(sim)).toEqual(warriorSlots.map((s, i) => (i === 5 ? "SKL-ROGUE-POISON" : s)));
   });
 });
 
