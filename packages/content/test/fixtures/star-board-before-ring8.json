@@ -149,586 +149,151 @@
     "STAR-VIPER-09"
   ],
   "links": [
-    [
-      "STAR-GATE-BEAST",
-      "STAR-JIN-0004"
-    ],
-    [
-      "STAR-GATE-BEAST",
-      "STAR-JIN-0101"
-    ],
-    [
-      "STAR-GATE-BLADE",
-      "STAR-GOU-0004"
-    ],
-    [
-      "STAR-GATE-BLADE",
-      "STAR-GOU-0101"
-    ],
-    [
-      "STAR-GOU-0001",
-      "STAR-GOU-0002"
-    ],
-    [
-      "STAR-GOU-0001",
-      "STAR-GOU-0201"
-    ],
-    [
-      "STAR-GOU-0001",
-      "STAR-GOU-START"
-    ],
-    [
-      "STAR-GOU-0002",
-      "STAR-GOU-0003"
-    ],
-    [
-      "STAR-GOU-0002",
-      "STAR-KEY-BURDEN"
-    ],
-    [
-      "STAR-GOU-0003",
-      "STAR-GOU-0004"
-    ],
-    [
-      "STAR-GOU-0004",
-      "STAR-GOUKON-START"
-    ],
-    [
-      "STAR-GOU-0101",
-      "STAR-GOU-0102"
-    ],
-    [
-      "STAR-GOU-0102",
-      "STAR-SM-BLADE-01"
-    ],
-    [
-      "STAR-GOU-0201",
-      "STAR-GOU-0202"
-    ],
-    [
-      "STAR-GOU-0201",
-      "STAR-KEY-BLOOD-PACT"
-    ],
-    [
-      "STAR-GOU-0202",
-      "STAR-SMITH-01"
-    ],
-    [
-      "STAR-GOU-START",
-      "STAR-GOUJIN-0001"
-    ],
-    [
-      "STAR-GOUJIN-0001",
-      "STAR-GOUJIN-0002"
-    ],
-    [
-      "STAR-GOUJIN-0002",
-      "STAR-GOUJIN-0003"
-    ],
-    [
-      "STAR-GOUJIN-0003",
-      "STAR-GOUJIN-0004"
-    ],
-    [
-      "STAR-GOUJIN-0003",
-      "STAR-KEY-BARE-HANDS"
-    ],
-    [
-      "STAR-GOUJIN-0004",
-      "STAR-GOUJIN-0005"
-    ],
-    [
-      "STAR-GOUJIN-0005",
-      "STAR-GOUJIN-0006"
-    ],
-    [
-      "STAR-GOUJIN-0005",
-      "STAR-TWIN-01"
-    ],
-    [
-      "STAR-GOUJIN-0006",
-      "STAR-GOUJIN-0007"
-    ],
-    [
-      "STAR-GOUJIN-0007",
-      "STAR-GOUJIN-0008"
-    ],
-    [
-      "STAR-GOUJIN-0008",
-      "STAR-GOUJIN-0009"
-    ],
-    [
-      "STAR-GOUJIN-0009",
-      "STAR-JIN-0011"
-    ],
-    [
-      "STAR-GOUJIN-0009",
-      "STAR-VANE-01"
-    ],
-    [
-      "STAR-JIN-0001",
-      "STAR-JIN-0002"
-    ],
-    [
-      "STAR-JIN-0001",
-      "STAR-JIN-0201"
-    ],
-    [
-      "STAR-JIN-0001",
-      "STAR-JIN-START"
-    ],
-    [
-      "STAR-JIN-0002",
-      "STAR-JIN-0003"
-    ],
-    [
-      "STAR-JIN-0002",
-      "STAR-NOTABLE-REOPEN"
-    ],
-    [
-      "STAR-JIN-0003",
-      "STAR-JIN-0004"
-    ],
-    [
-      "STAR-JIN-0011",
-      "STAR-JIN-0012"
-    ],
-    [
-      "STAR-JIN-0011",
-      "STAR-JIN-START"
-    ],
-    [
-      "STAR-JIN-0012",
-      "STAR-KEY-MYRIAD"
-    ],
-    [
-      "STAR-JIN-0101",
-      "STAR-JIN-0102"
-    ],
-    [
-      "STAR-JIN-0102",
-      "STAR-SM-BEAST-01"
-    ],
-    [
-      "STAR-JIN-0201",
-      "STAR-JIN-0202"
-    ],
-    [
-      "STAR-JIN-0201",
-      "STAR-JINRI-START"
-    ],
-    [
-      "STAR-JIN-0201",
-      "STAR-KEY-SHADOW-COPY"
-    ],
-    [
-      "STAR-JIN-0202",
-      "STAR-RI-START"
-    ],
-    [
-      "STAR-JIN-0202",
-      "STAR-RIKON-START"
-    ],
-    [
-      "STAR-JIN-0202",
-      "STAR-VIPER-01"
-    ],
-    [
-      "STAR-MUT-BLOOD-BLADE",
-      "STAR-SM-JIN-D-03"
-    ],
-    [
-      "STAR-MUT-BLOOD-BLADE",
-      "STAR-SM-JIN-E-01"
-    ],
-    [
-      "STAR-MUT-HEAVY",
-      "STAR-SM-GOU-C-03"
-    ],
-    [
-      "STAR-NT-CORRODE",
-      "STAR-SM-JIN-C-03"
-    ],
-    [
-      "STAR-NT-CYCLE",
-      "STAR-SM-GJ-B-03"
-    ],
-    [
-      "STAR-NT-FOCUS",
-      "STAR-SM-JIN-A-07"
-    ],
-    [
-      "STAR-NT-FOCUS",
-      "STAR-SM-JIN-D-01"
-    ],
-    [
-      "STAR-NT-GALE",
-      "STAR-SM-GJ-A-07"
-    ],
-    [
-      "STAR-NT-GALE",
-      "STAR-SM-GJ-C-01"
-    ],
-    [
-      "STAR-NT-HUNT",
-      "STAR-SM-BEAST-01"
-    ],
-    [
-      "STAR-NT-IRON-SKIN",
-      "STAR-SM-GOU-B-03"
-    ],
-    [
-      "STAR-NT-LAYERS",
-      "STAR-SM-GOU-D-06"
-    ],
-    [
-      "STAR-NT-SEVERING",
-      "STAR-SM-GOU-A-07"
-    ],
-    [
-      "STAR-NT-SEVERING",
-      "STAR-SM-GOU-D-01"
-    ],
-    [
-      "STAR-NT-SHADOW-STEP",
-      "STAR-SM-JIN-B-03"
-    ],
-    [
-      "STAR-NT-SWORD-AURA",
-      "STAR-SM-BLADE-01"
-    ],
-    [
-      "STAR-NT-VESSEL-JIN",
-      "STAR-SM-JIN-E-04"
-    ],
-    [
-      "STAR-SHADOW-01",
-      "STAR-SHADOW-02"
-    ],
-    [
-      "STAR-SHADOW-01",
-      "STAR-SM-JIN-A-03"
-    ],
-    [
-      "STAR-SHADOW-02",
-      "STAR-SHADOW-03"
-    ],
-    [
-      "STAR-SHADOW-03",
-      "STAR-SHADOW-04"
-    ],
-    [
-      "STAR-SHADOW-04",
-      "STAR-SHADOW-05"
-    ],
-    [
-      "STAR-SHADOW-05",
-      "STAR-SHADOW-06"
-    ],
-    [
-      "STAR-SHADOW-06",
-      "STAR-SHADOW-07"
-    ],
-    [
-      "STAR-SM-GJ-A-01",
-      "STAR-SM-GJ-A-02"
-    ],
-    [
-      "STAR-SM-GJ-A-01",
-      "STAR-TWIN-07"
-    ],
-    [
-      "STAR-SM-GJ-A-02",
-      "STAR-SM-GJ-A-03"
-    ],
-    [
-      "STAR-SM-GJ-A-03",
-      "STAR-SM-GJ-A-04"
-    ],
-    [
-      "STAR-SM-GJ-A-04",
-      "STAR-SM-GJ-A-05"
-    ],
-    [
-      "STAR-SM-GJ-A-04",
-      "STAR-SM-GJ-B-01"
-    ],
-    [
-      "STAR-SM-GJ-A-05",
-      "STAR-SM-GJ-A-06"
-    ],
-    [
-      "STAR-SM-GJ-A-06",
-      "STAR-SM-GJ-A-07"
-    ],
-    [
-      "STAR-SM-GJ-B-01",
-      "STAR-SM-GJ-B-02"
-    ],
-    [
-      "STAR-SM-GJ-B-02",
-      "STAR-SM-GJ-B-03"
-    ],
-    [
-      "STAR-SM-GJ-C-01",
-      "STAR-SM-GJ-C-02"
-    ],
-    [
-      "STAR-SM-GJ-C-02",
-      "STAR-SM-GJ-C-03"
-    ],
-    [
-      "STAR-SM-GJ-C-03",
-      "STAR-SM-GJ-C-04"
-    ],
-    [
-      "STAR-SM-GOU-A-01",
-      "STAR-SM-GOU-A-02"
-    ],
-    [
-      "STAR-SM-GOU-A-01",
-      "STAR-SMITH-08"
-    ],
-    [
-      "STAR-SM-GOU-A-02",
-      "STAR-SM-GOU-A-03"
-    ],
-    [
-      "STAR-SM-GOU-A-03",
-      "STAR-SM-GOU-A-04"
-    ],
-    [
-      "STAR-SM-GOU-A-03",
-      "STAR-SM-GOU-B-01"
-    ],
-    [
-      "STAR-SM-GOU-A-04",
-      "STAR-SM-GOU-A-05"
-    ],
-    [
-      "STAR-SM-GOU-A-05",
-      "STAR-SM-GOU-A-06"
-    ],
-    [
-      "STAR-SM-GOU-A-06",
-      "STAR-SM-GOU-A-07"
-    ],
-    [
-      "STAR-SM-GOU-A-06",
-      "STAR-SM-GOU-C-01"
-    ],
-    [
-      "STAR-SM-GOU-B-01",
-      "STAR-SM-GOU-B-02"
-    ],
-    [
-      "STAR-SM-GOU-B-02",
-      "STAR-SM-GOU-B-03"
-    ],
-    [
-      "STAR-SM-GOU-C-01",
-      "STAR-SM-GOU-C-02"
-    ],
-    [
-      "STAR-SM-GOU-C-02",
-      "STAR-SM-GOU-C-03"
-    ],
-    [
-      "STAR-SM-GOU-D-01",
-      "STAR-SM-GOU-D-02"
-    ],
-    [
-      "STAR-SM-GOU-D-02",
-      "STAR-SM-GOU-D-03"
-    ],
-    [
-      "STAR-SM-GOU-D-03",
-      "STAR-SM-GOU-D-04"
-    ],
-    [
-      "STAR-SM-GOU-D-04",
-      "STAR-SM-GOU-D-05"
-    ],
-    [
-      "STAR-SM-GOU-D-05",
-      "STAR-SM-GOU-D-06"
-    ],
-    [
-      "STAR-SM-JIN-A-01",
-      "STAR-SM-JIN-A-02"
-    ],
-    [
-      "STAR-SM-JIN-A-01",
-      "STAR-VIPER-09"
-    ],
-    [
-      "STAR-SM-JIN-A-02",
-      "STAR-SM-JIN-A-03"
-    ],
-    [
-      "STAR-SM-JIN-A-02",
-      "STAR-SM-JIN-B-01"
-    ],
-    [
-      "STAR-SM-JIN-A-03",
-      "STAR-SM-JIN-A-04"
-    ],
-    [
-      "STAR-SM-JIN-A-04",
-      "STAR-SM-JIN-A-05"
-    ],
-    [
-      "STAR-SM-JIN-A-05",
-      "STAR-SM-JIN-A-06"
-    ],
-    [
-      "STAR-SM-JIN-A-05",
-      "STAR-SM-JIN-C-01"
-    ],
-    [
-      "STAR-SM-JIN-A-06",
-      "STAR-SM-JIN-A-07"
-    ],
-    [
-      "STAR-SM-JIN-B-01",
-      "STAR-SM-JIN-B-02"
-    ],
-    [
-      "STAR-SM-JIN-B-02",
-      "STAR-SM-JIN-B-03"
-    ],
-    [
-      "STAR-SM-JIN-C-01",
-      "STAR-SM-JIN-C-02"
-    ],
-    [
-      "STAR-SM-JIN-C-02",
-      "STAR-SM-JIN-C-03"
-    ],
-    [
-      "STAR-SM-JIN-D-01",
-      "STAR-SM-JIN-D-02"
-    ],
-    [
-      "STAR-SM-JIN-D-02",
-      "STAR-SM-JIN-D-03"
-    ],
-    [
-      "STAR-SM-JIN-E-01",
-      "STAR-SM-JIN-E-02"
-    ],
-    [
-      "STAR-SM-JIN-E-02",
-      "STAR-SM-JIN-E-03"
-    ],
-    [
-      "STAR-SM-JIN-E-03",
-      "STAR-SM-JIN-E-04"
-    ],
-    [
-      "STAR-SMITH-01",
-      "STAR-SMITH-02"
-    ],
-    [
-      "STAR-SMITH-02",
-      "STAR-SMITH-03"
-    ],
-    [
-      "STAR-SMITH-03",
-      "STAR-SMITH-04"
-    ],
-    [
-      "STAR-SMITH-04",
-      "STAR-SMITH-05"
-    ],
-    [
-      "STAR-SMITH-05",
-      "STAR-SMITH-06"
-    ],
-    [
-      "STAR-SMITH-06",
-      "STAR-SMITH-07"
-    ],
-    [
-      "STAR-SMITH-07",
-      "STAR-SMITH-08"
-    ],
-    [
-      "STAR-TWIN-01",
-      "STAR-TWIN-02"
-    ],
-    [
-      "STAR-TWIN-02",
-      "STAR-TWIN-03"
-    ],
-    [
-      "STAR-TWIN-03",
-      "STAR-TWIN-04"
-    ],
-    [
-      "STAR-TWIN-04",
-      "STAR-TWIN-05"
-    ],
-    [
-      "STAR-TWIN-05",
-      "STAR-TWIN-06"
-    ],
-    [
-      "STAR-TWIN-06",
-      "STAR-TWIN-07"
-    ],
-    [
-      "STAR-VANE-01",
-      "STAR-VANE-02"
-    ],
-    [
-      "STAR-VANE-02",
-      "STAR-VANE-03"
-    ],
-    [
-      "STAR-VANE-03",
-      "STAR-VANE-04"
-    ],
-    [
-      "STAR-VANE-04",
-      "STAR-VANE-05"
-    ],
-    [
-      "STAR-VANE-05",
-      "STAR-VANE-06"
-    ],
-    [
-      "STAR-VIPER-01",
-      "STAR-VIPER-02"
-    ],
-    [
-      "STAR-VIPER-02",
-      "STAR-VIPER-03"
-    ],
-    [
-      "STAR-VIPER-03",
-      "STAR-VIPER-04"
-    ],
-    [
-      "STAR-VIPER-04",
-      "STAR-VIPER-05"
-    ],
-    [
-      "STAR-VIPER-05",
-      "STAR-VIPER-06"
-    ],
-    [
-      "STAR-VIPER-06",
-      "STAR-VIPER-07"
-    ],
-    [
-      "STAR-VIPER-07",
-      "STAR-VIPER-08"
-    ],
-    [
-      "STAR-VIPER-08",
-      "STAR-VIPER-09"
-    ]
+    ["STAR-GATE-BEAST", "STAR-JIN-0004"],
+    ["STAR-GATE-BEAST", "STAR-JIN-0101"],
+    ["STAR-GATE-BLADE", "STAR-GOU-0004"],
+    ["STAR-GATE-BLADE", "STAR-GOU-0101"],
+    ["STAR-GOU-0001", "STAR-GOU-0002"],
+    ["STAR-GOU-0001", "STAR-GOU-0201"],
+    ["STAR-GOU-0001", "STAR-GOU-START"],
+    ["STAR-GOU-0002", "STAR-GOU-0003"],
+    ["STAR-GOU-0002", "STAR-KEY-BURDEN"],
+    ["STAR-GOU-0003", "STAR-GOU-0004"],
+    ["STAR-GOU-0004", "STAR-GOUKON-START"],
+    ["STAR-GOU-0101", "STAR-GOU-0102"],
+    ["STAR-GOU-0102", "STAR-SM-BLADE-01"],
+    ["STAR-GOU-0201", "STAR-GOU-0202"],
+    ["STAR-GOU-0201", "STAR-KEY-BLOOD-PACT"],
+    ["STAR-GOU-0202", "STAR-SMITH-01"],
+    ["STAR-GOU-START", "STAR-GOUJIN-0001"],
+    ["STAR-GOUJIN-0001", "STAR-GOUJIN-0002"],
+    ["STAR-GOUJIN-0002", "STAR-GOUJIN-0003"],
+    ["STAR-GOUJIN-0003", "STAR-GOUJIN-0004"],
+    ["STAR-GOUJIN-0003", "STAR-KEY-BARE-HANDS"],
+    ["STAR-GOUJIN-0004", "STAR-GOUJIN-0005"],
+    ["STAR-GOUJIN-0005", "STAR-GOUJIN-0006"],
+    ["STAR-GOUJIN-0005", "STAR-TWIN-01"],
+    ["STAR-GOUJIN-0006", "STAR-GOUJIN-0007"],
+    ["STAR-GOUJIN-0007", "STAR-GOUJIN-0008"],
+    ["STAR-GOUJIN-0008", "STAR-GOUJIN-0009"],
+    ["STAR-GOUJIN-0009", "STAR-JIN-0011"],
+    ["STAR-GOUJIN-0009", "STAR-VANE-01"],
+    ["STAR-JIN-0001", "STAR-JIN-0002"],
+    ["STAR-JIN-0001", "STAR-JIN-0201"],
+    ["STAR-JIN-0001", "STAR-JIN-START"],
+    ["STAR-JIN-0002", "STAR-JIN-0003"],
+    ["STAR-JIN-0002", "STAR-NOTABLE-REOPEN"],
+    ["STAR-JIN-0003", "STAR-JIN-0004"],
+    ["STAR-JIN-0011", "STAR-JIN-0012"],
+    ["STAR-JIN-0011", "STAR-JIN-START"],
+    ["STAR-JIN-0012", "STAR-KEY-MYRIAD"],
+    ["STAR-JIN-0101", "STAR-JIN-0102"],
+    ["STAR-JIN-0102", "STAR-SM-BEAST-01"],
+    ["STAR-JIN-0201", "STAR-JIN-0202"],
+    ["STAR-JIN-0201", "STAR-JINRI-START"],
+    ["STAR-JIN-0201", "STAR-KEY-SHADOW-COPY"],
+    ["STAR-JIN-0202", "STAR-RI-START"],
+    ["STAR-JIN-0202", "STAR-RIKON-START"],
+    ["STAR-JIN-0202", "STAR-VIPER-01"],
+    ["STAR-MUT-BLOOD-BLADE", "STAR-SM-JIN-D-03"],
+    ["STAR-MUT-BLOOD-BLADE", "STAR-SM-JIN-E-01"],
+    ["STAR-MUT-HEAVY", "STAR-SM-GOU-C-03"],
+    ["STAR-NT-CORRODE", "STAR-SM-JIN-C-03"],
+    ["STAR-NT-CYCLE", "STAR-SM-GJ-B-03"],
+    ["STAR-NT-FOCUS", "STAR-SM-JIN-A-07"],
+    ["STAR-NT-FOCUS", "STAR-SM-JIN-D-01"],
+    ["STAR-NT-GALE", "STAR-SM-GJ-A-07"],
+    ["STAR-NT-GALE", "STAR-SM-GJ-C-01"],
+    ["STAR-NT-HUNT", "STAR-SM-BEAST-01"],
+    ["STAR-NT-IRON-SKIN", "STAR-SM-GOU-B-03"],
+    ["STAR-NT-LAYERS", "STAR-SM-GOU-D-06"],
+    ["STAR-NT-SEVERING", "STAR-SM-GOU-A-07"],
+    ["STAR-NT-SEVERING", "STAR-SM-GOU-D-01"],
+    ["STAR-NT-SHADOW-STEP", "STAR-SM-JIN-B-03"],
+    ["STAR-NT-SWORD-AURA", "STAR-SM-BLADE-01"],
+    ["STAR-NT-VESSEL-JIN", "STAR-SM-JIN-E-04"],
+    ["STAR-SHADOW-01", "STAR-SHADOW-02"],
+    ["STAR-SHADOW-01", "STAR-SM-JIN-A-03"],
+    ["STAR-SHADOW-02", "STAR-SHADOW-03"],
+    ["STAR-SHADOW-03", "STAR-SHADOW-04"],
+    ["STAR-SHADOW-04", "STAR-SHADOW-05"],
+    ["STAR-SHADOW-05", "STAR-SHADOW-06"],
+    ["STAR-SHADOW-06", "STAR-SHADOW-07"],
+    ["STAR-SM-GJ-A-01", "STAR-SM-GJ-A-02"],
+    ["STAR-SM-GJ-A-01", "STAR-TWIN-07"],
+    ["STAR-SM-GJ-A-02", "STAR-SM-GJ-A-03"],
+    ["STAR-SM-GJ-A-03", "STAR-SM-GJ-A-04"],
+    ["STAR-SM-GJ-A-04", "STAR-SM-GJ-A-05"],
+    ["STAR-SM-GJ-A-04", "STAR-SM-GJ-B-01"],
+    ["STAR-SM-GJ-A-05", "STAR-SM-GJ-A-06"],
+    ["STAR-SM-GJ-A-06", "STAR-SM-GJ-A-07"],
+    ["STAR-SM-GJ-B-01", "STAR-SM-GJ-B-02"],
+    ["STAR-SM-GJ-B-02", "STAR-SM-GJ-B-03"],
+    ["STAR-SM-GJ-C-01", "STAR-SM-GJ-C-02"],
+    ["STAR-SM-GJ-C-02", "STAR-SM-GJ-C-03"],
+    ["STAR-SM-GJ-C-03", "STAR-SM-GJ-C-04"],
+    ["STAR-SM-GOU-A-01", "STAR-SM-GOU-A-02"],
+    ["STAR-SM-GOU-A-01", "STAR-SMITH-08"],
+    ["STAR-SM-GOU-A-02", "STAR-SM-GOU-A-03"],
+    ["STAR-SM-GOU-A-03", "STAR-SM-GOU-A-04"],
+    ["STAR-SM-GOU-A-03", "STAR-SM-GOU-B-01"],
+    ["STAR-SM-GOU-A-04", "STAR-SM-GOU-A-05"],
+    ["STAR-SM-GOU-A-05", "STAR-SM-GOU-A-06"],
+    ["STAR-SM-GOU-A-06", "STAR-SM-GOU-A-07"],
+    ["STAR-SM-GOU-A-06", "STAR-SM-GOU-C-01"],
+    ["STAR-SM-GOU-B-01", "STAR-SM-GOU-B-02"],
+    ["STAR-SM-GOU-B-02", "STAR-SM-GOU-B-03"],
+    ["STAR-SM-GOU-C-01", "STAR-SM-GOU-C-02"],
+    ["STAR-SM-GOU-C-02", "STAR-SM-GOU-C-03"],
+    ["STAR-SM-GOU-D-01", "STAR-SM-GOU-D-02"],
+    ["STAR-SM-GOU-D-02", "STAR-SM-GOU-D-03"],
+    ["STAR-SM-GOU-D-03", "STAR-SM-GOU-D-04"],
+    ["STAR-SM-GOU-D-04", "STAR-SM-GOU-D-05"],
+    ["STAR-SM-GOU-D-05", "STAR-SM-GOU-D-06"],
+    ["STAR-SM-JIN-A-01", "STAR-SM-JIN-A-02"],
+    ["STAR-SM-JIN-A-01", "STAR-VIPER-09"],
+    ["STAR-SM-JIN-A-02", "STAR-SM-JIN-A-03"],
+    ["STAR-SM-JIN-A-02", "STAR-SM-JIN-B-01"],
+    ["STAR-SM-JIN-A-03", "STAR-SM-JIN-A-04"],
+    ["STAR-SM-JIN-A-04", "STAR-SM-JIN-A-05"],
+    ["STAR-SM-JIN-A-05", "STAR-SM-JIN-A-06"],
+    ["STAR-SM-JIN-A-05", "STAR-SM-JIN-C-01"],
+    ["STAR-SM-JIN-A-06", "STAR-SM-JIN-A-07"],
+    ["STAR-SM-JIN-B-01", "STAR-SM-JIN-B-02"],
+    ["STAR-SM-JIN-B-02", "STAR-SM-JIN-B-03"],
+    ["STAR-SM-JIN-C-01", "STAR-SM-JIN-C-02"],
+    ["STAR-SM-JIN-C-02", "STAR-SM-JIN-C-03"],
+    ["STAR-SM-JIN-D-01", "STAR-SM-JIN-D-02"],
+    ["STAR-SM-JIN-D-02", "STAR-SM-JIN-D-03"],
+    ["STAR-SM-JIN-E-01", "STAR-SM-JIN-E-02"],
+    ["STAR-SM-JIN-E-02", "STAR-SM-JIN-E-03"],
+    ["STAR-SM-JIN-E-03", "STAR-SM-JIN-E-04"],
+    ["STAR-SMITH-01", "STAR-SMITH-02"],
+    ["STAR-SMITH-02", "STAR-SMITH-03"],
+    ["STAR-SMITH-03", "STAR-SMITH-04"],
+    ["STAR-SMITH-04", "STAR-SMITH-05"],
+    ["STAR-SMITH-05", "STAR-SMITH-06"],
+    ["STAR-SMITH-06", "STAR-SMITH-07"],
+    ["STAR-SMITH-07", "STAR-SMITH-08"],
+    ["STAR-TWIN-01", "STAR-TWIN-02"],
+    ["STAR-TWIN-02", "STAR-TWIN-03"],
+    ["STAR-TWIN-03", "STAR-TWIN-04"],
+    ["STAR-TWIN-04", "STAR-TWIN-05"],
+    ["STAR-TWIN-05", "STAR-TWIN-06"],
+    ["STAR-TWIN-06", "STAR-TWIN-07"],
+    ["STAR-VANE-01", "STAR-VANE-02"],
+    ["STAR-VANE-02", "STAR-VANE-03"],
+    ["STAR-VANE-03", "STAR-VANE-04"],
+    ["STAR-VANE-04", "STAR-VANE-05"],
+    ["STAR-VANE-05", "STAR-VANE-06"],
+    ["STAR-VIPER-01", "STAR-VIPER-02"],
+    ["STAR-VIPER-02", "STAR-VIPER-03"],
+    ["STAR-VIPER-03", "STAR-VIPER-04"],
+    ["STAR-VIPER-04", "STAR-VIPER-05"],
+    ["STAR-VIPER-05", "STAR-VIPER-06"],
+    ["STAR-VIPER-06", "STAR-VIPER-07"],
+    ["STAR-VIPER-07", "STAR-VIPER-08"],
+    ["STAR-VIPER-08", "STAR-VIPER-09"]
   ],
   "nodes": {
     "STAR-GATE-BEAST": {
@@ -744,58 +309,42 @@
     "STAR-GOU-0001": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GO-10"
-      ]
+      "effects": ["EFF-STAR-GO-10"]
     },
     "STAR-GOU-0002": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOU-0003": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GO-10"
-      ]
+      "effects": ["EFF-STAR-GO-10"]
     },
     "STAR-GOU-0004": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOU-0101": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GO-10"
-      ]
+      "effects": ["EFF-STAR-GO-10"]
     },
     "STAR-GOU-0102": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GO-10"
-      ]
+      "effects": ["EFF-STAR-GO-10"]
     },
     "STAR-GOU-0201": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GO-10"
-      ]
+      "effects": ["EFF-STAR-GO-10"]
     },
     "STAR-GOU-0202": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOU-START": {
       "kind": "start",
@@ -805,65 +354,47 @@
     "STAR-GOUJIN-0001": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUJIN-0002": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUJIN-0003": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUJIN-0004": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUJIN-0005": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUJIN-0006": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUJIN-0007": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUJIN-0008": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUJIN-0009": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-GOUKON-START": {
       "kind": "start",
@@ -873,72 +404,52 @@
     "STAR-JIN-0001": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-JIN-10"
-      ]
+      "effects": ["EFF-STAR-JIN-10"]
     },
     "STAR-JIN-0002": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-JIN-0003": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-JIN-10"
-      ]
+      "effects": ["EFF-STAR-JIN-10"]
     },
     "STAR-JIN-0004": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-JIN-0011": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-JIN-10"
-      ]
+      "effects": ["EFF-STAR-JIN-10"]
     },
     "STAR-JIN-0012": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-JIN-10"
-      ]
+      "effects": ["EFF-STAR-JIN-10"]
     },
     "STAR-JIN-0101": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-JIN-0102": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-JIN-0201": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-JIN-0202": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-JIN-START": {
       "kind": "start",
@@ -953,136 +464,97 @@
     "STAR-KEY-BARE-HANDS": {
       "kind": "keystone",
       "region": "goujin",
-      "effects": [
-        "EFF-KEY-BARE-HANDS"
-      ]
+      "effects": ["EFF-KEY-BARE-HANDS"]
     },
     "STAR-KEY-BLOOD-PACT": {
       "kind": "keystone",
       "region": "gou",
-      "effects": [
-        "EFF-KEY-BLOOD-PACT"
-      ]
+      "effects": ["EFF-KEY-BLOOD-PACT"]
     },
     "STAR-KEY-BURDEN": {
       "kind": "keystone",
       "region": "gou",
-      "effects": [
-        "EFF-KEY-BURDEN",
-        "EFF-KEY-BURDEN-IMMUNE"
-      ]
+      "effects": ["EFF-KEY-BURDEN", "EFF-KEY-BURDEN-IMMUNE"]
     },
     "STAR-KEY-MYRIAD": {
       "kind": "keystone",
       "region": "jin",
-      "effects": [
-        "EFF-KEY-MYRIAD"
-      ]
+      "effects": ["EFF-KEY-MYRIAD"]
     },
     "STAR-KEY-SHADOW-COPY": {
       "kind": "keystone",
       "region": "jin",
-      "effects": [
-        "EFF-KEY-SHADOW-COPY"
-      ]
+      "effects": ["EFF-KEY-SHADOW-COPY"]
     },
     "STAR-MUT-BLOOD-BLADE": {
       "kind": "mutation",
       "region": "jin",
-      "effects": [
-        "EFF-MUT-BLOOD-BLADE"
-      ]
+      "effects": ["EFF-MUT-BLOOD-BLADE"]
     },
     "STAR-MUT-HEAVY": {
       "kind": "mutation",
       "region": "gou",
-      "effects": [
-        "EFF-MUT-HEAVY"
-      ]
+      "effects": ["EFF-MUT-HEAVY"]
     },
     "STAR-NOTABLE-REOPEN": {
       "kind": "notable",
       "region": "jin",
-      "effects": [
-        "EFF-NOTABLE-REOPEN"
-      ]
+      "effects": ["EFF-NOTABLE-REOPEN"]
     },
     "STAR-NT-CORRODE": {
       "kind": "notable",
       "region": "jin",
-      "effects": [
-        "EFF-NT-CORRODE"
-      ]
+      "effects": ["EFF-NT-CORRODE"]
     },
     "STAR-NT-CYCLE": {
       "kind": "notable",
       "region": "goujin",
-      "effects": [
-        "EFF-NT-CYCLE"
-      ]
+      "effects": ["EFF-NT-CYCLE"]
     },
     "STAR-NT-FOCUS": {
       "kind": "notable",
       "region": "jin",
-      "effects": [
-        "EFF-NT-FOCUS"
-      ]
+      "effects": ["EFF-NT-FOCUS"]
     },
     "STAR-NT-GALE": {
       "kind": "notable",
       "region": "goujin",
-      "effects": [
-        "EFF-NT-GALE"
-      ]
+      "effects": ["EFF-NT-GALE"]
     },
     "STAR-NT-HUNT": {
       "kind": "notable",
       "region": "jin",
-      "effects": [
-        "EFF-NT-HUNT"
-      ]
+      "effects": ["EFF-NT-HUNT"]
     },
     "STAR-NT-IRON-SKIN": {
       "kind": "notable",
       "region": "gou",
-      "effects": [
-        "EFF-NT-IRON-SKIN"
-      ]
+      "effects": ["EFF-NT-IRON-SKIN"]
     },
     "STAR-NT-LAYERS": {
       "kind": "notable",
       "region": "gou",
-      "effects": [
-        "EFF-NT-LAYERS"
-      ]
+      "effects": ["EFF-NT-LAYERS"]
     },
     "STAR-NT-SEVERING": {
       "kind": "notable",
       "region": "gou",
-      "effects": [
-        "EFF-NT-SEVERING"
-      ]
+      "effects": ["EFF-NT-SEVERING"]
     },
     "STAR-NT-SHADOW-STEP": {
       "kind": "notable",
       "region": "jin",
-      "effects": [
-        "EFF-NT-SHADOW-STEP"
-      ]
+      "effects": ["EFF-NT-SHADOW-STEP"]
     },
     "STAR-NT-SWORD-AURA": {
       "kind": "notable",
       "region": "gou",
-      "effects": [
-        "EFF-NT-SWORD-AURA"
-      ]
+      "effects": ["EFF-NT-SWORD-AURA"]
     },
     "STAR-NT-VESSEL-JIN": {
       "kind": "notable",
       "region": "jin",
-      "effects": [
-        "EFF-NT-VESSEL"
-      ]
+      "effects": ["EFF-NT-VESSEL"]
     },
     "STAR-RI-START": {
       "kind": "start",
@@ -1097,646 +569,462 @@
     "STAR-SHADOW-01": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-SHADOW-BACKSTAB"
-      ]
+      "effects": ["EFF-STAR-SHADOW-BACKSTAB"]
     },
     "STAR-SHADOW-02": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-SHADOW-BACKSTAB"
-      ]
+      "effects": ["EFF-STAR-SHADOW-BACKSTAB"]
     },
     "STAR-SHADOW-03": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-SHADOW-BACKSTAB"
-      ]
+      "effects": ["EFF-STAR-SHADOW-BACKSTAB"]
     },
     "STAR-SHADOW-04": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-SHADOW-BACKSTAB"
-      ]
+      "effects": ["EFF-STAR-SHADOW-BACKSTAB"]
     },
     "STAR-SHADOW-05": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-SHADOW-BACKSTAB"
-      ]
+      "effects": ["EFF-STAR-SHADOW-BACKSTAB"]
     },
     "STAR-SHADOW-06": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-SHADOW-BACKSTAB"
-      ]
+      "effects": ["EFF-STAR-SHADOW-BACKSTAB"]
     },
     "STAR-SHADOW-07": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-SHADOW-BACKSTAB"
-      ]
+      "effects": ["EFF-STAR-SHADOW-BACKSTAB"]
     },
     "STAR-SM-BEAST-01": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-CRIT"
-      ]
+      "effects": ["EFF-SM-JIN-CRIT"]
     },
     "STAR-SM-BLADE-01": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-MELEE"
-      ]
+      "effects": ["EFF-SM-GOU-MELEE"]
     },
     "STAR-SM-GJ-A-01": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-SM-GJ-MOVE"
-      ]
+      "effects": ["EFF-SM-GJ-MOVE"]
     },
     "STAR-SM-GJ-A-02": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-SM-GJ-A-03": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-SM-GJ-A-04": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-SM-GJ-MOVE"
-      ]
+      "effects": ["EFF-SM-GJ-MOVE"]
     },
     "STAR-SM-GJ-A-05": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-SM-GJ-A-06": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-SM-GJ-A-07": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-SM-GJ-MOVE"
-      ]
+      "effects": ["EFF-SM-GJ-MOVE"]
     },
     "STAR-SM-GJ-B-01": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-SM-GJ-B-02": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-SM-GJ-MOVE"
-      ]
+      "effects": ["EFF-SM-GJ-MOVE"]
     },
     "STAR-SM-GJ-B-03": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-SM-GJ-C-01": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-SM-GJ-C-02": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-SM-GJ-MOVE"
-      ]
+      "effects": ["EFF-SM-GJ-MOVE"]
     },
     "STAR-SM-GJ-C-03": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-GOJIN-5"
-      ]
+      "effects": ["EFF-STAR-GOJIN-5"]
     },
     "STAR-SM-GJ-C-04": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-SM-GOU-A-01": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-HP"
-      ]
+      "effects": ["EFF-SM-GOU-HP"]
     },
     "STAR-SM-GOU-A-02": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-MELEE"
-      ]
+      "effects": ["EFF-SM-GOU-MELEE"]
     },
     "STAR-SM-GOU-A-03": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-ARMOR"
-      ]
+      "effects": ["EFF-SM-GOU-ARMOR"]
     },
     "STAR-SM-GOU-A-04": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-STAGGER"
-      ]
+      "effects": ["EFF-SM-GOU-STAGGER"]
     },
     "STAR-SM-GOU-A-05": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GO-10"
-      ]
+      "effects": ["EFF-STAR-GO-10"]
     },
     "STAR-SM-GOU-A-06": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-HP"
-      ]
+      "effects": ["EFF-SM-GOU-HP"]
     },
     "STAR-SM-GOU-A-07": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-MELEE"
-      ]
+      "effects": ["EFF-SM-GOU-MELEE"]
     },
     "STAR-SM-GOU-B-01": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-ARMOR"
-      ]
+      "effects": ["EFF-SM-GOU-ARMOR"]
     },
     "STAR-SM-GOU-B-02": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-HP"
-      ]
+      "effects": ["EFF-SM-GOU-HP"]
     },
     "STAR-SM-GOU-B-03": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-ARMOR"
-      ]
+      "effects": ["EFF-SM-GOU-ARMOR"]
     },
     "STAR-SM-GOU-C-01": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-STAGGER"
-      ]
+      "effects": ["EFF-SM-GOU-STAGGER"]
     },
     "STAR-SM-GOU-C-02": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-MELEE"
-      ]
+      "effects": ["EFF-SM-GOU-MELEE"]
     },
     "STAR-SM-GOU-C-03": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-STAGGER"
-      ]
+      "effects": ["EFF-SM-GOU-STAGGER"]
     },
     "STAR-SM-GOU-D-01": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-HP"
-      ]
+      "effects": ["EFF-SM-GOU-HP"]
     },
     "STAR-SM-GOU-D-02": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-ARMOR"
-      ]
+      "effects": ["EFF-SM-GOU-ARMOR"]
     },
     "STAR-SM-GOU-D-03": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-GO-10"
-      ]
+      "effects": ["EFF-STAR-GO-10"]
     },
     "STAR-SM-GOU-D-04": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-MELEE"
-      ]
+      "effects": ["EFF-SM-GOU-MELEE"]
     },
     "STAR-SM-GOU-D-05": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-HP"
-      ]
+      "effects": ["EFF-SM-GOU-HP"]
     },
     "STAR-SM-GOU-D-06": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-SM-GOU-ARMOR"
-      ]
+      "effects": ["EFF-SM-GOU-ARMOR"]
     },
     "STAR-SM-JIN-A-01": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-CRIT"
-      ]
+      "effects": ["EFF-SM-JIN-CRIT"]
     },
     "STAR-SM-JIN-A-02": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-POISON"
-      ]
+      "effects": ["EFF-SM-JIN-POISON"]
     },
     "STAR-SM-JIN-A-03": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-SPEED"
-      ]
+      "effects": ["EFF-SM-JIN-SPEED"]
     },
     "STAR-SM-JIN-A-04": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-SM-JIN-A-05": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-EVASION"
-      ]
+      "effects": ["EFF-SM-JIN-EVASION"]
     },
     "STAR-SM-JIN-A-06": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-CRIT"
-      ]
+      "effects": ["EFF-SM-JIN-CRIT"]
     },
     "STAR-SM-JIN-A-07": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-POISON"
-      ]
+      "effects": ["EFF-SM-JIN-POISON"]
     },
     "STAR-SM-JIN-B-01": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-EVASION"
-      ]
+      "effects": ["EFF-SM-JIN-EVASION"]
     },
     "STAR-SM-JIN-B-02": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-SPEED"
-      ]
+      "effects": ["EFF-SM-JIN-SPEED"]
     },
     "STAR-SM-JIN-B-03": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-EVASION"
-      ]
+      "effects": ["EFF-SM-JIN-EVASION"]
     },
     "STAR-SM-JIN-C-01": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-POISON"
-      ]
+      "effects": ["EFF-SM-JIN-POISON"]
     },
     "STAR-SM-JIN-C-02": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-SM-JIN-C-03": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-POISON"
-      ]
+      "effects": ["EFF-SM-JIN-POISON"]
     },
     "STAR-SM-JIN-D-01": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-BLEED-6"
-      ]
+      "effects": ["EFF-STAR-BLEED-6"]
     },
     "STAR-SM-JIN-D-02": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-CRIT"
-      ]
+      "effects": ["EFF-SM-JIN-CRIT"]
     },
     "STAR-SM-JIN-D-03": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-JIN-10"
-      ]
+      "effects": ["EFF-STAR-JIN-10"]
     },
     "STAR-SM-JIN-E-01": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-SPEED"
-      ]
+      "effects": ["EFF-SM-JIN-SPEED"]
     },
     "STAR-SM-JIN-E-02": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-EVASION"
-      ]
+      "effects": ["EFF-SM-JIN-EVASION"]
     },
     "STAR-SM-JIN-E-03": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-JIN-10"
-      ]
+      "effects": ["EFF-STAR-JIN-10"]
     },
     "STAR-SM-JIN-E-04": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-SM-JIN-SPEED"
-      ]
+      "effects": ["EFF-SM-JIN-SPEED"]
     },
     "STAR-SMITH-01": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-SMITH-ARMOR"
-      ]
+      "effects": ["EFF-STAR-SMITH-ARMOR"]
     },
     "STAR-SMITH-02": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-SMITH-WEAPON"
-      ]
+      "effects": ["EFF-STAR-SMITH-WEAPON"]
     },
     "STAR-SMITH-03": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-SMITH-ARMOR"
-      ]
+      "effects": ["EFF-STAR-SMITH-ARMOR"]
     },
     "STAR-SMITH-04": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-SMITH-WEAPON"
-      ]
+      "effects": ["EFF-STAR-SMITH-WEAPON"]
     },
     "STAR-SMITH-05": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-SMITH-ARMOR"
-      ]
+      "effects": ["EFF-STAR-SMITH-ARMOR"]
     },
     "STAR-SMITH-06": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-SMITH-WEAPON"
-      ]
+      "effects": ["EFF-STAR-SMITH-WEAPON"]
     },
     "STAR-SMITH-07": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-SMITH-ARMOR"
-      ]
+      "effects": ["EFF-STAR-SMITH-ARMOR"]
     },
     "STAR-SMITH-08": {
       "kind": "minor",
       "region": "gou",
-      "effects": [
-        "EFF-STAR-SMITH-WEAPON"
-      ]
+      "effects": ["EFF-STAR-SMITH-WEAPON"]
     },
     "STAR-TWIN-01": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-TWIN-02": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-TWIN-03": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-TWIN-04": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-TWIN-05": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-TWIN-06": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-TWIN-07": {
       "kind": "minor",
       "region": "goujin",
-      "effects": [
-        "EFF-STAR-TWIN-SPEED"
-      ]
+      "effects": ["EFF-STAR-TWIN-SPEED"]
     },
     "STAR-VANE-01": {
       "kind": "minor",
       "region": "jinri",
-      "effects": [
-        "EFF-STAR-VANE-MOVE"
-      ]
+      "effects": ["EFF-STAR-VANE-MOVE"]
     },
     "STAR-VANE-02": {
       "kind": "minor",
       "region": "jinri",
-      "effects": [
-        "EFF-STAR-VANE-MOVE"
-      ]
+      "effects": ["EFF-STAR-VANE-MOVE"]
     },
     "STAR-VANE-03": {
       "kind": "minor",
       "region": "jinri",
-      "effects": [
-        "EFF-STAR-VANE-MOVE"
-      ]
+      "effects": ["EFF-STAR-VANE-MOVE"]
     },
     "STAR-VANE-04": {
       "kind": "minor",
       "region": "jinri",
-      "effects": [
-        "EFF-STAR-VANE-MOVE"
-      ]
+      "effects": ["EFF-STAR-VANE-MOVE"]
     },
     "STAR-VANE-05": {
       "kind": "minor",
       "region": "jinri",
-      "effects": [
-        "EFF-STAR-VANE-MOVE"
-      ]
+      "effects": ["EFF-STAR-VANE-MOVE"]
     },
     "STAR-VANE-06": {
       "kind": "minor",
       "region": "jinri",
-      "effects": [
-        "EFF-STAR-VANE-MOVE"
-      ]
+      "effects": ["EFF-STAR-VANE-MOVE"]
     },
     "STAR-VIPER-01": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DMG"
-      ]
+      "effects": ["EFF-STAR-VIPER-DMG"]
     },
     "STAR-VIPER-02": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DUR"
-      ]
+      "effects": ["EFF-STAR-VIPER-DUR"]
     },
     "STAR-VIPER-03": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DMG"
-      ]
+      "effects": ["EFF-STAR-VIPER-DMG"]
     },
     "STAR-VIPER-04": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DUR"
-      ]
+      "effects": ["EFF-STAR-VIPER-DUR"]
     },
     "STAR-VIPER-05": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DMG"
-      ]
+      "effects": ["EFF-STAR-VIPER-DMG"]
     },
     "STAR-VIPER-06": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DUR"
-      ]
+      "effects": ["EFF-STAR-VIPER-DUR"]
     },
     "STAR-VIPER-07": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DMG"
-      ]
+      "effects": ["EFF-STAR-VIPER-DMG"]
     },
     "STAR-VIPER-08": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DUR"
-      ]
+      "effects": ["EFF-STAR-VIPER-DUR"]
     },
     "STAR-VIPER-09": {
       "kind": "minor",
       "region": "jin",
-      "effects": [
-        "EFF-STAR-VIPER-DMG"
-      ]
+      "effects": ["EFF-STAR-VIPER-DMG"]
     }
   },
   "effects": {
@@ -1882,9 +1170,7 @@
           "stat": "STAT-AILMENT-DAMAGE",
           "value": -0.3,
           "filter": {
-            "allOf": [
-              "TAG-AIL-BLEED"
-            ]
+            "allOf": ["TAG-AIL-BLEED"]
           }
         }
       ],
@@ -1905,9 +1191,7 @@
           "stat": "STAT-STAGGER",
           "value": 0.6,
           "filter": {
-            "allOf": [
-              "TAG-FORM-MELEE"
-            ]
+            "allOf": ["TAG-FORM-MELEE"]
           }
         },
         {
@@ -1915,9 +1199,7 @@
           "stat": "STAT-DAMAGE",
           "value": 0.3,
           "filter": {
-            "allOf": [
-              "TAG-FORM-MELEE"
-            ]
+            "allOf": ["TAG-FORM-MELEE"]
           }
         },
         {
@@ -2124,9 +1406,7 @@
           "stat": "STAT-DAMAGE",
           "value": 0.2,
           "filter": {
-            "allOf": [
-              "TAG-FORM-MELEE"
-            ]
+            "allOf": ["TAG-FORM-MELEE"]
           }
         },
         {
@@ -2275,9 +1555,7 @@
           "stat": "STAT-DAMAGE",
           "value": 0.06,
           "filter": {
-            "allOf": [
-              "TAG-FORM-MELEE"
-            ]
+            "allOf": ["TAG-FORM-MELEE"]
           }
         }
       ],
@@ -2303,9 +1581,7 @@
           "stat": "STAT-DAMAGE",
           "value": 0.02,
           "filter": {
-            "allOf": [
-              "TAG-FORM-MELEE"
-            ]
+            "allOf": ["TAG-FORM-MELEE"]
           }
         }
       ],
@@ -2372,9 +1648,7 @@
           "stat": "STAT-AILMENT-DAMAGE",
           "value": 0.06,
           "filter": {
-            "allOf": [
-              "TAG-AIL-POISON"
-            ]
+            "allOf": ["TAG-AIL-POISON"]
           }
         },
         {
@@ -2382,9 +1656,7 @@
           "stat": "STAT-AILMENT-DURATION",
           "value": 0.3,
           "filter": {
-            "allOf": [
-              "TAG-AIL-POISON"
-            ]
+            "allOf": ["TAG-AIL-POISON"]
           }
         }
       ],
@@ -2428,9 +1700,7 @@
           "stat": "STAT-AILMENT-DAMAGE",
           "value": 0.06,
           "filter": {
-            "allOf": [
-              "TAG-AIL-BLEED"
-            ]
+            "allOf": ["TAG-AIL-BLEED"]
           }
         },
         {
@@ -2438,9 +1708,7 @@
           "stat": "STAT-AILMENT-DURATION",
           "value": 0.3,
           "filter": {
-            "allOf": [
-              "TAG-AIL-BLEED"
-            ]
+            "allOf": ["TAG-AIL-BLEED"]
           }
         }
       ],
@@ -2546,9 +1814,7 @@
           "stat": "STAT-DAMAGE",
           "value": 0.05,
           "filter": {
-            "allOf": [
-              "TAG-ELEM-PHYSICAL"
-            ]
+            "allOf": ["TAG-ELEM-PHYSICAL"]
           }
         }
       ],
@@ -2610,9 +1876,7 @@
           "stat": "STAT-AILMENT-DAMAGE",
           "value": 0.08,
           "filter": {
-            "allOf": [
-              "TAG-AIL-POISON"
-            ]
+            "allOf": ["TAG-AIL-POISON"]
           }
         }
       ],
@@ -2631,9 +1895,7 @@
           "stat": "STAT-AILMENT-DURATION",
           "value": 0.2,
           "filter": {
-            "allOf": [
-              "TAG-AIL-POISON"
-            ]
+            "allOf": ["TAG-AIL-POISON"]
           }
         }
       ],
