@@ -15,8 +15,8 @@ export const PANEL = {
   grid: { x: 176, y: 52, columns: 10, rows: 6, cell: 15 },
   /** ツールチップ・比較・内訳（右の列）。 */
   detail: { x: 340, y: 52, width: 284 },
-  /** キャラクターの画面の能力値の一覧（左の列）。 */
-  stats: { x: 16, y: 74, width: 300, row: 11 },
+  /** キャラクターの画面の能力値の一覧（左の列）。rows 行で枠の下端に着くので、超えた分は右（column だけ離れた列）へ回す。 */
+  stats: { x: 16, y: 74, width: 300, row: 11, rows: 22, column: 160 },
   /** 倉庫の枠（右の列。12列×10行）。 */
   stashGrid: { x: 340, y: 52, columns: 12, rows: 10, cell: 15 },
   /** キャラクターの画面の技の枠（右の列の下）。 */
@@ -67,8 +67,24 @@ export function characterTarget(x: number, y: number, count: number): PanelTarge
   }
   const s = PANEL.stats;
   if (x < s.x || x >= s.x + s.width || y < s.y) return undefined;
-  const i = Math.floor((y - s.y) / s.row);
+  const r = Math.floor((y - s.y) / s.row);
+  if (r >= s.rows) return undefined;
+  const wide = count <= s.rows;
+  const col = wide ? 0 : Math.floor((x - s.x) / s.column);
+  if (col > 1) return undefined;
+  const i = col * s.rows + r;
   return i < count ? { kind: "stat", index: i } : undefined;
+}
+
+/** キャラクターの画面で、i 番目の能力値の行の左上と幅（count は行の数。rows 行を超えたら右の列へ回す）。 */
+export function statCell(i: number, count: number): { x: number; y: number; width: number } {
+  const s = PANEL.stats;
+  const col = Math.floor(i / s.rows);
+  return {
+    x: s.x + col * s.column,
+    y: s.y + (i % s.rows) * s.row,
+    width: count <= s.rows ? s.width : s.column - 4,
+  };
 }
 
 /** インベントリの枠の左上（画面のピクセル）。 */

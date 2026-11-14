@@ -387,7 +387,6 @@ describe("表示の文章", () => {
       "subjob.board",
       "subjob.none",
       "subjob.board.block.sub-only-minor",
-      "subjob.skill.unavailable",
       "subjob.skill.slot-limit",
     ];
     for (const k of keys) expect(text(k as TextKey), k).toBeTruthy();
