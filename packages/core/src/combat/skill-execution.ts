@@ -65,6 +65,15 @@ export interface ChainCast {
   readonly chains: number;
 }
 
+/**
+ * 召喚物への命令（召喚士の技。仕様書v0.2 5.5）。当たり判定が出始めたときに1回だけ知らせる。
+ * 呼び出す側が、召喚・指揮・犠牲・憑依を行う（対象の選び方・契約枠の確認も呼び出す側）。
+ */
+export type MinionOrder = Extract<
+  ResolvedSkill["action"],
+  { type: "summon" | "command" | "sacrifice" | "possess" }
+>;
+
 /** 戦吼（自分の周りの味方を強め、敵を弱める）。 */
 export interface WarcryPulse {
   readonly origin: Vec2;
@@ -97,6 +106,8 @@ export interface ExecutionTick {
   readonly warcry?: WarcryPulse;
   /** 自分にかける一定時間の効果（毒塗り）。 */
   readonly selfBuff?: { readonly effects: readonly string[]; readonly duration: number };
+  /** 召喚物への命令（召喚・指揮・犠牲・憑依）。 */
+  readonly order?: MinionOrder;
   readonly zone?: ZonePlacement;
   readonly trap?: TrapPlacement;
   readonly volley?: ProjectileVolley;
@@ -327,6 +338,14 @@ export class SkillExecution {
           ...(e.activeStarted ? { selfBuff: { effects: a.effects, duration: a.duration } } : {}),
           finished: e.finished,
         };
+      }
+      case "summon":
+      case "command":
+      case "sacrifice":
+      case "possess": {
+        const e = (this.timeline as ActionTimeline).update(dt);
+        this.finishedFlag = e.finished;
+        return { ...empty, ...(e.activeStarted ? { order: a } : {}), finished: e.finished };
       }
       case "zone": {
         const e = (this.timeline as ActionTimeline).update(dt);

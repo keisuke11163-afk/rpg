@@ -210,6 +210,10 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
     case "trap":
     case "blink":
     case "chain":
+    case "summon":
+    case "command":
+    case "sacrifice":
+    case "possess":
       action = a;
       break;
   }

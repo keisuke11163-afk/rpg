@@ -57,8 +57,72 @@ const baseSkillModsSchema = z.strictObject({
   behaviors: z.array(skillBehaviorSchema).optional(),
 });
 
+/**
+ * 召喚物の定義（召喚士。仕様書v0.2 5.5）。召喚の技（action の summon）の中に持つ。
+ * 仕様書にあるのは契約枠のコスト（骸兵2・炎霊3・魔狼4・石巨人6）と、HPを標準HPに比例させること（5.1.1）だけ。
+ * それ以外（HPの割合・攻撃・速さ・射程・索敵）は仮値（docs/progress D-SUM-2・D-SUM-3）。
+ */
+export const minionSchema = z.strictObject({
+  id: idSchema,
+  text: textKeySchema,
+  /** 契約枠のコスト。 */
+  slots: z.number().int().positive(),
+  /** 最大HP ＝ 標準HP（技レベルに対応するキャラLv。5.1.1）× この割合。 */
+  hpRatio: z.number().positive(),
+  /** 当たり判定の半径（m）。 */
+  radius: z.number().positive(),
+  /** 移動の速さ（m/秒）。 */
+  moveSpeed: z.number().positive(),
+  /** 敵を見つける距離（自分から。m）。 */
+  sightRange: z.number().positive(),
+  /** 攻撃。ダメージは「召喚物の技」（基礎値 × 技レベルの倍率。仕様書v0.2 5.1.1）。 */
+  attack: z.strictObject({
+    tags: z.array(idSchema),
+    base: z.partialRecord(z.enum(ELEMENTS), range),
+    /** 攻撃の間隔（秒）。 */
+    interval: z.number().positive(),
+    /** 届く距離（体の端どうしの距離。m）。 */
+    range: z.number().positive(),
+    /** 投射物で撃つ（炎霊の火球）。省略すると、その場で当てる（近接）。 */
+    projectile: z
+      .strictObject({ speed: z.number().positive(), radius: z.number().positive() })
+      .optional(),
+    ailmentChance: z.record(idSchema, z.number().min(0).max(1)).optional(),
+    staggerCoefficient: z.number().nonnegative().optional(),
+  }),
+  /** 魂の供儀で犠牲にしたとき（仕様書v0.2 5.5：骸兵＝骨の盾・炎霊＝爆発・魔狼＝移動速度）。 */
+  sacrifice: z.strictObject({
+    /** 自分にかける一定時間の効果。 */
+    selfEffects: z
+      .array(z.strictObject({ effect: idSchema, duration: z.number().positive() }))
+      .optional(),
+    /** 召喚物の位置で爆発する（半径と、召喚物の攻撃の倍率）。 */
+    burst: z.strictObject({ radius: z.number().positive(), pct: z.number().positive() }).optional(),
+  }),
+  /** 霊体憑依で自分が得る効果（仕様書v0.2 5.5「召喚物1体の能力を自分が得る」。中身は仮。D-SUM-6）。 */
+  possessEffects: z.array(idSchema).min(1),
+  ...provisionalFields,
+});
+export type MinionDef = z.infer<typeof minionSchema>;
+
 /** 技の動き方。 */
 export const skillActionSchema = z.discriminatedUnion("type", [
+  // 召喚物を1体呼ぶ（召喚士。契約枠が足りなければ使えない）
+  z.strictObject({ type: z.literal("summon"), minion: minionSchema }),
+  // 照準の近くの敵を、全ての召喚物が狙う（指揮・集中）。その敵への召喚物のダメージに加算する
+  z.strictObject({
+    type: z.literal("command"),
+    /** 対象を探す範囲（自分から。m）。 */
+    range: z.number().positive(),
+    /** 狙わせ続ける秒数。 */
+    duration: z.number().positive(),
+    /** その敵への召喚物のダメージの加算（0.2＝+20%）。 */
+    damageBonus: z.number().nonnegative(),
+  }),
+  // 召喚物を1体犠牲にする（魂の供儀。犠牲の効果は召喚物の定義の sacrifice）
+  z.strictObject({ type: z.literal("sacrifice") }),
+  // 一定時間、召喚物1体の能力を自分が得る（霊体憑依。得る効果は召喚物の定義の possessEffects）
+  z.strictObject({ type: z.literal("possess"), duration: z.number().positive() }),
   // 当たり判定を出す（薙ぎ払い・地割り・破軍・通常攻撃）。hits があれば、間隔を空けて連撃する（連刃）
   z.strictObject({
     type: z.literal("strike"),
@@ -366,6 +430,11 @@ export const gaugeSchema = z.strictObject({
   decayOutOfCombat: z.number().nonnegative(),
   /** 位相の遷移表（魔法使い。ゲージの量が位相）。省略すると、位相の仕組みを持たない。 */
   phase: phaseSchema.optional(),
+  /**
+   * 契約枠（召喚士。仕様書v0.2 5.5）。このゲージは「使っている枠」を表し、最大値が契約枠の数になる。
+   * サブジョブのときの枠は subJobFixed に固定する（仕様書v0.2 5.1：職詞・装備で増やせない。H-03）。
+   */
+  contract: z.strictObject({ subJobFixed: z.number().int().positive() }).optional(),
   /** ゲージの量1につき、自分にかける効果（集中：会心率+1%（増加））。値は perPoint × 量。 */
   pointEffect: z.strictObject({ effect: idSchema, perPoint: z.number() }).optional(),
   /** 段階（例：50以上で激化、100で解放）。 */

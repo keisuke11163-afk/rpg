@@ -290,6 +290,7 @@ describe("魔法使い：職詞「位相を1から開始する」", () => {
     run(sim, 6, aim());
     expect(sim.jobGauge.value).toBe(1);
     sim.changeJob(); // 騎士
+    sim.changeJob(); // 召喚士
     sim.changeJob(); // 戦士
     expect(sim.job.id).toBe("JOB-WARRIOR");
     expect(sim.jobGauge.value).toBe(0);

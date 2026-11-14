@@ -14,6 +14,7 @@ import rogueEffects from "../data/effects/rogue.json" with { type: "json" };
 import archerEffects from "../data/effects/archer.json" with { type: "json" };
 import mageEffects from "../data/effects/mage.json" with { type: "json" };
 import knightEffects from "../data/effects/knight.json" with { type: "json" };
+import summonerEffects from "../data/effects/summoner.json" with { type: "json" };
 import warriorEffects from "../data/effects/warrior.json" with { type: "json" };
 import affixEffects from "../data/effects/affixes.json" with { type: "json" };
 import starEffects from "../data/effects/star.json" with { type: "json" };
@@ -42,6 +43,7 @@ import rogueSkills from "../data/skills/rogue.json" with { type: "json" };
 import archerSkills from "../data/skills/archer.json" with { type: "json" };
 import mageSkills from "../data/skills/mage.json" with { type: "json" };
 import knightSkills from "../data/skills/knight.json" with { type: "json" };
+import summonerSkills from "../data/skills/summoner.json" with { type: "json" };
 import warriorSkills from "../data/skills/warrior.json" with { type: "json" };
 import combatStats from "../data/stats/combat.json" with { type: "json" };
 import ailments from "../data/tags/ailments.json" with { type: "json" };
@@ -77,6 +79,7 @@ export const rawContent: RawContent = {
       { file: "data/effects/archer.json", entries: archerEffects },
       { file: "data/effects/mage.json", entries: mageEffects },
       { file: "data/effects/knight.json", entries: knightEffects },
+      { file: "data/effects/summoner.json", entries: summonerEffects },
       { file: "data/effects/implicits.json", entries: implicitEffects },
       { file: "data/effects/affixes.json", entries: affixEffects },
       { file: "data/effects/star.json", entries: starEffects },
@@ -93,6 +96,7 @@ export const rawContent: RawContent = {
       { file: "data/skills/archer.json", entries: archerSkills },
       { file: "data/skills/mage.json", entries: mageSkills },
       { file: "data/skills/knight.json", entries: knightSkills },
+      { file: "data/skills/summoner.json", entries: summonerSkills },
     ],
     gauges: [{ file: "data/gauges/gauges.json", entries: gauges }],
     jobs: [{ file: "data/jobs/jobs.json", entries: jobDefs }],

@@ -135,9 +135,9 @@ describe("詞の追加（U-11 の残り）：職詞・系統詞・一般の詞",
   const weightOf = (pool: ReturnType<typeof candidateAffixes>, id: string): number | undefined =>
     pool.find((c) => c.affix.id === id)?.weight;
 
-  it("MVPの詞は30種類前後（一般29・職詞5〔弓使い・魔法使い・騎士を足した〕・系統詞1）", () => {
+  it("MVPの詞は30種類前後（一般29・職詞6〔弓使い・魔法使い・騎士・召喚士を足した〕・系統詞1）", () => {
     expect(db.affixes.size).toBeGreaterThanOrEqual(30);
-    expect([...db.affixes.values()].filter((a) => a.job !== undefined)).toHaveLength(5);
+    expect([...db.affixes.values()].filter((a) => a.job !== undefined)).toHaveLength(6);
     expect([...db.affixes.values()].filter((a) => a.family !== undefined)).toHaveLength(1);
   });
 

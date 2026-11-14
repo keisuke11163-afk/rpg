@@ -286,10 +286,10 @@ describe("騎士の技", () => {
 });
 
 describe("転職の順番", () => {
-  it("最初の転職から 盗賊→弓使い→魔法使い→騎士→戦士→盗賊", () => {
+  it("最初の転職から 盗賊→弓使い→魔法使い→騎士→召喚士→戦士→盗賊", () => {
     const sim = new ArenaSimulation(undefined, { db, enemies: false });
     const seen: string[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       expect(sim.changeJob()).toBe("ok");
       seen.push(sim.job.id);
     }
@@ -298,6 +298,7 @@ describe("転職の順番", () => {
       "JOB-ARCHER",
       "JOB-MAGE",
       "JOB-KNIGHT",
+      "JOB-SUMMONER",
       "JOB-WARRIOR",
       "JOB-ROGUE",
     ]);

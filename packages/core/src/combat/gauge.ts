@@ -101,6 +101,18 @@ export class JobGauge {
     return true;
   }
 
+  /**
+   * 契約枠（召喚士）：使っている枠をゲージの量にする（表示用。枠の管理は MinionSquad）。
+   * 最大値で止めない（職詞を外して枠が減っても、いる召喚物は消さないので、量が最大値を超えることがある。D-SUM-7）。
+   * 契約枠の仕組みを持たないゲージでは何もしない。
+   */
+  setContractUsed(used: number): void {
+    if (this.def.contract === undefined) return;
+    if (!(Number.isFinite(used) && used >= 0))
+      throw new RangeError(`使っている契約枠は0以上の有限の数（${String(used)}）`);
+    this.v = used;
+  }
+
   /** 呪文の属性（呪文のタグのうち、位相に数える属性。無ければ undefined）。 */
   phaseElementOf(tags: readonly string[]): Element | undefined {
     return this.def.phase?.elements.find((e) => tags.includes(ELEMENT_TAG[e]));

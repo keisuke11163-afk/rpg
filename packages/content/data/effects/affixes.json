@@ -626,5 +626,27 @@
         "job": "TAG-JOB-KNIGHT"
       }
     ]
+  },
+  {
+    "id": "EFF-PRE-JOB-SUMMONER",
+    "origin": "affix",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GAUGE-MAX-BONUS",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "conditions": [
+      {
+        "type": "mainJob",
+        "job": "TAG-JOB-SUMMONER"
+      }
+    ]
   }
 ]

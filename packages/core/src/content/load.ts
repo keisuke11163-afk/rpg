@@ -838,6 +838,36 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
         refCheck(effectMap, "効果", e, file, skill.id, `action.effects.${String(i)}`);
       });
     }
+    // 召喚物（召喚士）：文章・攻撃のタグ・付与率の状態異常・犠牲と憑依の効果
+    if (skill.action.type === "summon") {
+      const m = skill.action.minion;
+      if (!(m.text in raw.texts))
+        err({
+          code: "unknown-text",
+          file,
+          id: skill.id,
+          path: "action.minion.text",
+          message: `文章のキー ${m.text} がない`,
+        });
+      m.attack.tags.forEach((t, i) => {
+        tagOf(t, undefined, file, skill.id, `action.minion.attack.tags.${String(i)}`);
+      });
+      for (const tagId of Object.keys(m.attack.ailmentChance ?? {}))
+        tagOf(tagId, ["ailment"], file, skill.id, "action.minion.attack.ailmentChance");
+      (m.sacrifice.selfEffects ?? []).forEach((e, i) => {
+        refCheck(
+          effectMap,
+          "効果",
+          e.effect,
+          file,
+          skill.id,
+          `action.minion.sacrifice.selfEffects.${String(i)}.effect`,
+        );
+      });
+      m.possessEffects.forEach((e, i) => {
+        refCheck(effectMap, "効果", e, file, skill.id, `action.minion.possessEffects.${String(i)}`);
+      });
+    }
     if (skill.action.type === "zone") {
       (skill.action.enemyEffects ?? []).forEach((e, i) => {
         refCheck(effectMap, "効果", e, file, skill.id, `action.enemyEffects.${String(i)}`);

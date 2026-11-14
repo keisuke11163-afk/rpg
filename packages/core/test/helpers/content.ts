@@ -25,6 +25,11 @@ export function buildDb(
     ...(parts.tags ?? []),
     ...(parts.stats ?? []),
     ...(parts.skills ?? []),
+    // 召喚の技の中の召喚物（召喚士）
+    ...(parts.skills ?? []).flatMap((s) => {
+      const m = (s as { action?: { minion?: unknown } }).action?.minion;
+      return m === undefined ? [] : [m];
+    }),
     ...(parts.gauges ?? []),
     ...(parts.jobs ?? []),
     ...(parts.gauges ?? []).flatMap((g) => (g as { stages?: unknown[] }).stages ?? []),

@@ -1598,5 +1598,316 @@
     "description": "jobnode.knight.m-martyr.desc",
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）。職奥義の効果（鉄の守り・断罪者・殉教）は、まだ働かない（docs/progress Q-KNT-5）"
+  },
+  {
+    "id": "JBN-SUMMONER-START",
+    "job": "JOB-SUMMONER",
+    "kind": "start",
+    "links": ["JBN-SUMMONER-T1"],
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-T1",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T2"],
+    "position": {
+      "x": 0,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-T2",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T3"],
+    "position": {
+      "x": 0,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-T3",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T4"],
+    "position": {
+      "x": 0,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-SUM-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-T4",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T5"],
+    "position": {
+      "x": 0,
+      "y": 160
+    },
+    "effects": ["EFF-JBN-SUM-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-T5",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T6"],
+    "position": {
+      "x": 0,
+      "y": 200
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-T6",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T7"],
+    "position": {
+      "x": 0,
+      "y": 240
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-T7",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": [],
+    "position": {
+      "x": 0,
+      "y": 280
+    },
+    "effects": ["EFF-JBN-SUM-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-B1A",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T1"],
+    "position": {
+      "x": -40,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-B1B",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-B1A"],
+    "position": {
+      "x": -80,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-SUM-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-WARLORD",
+    "job": "JOB-SUMMONER",
+    "kind": "notable",
+    "links": ["JBN-SUMMONER-B1B"],
+    "position": {
+      "x": -120,
+      "y": 40
+    },
+    "text": "jobnode.summoner.warlord",
+    "description": "jobnode.summoner.warlord.desc",
+    "effects": ["EFF-JBN-SUM-WARLORD"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-B2A",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T2"],
+    "position": {
+      "x": 40,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-SUM-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-B2B",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-B2A"],
+    "position": {
+      "x": 80,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-SUM-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-BONEBIND",
+    "job": "JOB-SUMMONER",
+    "kind": "notable",
+    "links": ["JBN-SUMMONER-B2B"],
+    "position": {
+      "x": 120,
+      "y": 80
+    },
+    "text": "jobnode.summoner.bonebind",
+    "description": "jobnode.summoner.bonebind.desc",
+    "effects": ["EFF-JBN-SUM-BONEBIND"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-B3A",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T3"],
+    "position": {
+      "x": -40,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-SUM-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-B3B",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-B3A"],
+    "position": {
+      "x": -80,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-VIGOR",
+    "job": "JOB-SUMMONER",
+    "kind": "notable",
+    "links": ["JBN-SUMMONER-B3B"],
+    "position": {
+      "x": -120,
+      "y": 120
+    },
+    "text": "jobnode.summoner.vigor",
+    "description": "jobnode.summoner.vigor.desc",
+    "effects": ["EFF-JBN-SUM-VIGOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-C1",
+    "job": "JOB-SUMMONER",
+    "kind": "connector",
+    "links": ["JBN-SUMMONER-T5"],
+    "position": {
+      "x": 40,
+      "y": 200
+    },
+    "text": "jobnode.summoner.c1",
+    "description": "jobnode.summoner.c1.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-C2",
+    "job": "JOB-SUMMONER",
+    "kind": "connector",
+    "links": ["JBN-SUMMONER-C1"],
+    "position": {
+      "x": 80,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）",
+    "text": "jobnode.summoner.c1",
+    "description": "jobnode.summoner.c1.desc"
+  },
+  {
+    "id": "JBN-SUMMONER-C3",
+    "job": "JOB-SUMMONER",
+    "kind": "connector",
+    "links": ["JBN-SUMMONER-C2"],
+    "position": {
+      "x": 120,
+      "y": 200
+    },
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）",
+    "text": "jobnode.summoner.c1",
+    "description": "jobnode.summoner.c1.desc"
+  },
+  {
+    "id": "JBN-SUMMONER-M-LEGION",
+    "job": "JOB-SUMMONER",
+    "kind": "mastery",
+    "links": ["JBN-SUMMONER-T7"],
+    "position": {
+      "x": -60,
+      "y": 330
+    },
+    "text": "jobnode.summoner.m-legion",
+    "description": "jobnode.summoner.m-legion.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）",
+    "effects": ["EFF-JBM-SUM-LEGION"]
+  },
+  {
+    "id": "JBN-SUMMONER-M-SINGLE",
+    "job": "JOB-SUMMONER",
+    "kind": "mastery",
+    "links": ["JBN-SUMMONER-T7"],
+    "position": {
+      "x": 0,
+      "y": 330
+    },
+    "text": "jobnode.summoner.m-single",
+    "description": "jobnode.summoner.m-single.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-M-CYCLE",
+    "job": "JOB-SUMMONER",
+    "kind": "mastery",
+    "links": ["JBN-SUMMONER-T7"],
+    "position": {
+      "x": 60,
+      "y": 330
+    },
+    "text": "jobnode.summoner.m-cycle",
+    "description": "jobnode.summoner.m-cycle.desc",
+    "provisional": true,
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
   }
 ]

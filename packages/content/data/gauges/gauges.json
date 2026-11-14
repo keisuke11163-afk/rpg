@@ -141,5 +141,18 @@
     "stages": [],
     "provisional": true,
     "provisionalNote": "信念（0〜10）：ガード成功+1・パリィ成功+3・ガードしていない被弾-1（仕様書v0.2 5.3）。戦闘外の減少は仕様書に記載がないので減らさない（盗賊のコンボ点と同じ。docs/progress D-KNT-3）"
+  },
+  {
+    "id": "GAU-CONTRACT",
+    "text": "gauge.contract",
+    "max": 10,
+    "gains": [],
+    "decayOutOfCombat": 0,
+    "stages": [],
+    "contract": {
+      "subJobFixed": 6
+    },
+    "provisional": true,
+    "provisionalNote": "契約枠10・サブジョブは6に固定は仕様書v0.2 5.5・5.1（H-03）。ゲージの量は「使っている枠」（表示用。docs/progress D-SUM-7）"
   }
 ]

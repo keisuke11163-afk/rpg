@@ -202,6 +202,8 @@ export {
   type PhaseDef,
   type PhaseFusion,
   type JobDef,
+  type MinionDef,
+  minionSchema,
   type SkillAction,
   type SkillDef,
   type SkillMods,
@@ -209,6 +211,17 @@ export {
 export { SKILL_HOOKS, SKILL_HOOK_PARAMS, type SkillHook } from "./content/hooks.ts";
 export { JobGauge, OUT_OF_COMBAT_SECONDS } from "./combat/gauge.ts";
 export { GuardState, isInFront, type GuardOutcome, type IncomingAttack } from "./combat/guard.ts";
+export {
+  MINION_TEAM,
+  Minion,
+  MinionSquad,
+  contractCapacity,
+  minionAttacker,
+  minionDamageSkill,
+  minionMaxHp,
+  resolveMinionHit,
+  type SummonBlock,
+} from "./combat/minions.ts";
 export { TimedEffects } from "./combat/timed-effects.ts";
 export {
   AFFINITY_ATTACK_SPEED,
@@ -238,6 +251,7 @@ export {
   type ChainCast,
   type ExecutionInput,
   type ExecutionTick,
+  type MinionOrder,
   type PullPulse,
   type Strike,
   type WarcryPulse,

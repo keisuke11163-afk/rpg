@@ -99,6 +99,13 @@ const SLOT_LABEL: Readonly<Record<string, string>> = {
   skill6: "4",
 };
 
+/** 召喚物の色（図形の仮の表示）。 */
+const MINION_COLORS: Readonly<Record<string, number>> = {
+  "MIN-SKELETON": 0xe8e2d0,
+  "MIN-FIRE-SPIRIT": 0xff8a3d,
+  "MIN-DIRE-WOLF": 0x8a8f99,
+};
+
 /** 試験用の場の描画・入力の取得（計算は ArenaSimulation）。 */
 export class ArenaScene extends Phaser.Scene {
   private sim!: ArenaSimulation;
@@ -398,6 +405,8 @@ export class ArenaScene extends Phaser.Scene {
         traps: sim.traps.length,
         smokes: sim.smokes.length,
         arrows: sim.arrows.active,
+        minions: sim.minions.map((m) => ({ def: m.def.id, hp: m.combatant.health.hp })),
+        contract: sim.minionField.squad.used,
         guarding: sim.guard?.raised ?? false,
       }),
       // セーブ（U-13）：今すぐ保存する・スロットの一覧・最後の結果（開発版だけ）
@@ -911,6 +920,35 @@ export class ArenaScene extends Phaser.Scene {
         toPixels(tr.center.x),
         toPixels(tr.center.y),
         tr.radius * PIXELS_PER_METER,
+      );
+    // 召喚物（召喚士）：種類ごとの色の円・向きの線・HPの棒（図形だけ。ドット絵は後で）
+    for (const m of sim.minions) {
+      // 倒れた召喚物は描かない（取り除かれるのはその刻みの終わり）
+      if (m.dead) continue;
+      const x = toPixels(m.position.x);
+      const y = toPixels(m.position.y);
+      const r = m.def.radius * PIXELS_PER_METER;
+      const color = MINION_COLORS[m.def.id] ?? 0xc9a0ff;
+      g.fillStyle(color, 0.9).fillCircle(x, y, r);
+      g.lineStyle(1, 0x1b1a22, 1).strokeCircle(x, y, r);
+      g.lineBetween(x, y, x + Math.cos(m.facing) * r, y + Math.sin(m.facing) * r);
+      const hp = m.combatant.health;
+      g.fillStyle(0x2a2934, 1)
+        .fillRect(x - 8, y - r - 5, 16, 2)
+        .fillStyle(0xc9a0ff, 1)
+        .fillRect(x - 8, y - r - 5, Math.round((16 * hp.hp) / hp.maxHp), 2);
+    }
+    // 炎霊の火球
+    g.fillStyle(0xff8a3d, 1);
+    for (const b of sim.minionField.bolts.positions())
+      g.fillCircle(toPixels(b.position.x), toPixels(b.position.y), 3);
+    // 指揮・集中の対象の印
+    const commanded = sim.commandTarget;
+    if (commanded !== undefined)
+      g.lineStyle(1, 0xc9a0ff, 1).strokeCircle(
+        toPixels(commanded.position.x),
+        toPixels(commanded.position.y),
+        commanded.radius * PIXELS_PER_METER + 4,
       );
     // プレイヤーの矢（弓使い）
     g.lineStyle(2, 0xf4e3b2, 1);
