@@ -21,6 +21,7 @@ import {
   Rng,
   sheetRows,
   ALTAR_TOKEN_COST,
+  STAR_POINT_CAP,
   type JobBoardAllocation,
 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
@@ -914,7 +915,7 @@ export class EquipmentPanel {
       PANEL.x + 8,
       PANEL.y + 6,
       {
-        text: `星辰盤（T で閉じる）　ポイント ${String(sim.stars.spent)}／${String(sim.starPoints)}・還星の灯 ${String(lamps)}`,
+        text: `星辰盤（T で閉じる）　ポイント ${String(sim.stars.spent)}／${String(sim.starPoints)}（上限 ${String(STAR_POINT_CAP)}）・還星の灯 ${String(lamps)}`,
         color: TEXT_COLOR.dim,
       },
       0,

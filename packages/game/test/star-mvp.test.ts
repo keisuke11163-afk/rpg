@@ -6,6 +6,7 @@ import { type Combatant, FIXED_STEP_SECONDS } from "@stella/core";
 import type { Action } from "../src/input/actions.ts";
 import type { InputFrame } from "../src/input/frame.ts";
 import { ArenaSimulation } from "../src/scenes/arena-simulation.ts";
+import { BOARD_AREA, ZOOM } from "../src/ui/star-board-view.ts";
 
 const STEP = FIXED_STEP_SECONDS;
 const input = (held: Action[] = [], move = { x: 0, y: 0 }): InputFrame => ({
@@ -61,17 +62,11 @@ describe("星辰盤の形（MVPの範囲）", () => {
   const sim = new ArenaSimulation(undefined, { enemies: false });
   const db = sim.db;
 
-  it("約150ノード（剛域・剛迅域・迅域。風見座と弓使い・魔法使い・騎士・召喚士の始点だけ迅理域・理域・剛魂域・理魂域）。ノードどうしが画面で重ならない", () => {
+  it("約180ノード（中身の多くは剛域・剛迅域・迅域。8星域の環と星核は骨組みだけ：content の star-ring.test.ts）。ノードどうしが画面で重ならない", () => {
     const nodes = [...db.starNodes.values()];
-    expect(nodes.length).toBeGreaterThanOrEqual(130);
-    for (const n of nodes)
-      if (
-        !n.id.startsWith("STAR-VANE-") &&
-        !["STAR-JINRI-START", "STAR-RI-START", "STAR-GOUKON-START", "STAR-RIKON-START"].includes(
-          n.id,
-        )
-      )
-        expect(["gou", "goujin", "jin"], n.id).toContain(n.region);
+    expect(nodes.length).toBeGreaterThanOrEqual(170);
+    const main = nodes.filter((n) => ["gou", "goujin", "jin"].includes(n.region));
+    expect(main.length / nodes.length).toBeGreaterThan(0.75);
     for (let i = 0; i < nodes.length; i++)
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i];
@@ -80,6 +75,47 @@ describe("星辰盤の形（MVPの範囲）", () => {
         const d = Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y);
         expect(d, `${a.id} と ${b.id}`).toBeGreaterThanOrEqual(30);
       }
+  });
+
+  it("8星域の環の表示（docs/progress D-RING-8）：拡大率の最小で盤の全体が表示の範囲に収まり、環の境目のノードは星核を一周する順に並ぶ", () => {
+    const nodes = [...db.starNodes.values()];
+    const xs = nodes.map((n) => n.position.x);
+    const ys = nodes.map((n) => n.position.y);
+    const w = Math.max(...xs) - Math.min(...xs);
+    const h = Math.max(...ys) - Math.min(...ys);
+    expect(w * ZOOM.min).toBeLessThanOrEqual(BOARD_AREA.width);
+    expect(h * ZOOM.min).toBeLessThanOrEqual(BOARD_AREA.height);
+    // 星域ごとに、隣の星域とつながっているノードの平均の位置を、星核の天極から見た角度にする
+    const ring = ["gou", "goukon", "kon", "rikon", "ri", "jinri", "jin", "goujin"] as const;
+    const center = db.starNodes.get("STAR-KEY-BALANCE")?.position ?? { x: 0, y: 0 };
+    const angles = ring.map((r, i) => {
+      const adj = [ring[(i + 7) % 8], ring[(i + 1) % 8]];
+      const pts = nodes
+        .filter(
+          (n) =>
+            n.region === r &&
+            n.kind !== "start" &&
+            [...(db.starLinks.get(n.id) ?? [])].some((l) => {
+              const o = db.starNodes.get(l);
+              return o !== undefined && o.kind !== "start" && adj.includes(o.region as never);
+            }),
+        )
+        .map((n) => n.position);
+      expect(pts.length, r).toBeGreaterThan(0);
+      const x = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+      const y = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+      return Math.atan2(y - center.y, x - center.x);
+    });
+    // 隣へ進むたびに同じ向きに回り、8組でちょうど1周する
+    let sweep = 0;
+    angles.forEach((a, i) => {
+      const next = angles[(i + 1) % 8] as number;
+      let d = a - next;
+      while (d <= 0) d += 2 * Math.PI;
+      expect(d, ring[i]).toBeLessThan(Math.PI);
+      sweep += d;
+    });
+    expect(sweep).toBeCloseTo(2 * Math.PI, 6);
   });
 
   it("小星は必ずタグの条件か副次効果を持つ（仕様書v0.2 4.3。能力値の小星と、4.4 に内容がある星座の小星を除く。D-FIN-3）", () => {

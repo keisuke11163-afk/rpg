@@ -21,7 +21,14 @@ export const STAR_NODE_SOURCE = "starNode";
 export const CONSTELLATION_SOURCE = "constellation";
 
 /**
+ * 星辰盤のポイントの上限（今の盤の範囲。docs/progress D-RING-7：ユーザーの決定で25から40に上げた）。
+ * 仕様書v0.2 4.12 の最大129は、盤が全量（約1,000ノード）になったときの値なので、それまではこの値で止める。
+ */
+export const STAR_POINT_CAP = 40;
+
+/**
  * 星辰盤のポイント（仕様書v0.2 4.12）：キャラLv2から1つずつ（キャラLv−1）＋クエスト＋探索。
+ * 合計は {@link STAR_POINT_CAP} で止める。
  */
 export function starPoints(level: number, questPoints = 0, explorationPoints = 0): number {
   for (const [v, what] of [
@@ -31,7 +38,7 @@ export function starPoints(level: number, questPoints = 0, explorationPoints = 0
   ] as const)
     if (!(Number.isSafeInteger(v) && v >= 0))
       throw new RangeError(`${what}は0以上の整数（${String(v)}）`);
-  return Math.max(0, level - 1) + questPoints + explorationPoints;
+  return Math.min(STAR_POINT_CAP, Math.max(0, level - 1) + questPoints + explorationPoints);
 }
 
 /** ジョブの始点（無ければ undefined）。 */

@@ -14,11 +14,17 @@ const out = fileURLToPath(
   new URL("../../docs/progress/星辰盤_MVPのノード一覧.md", import.meta.url),
 );
 
+/** 星域の名前（仕様書v0.2 4.2 の環の順。最後に星核）。 */
 const REGION: Record<string, string> = {
   gou: "剛域",
-  goujin: "剛迅域",
-  jin: "迅域",
+  goukon: "剛魂域",
+  kon: "魂域",
+  rikon: "理魂域",
+  ri: "理域",
   jinri: "迅理域",
+  jin: "迅域",
+  goujin: "剛迅域",
+  core: "星核",
 };
 const KIND: Record<string, string> = {
   start: "始点",
@@ -66,7 +72,7 @@ const lines: string[] = [
   "# 星辰盤（MVPの範囲）のノードの一覧",
   "",
   "> `pnpm report:star` で、データから作る（手で書き換えない）。暫定の採用（docs/progress D-FIN-3）。",
-  "> 仕様書v0.2：4.3（ノードの種類）・4.4（星座）・4.12（ポイント：MVP は Lv20 の19＋クエスト4＋探索2＝25）",
+  "> 仕様書v0.2：4.2（8星域の環）・4.3（ノードの種類）・4.4（星座）・4.12（ポイント：MVP の計測は Lv20 の19＋クエスト4＋探索2＝25。取れるポイントの上限は40〔docs/progress D-RING-7〕）",
   "",
   "## 数",
   "",
