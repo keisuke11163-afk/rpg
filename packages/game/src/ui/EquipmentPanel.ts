@@ -123,8 +123,16 @@ export class EquipmentPanel {
   private smithSelected: string | undefined;
   /** 鍛冶屋の操作の行（クリックの当たり判定。描くたびに作り直す）。 */
   private smithRows: { y0: number; y1: number; run: () => void }[] = [];
-  /** 職紋盤の画面の行（左右の2列）。 */
-  private jobRows: { x0: number; x1: number; y0: number; y1: number; run: () => void }[] = [];
+  /** 職紋盤の画面の行（左右の2列）。右クリックで違う操作をする行もある（副職紋の返却・サブジョブを戻す）。 */
+  private jobRows: {
+    x0: number;
+    x1: number;
+    y0: number;
+    y1: number;
+    run: (button: "left" | "right") => void;
+  }[] = [];
+  /** 職紋盤の画面で、サブジョブ・副職紋の面を出しているか（キャラLv25から。docs/progress D-SUBG-8）。 */
+  private subView = false;
   /** 星辰盤の視点（始点を中心にして開く）。 */
   private camera: BoardCamera = { cx: 0, cy: 0, zoom: ZOOM.initial };
   /** 星辰盤の検索（補助仕様書16章。D-UI-1）：入力欄（HTML。日本語の入力のため）・語・見つかったノード・次に移る番号。 */
@@ -453,7 +461,7 @@ export class EquipmentPanel {
     if (this.kind === "jobBoard") {
       const row = this.jobRows.find((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1);
       if (row === undefined) return false;
-      row.run();
+      row.run(button);
       return true;
     }
     if (this.kind === "starBoard") {
@@ -720,7 +728,7 @@ export class EquipmentPanel {
           color: TEXT_COLOR.dim,
         },
         {
-          text: `Lv${String(c.level)}・${text(sim.job.text as TextKey)}・剛 ${String(a.go)}・迅 ${String(a.jin)}・理 ${String(a.ri)}・魂 ${String(a.kon)}`,
+          text: `Lv${String(c.level)}・${text(sim.job.text as TextKey)}${sim.subJob === undefined ? "" : `（${text("subjob.title")} ${text(sim.subJob.text as TextKey)}）`}・剛 ${String(a.go)}・迅 ${String(a.jin)}・理 ${String(a.ri)}・魂 ${String(a.kon)}`,
           color: TEXT_COLOR.normal,
         },
         {
@@ -752,7 +760,7 @@ export class EquipmentPanel {
         k.x,
         y,
         {
-          text: `${SKILL_KEY[slot]}：${def === undefined ? "―" : text(def.text as TextKey)}`,
+          text: `${SKILL_KEY[slot]}：${def === undefined ? "―" : text(def.text as TextKey)}${skill !== undefined && sim.isSubSkill(skill) ? `（${text("subjob.title")}）` : ""}`,
           color: def === undefined ? TEXT_COLOR.dim : TEXT_COLOR.normal,
         },
         0,
@@ -839,7 +847,7 @@ export class EquipmentPanel {
     const d = BOARD_DETAIL;
     const target = this.hovered;
     const node = target?.kind === "starNode" ? db.starNodes.get(target.id) : undefined;
-    let y = d.y;
+    let y: number = d.y;
     if (this.searchQuery.trim() !== "")
       y = this.lines(
         d.x,
@@ -1175,6 +1183,12 @@ export class EquipmentPanel {
    */
   private renderJobBoard(): void {
     const sim = this.sim;
+    // サブジョブ・副職紋の面（キャラLv25から。それまでは今までと同じ画面）
+    if (!sim.canSetSubJob) this.subView = false;
+    if (this.subView) {
+      this.renderSubJobBoard();
+      return;
+    }
     const db = sim.db;
     const board = sim.jobBoard;
     const points = sim.jobBoardPoints;
@@ -1264,6 +1278,191 @@ export class EquipmentPanel {
         else this.say("振り直せない（安全地帯・金貨・取得したノードが要る）");
       },
     });
+    if (sim.canSetSubJob) this.subViewToggle(y + LINE);
+  }
+
+  /** サブジョブ・副職紋の面と、職紋盤の面を切り替える行（右の列の下）。 */
+  private subViewToggle(y0: number): void {
+    const sub = this.sim.subJob;
+    const label = this.subView
+      ? `▶ 職紋盤に戻る`
+      : `▶ ${text("subjob.title")}・${text("subjob.board")}（${sub === undefined ? text("subjob.none") : text(sub.text as TextKey)}）`;
+    const y = this.lines(
+      PANEL.detail.x,
+      y0,
+      [{ text: label, color: TEXT_COLOR.good }],
+      PANEL.detail.width,
+    );
+    this.jobRows.push({
+      x0: PANEL.detail.x,
+      x1: PANEL.detail.x + PANEL.detail.width,
+      y0,
+      y1: y,
+      run: () => {
+        this.subView = !this.subView;
+      },
+    });
+  }
+
+  /**
+   * サブジョブ・副職紋の面（仕様書v0.2 5.1。docs/progress D-SUBG-8）：左の列に副職紋の小ノード・輝星（左クリックで取る・
+   * 右クリックで返す〔試し打ちの場だけ〕）、右の列にサブジョブの選択（左クリックで次の候補・右クリックで前の候補。
+   * 最後の次は「なし」）・候補と設定できない理由・副職紋の振り直し。職紋盤の面と同じクリックの流儀。
+   */
+  private renderSubJobBoard(): void {
+    const sim = this.sim;
+    const db = sim.db;
+    const sub = sim.subJob;
+    const board = sim.subJobBoard;
+    const points = sim.subJobBoardPoints;
+    this.jobRows = [];
+    this.line(
+      PANEL.x + 8,
+      PANEL.y + 6,
+      {
+        text: `${text("subjob.board")}：${sub === undefined ? text("subjob.none") : text(sub.text as TextKey)}（J で閉じる）　ポイント ${String(board?.spent ?? 0)}／${String(points)}　左クリック：取る・右クリック：返す（試し打ちの場だけ）`,
+        color: TEXT_COLOR.dim,
+      },
+      0,
+    );
+    // 左の列：副職紋（職奥義・接続ノードは取れないので出さない）
+    let ly: number = PANEL.slots.y;
+    const lw = PANEL.detail.x - PANEL.slots.x - 8;
+    if (sub === undefined || board === undefined)
+      ly = this.lines(
+        PANEL.slots.x,
+        ly,
+        [{ text: "サブジョブを選ぶと、副職紋を取れる", color: TEXT_COLOR.dim }],
+        lw,
+      );
+    else
+      for (const n of db.jobNodes.values()) {
+        if (n.job !== sub.id || (n.kind !== "minor" && n.kind !== "notable")) continue;
+        const taken = board.has(n.id);
+        const can = board.allocateBlock(n.id, points) === undefined;
+        const name = n.text === undefined ? "" : `${text(n.text as TextKey)}：`;
+        const desc =
+          n.description !== undefined
+            ? text(n.description as TextKey)
+            : (n.effects ?? []).map((e) => effectText(db, e)).join("・");
+        const top = ly;
+        ly = this.lines(
+          PANEL.slots.x,
+          ly,
+          [
+            {
+              text: `${taken ? "■" : can ? "□" : "・"} ${name}${desc}`,
+              color: taken ? TEXT_COLOR.highlight : can ? TEXT_COLOR.good : TEXT_COLOR.dim,
+            },
+          ],
+          lw,
+        );
+        const id = n.id;
+        this.jobRows.push({
+          x0: PANEL.slots.x,
+          x1: PANEL.slots.x + lw,
+          y0: top,
+          y1: ly,
+          run: (button) => {
+            if (button === "right") {
+              if (!board.has(id)) return;
+              if (!sim.refundSubJobNode(id))
+                this.say(
+                  sim.inTrial
+                    ? "返すと、始点からつながらなくなるノードがある"
+                    : "1つずつ返せるのは試し打ちの場だけ（町では全て振り直す）",
+                );
+              return;
+            }
+            if (sim.allocateSubJobNode(id)) return;
+            const block = board.allocateBlock(id, points);
+            if (block === "taken") return;
+            this.say(
+              block === "points"
+                ? "ポイントが足りない（サブジョブのジョブLvで増える。最大20）"
+                : "取ったノードの隣だけ取れる",
+            );
+          },
+        });
+      }
+    // 右の列：サブジョブの選択・候補・振り直し・戻る
+    const d = PANEL.detail;
+    let y: number = d.y;
+    const top = y;
+    y = this.lines(
+      d.x,
+      y,
+      [
+        {
+          text: `${text("subjob.title")}：${sub === undefined ? text("subjob.none") : `${text(sub.text as TextKey)}（ジョブLv${String(sim.character.jobLevel(sub.id))}）`}　左クリック：次・右クリック：前`,
+          color: TEXT_COLOR.highlight,
+        },
+      ],
+      d.width,
+    );
+    this.jobRows.push({
+      x0: d.x,
+      x1: d.x + d.width,
+      y0: top,
+      y1: y,
+      run: (button) => {
+        const r = sim.cycleSubJob(button === "right" ? -1 : 1);
+        if (r === "busy")
+          this.say(sim.inTrial ? "試し打ちの場では変えられない" : "技の実行中は変えられない");
+        else if (r === "inventoryFull")
+          this.say("インベントリがいっぱいで、副手を外せない（変えない）");
+      },
+    });
+    const skills = sim.subSkills().map((id) => {
+      const def = db.skills.get(id);
+      return def === undefined ? id : text(def.text as TextKey);
+    });
+    const lines: TextLine[] = [
+      {
+        text: `技：${skills.length === 0 ? "―" : skills.join("・")}（${text("subjob.skill.slot-limit")}。C の技の枠で選ぶ）`,
+        color: TEXT_COLOR.normal,
+      },
+      ...sim.subJobOptions().map((o) => {
+        const def = db.jobs.get(o.id);
+        const name = def === undefined ? o.id : text(def.text as TextKey);
+        return {
+          text: `${o.current ? "■" : o.block === undefined ? "□" : "・"} ${name}${o.reason === undefined ? "" : `：${o.reason}`}`,
+          color: o.current
+            ? TEXT_COLOR.highlight
+            : o.block === undefined
+              ? TEXT_COLOR.good
+              : TEXT_COLOR.dim,
+        };
+      }),
+    ];
+    y = this.lines(d.x, y, lines, d.width) + LINE;
+    if (sub !== undefined && board !== undefined) {
+      const rtop = y;
+      const cost = sim.subJobBoardRespecCost;
+      y = this.lines(
+        d.x,
+        y,
+        [
+          {
+            text: `▶ ${text("subjob.board")}を全て振り直す（金貨 ${String(cost)}。安全地帯だけ）　所持 ${String(sim.inventory.gold)}`,
+            color: sim.inventory.gold >= cost && board.spent > 0 ? TEXT_COLOR.good : TEXT_COLOR.dim,
+          },
+        ],
+        d.width,
+      );
+      this.jobRows.push({
+        x0: d.x,
+        x1: d.x + d.width,
+        y0: rtop,
+        y1: y,
+        run: () => {
+          if (sim.resetSubJobBoard())
+            this.say(`${text("subjob.board")}を全て振り直した`, TEXT_COLOR.good);
+          else this.say("振り直せない（安全地帯・金貨・取得したノードが要る）");
+        },
+      });
+    }
+    this.subViewToggle(y + LINE);
   }
 
   /** 討伐の祭壇（仕様書v0.2 3.12）：討伐証10個で、専用ユニークを1つ選んで交換する。 */
