@@ -1,5 +1,5 @@
 import type { Vec2 } from "../actor/vector.ts";
-import type { GaugeDef, MinionDef } from "../content/job.ts";
+import type { GaugeDef, JobDef, MinionDef } from "../content/job.ts";
 import type { ContentDb } from "../content/load.ts";
 import { type ModifierView, evaluateEffects } from "../effects/evaluate.ts";
 import { TagIndex } from "../effects/tag-index.ts";
@@ -46,6 +46,42 @@ export function contractCapacity(def: GaugeDef, as: "main" | "sub", maxBonus = 0
   if (def.contract === undefined) return 0;
   if (as === "sub") return def.contract.subJobFixed;
   return Math.max(0, def.max + maxBonus);
+}
+
+/**
+ * 契約枠をどのジョブのゲージで決めるか（docs/progress D-SUB-6）。
+ * - メインジョブのゲージが契約枠を持てば、メイン（as "main"。職詞・職奥義の加算が効く）
+ * - そうでなく、サブジョブのゲージが契約枠を持てば、サブ（as "sub"。6に固定）
+ * - どちらも持たなければ undefined（召喚できない）
+ * サブジョブを渡さなければ、今までどおりメインジョブだけで決まる。
+ */
+export function contractSource(
+  db: ContentDb,
+  main: JobDef,
+  sub?: JobDef,
+): { readonly gauge: GaugeDef; readonly as: "main" | "sub" } | undefined {
+  const of = (job: JobDef | undefined): GaugeDef | undefined => {
+    const g = job?.gauge === undefined ? undefined : db.gauges.get(job.gauge);
+    return g?.contract === undefined ? undefined : g;
+  };
+  const m = of(main);
+  if (m !== undefined) return { gauge: m, as: "main" };
+  const s = of(sub);
+  return s === undefined ? undefined : { gauge: s, as: "sub" };
+}
+
+/**
+ * メインジョブ・サブジョブから決めた契約枠の数（{@link contractSource} と {@link contractCapacity}）。
+ * maxBonus（ゲージの最大値の加算）はメインジョブで決まるときだけ効く。どちらも契約枠を持たなければ0。
+ */
+export function jobContractCapacity(
+  db: ContentDb,
+  main: JobDef,
+  sub?: JobDef,
+  maxBonus = 0,
+): number {
+  const src = contractSource(db, main, sub);
+  return src === undefined ? 0 : contractCapacity(src.gauge, src.as, maxBonus);
 }
 
 /** 呼び出した召喚物1体。 */

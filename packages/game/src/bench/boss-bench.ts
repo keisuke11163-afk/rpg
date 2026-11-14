@@ -9,6 +9,7 @@
  * 攻撃面だけを測るときは（invincible）、プレイヤーを毎フレーム全回復し、受けたダメージは記録だけする。
  */
 import {
+  Character,
   type ContentDb,
   type Enemy,
   FIXED_STEP_SECONDS,
@@ -17,6 +18,7 @@ import {
   type MvpEquipSlot,
   affixTierValues,
   emptyKeptFields,
+  xpToNext,
 } from "@stella/core";
 import type { Action } from "../input/actions.ts";
 import type { InputFrame } from "../input/frame.ts";
@@ -47,6 +49,19 @@ export interface BenchBuild {
    * ボットの動き方だけ。ボスとの距離（体の端から）の min〜max の真ん中に立ち、close より近ければ離れる。
    */
   readonly standoff?: { readonly min: number; readonly max: number; readonly close: number };
+  /** キャラLv・メインのジョブLv（省略すると、サブジョブがあれば {@link SUB_BENCH_LEVEL}、無ければ {@link BENCH_LEVEL}）。 */
+  readonly level?: number;
+  /**
+   * サブジョブ（キャラLv25で開く。仕様書v0.2 5.1）。指定すると、キャラLv・メインのジョブLvを {@link SUB_BENCH_LEVEL}
+   * にし、サブジョブのジョブLvを subJobLevel にする（サブジョブのジョブ経験値は、そのジョブをメインにして貯めたもの）。
+   * 省略すると今までどおり Lv20（撃破時間の基準を変えない）。
+   */
+  readonly subJob?: {
+    readonly job: string;
+    readonly jobLevel: number;
+    /** 取る副職紋のノード（始点からの最短の道も取る）。 */
+    readonly nodes: readonly string[];
+  };
 }
 
 export interface BenchOptions {
@@ -139,6 +154,23 @@ function shortestPath(
   return out;
 }
 
+/**
+ * 計測のキャラLv・ジョブLv（MVPの上限だった20に固定する。上限を25に上げても、撃破時間の基準を変えない。
+ * docs/progress D-SUB-1）。
+ */
+export const BENCH_LEVEL = 20;
+/** Lv1から {@link BENCH_LEVEL} にちょうど届く経験値（キャラLvとメインジョブのジョブLvが同じ量で上がる）。 */
+const BENCH_XP = Array.from({ length: BENCH_LEVEL - 1 }, (_, i) => xpToNext(i + 1)).reduce(
+  (a, b) => a + b,
+  0,
+);
+
+/** サブジョブのビルドのキャラLv・メインのジョブLv（サブジョブが開くLv）。 */
+export const SUB_BENCH_LEVEL = 25;
+/** Lv1から level にちょうど届く経験値。 */
+const xpTo = (level: number): number =>
+  Array.from({ length: level - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, b) => a + b, 0);
+
 /** ビルドを用意したシミュレーション（ボスの間。キャラLv20・ジョブLv20・星辰盤25ポイント）。 */
 export function prepareBench(
   db: ContentDb,
@@ -148,7 +180,22 @@ export function prepareBench(
   const regionId = options.region ?? "REGION-A5-BOSS";
   const region = db.regions.get(regionId);
   if (region === undefined) throw new RangeError(`地域 ${regionId} が無い`);
-  const base = newCharacterProfile(db, build.job, build.name);
+  const created = newCharacterProfile(db, build.job, build.name);
+  // サブジョブのビルドだけ、サブジョブのジョブLvを持たせたキャラクターにする（無ければ今までと同じ）
+  const sub = build.subJob;
+  const origin = db.jobs.get(build.job);
+  const base =
+    sub === undefined || origin === undefined
+      ? created
+      : {
+          ...created,
+          character: new Character({
+            origin,
+            jobs: db.jobs,
+            level: 1,
+            jobLevels: { [sub.job]: sub.jobLevel },
+          }),
+        };
   // MVPの星辰盤のポイント：Lv20 の19＋クエスト4＋探索2（補助仕様書4.4）
   const profile = { ...base, kept: { ...emptyKeptFields(), questPoints: 4, explorationPoints: 2 } };
   const sim = new ArenaSimulation(new FixedStepClock(), {
@@ -158,7 +205,15 @@ export function prepareBench(
     layoutSeed: options.seed ?? "bench",
     ...(options.seed === undefined ? {} : { rngSeed: options.seed }),
   });
-  sim.gainXp(1e9);
+  sim.gainXp(
+    build.level !== undefined
+      ? xpTo(build.level)
+      : sub === undefined
+        ? BENCH_XP
+        : xpTo(SUB_BENCH_LEVEL),
+  );
+  if (sub !== undefined && sim.setSubJob(sub.job) !== "ok")
+    throw new RangeError(`サブジョブ ${sub.job} にできない`);
   // 装備（主手の指定が無ければ素手）
   if (!build.equipment.some((e) => e.slot === "mainHand")) sim.unequip("mainHand");
   build.equipment.forEach((e, i) => {
@@ -213,6 +268,19 @@ export function prepareBench(
     }))
       if (!sim.jobBoard.has(id) && !sim.allocateJobNode(id))
         throw new RangeError(`職紋盤の ${id} を取れない`);
+  // 副職紋（職奥義・接続ノードを通らない道）
+  const subBoard = sim.subJobBoard;
+  const sroot = subBoard?.root;
+  if (sub !== undefined && (subBoard === undefined || sroot === undefined))
+    throw new RangeError("副職紋の始点が無い");
+  if (subBoard !== undefined && sroot !== undefined)
+    for (const goal of sub?.nodes ?? [])
+      for (const id of shortestPath(db.jobLinks, sroot, goal, (n) => {
+        const k = db.jobNodes.get(n)?.kind;
+        return k === "start" || k === "mastery" || k === "connector";
+      }))
+        if (!subBoard.has(id) && !sim.allocateSubJobNode(id))
+          throw new RangeError(`副職紋の ${id} を取れない`);
   return sim;
 }
 
@@ -263,7 +331,12 @@ export function chooseSkill(
   return (
     usable.find((l) => (def(l.skill)?.cooldown ?? 0) > 0 && !spender(l.skill)) ??
     usable.find((l) => spender(l.skill) && full) ??
-    (sim.jobGauge.def.phase === undefined ? free[0] : choosePhaseSpell(sim, db, free))
+    (sim.jobGauge.def.phase === undefined
+      ? free[0]
+      : // 位相のジョブがサブジョブの召喚の技を持つとき（サブ召喚士）は、まだいない召喚物を先に呼ぶ（ボットの動きだけ。
+        // 召喚の技を持たない基準のビルドは今までと同じ選び方）
+        (free.find((l) => def(l.skill)?.action.type === "summon" && !dup(l.skill)) ??
+        choosePhaseSpell(sim, db, free)))
   );
 }
 

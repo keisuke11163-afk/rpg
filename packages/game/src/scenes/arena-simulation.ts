@@ -67,7 +67,8 @@ import {
   PlayerMotion,
   type ResolvedSkill,
   Rng,
-  contractCapacity,
+  contractSource,
+  jobContractCapacity,
   type Minion,
   type MinionOrder,
   SkillExecution,
@@ -95,6 +96,14 @@ import {
   JobBoardAllocation,
   jobBoardPoints,
   jobBoardRespecCost,
+  subJobBoardPoints,
+  subJobBoardRespecCost,
+  SUB_JOB_BLOCK_TEXT,
+  SUB_SKILL_SLOT_LIMIT,
+  type SubJobBlock,
+  subSkillsInSlots,
+  unlockedSubSkills,
+  usableAsSubSkill,
   type ModifierView,
   isBehind,
   isInFront,
@@ -311,6 +320,8 @@ interface Running {
   castSheet?: CharacterSheet;
   /** 反撃権（騎士のパリィの後の次の攻撃）で、この技の全てのヒットに足すダメージの加算（1＝+100%）。 */
   counter?: number;
+  /** サブジョブの技として使った（技のゲージの項目を働かせない。docs/progress D-SUBG-4）。 */
+  sub?: boolean;
 }
 
 /** プレイヤーの投射物（弓使いの技・弓の通常攻撃）が当たったときに使う情報。 */
@@ -573,6 +584,11 @@ export class ArenaSimulation {
   private lastHitBy: string | null = null;
   /** ジョブごとの職紋盤の取得（仕様書v0.2 4.10）。 */
   private readonly jobBoards = new Map<string, JobBoardAllocation>();
+  /**
+   * ジョブごとの副職紋（サブジョブにしたジョブの職紋盤。role が sub）。サブジョブを外す・変えても残す
+   * （セーブの sub_job_boards・kept.subBoards。ロードアウトには含めない。docs/progress Q-SUB-3）。
+   */
+  private readonly subJobBoards = new Map<string, JobBoardAllocation>();
   private jobBoardVersion = 0;
   /** 鬼神化（職奥義）の残りの秒数。 */
   private demonLeft = 0;
@@ -692,6 +708,8 @@ export class ArenaSimulation {
     | {
         readonly stars: readonly string[];
         readonly boards: Readonly<Record<string, readonly string[]>>;
+        /** 副職紋（ジョブ → 取ったノード）。試し打ちの場では副職紋の振り直しも無料（D-SUBG-6）。 */
+        readonly subBoards: Readonly<Record<string, readonly string[]>>;
         readonly slots: readonly (readonly [string, readonly (string | undefined)[]])[];
       }
     | undefined;
@@ -746,6 +764,9 @@ export class ArenaSimulation {
     for (const [jobId, b] of Object.entries(profile.kept.boards))
       if (b.board.length > 0)
         this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId, b.board));
+    for (const [jobId, nodes] of Object.entries(profile.kept.subBoards))
+      if (nodes.length > 0)
+        this.subJobBoards.set(jobId, new JobBoardAllocation(this.db, jobId, nodes, "sub"));
     this.questPoints = profile.kept.questPoints;
     this.explorationPoints = profile.kept.explorationPoints;
     this.starsValue = new StarAllocation(this.db, profile.starAllocation);
@@ -1090,33 +1111,98 @@ export class ArenaSimulation {
     return slots;
   }
 
-  /** 技の枠に入れられる技（通常攻撃と、今のジョブLvで覚えている技）。 */
+  /** 技の枠に入れられる技（通常攻撃と、今のジョブLvで覚えている技。サブジョブがあれば、使えるサブジョブの技も後ろに）。 */
   assignableSkills(): string[] {
-    return ["SKL-BASIC-ATTACK", ...unlockedSkills(this.job, this.character.jobLevel(this.job.id))];
+    return [
+      "SKL-BASIC-ATTACK",
+      ...unlockedSkills(this.job, this.character.jobLevel(this.job.id)),
+      ...this.subSkills(),
+    ];
+  }
+
+  /** サブジョブ（設定していなければ undefined。仕様書v0.2 5.1）。 */
+  get subJob(): JobDef | undefined {
+    const id = this.character.subJob;
+    return id === undefined ? undefined : this.db.jobs.get(id);
+  }
+
+  /**
+   * 今使えるサブジョブの技（サブジョブの subSkills のうち、サブジョブのジョブLvで覚えているもの。
+   * サブジョブの技として使えない技〔subJobRule: unavailable〕は除く）。サブジョブが無ければ空。
+   */
+  subSkills(): string[] {
+    const sub = this.subJob;
+    if (sub === undefined) return [];
+    return unlockedSubSkills(sub, this.character.jobLevel(sub.id)).filter((id) => {
+      const def = this.db.skills.get(id);
+      return def !== undefined && usableAsSubSkill(def);
+    });
+  }
+
+  /** その技を、今サブジョブの技として使うか（メインジョブの技・通常攻撃は false）。 */
+  isSubSkill(skillId: string): boolean {
+    return this.character.subJob !== undefined && this.subSkills().includes(skillId);
   }
 
   /**
    * 技の枠に技を入れる（undefined で空ける）。ほかの枠にある技なら、入れ替える。
-   * 技の実行中・覚えていない技・範囲外の枠なら、何も変えずに false。
+   * 技の実行中・覚えていない技・範囲外の枠・サブジョブの技が {@link SUB_SKILL_SLOT_LIMIT} を超えるなら、何も変えずに false。
    */
   setSlotSkill(index: number, skill: string | undefined): boolean {
     if (this.current !== undefined) return false;
     if (!(Number.isInteger(index) && index >= 0 && index < SKILL_SLOTS.length)) return false;
     if (skill !== undefined && !this.assignableSkills().includes(skill)) return false;
     const slots = this.slotSkills(this.job.id);
-    const other = skill === undefined ? -1 : slots.indexOf(skill);
-    if (other >= 0) slots[other] = slots[index];
-    slots[index] = skill;
+    const next = [...slots];
+    const other = skill === undefined ? -1 : next.indexOf(skill);
+    if (other >= 0) next[other] = next[index];
+    next[index] = skill;
+    // サブジョブの技は、技の枠に2つまで（入れ替えでは数は変わらない。サブジョブが無ければ数は0）
+    const subs = this.subSkills();
+    if (subs.length > 0 && subSkillsInSlots(next, subs) > SUB_SKILL_SLOT_LIMIT) return false;
+    next.forEach((s, i) => (slots[i] = s));
     return true;
   }
 
-  /** 技の枠の技を、入れられる技の順に1つ進める（dir が -1 なら戻す）。最後の次は空き。 */
+  /**
+   * 技の枠の技を、入れられる技の順に1つ進める（dir が -1 なら戻す）。最後の次は空き。
+   * サブジョブの技の数の上限で入れられない技は飛ばす。
+   */
   cycleSlotSkill(index: number, dir: 1 | -1 = 1): boolean {
+    if (this.current !== undefined) return false;
     const slots = this.slotSkills(this.job.id);
     const options: (string | undefined)[] = [...this.assignableSkills(), undefined];
     const at = options.indexOf(slots[index]);
-    const next = options[(at + dir + options.length) % options.length];
-    return this.setSlotSkill(index, next);
+    for (let k = 1; k <= options.length; k++) {
+      const next = options[(((at + dir * k) % options.length) + options.length) % options.length];
+      if (next === slots[index]) return false;
+      if (this.setSlotSkill(index, next)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * 今のメインジョブの技の枠に残った、使えない別のジョブの技（外したサブジョブの技・覚えていないサブジョブの技）を、
+   * その枠の初期の技（ほかの枠に無いメインジョブの技・通常攻撃）か空きに戻す。サブジョブの技が上限を超えていれば、
+   * 後ろの枠から同じように戻す。メインジョブの技（まだ覚えていない技を含む）・通常攻撃は変えない（docs/progress D-SUBG-3）。
+   */
+  private sanitizeSubSkillSlots(): void {
+    const slots = this.slotSkills(this.job.id);
+    const own = new Set([BASIC_ATTACK, ...this.job.skills.map((s) => s.skill)]);
+    const subs = this.subSkills();
+    const defaults = this.job.defaultSlots ?? [BASIC_ATTACK];
+    const reset = (i: number): void => {
+      const d = defaults[i];
+      slots[i] = d !== undefined && own.has(d) && !slots.includes(d) ? d : undefined;
+    };
+    slots.forEach((s, i) => {
+      if (s !== undefined && !own.has(s) && !subs.includes(s)) reset(i);
+    });
+    for (let i = slots.length - 1; i >= 0; i--) {
+      if (subSkillsInSlots(slots, subs) <= SUB_SKILL_SLOT_LIMIT) break;
+      const s = slots[i];
+      if (s !== undefined && subs.includes(s)) reset(i);
+    }
   }
   /** メインジョブの職能ゲージ（戦士は闘志・盗賊はコンボ点）。 */
   get jobGauge(): JobGauge {
@@ -1435,9 +1521,12 @@ export class ArenaSimulation {
   get attacker(): DamageAttacker {
     return this.sheetValue.attacker;
   }
-  /** 今のメインジョブが二刀流をできるか（片手武器を副手に持てる。仕様書v0.2 3.2）。 */
+  /**
+   * 今のメインジョブが二刀流をできるか（片手武器を副手に持てる。仕様書v0.2 3.2）。サブジョブの二刀流も
+   * 1段階下げて受け継ぐ（仕様書v0.2 5.1）。
+   */
   get canDualWield(): boolean {
-    return dualWieldAffinity(this.job) !== undefined;
+    return dualWieldAffinity(this.job, this.subJob) !== undefined;
   }
   /** 装備を替えられるか（技の実行中は替えない）。 */
   get canChangeEquipment(): boolean {
@@ -1581,7 +1670,10 @@ export class ArenaSimulation {
       nextJob !== undefined &&
       target.mainJob !== this.character.mainJob &&
       this.character.canChangeJob;
-    const dual = dualWieldAffinity(changeJob ? nextJob : this.job) !== undefined;
+    // サブジョブはロードアウトに含めない（Q-SUB-3）。メインジョブがサブジョブと同じジョブになると、サブジョブは外れる
+    const subAfter =
+      changeJob && target.mainJob === this.character.subJob ? undefined : this.subJob;
+    const dual = dualWieldAffinity(changeJob ? nextJob : this.job, subAfter) !== undefined;
     // 装備：今の装備を全て脇に置き、切り替え先の装備を集めて写しの装備に付ける
     const planned = new Equipment(this.db);
     const aside = this.equipment.entries().map(([, item]) => item);
@@ -1644,6 +1736,7 @@ export class ArenaSimulation {
       saved,
       target,
     ].sort((a, b) => a.id - b.id);
+    const subSource = this.contractAs();
     if (changeJob && this.character.changeJob(target.mainJob)) this.jobGaugeValue = this.newGauge();
     for (const [slot] of this.equipment.entries()) this.equipment.unequip(slot);
     for (const uid of fromInventory) this.inventory.removeItem(uid);
@@ -1662,6 +1755,8 @@ export class ArenaSimulation {
     this.activeLoadoutId = id;
     this.equipmentVersion += 1;
     this.starVersion += 1;
+    // 転職でサブジョブが外れたら、技の枠のサブジョブの技・サブジョブの召喚物を片付ける
+    this.afterSubJobChanged(subSource);
     this.attackerVersion = "";
     this.refreshAttacker();
     this.syncPlayerMaxHp();
@@ -1692,6 +1787,7 @@ export class ArenaSimulation {
     this.trialSnapshot = {
       stars: [...this.stars.nodes],
       boards: this.currentJobBoards(),
+      subBoards: this.currentSubJobBoards(),
       slots: [...this.skillSlotsByJob].map(([job, slots]) => [job, [...slots]] as const),
     };
     this.onText?.(
@@ -1711,8 +1807,14 @@ export class ArenaSimulation {
     const boards = Object.entries(snap.boards).map(
       ([jobId, nodes]) => new JobBoardAllocation(this.db, jobId, nodes),
     );
+    const subBoards = Object.entries(snap.subBoards).map(
+      ([jobId, nodes]) => new JobBoardAllocation(this.db, jobId, nodes, "sub"),
+    );
     // 2. 反映
     this.trialSnapshot = undefined;
+    for (const jobId of [...this.subJobBoards.keys()])
+      this.subJobBoards.set(jobId, new JobBoardAllocation(this.db, jobId, [], "sub"));
+    for (const b of subBoards) this.subJobBoards.set(b.job, b);
     this.starsValue = stars;
     for (const jobId of [...this.jobBoards.keys()])
       this.jobBoards.set(jobId, new JobBoardAllocation(this.db, jobId));
@@ -1783,6 +1885,209 @@ export class ArenaSimulation {
     this.jobBoardVersion += 1;
     this.refreshAttacker();
     this.syncPlayerMaxHp();
+  }
+
+  // ---- サブジョブ（仕様書v0.2 5.1・MVP後の機能の提案 2章。docs/progress D-SUB-*・D-SUBG-*） ----
+
+  /** サブジョブの仕組みが開いているか（キャラLv25）。 */
+  get canSetSubJob(): boolean {
+    return this.character.canSetSubJob;
+  }
+
+  /** そのジョブをサブジョブにできない理由の文章（ja.json の subjob.block.*。できるなら undefined）。 */
+  subJobBlockText(jobId: string): string | undefined {
+    if (!this.db.jobs.has(jobId)) return undefined;
+    const block: SubJobBlock | undefined = this.character.subJobBlock(jobId);
+    return block === undefined ? undefined : text(SUB_JOB_BLOCK_TEXT[block] as TextKey);
+  }
+
+  /**
+   * サブジョブの候補（データのジョブの順）。設定できないジョブは、理由（SubJobBlock と表示の文章）を付ける。
+   * current は今のサブジョブ。
+   */
+  subJobOptions(): {
+    readonly id: string;
+    readonly current: boolean;
+    readonly block: SubJobBlock | undefined;
+    readonly reason: string | undefined;
+  }[] {
+    return [...this.db.jobs.values()].map((j) => {
+      const block = this.character.subJobBlock(j.id);
+      return {
+        id: j.id,
+        current: this.character.subJob === j.id,
+        block,
+        reason: block === undefined ? undefined : text(SUB_JOB_BLOCK_TEXT[block] as TextKey),
+      };
+    });
+  }
+
+  /**
+   * サブジョブを設定する（変える）。転職と同じ規則で、技の実行中・試し打ちの場では "busy"（D-SUBG-1）。
+   * 設定できないジョブ（キャラLv25未満・メインと同じ・上位職）は "blocked"（理由は {@link subJobBlockText}）。
+   * サブジョブが変わって二刀流ができなくなるなら、副手の片手武器をインベントリに戻す（入りきらなければ、
+   * 何も変えずに "inventoryFull"。転職と同じ。docs/progress D-AUTO-2）。
+   */
+  setSubJob(jobId: string): "ok" | "same" | "busy" | "blocked" | "inventoryFull" | "unknown" {
+    const def = this.db.jobs.get(jobId);
+    if (def === undefined) return "unknown";
+    if (this.current !== undefined || this.trialSnapshot !== undefined) return "busy";
+    if (this.character.subJob === jobId) return "same";
+    if (this.character.subJobBlock(jobId) !== undefined) return "blocked";
+    return this.applySubJob(def);
+  }
+
+  /** サブジョブを外す。設定していなければ "none"。ほかは {@link setSubJob} と同じ。 */
+  clearSubJob(): "ok" | "none" | "busy" | "inventoryFull" {
+    if (this.current !== undefined || this.trialSnapshot !== undefined) return "busy";
+    if (this.character.subJob === undefined) return "none";
+    const r = this.applySubJob(undefined);
+    return r === "ok" ? "ok" : "inventoryFull";
+  }
+
+  /**
+   * サブジョブの候補を、データのジョブの順に1つ進める（dir が -1 なら戻す）。設定できないジョブは飛ばし、
+   * 最後の次は「サブジョブなし」。画面のクリック用。
+   */
+  cycleSubJob(dir: 1 | -1 = 1): "ok" | "busy" | "blocked" | "inventoryFull" {
+    if (this.current !== undefined || this.trialSnapshot !== undefined) return "busy";
+    if (!this.character.canSetSubJob) return "blocked";
+    const ids: (string | undefined)[] = [
+      ...[...this.db.jobs.values()]
+        .filter(
+          (j) => j.id === this.character.subJob || this.character.subJobBlock(j.id) === undefined,
+        )
+        .map((j) => j.id),
+      undefined,
+    ];
+    const at = ids.indexOf(this.character.subJob);
+    const next = ids[(((at + dir) % ids.length) + ids.length) % ids.length];
+    if (next === this.character.subJob) return "blocked";
+    const r = next === undefined ? this.clearSubJob() : this.setSubJob(next);
+    return r === "ok" || r === "inventoryFull" || r === "busy" ? r : "blocked";
+  }
+
+  /** サブジョブを変える・外す（計画してから反映する）。 */
+  private applySubJob(next: JobDef | undefined): "ok" | "inventoryFull" {
+    // 1. 計画：二刀流ができなくなるなら、副手の片手武器を外せるか
+    const off = this.equipment.get("offHand");
+    const dropOff =
+      off !== undefined &&
+      dualWieldAffinity(this.job, next) === undefined &&
+      this.db.itemBases.get(off.base)?.category === "weapon";
+    if (dropOff && this.inventory.full) return "inventoryFull";
+    // 2. 反映
+    const before = this.contractAs();
+    if (next === undefined) this.character.clearSubJob();
+    else if (!this.character.setSubJob(next.id))
+      throw new Error(`サブジョブ ${next.id} を設定できない（計画と合わない）`);
+    if (dropOff) {
+      if (!unequipToInventory(this.inventory, this.equipment, "offHand"))
+        throw new Error("サブジョブの計画と合わない（副手を外せない）");
+      this.equipmentVersion += 1;
+    }
+    this.afterSubJobChanged(before, true);
+    this.attackerVersion = "";
+    this.refreshAttacker();
+    this.syncPlayerMaxHp();
+    return "ok";
+  }
+
+  /** 契約枠をどちらのジョブで決めているか（召喚士がメイン・サブのどちらにもいなければ undefined）。 */
+  private contractAs(): "main" | "sub" | undefined {
+    return contractSource(this.db, this.job, this.subJob)?.as;
+  }
+
+  /**
+   * サブジョブが変わった・外れた後の片付け：技の枠に残ったサブジョブの技を戻し（D-SUBG-3）、サブジョブの召喚士で
+   * 呼んだ召喚物は消す（転職で消えるのと同じ。D-SUBG-5）。副職紋の効果は能力値の計算し直しで替わる。
+   * before は変える前の契約枠の出どころ。changed はサブジョブが変わったことが分かっているとき。
+   */
+  private afterSubJobChanged(before: "main" | "sub" | undefined, changed = false): void {
+    this.sanitizeSubSkillSlots();
+    if (before === "sub" && (changed || this.contractAs() !== "sub")) {
+      this.minionField.clear();
+      this.minionCommand = undefined;
+    }
+    this.jobBoardVersion += 1;
+  }
+
+  /** そのジョブの副職紋（無ければ空の盤を作る）。 */
+  private subBoardOf(jobId: string): JobBoardAllocation {
+    let b = this.subJobBoards.get(jobId);
+    if (b === undefined) {
+      b = new JobBoardAllocation(this.db, jobId, [], "sub");
+      this.subJobBoards.set(jobId, b);
+    }
+    return b;
+  }
+
+  /** 今のサブジョブの副職紋（サブジョブが無ければ undefined）。 */
+  get subJobBoard(): JobBoardAllocation | undefined {
+    const id = this.character.subJob;
+    return id === undefined ? undefined : this.subBoardOf(id);
+  }
+
+  /** 副職紋のポイント（min(20, サブジョブのジョブLv−1)。サブジョブが無ければ0）。 */
+  get subJobBoardPoints(): number {
+    const id = this.character.subJob;
+    return id === undefined ? 0 : subJobBoardPoints(this.character.jobLevel(id));
+  }
+
+  /** 副職紋の残りのポイント。 */
+  get subJobBoardPointsLeft(): number {
+    return Math.max(0, this.subJobBoardPoints - (this.subJobBoard?.spent ?? 0));
+  }
+
+  /** 副職紋のノードを取る（職奥義・接続ノードは取れない）。取れなければ false。 */
+  allocateSubJobNode(id: string): boolean {
+    const b = this.subJobBoard;
+    if (b === undefined || !b.allocate(id, this.subJobBoardPoints)) return false;
+    this.jobBoardChanged();
+    return true;
+  }
+
+  /**
+   * 副職紋のノードを1つ返す。メインの職紋盤と同じく、1つずつ返すのは無料の試し打ちの場だけ（それ以外は
+   * 全体の振り直し。D-SUBG-6）。返すと始点からつながらなくなるノードがあるときも false。
+   */
+  refundSubJobNode(id: string): boolean {
+    const b = this.subJobBoard;
+    if (b === undefined || this.current !== undefined || this.trialSnapshot === undefined)
+      return false;
+    if (!b.refund(id)) return false;
+    this.jobBoardChanged();
+    return true;
+  }
+
+  /** 副職紋の振り直しの金貨（20×サブジョブのジョブLv。試し打ちの場では無料）。 */
+  get subJobBoardRespecCost(): number {
+    const id = this.character.subJob;
+    if (id === undefined || this.trialSnapshot !== undefined) return 0;
+    return subJobBoardRespecCost(this.character.jobLevel(id));
+  }
+
+  /**
+   * 副職紋を全て返す（メインの職紋盤と同じ：町・安全地帯だけ・金貨）。サブジョブが無い・何も取っていない・
+   * 金貨が足りないときは、何も変えずに false。
+   */
+  resetSubJobBoard(): boolean {
+    const b = this.subJobBoard;
+    if (b === undefined || !this.inSafeZone || this.current !== undefined || b.spent === 0)
+      return false;
+    if (!this.inventory.spendGold(this.subJobBoardRespecCost)) return false;
+    b.clear();
+    this.jobBoardChanged();
+    this.autosave.notify("respec");
+    return true;
+  }
+
+  /** 今の副職紋（知っている全てのジョブ。取っていないジョブは空）。セーブ・試し打ちの場の写しの形。 */
+  private currentSubJobBoards(): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    for (const [jobId, nodes] of Object.entries(this.kept.subBoards)) out[jobId] = [...nodes];
+    for (const [jobId, b] of this.subJobBoards) out[jobId] = [...b.nodes];
+    return out;
   }
 
   /**
@@ -1974,6 +2279,16 @@ export class ArenaSimulation {
               }),
             ),
           },
+          // 副職紋も試す前の配置（試している間に初めて触れたジョブは空）
+          subBoards: {
+            ...p.kept.subBoards,
+            ...Object.fromEntries(
+              [...this.subJobBoards.keys()].map((jobId) => [
+                jobId,
+                [...(snap.subBoards[jobId] ?? [])],
+              ]),
+            ),
+          },
         },
       };
     }
@@ -2009,6 +2324,8 @@ export class ArenaSimulation {
             ]),
           ),
         },
+        // 副職紋（ジョブごと。今の取得を書き戻す）
+        subBoards: this.currentSubJobBoards(),
         discoveries: {
           ...this.kept.discoveries,
           latent_revealed: [...this.revealedLatents],
@@ -2188,10 +2505,11 @@ export class ArenaSimulation {
     const off = this.equipment.get("offHand");
     const dropOff =
       off !== undefined &&
-      dualWieldAffinity(nextJob) === undefined &&
+      dualWieldAffinity(nextJob, next === this.character.subJob ? undefined : this.subJob) ===
+        undefined &&
       this.db.itemBases.get(off.base)?.category === "weapon";
     if (dropOff && this.inventory.full) return "inventoryFull";
-    // 2. 反映
+    // 2. 反映（サブジョブと同じジョブに転職すると、サブジョブは外れる：core の Character.changeJob）
     if (!this.character.changeJob(next)) return "cannot";
     if (dropOff && !unequipToInventory(this.inventory, this.equipment, "offHand"))
       throw new Error("転職の計画と合わない（副手を外せない）");
@@ -2226,6 +2544,8 @@ export class ArenaSimulation {
     // 召喚物は転職で消える（契約枠はメインジョブのゲージ。D-SUM-8）
     this.minionField.clear();
     this.minionCommand = undefined;
+    // 転職した先のジョブの技の枠に残った、使えないサブジョブの技を戻す（D-SUBG-3）
+    this.sanitizeSubSkillSlots();
     this.attackerVersion = "";
     this.refreshAttacker();
     this.syncPlayerMaxHp();
@@ -2265,8 +2585,11 @@ export class ArenaSimulation {
 
   /** 技が使えない理由（使えるなら undefined）。 */
   blockOf(skillId: string): SkillBlock | "locked" | "target" | undefined {
+    // サブジョブの技（別のジョブの技）は、今使えるサブジョブの技のときだけ使える（外した・覚えていなければ locked）
+    const sub = this.isSubSkill(skillId);
     if (
       skillId !== "SKL-BASIC-ATTACK" &&
+      !sub &&
       !unlockedSkills(this.job, this.character.jobLevel(this.job.id)).includes(skillId)
     )
       return "locked";
@@ -2308,7 +2631,8 @@ export class ArenaSimulation {
     return skillBlock(def, {
       cooldown: this.cooldowns.remaining(skillId),
       mp: pact > 0 ? Infinity : this.mpValue,
-      gauge: this.jobGaugeValue.value,
+      // サブジョブの職能ゲージは作らない・受け継がない（仕様書v0.2 5.1）：サブジョブの技は、ゲージ0として判定する
+      gauge: sub ? 0 : this.jobGaugeValue.value,
       affinity: this.affinity,
     });
   }
@@ -2391,9 +2715,11 @@ export class ArenaSimulation {
   /** 効果（戦吼の強化など）・Lv・ジョブ・装備が変わったら、能力値を計算し直す（キャラクターの画面と同じ計算）。 */
   private refreshAttacker(): void {
     const focus = this.gaugePointInstance();
-    const version = `${String(this.buffs.version)}|${String(Number(focus?.values?.[0] ?? 0))}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}|${String(this.jobBoardVersion)}|${String(this.character.jobLevel(this.job.id))}`;
+    const version = `${String(this.buffs.version)}|${String(Number(focus?.values?.[0] ?? 0))}|${String(this.character.level)}|${this.job.id}|${String(this.equipmentVersion)}|${String(this.starVersion)}|${String(this.jobBoardVersion)}|${String(this.character.jobLevel(this.job.id))}|${this.character.subJob ?? ""}|${this.character.subJob === undefined ? "" : String(this.character.jobLevel(this.character.subJob))}`;
     if (this.attackerVersion === version) return;
     this.attackerVersion = version;
+    // サブジョブ（仕様書v0.2 5.1）：適性・副職紋。サブジョブが無ければ渡さない（今までと同じ計算）
+    const sub = this.subJob;
     this.sheetValue = buildCharacterSheet(this.db, this.tags, {
       character: this.character,
       job: this.job,
@@ -2401,6 +2727,7 @@ export class ArenaSimulation {
       extraEffects: this.extraEffects(),
       starBoard: { allocation: this.stars.nodes, points: this.starPoints },
       jobBoard: this.jobBoard,
+      ...(sub === undefined ? {} : { subJob: sub, subJobBoard: this.subBoardOf(sub.id) }),
     });
     this.mpValue = Math.min(this.mpValue, this.sheetValue.maxMp);
     // ユニークの潜在効果：初めて条件を満たしたら見つけたことにして、知らせる（仕様書v0.2 3.7）
@@ -2431,8 +2758,14 @@ export class ArenaSimulation {
     g.takenGainMultiplier = Math.max(0, 1 + jv.stat("STAT-GAUGE-GAIN-TAKEN").increased);
     g.floor = jv.stat("STAT-GAUGE-FLOOR").value;
     g.maxBonus = jv.stat("STAT-GAUGE-MAX-BONUS").value;
-    // 契約枠（召喚士）：メインジョブのゲージの最大値＋加算（職詞「契約枠+1」）。契約枠の無いジョブは0
-    this.minionField.squad.capacity = contractCapacity(g.def, "main", g.maxBonus);
+    // 契約枠（召喚士）：メインジョブのゲージの最大値＋加算（職詞「契約枠+1」）。メインに契約枠が無く、サブジョブが
+    // 召喚士なら6に固定（D-SUB-6）。どちらにも無ければ0
+    this.minionField.squad.capacity = jobContractCapacity(
+      this.db,
+      this.job,
+      this.subJob,
+      g.maxBonus,
+    );
     // 職詞「位相を1から開始する」（位相のゲージだけ。最大値の後に反映する）
     g.startValue = jv.stat("STAT-GAUGE-START").value;
     // 職奥義「疾風」：移動中も集中が半分の速さで増える
@@ -2497,16 +2830,20 @@ export class ArenaSimulation {
     if (def === undefined) return;
     // 終結技は、使う前のゲージの量で強さが決まる
     // 職奥義「無限連撃」：終結技はコンボ点を使わない代わりに、CDが決まった秒数になる
-    const endlessCd = def.finisher === undefined ? 0 : this.view.stat("STAT-JOB-ENDLESS-CD").value;
-    const cost = def.gauge?.cost;
+    // サブジョブの技（仕様書v0.2 5.1・docs/progress D-SUBG-4）：職能ゲージを受け継がないので、メインジョブの
+    // ゲージを使わない・増やさない（技の gauge の項目を全て無視する）・段階の変化（激化）も合成魔法も無い
+    const sub = this.isSubSkill(def.id);
+    const endlessCd =
+      def.finisher === undefined || sub ? 0 : this.view.stat("STAT-JOB-ENDLESS-CD").value;
+    const cost = sub ? undefined : def.gauge?.cost;
     const spent = cost === "all" ? this.jobGaugeValue.value : (cost ?? 0);
     // ゲージの量で値が変わる効果（集中の会心率）を持つゲージを使う技は、使う前の能力値で当てる
     const castSheet =
       spent > 0 && this.jobGaugeValue.def.pointEffect !== undefined ? this.sheetValue : undefined;
     // 位相（魔法使い）：位相が足りていて、直前の2つの属性の合成魔法がある呪文は、合成魔法に変わる
-    const fusion = this.jobGaugeValue.fusionFor(def.tags);
+    const fusion = sub ? undefined : this.jobGaugeValue.fusionFor(def.tags);
     const resolved: ResolvedSkill = resolveSkill(this.db, def, {
-      stages: this.jobGaugeValue.stages,
+      stages: sub ? [] : this.jobGaugeValue.stages,
       ...(fusion === undefined ? {} : { fusion: { id: fusion.id, mods: fusion.mods } }),
       weaponTags: this.tags.closure(this.sheetValue.weaponTags),
       dualWield: this.sheetValue.offAttacker !== undefined,
@@ -2553,15 +2890,15 @@ export class ArenaSimulation {
         this.view.stat("STAT-COOLDOWN-REDUCTION").value,
       ),
     );
-    if (def.gauge?.cost !== undefined && !(endlessCd > 0)) this.jobGaugeValue.spend(def.gauge.cost);
+    if (cost !== undefined && !(endlessCd > 0)) this.jobGaugeValue.spend(cost);
     // 職奥義「怒涛」：解放技の後の一定時間、職技のCD-50%
     const surge = this.view.stat("STAT-JOB-SURGE").value;
     if (surge > 0 && def.tags.includes("TAG-FORM-RELEASE"))
       this.buffs.add("EFF-BUFF-SURGE", surge, "surge");
-    if (def.gauge?.gainOnUse !== undefined) this.jobGaugeValue.add(def.gauge.gainOnUse);
+    if (!sub && def.gauge?.gainOnUse !== undefined) this.jobGaugeValue.add(def.gauge.gainOnUse);
     this.jobGaugeValue.markCombat();
     // 位相：呪文を使うと変わる。合成魔法に変わったときは、位相を戻して直前の属性を忘れる（D-MAG-1・D-MAG-4）
-    if (def.tags.includes("TAG-FORM-SPELL")) {
+    if (!sub && def.tags.includes("TAG-FORM-SPELL")) {
       if (fusion === undefined)
         this.jobGaugeValue.onSpellCast(this.jobGaugeValue.phaseElementOf(def.tags));
       else this.jobGaugeValue.useFusion();
@@ -2599,6 +2936,7 @@ export class ArenaSimulation {
         hit: new Map(),
         ...(castSheet === undefined ? {} : { castSheet }),
         ...(counter > 0 ? { counter } : {}),
+        ...(sub ? { sub: true } : {}),
       },
     };
   }
@@ -2713,7 +3051,8 @@ export class ArenaSimulation {
             t.position = pullTowards(d, p.origin, p.speed * dt, PULL_MIN_DISTANCE);
         }
       }
-      for (const z of tick.zones) this.zoneRuns.push({ exec: z, hit: new Map() });
+      for (const z of tick.zones)
+        this.zoneRuns.push({ exec: z, hit: new Map(), ...(run.sub === true ? { sub: true } : {}) });
       if (tick.selfBuff !== undefined) {
         for (const e of tick.selfBuff.effects)
           this.buffs.add(
@@ -3054,7 +3393,8 @@ export class ArenaSimulation {
       heavy ? this.tags.closure([...first.skill.damage.tags, "TAG-FORM-HEAVY"]) : base,
     );
     // コンボ点：1回の使用で、1体以上に当たれば1回だけ増える（docs/progress D-U10-1）
-    const gain = first.skill.def.gauge?.gainOnHit;
+    // サブジョブの技の gainOnHit（盗賊の技のコンボ点など）は、メインジョブのゲージに入れない（D-SUBG-4）
+    const gain = run.sub === true ? undefined : first.skill.def.gauge?.gainOnHit;
     if (gain !== undefined && run.gained !== true) {
       run.gained = true;
       this.jobGaugeValue.add(gain);

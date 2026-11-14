@@ -248,6 +248,10 @@ export const skillModsSchema = baseSkillModsSchema.extend({
 });
 export type SkillMods = z.infer<typeof skillModsSchema>;
 
+/** サブジョブの技としての規則（skillSchema の subJobRule）。 */
+export const SUB_JOB_RULES = ["unavailable"] as const;
+export type SubJobRule = (typeof SUB_JOB_RULES)[number];
+
 /** 技の定義（仕様書5章、補助仕様書3.5・3.6）。 */
 export const skillSchema = z.strictObject({
   id: idSchema,
@@ -328,6 +332,12 @@ export const skillSchema = z.strictObject({
   dualWieldVariant: skillModsSchema.optional(),
   /** 必要な武器適性（仕様書v0.2 5.1：省略すると、どの適性でも使える）。 */
   requiredAffinity: z.enum(AFFINITIES).optional(),
+  /**
+   * サブジョブの技として使うときの規則（仕様書v0.2 5.1「簡易動作」・MVP後の機能の提案 2章の subJobRule）。
+   * unavailable＝サブジョブの技としては使えない（戦士の解放技：職能ゲージを受け継がないので闘志100にならない）。
+   * 省略すると、サブジョブの技としても使える（ゲージは受け継がない）。docs/progress D-SUB-6
+   */
+  subJobRule: z.enum(SUB_JOB_RULES).optional(),
   ...provisionalFields,
 });
 export type SkillDef = z.infer<typeof skillSchema>;
@@ -446,72 +456,106 @@ export const gaugeSchema = z.strictObject({
 export type GaugeDef = z.infer<typeof gaugeSchema>;
 
 /** ジョブの定義（仕様書5章）。 */
-export const jobSchema = z.strictObject({
-  id: idSchema,
-  tag: idSchema,
-  text: textKeySchema,
-  gauge: idSchema.optional(),
-  /** 技と、覚えるジョブLv（補助仕様書3.5）。 */
-  skills: z.array(z.strictObject({ skill: idSchema, level: z.number().int().min(1) })),
-  /** 武器の種類のタグ → 適性（仕様書5章）。書かれていない武器はC。 */
-  affinity: z.record(idSchema, z.enum(AFFINITIES)),
-  /** 二刀流の適性（できないジョブは省略）。 */
-  dualWield: z.enum(AFFINITIES).optional(),
-  /** 出自にしたときの初期能力値（補助仕様書3.2）。 */
-  originAttributes: z
-    .strictObject({
-      go: z.number().int().nonnegative(),
-      jin: z.number().int().nonnegative(),
-      ri: z.number().int().nonnegative(),
-      kon: z.number().int().nonnegative(),
-    })
-    .optional(),
-  /** 技の枠の初期の並び（枠1から。補助仕様書1.1・3.5。docs/progress D-U12-9）。省略すると通常攻撃だけ。 */
-  defaultSlots: z.array(idSchema).max(6).optional(),
-  /** 出自にしたときの初期の武器のベース（補助仕様書3.4）。 */
-  startingWeapon: idSchema.optional(),
-  /** 出自にしたときの初期の副手（騎士の盾。仕様書v0.2 5.3「盾を装備して」）。省略すると副手は空。 */
-  startingOffHand: idSchema.optional(),
-  /**
-   * メインジョブのあいだ、いつも働く効果（騎士が立てる誓い。仕様書v0.2 5.3「出撃前に1つ立てる」）。
-   * 誓いを選ぶ操作はまだ無いので、守護の誓いに固定している（docs/progress D-KNT-4）。
-   */
-  passiveEffects: z.array(idSchema).optional(),
-  /** 背面からのヒットの補正（メインジョブのときだけ。盗賊：会心率+10%（固定値）・付与率+25%。仕様書5.6）。 */
-  backstabBonus: z
-    .strictObject({ critChance: z.number().min(0).max(1), ailmentChance: z.number().min(0).max(1) })
-    .optional(),
-  /**
-   * 適正間合い（メインジョブのときだけ。弓使い：敵との距離が6〜10mなら与ダメージ+20%（加算）、
-   * 3m以内なら-20%。仕様書v0.2 5.7）。上限は能力値 STAT-JOB-RANGE-MAX で延びる。
-   */
-  preferredRange: z
-    .strictObject({
-      min: z.number().nonnegative(),
-      max: z.number().nonnegative(),
-      bonus: z.number(),
-      close: z.number().nonnegative(),
-      closePenalty: z.number(),
-    })
-    .optional(),
-  /**
-   * ガード・パリィの規則（騎士。メインジョブのときだけ。仕様書v0.2 5.3）。省略すると、そのジョブはガードしない
-   * （盾を持っていても、技の枠2は普通の技の枠のまま）。
-   */
-  guard: guardRuleSchema.optional(),
-  /**
-   * 上位職・混成職の元のジョブ（MVP後の機能の提案 4章：データの形だけ。挙動は変えない）。
-   * 上位職は1つ（例：暗殺者 ← 盗賊）、混成職は2つ（例：魔弾射手 ← 弓使い・魔法使い。仕様書v0.2 5.8）。
-   */
-  advancedFrom: z.array(idSchema).min(1).max(2).optional(),
-  /** 上位職・混成職になるための試練（形だけ。内容は上位職ごとの仕様書で決める。M-02）。 */
-  trial: z
-    .strictObject({
-      text: textKeySchema,
-      /** 元のジョブに必要なジョブLv（仕様書v0.2 5.1：ジョブLv30）。 */
-      jobLevel: z.number().int().min(1),
-    })
-    .optional(),
-  ...provisionalFields,
-});
+export const jobSchema = z
+  .strictObject({
+    id: idSchema,
+    tag: idSchema,
+    text: textKeySchema,
+    gauge: idSchema.optional(),
+    /** 技と、覚えるジョブLv（補助仕様書3.5）。 */
+    skills: z.array(z.strictObject({ skill: idSchema, level: z.number().int().min(1) })),
+    /** 武器の種類のタグ → 適性（仕様書5章）。書かれていない武器はC。 */
+    affinity: z.record(idSchema, z.enum(AFFINITIES)),
+    /** 二刀流の適性（できないジョブは省略）。 */
+    dualWield: z.enum(AFFINITIES).optional(),
+    /** 出自にしたときの初期能力値（補助仕様書3.2）。 */
+    originAttributes: z
+      .strictObject({
+        go: z.number().int().nonnegative(),
+        jin: z.number().int().nonnegative(),
+        ri: z.number().int().nonnegative(),
+        kon: z.number().int().nonnegative(),
+      })
+      .optional(),
+    /** 技の枠の初期の並び（枠1から。補助仕様書1.1・3.5。docs/progress D-U12-9）。省略すると通常攻撃だけ。 */
+    defaultSlots: z.array(idSchema).max(6).optional(),
+    /** 出自にしたときの初期の武器のベース（補助仕様書3.4）。 */
+    startingWeapon: idSchema.optional(),
+    /** 出自にしたときの初期の副手（騎士の盾。仕様書v0.2 5.3「盾を装備して」）。省略すると副手は空。 */
+    startingOffHand: idSchema.optional(),
+    /**
+     * メインジョブのあいだ、いつも働く効果（騎士が立てる誓い。仕様書v0.2 5.3「出撃前に1つ立てる」）。
+     * 誓いを選ぶ操作はまだ無いので、守護の誓いに固定している（docs/progress D-KNT-4）。
+     */
+    passiveEffects: z.array(idSchema).optional(),
+    /** 背面からのヒットの補正（メインジョブのときだけ。盗賊：会心率+10%（固定値）・付与率+25%。仕様書5.6）。 */
+    backstabBonus: z
+      .strictObject({
+        critChance: z.number().min(0).max(1),
+        ailmentChance: z.number().min(0).max(1),
+      })
+      .optional(),
+    /**
+     * 適正間合い（メインジョブのときだけ。弓使い：敵との距離が6〜10mなら与ダメージ+20%（加算）、
+     * 3m以内なら-20%。仕様書v0.2 5.7）。上限は能力値 STAT-JOB-RANGE-MAX で延びる。
+     */
+    preferredRange: z
+      .strictObject({
+        min: z.number().nonnegative(),
+        max: z.number().nonnegative(),
+        bonus: z.number(),
+        close: z.number().nonnegative(),
+        closePenalty: z.number(),
+      })
+      .optional(),
+    /**
+     * ガード・パリィの規則（騎士。メインジョブのときだけ。仕様書v0.2 5.3）。省略すると、そのジョブはガードしない
+     * （盾を持っていても、技の枠2は普通の技の枠のまま）。
+     */
+    guard: guardRuleSchema.optional(),
+    /**
+     * 上位職・混成職の元のジョブ（MVP後の機能の提案 4章：データの形だけ。挙動は変えない）。
+     * 上位職は1つ（例：暗殺者 ← 盗賊）、混成職は2つ（例：魔弾射手 ← 弓使い・魔法使い。仕様書v0.2 5.8）。
+     */
+    advancedFrom: z.array(idSchema).min(1).max(2).optional(),
+    /** 上位職・混成職になるための試練（形だけ。内容は上位職ごとの仕様書で決める。M-02）。 */
+    trial: z
+      .strictObject({
+        text: textKeySchema,
+        /** 元のジョブに必要なジョブLv（仕様書v0.2 5.1：ジョブLv30）。 */
+        jobLevel: z.number().int().min(1),
+      })
+      .optional(),
+    /**
+     * サブジョブにしたときに使える技2つ（仕様書v0.2 5.1「技2つ（基本職の技に限る）」・docs/progress D-SUB-4）。
+     * そのジョブの技（skills）から選ぶ。使えるのは、サブジョブのジョブLvがその技を覚えるジョブLv以上のとき。
+     * 省略すると、サブジョブにしても技は使えない。
+     */
+    subSkills: z
+      .strictObject({
+        skills: z.tuple([idSchema, idSchema]),
+        ...provisionalFields,
+      })
+      .optional(),
+    ...provisionalFields,
+  })
+  .superRefine((job, ctx) => {
+    const sub = job.subSkills?.skills;
+    if (sub === undefined) return;
+    const own = new Set(job.skills.map((s) => s.skill));
+    sub.forEach((id, i) => {
+      if (!own.has(id))
+        ctx.addIssue({
+          code: "custom",
+          path: ["subSkills", "skills", i],
+          message: `サブジョブの技 ${id} は、このジョブの技（skills）に無い`,
+        });
+    });
+    if (sub[0] === sub[1])
+      ctx.addIssue({
+        code: "custom",
+        path: ["subSkills", "skills", 1],
+        message: `サブジョブの技 ${sub[1]} が重なっている`,
+      });
+  });
 export type JobDef = z.infer<typeof jobSchema>;

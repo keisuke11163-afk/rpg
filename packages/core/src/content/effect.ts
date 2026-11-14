@@ -13,6 +13,7 @@ export const EFFECT_ORIGINS = [
   "keystone", // 天極
   "constellation", // 星座の完成ボーナス
   "jobNode", // 職紋盤のノード
+  "subJob", // サブジョブ（副職紋のノード。職紋盤の効果を読み替える。乗算は持てない＝jobNode と同じ。docs/progress D-SUB-3）
   "jobMastery", // 職奥義
   "jobSkill", // 職技・職能（ゲージの段階・上位職の仕組みを含む）
   "schoolNode", // 流派盤のノード

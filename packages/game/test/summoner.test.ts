@@ -440,6 +440,8 @@ describe("召喚のジョブ・召喚物をデータだけで足す（extensibil
                 ...summoner,
                 id: JOB,
                 skills: [{ skill: "SKL-TEST-BAT", level: 1 }],
+                // 技を置き換えたので、サブジョブの技（D-SUB-4。そのジョブの技から選ぶ）も持たせない
+                subSkills: undefined,
                 defaultSlots: ["SKL-BASIC-ATTACK", "SKL-TEST-BAT"],
               },
             ],

@@ -795,6 +795,26 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
           message: `元のジョブ ${from} が自分自身か、重なっている`,
         });
     });
+    // サブジョブの技（docs/progress D-SUB-4）：そのジョブの技にあること・重ならないことは形の検証（jobSchema）。
+    // ここでは、サブジョブで使えない技（subJobRule が unavailable）を選んでいないこと、上位職に付けていないことを確かめる
+    if (job.subSkills !== undefined && job.advancedFrom !== undefined)
+      err({
+        code: "schema",
+        file,
+        id: job.id,
+        path: "subSkills",
+        message: "上位職・混成職はサブジョブにできないので、サブジョブの技を持たない",
+      });
+    job.subSkills?.skills.forEach((id, i) => {
+      if (skillMap.get(id)?.subJobRule === "unavailable")
+        err({
+          code: "schema",
+          file,
+          id: job.id,
+          path: `subSkills.skills.${String(i)}`,
+          message: `技 ${id} はサブジョブの技として使えない（subJobRule: unavailable）`,
+        });
+    });
     if (job.trial !== undefined) checkText(job.trial.text, file, job.id);
     if (job.trial !== undefined && job.advancedFrom === undefined)
       err({

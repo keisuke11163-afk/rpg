@@ -25,7 +25,12 @@ import {
   stageOneView,
 } from "../effects/evaluate.ts";
 import type { TagIndex } from "../effects/tag-index.ts";
-import { type JobBoardAllocation, jobBoardPoints } from "../board/job-board.ts";
+import {
+  type JobBoardAllocation,
+  jobBoardPoints,
+  subJobBoardPoints,
+  subJobEffectWorks,
+} from "../board/job-board.ts";
 import { DEFENSE_EFFECTS, type Equipment } from "../items/equipment.ts";
 import { requirementMet } from "../items/equipment.ts";
 import type { ItemInstance } from "../items/generate.ts";
@@ -93,6 +98,18 @@ export interface CharacterSheetInput {
   };
   /** メインジョブの職紋盤の取得（省略すると職紋盤なし）。ポイントはメインジョブのジョブLv−1。 */
   readonly jobBoard?: JobBoardAllocation;
+  /**
+   * サブジョブ（character.subJob のデータ。省略するとサブジョブなし＝今までと同じ結果。docs/progress D-SUB-7）。
+   * 渡すと、武器適性を「メインとサブ（1段階下げる）の高い方」にする（仕様書v0.2 5.1）。
+   * character.subJob と違うジョブを渡すと RangeError（呼ぶ側の誤り）。
+   * パッシブ（職詞・誓いなど、メインジョブのあいだだけ働く効果）・職能ゲージは受け継がない。
+   */
+  readonly subJob?: JobDef;
+  /**
+   * 副職紋の取得（role が sub で、サブジョブの盤のもの。それ以外は無視する）。ポイントは
+   * min(20, サブジョブのジョブLv−1)（docs/progress D-SUB-2）。サブジョブを渡さなければ無視する。
+   */
+  readonly subJobBoard?: JobBoardAllocation;
 }
 
 /** 主手の武器の状態。 */
@@ -125,7 +142,7 @@ export interface CharacterSheet {
   readonly offAttacker: DamageAttacker | undefined;
   /** 主手の武器のタグ（素手なら素手のタグ）。技の変化・適性に使う。 */
   readonly weaponTags: readonly string[];
-  /** メインジョブの、主手の武器への適性。 */
+  /** 主手の武器への適性（メインジョブ。サブジョブがあれば、1段階下げたサブの適性との高い方。仕様書v0.2 5.1）。 */
   readonly affinity: Affinity;
   /** 攻撃速度（回/秒）＝ 武器の基礎 ×（1 ＋ 攻撃速度の増加 ＋ 適性の補正）。 */
   readonly attackSpeed: number;
@@ -149,6 +166,11 @@ export interface CharacterSheet {
   readonly moveSpeed: number;
   /** メインジョブの職紋盤の有効なノード（職奥義を含む）。 */
   readonly jobNodes: ReadonlySet<string>;
+  /**
+   * 副職紋の有効なノード（サブジョブが無ければ空）。ユニークの潜在効果の条件（jobNode）には使わない
+   * （条件はメインの職紋盤だけで判定する。docs/progress D-SUB-13）。
+   */
+  readonly subJobNodes: ReadonlySet<string>;
   /** 統一ボーナスの防具種（4部位以上。仕様書v0.2 3.3）。 */
   readonly uniform: ArmorType | undefined;
   /** 装備しているユニークの潜在効果と、条件を満たしているか（仕様書v0.2 3.7）。 */
@@ -192,6 +214,11 @@ export function buildCharacterSheet(
   input: CharacterSheetInput,
 ): CharacterSheet {
   const { character, job, equipment } = input;
+  const subJob = input.subJob;
+  if (subJob !== undefined && character.subJob !== subJob.id)
+    throw new RangeError(
+      `サブジョブ ${subJob.id} は、キャラクターのサブジョブ（${String(character.subJob)}）と違う`,
+    );
   const origin = character.attributes;
   const baseStats: Record<string, number> = { ...character.baseStats() };
   if (db.stats.has("STAT-WARD-DELAY")) baseStats["STAT-WARD-DELAY"] = BASE_WARD_DELAY;
@@ -207,10 +234,21 @@ export function buildCharacterSheet(
   const jobBoard = input.jobBoard?.job === job.id ? input.jobBoard : undefined;
   const jobPoints = jobBoardPoints(character.jobLevel(job.id));
   const jobActive = new Set(jobBoard?.active(jobPoints) ?? []);
+  // 副職紋（サブジョブの盤だけ。職奥義・接続ノードは無い。docs/progress D-SUB-2）
+  const subBoard =
+    subJob !== undefined && input.subJobBoard?.role === "sub" && input.subJobBoard.job === subJob.id
+      ? input.subJobBoard
+      : undefined;
+  const subPoints = subJob === undefined ? 0 : subJobBoardPoints(character.jobLevel(subJob.id));
+  const subActive = new Set(subBoard?.active(subPoints) ?? []);
   const gear = [
     ...(input.extraEffects ?? []),
     ...(equipment?.effects() ?? []),
     ...(jobBoard?.effects(jobPoints) ?? []),
+    // 職能ゲージの能力値（STAT-GAUGE-*）を変える効果は、サブジョブの副職紋では働かせない。
+    // ゲージの倍率はメインジョブのゲージにかかるので、サブの盤のゲージのノードを取ると、
+    // 受け継がないはずのゲージの効果がメインのゲージに混ざるため（docs/progress D-SUB-15）
+    ...(subBoard?.effects(subPoints) ?? []).filter((i) => subJobEffectWorks(db, i.effectId)),
     // メインジョブのあいだ、いつも働く効果（騎士の誓い。サブジョブ・ほかのジョブには効かない）
     ...(job.passiveEffects ?? []).map((effectId) => ({
       effectId,
@@ -355,7 +393,7 @@ export function buildCharacterSheet(
           baseAttackSpeed: main.attackSpeed,
         };
   const weaponTags = main?.weapon.tags ?? [UNARMED_WEAPON_TAG];
-  const affinity = weaponAffinity(tags, job, weaponTags);
+  const affinity = weaponAffinity(tags, job, weaponTags, subJob);
   const attackSpeed =
     (main?.attackSpeed ?? UNARMED_ATTACK_SPEED) *
     Math.max(
@@ -406,6 +444,7 @@ export function buildCharacterSheet(
     moveSpeed: Math.max(MIN_MOVE_SPEED_FACTOR, 1 + view.stat("STAT-MOVE-SPEED").increased),
     uniform: equipment?.uniformType(),
     jobNodes: jobActive,
+    subJobNodes: subActive,
     latents,
   };
 }

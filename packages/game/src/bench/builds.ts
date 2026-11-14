@@ -430,3 +430,52 @@ export const BENCH_BUILDS: readonly BenchBuild[] = [
     standoff: { min: 6, max: 10, close: 3 },
   },
 ];
+
+const baseline = (id: string): BenchBuild => {
+  const b = BENCH_BUILDS.find((x) => x.id === id);
+  if (b === undefined) throw new Error(`ビルド ${id} が無い`);
+  return b;
+};
+
+/**
+ * サブジョブを使うビルド（キャラLv25・メインのジョブLv25・サブジョブのジョブLv20。docs/progress D-SUBG-9）。
+ * 撃破時間の基準（BENCH_BUILDS・Lv20）とは別に測る（`pnpm bench -- --subjob`）。装備・星辰盤・職紋盤は基準のビルドと同じ。
+ */
+export const SUBJOB_BENCH_BUILDS: readonly BenchBuild[] = [
+  {
+    ...baseline("baseline-warrior"),
+    id: "baseline-warrior-sub-rogue",
+    name: "基準・戦士＋サブ盗賊（Lv25。旋風斬の代わりに毒刃・副職紋で会心と付与）",
+    skills: [
+      "SKL-BASIC-ATTACK",
+      "SKL-WARRIOR-SWEEP",
+      "SKL-WARRIOR-CHARGE",
+      "SKL-WARRIOR-WARCRY",
+      "SKL-WARRIOR-EARTHSPLITTER",
+      "SKL-ROGUE-POISON",
+    ],
+    subJob: {
+      job: "JOB-ROGUE",
+      jobLevel: 20,
+      nodes: ["JBN-ROGUE-T7", "JBN-ROGUE-VITALS", "JBN-ROGUE-QUICK", "JBN-ROGUE-B1B"],
+    },
+  },
+  {
+    ...baseline("baseline-mage"),
+    id: "baseline-mage-sub-summoner",
+    name: "基準・魔法使い＋サブ召喚士（Lv25。骸兵と魔狼を前に出して、離れて撃つ。契約枠6）",
+    skills: [
+      "SKL-BASIC-ATTACK",
+      "SKL-MAGE-FIREBALL",
+      "SKL-MAGE-ICELANCE",
+      "SKL-MAGE-METEOR",
+      "SKL-SUMMONER-SKELETON",
+      "SKL-SUMMONER-DIRE-WOLF",
+    ],
+    subJob: {
+      job: "JOB-SUMMONER",
+      jobLevel: 20,
+      nodes: ["JBN-SUMMONER-T7", "JBN-SUMMONER-WARLORD", "JBN-SUMMONER-BONEBIND"],
+    },
+  },
+];

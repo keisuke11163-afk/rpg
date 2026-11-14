@@ -409,6 +409,17 @@ export class ArenaScene extends Phaser.Scene {
         contract: sim.minionField.squad.used,
         guarding: sim.guard?.raised ?? false,
       }),
+      // サブジョブ（開発版だけ）：設定できるか・今のサブジョブ・サブの技・枠の技・副職紋のポイントと取得
+      subJob: () => ({
+        canSet: sim.canSetSubJob,
+        id: sim.subJob?.id ?? null,
+        skills: sim.subSkills(),
+        slots: sim.loadout.map((l) => l.skill),
+        points: sim.subJobBoardPoints,
+        spent: sim.subJobBoard?.spent ?? 0,
+        nodes: [...(sim.subJobBoard?.nodes ?? [])],
+        mainJob: sim.job.id,
+      }),
       // セーブ（U-13）：今すぐ保存する・スロットの一覧・最後の結果（開発版だけ）
       saveNow: () => this.saveNow(),
       saves: () => ({

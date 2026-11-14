@@ -135,6 +135,7 @@
     "action": { "type": "strike", "shape": { "type": "sector", "radius": 4, "angleDeg": 180 } },
     "staggerCoefficient": 2.0,
     "gauge": { "requires": 100, "cost": "all" },
-    "selfEffects": [{ "effect": "EFF-WARRIOR-ROUT-GUARD", "duration": 8 }]
+    "selfEffects": [{ "effect": "EFF-WARRIOR-ROUT-GUARD", "duration": 8 }],
+    "subJobRule": "unavailable"
   }
 ]
