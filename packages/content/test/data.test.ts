@@ -103,3 +103,17 @@ describe("壊したデータを検出する（開発計画書 T17）", () => {
     expect(loadContent([wrongVersion]).issues.length).toBeGreaterThan(0);
   });
 });
+
+describe("同じ優先度の上書き（本仕様書 2.4.1 規則4）", () => {
+  it("検出する", () => {
+    const ov = (id: string, priority: number): object =>
+      effect(id, "天極", [{ kind: "挙動", hook: "上書き:移動速度", params: { priority } }]);
+    const base = file("tags", [tag("TAG-A-ONE")]);
+    expect(messages([base, file("effects", [ov("EFF-O-1", 3), ov("EFF-O-2", 3)])])).toMatch(
+      /同じ優先度/,
+    );
+    expect(
+      loadContent([base, file("effects", [ov("EFF-O-1", 3), ov("EFF-O-2", 4)])]).issues,
+    ).toEqual([]);
+  });
+});

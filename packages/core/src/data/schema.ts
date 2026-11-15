@@ -31,6 +31,7 @@ export type TagDef = z.infer<typeof tagSchema>;
 export const SOURCES = [
   "詞",
   "基本ノード",
+  "輝星",
   "天極",
   "転変",
   "ユニーク",

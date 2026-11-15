@@ -184,6 +184,25 @@ export function validateData(data: DataSet): DataIssue[] {
       }
     });
   }
+
+  // 規則4（本仕様書 2.4.1）：同じ数値を上書きする効果で、同じ優先度は作らない
+  const overrides = new Map<string, string>();
+  for (const effect of data.effects) {
+    for (const m of effect.modifiers) {
+      if (m.kind !== "挙動" || !m.hook.startsWith("上書き:")) continue;
+      const priority = typeof m.params?.["priority"] === "number" ? m.params["priority"] : 0;
+      const key = `${m.hook}#${String(priority)}`;
+      const other = overrides.get(key);
+      if (other !== undefined && other !== effect.id) {
+        issues.push({
+          where: `effects:${effect.id}`,
+          message: `${m.hook} の優先度 ${String(priority)} が ${other} と同じ（同じ優先度の上書きは作れない）`,
+        });
+      } else {
+        overrides.set(key, effect.id);
+      }
+    }
+  }
   return issues;
 }
 
