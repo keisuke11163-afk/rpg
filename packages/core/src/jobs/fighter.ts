@@ -9,6 +9,7 @@ import type { HitShape } from "../combat/geometry.ts";
 import type { GroundEffects } from "../combat/zones.ts";
 import type { WeaponDef } from "../combat/weapons.ts";
 import type { GearStats } from "../items/gear.ts";
+import type { Evaluation } from "../effects/evaluate.ts";
 import { JobGauge, type GaugeDef } from "./gauge.ts";
 import {
   APTITUDE_SPEED,
@@ -112,6 +113,28 @@ export class Fighter {
     this.gauge = new JobGauge(init.gauge);
   }
 
+  /** 星辰盤・職紋盤などの効果の評価結果と、技ごとのタグを求める関数 */
+  private effects:
+    { ev: Evaluation; tagsFor: (skill: SkillDef) => ReadonlySet<string> } | undefined;
+
+  /** ツリーなどの効果を反映する。tagsFor は、技が持つタグ（親タグ展開済みのID）を返す */
+  setEffects(
+    ev: Evaluation | undefined,
+    tagsFor: (skill: SkillDef) => ReadonlySet<string> = () => new Set(),
+  ): void {
+    this.effects = ev ? { ev, tagsFor } : undefined;
+  }
+
+  /** ツリーの効果の合計（加算％）。stat は能力値の名前 */
+  private fx(stat: string, skill?: SkillDef): { addPct: number; mult: number; flat: number } {
+    if (!this.effects) return { addPct: 0, mult: 1, flat: 0 };
+    const r = this.effects.ev.stat({
+      stat,
+      ...(skill ? { tags: this.effects.tagsFor(skill) } : {}),
+    });
+    return { addPct: r.addPct, mult: r.mult, flat: r.flat };
+  }
+
   /** 装備の能力値を反映する。最大HPが変わったら、HPは範囲内に収める */
   setGear(gear: GearStats | undefined): void {
     this.gearStats = gear;
@@ -123,7 +146,7 @@ export class Fighter {
   }
 
   get maxHp(): number {
-    return this.init.maxHp + this.gearTotal("最大HP");
+    return this.init.maxHp + this.gearTotal("最大HP") + this.fx("最大HP").flat;
   }
 
   /** 実際に使う武器の値（装備があれば装備の値） */
@@ -152,7 +175,11 @@ export class Fighter {
   get attackSpeed(): number {
     return (
       this.weapon.speed *
-      (1 + APTITUDE_SPEED[this.init.aptitude] + this.attackSpeedBonus + this.gearTotal("攻撃速度"))
+      (1 +
+        APTITUDE_SPEED[this.init.aptitude] +
+        this.attackSpeedBonus +
+        this.gearTotal("攻撃速度") +
+        this.fx("攻撃速度").addPct)
     );
   }
 
@@ -226,8 +253,11 @@ export class Fighter {
     const weapon = this.weapon;
     const range = this.weaponDamageRange();
     const strength = this.init.stats?.["剛"] ?? 0;
+    const treeDamage = this.fx("ダメージ", eff.skill);
+    const treeBreak = this.fx("崩し値", eff.skill);
     const addPct =
       this.damageAddPct +
+      treeDamage.addPct +
       strength * 0.002 +
       (this.buffs.attackBonus.left > 0 ? this.buffs.attackBonus.value : 0);
     const ailmentBase: Partial<Record<string, number>> = { ...eff.ailments };
@@ -249,17 +279,17 @@ export class Fighter {
             : {}),
         },
         skillMultiplier: eff.multiplier,
-        generic: { addPct, mult: this.damageMult },
+        generic: { addPct, mult: this.damageMult * treeDamage.mult },
         byElement: {
           physical: { addPct: this.gearTotal("物理ダメージ増加%") },
           fire: { addPct: this.gearTotal("火ダメージ増加") },
         },
       },
       weaponCrit: weapon.crit,
-      critIncrease: this.critIncrease,
+      critIncrease: this.critIncrease + this.fx("会心率増加%").addPct,
       accuracy: (this.init.accuracy ?? 2) + this.gearTotal("命中"),
       breakCoefficient: eff.skill.breakCoefficient,
-      breakBonus: eff.breakBonus + this.gearTotal("崩し値"),
+      breakBonus: eff.breakBonus + this.gearTotal("崩し値") + treeBreak.addPct,
       ailmentBase: ailmentBase,
       ailmentBonus: this.gearTotal("状態異常付与率"),
       ...(bs || this.gearTotal("背面会心率") > 0

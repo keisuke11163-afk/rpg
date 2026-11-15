@@ -33,6 +33,12 @@ const builtin: Record<string, ConditionFn> = {
     const key = `装備数:${typeof c["armor_class"] === "string" ? c["armor_class"] : ""}`;
     return (ctx.counts[key] ?? 0) >= (typeof c["min"] === "number" ? c["min"] : 1);
   },
+  /** { type: "数え上げ", name: "取得星域数", min: 4 }：counts の値を見る */
+  数え上げ: (c, ctx) => {
+    const name = typeof c["name"] === "string" ? c["name"] : "";
+    const min = typeof c["min"] === "number" ? c["min"] : 1;
+    return (ctx.counts[name] ?? 0) >= min;
+  },
   /** { type: "旗", name: "冷却状態の敵" } */
   旗: (c, ctx) => ctx.flags.has(typeof c["name"] === "string" ? c["name"] : ""),
   常に: () => true,

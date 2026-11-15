@@ -8,32 +8,26 @@
         {
           "kind": "加算％",
           "stat": "状態異常ダメージ",
-          "filter": { "ailment": "TAG-AIL-BLEED" },
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
           "value": 0.06
         },
         {
           "kind": "固定の追加",
           "stat": "状態異常の持続秒数",
-          "filter": { "ailment": "TAG-AIL-BLEED" },
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
           "value": 0.3
         }
       ],
-      "affects": { "打撃値": false, "基準値": false },
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
       "scope": "自分",
       "note": "開発計画書 6.4 例1（小星）。形の確認用",
-      "provisional": true
-    },
-    {
-      "id": "MUT-PRJ-001",
-      "source": "転変",
-      "target_skill_tags": { "all_of": ["TAG-FORM-PROJECTILE"] },
-      "modifiers": [
-        { "kind": "挙動", "hook": "投射物の追加", "params": { "count": 2, "spread_deg": 40 } },
-        { "kind": "乗算", "stat": "ダメージ", "value": 0.8 }
-      ],
-      "affects": { "打撃値": true, "基準値": true },
-      "scope": "自分の技",
-      "note": "本仕様書 10.1 の例（分裂の理）",
       "provisional": true
     }
   ]

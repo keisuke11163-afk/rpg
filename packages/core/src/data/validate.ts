@@ -35,7 +35,7 @@ export interface LoadResult {
 
 /** 生のJSONをスキーマで読み、データの集合にする。形の誤りは issues に集める */
 export function parseFiles(files: readonly RawFile[]): LoadResult {
-  const data: DataSet = { tags: [], effects: [] };
+  const data: DataSet = { tags: [], effects: [], starNodes: [], constellations: [] };
   const issues: DataIssue[] = [];
   for (const { file, kind, json } of files) {
     const wrapper = dataFileSchema.safeParse(json);
@@ -185,6 +185,24 @@ export function validateData(data: DataSet): DataIssue[] {
     });
   }
 
+  // 効果：共鳴変化の星域タグ、天極の代償の明記（本仕様書 10.4：代償がない天極は作らない）
+  for (const effect of data.effects) {
+    const rv = effect.resonance_variant;
+    if (rv && !tagIds.has(rv.region)) {
+      issues.push({
+        where: `effects:${effect.id}`,
+        message: `存在しないタグ ${rv.region}（共鳴変化）`,
+      });
+    }
+    if (effect.source === "天極" && !(effect.note ?? "").startsWith("代償：")) {
+      issues.push({
+        where: `effects:${effect.id}`,
+        message: "天極には「代償：」で始まる note が必要",
+      });
+    }
+  }
+  issues.push(...validateStarBoard(data, tagIds));
+
   // 規則4（本仕様書 2.4.1）：同じ数値を上書きする効果で、同じ優先度は作らない
   const overrides = new Map<string, string>();
   for (const effect of data.effects) {
@@ -201,6 +219,84 @@ export function validateData(data: DataSet): DataIssue[] {
       } else {
         overrides.set(key, effect.id);
       }
+    }
+  }
+  return issues;
+}
+
+/** 星辰盤の検証：つながりの双方向性・存在・到達可能性・星座・星門 */
+function validateStarBoard(data: DataSet, tagIds: ReadonlySet<string>): DataIssue[] {
+  const issues: DataIssue[] = [];
+  const nodes = new Map(data.starNodes.map((n) => [n.id, n]));
+  const effectIds = new Set(data.effects.map((e) => e.id));
+  for (const node of data.starNodes) {
+    const where = `starNodes:${node.id}`;
+    if (!tagIds.has(node.region))
+      issues.push({ where, message: `存在しない星域タグ ${node.region}` });
+    for (const link of node.links) {
+      const other = nodes.get(link);
+      if (!other) issues.push({ where, message: `存在しないノードへのつながり ${link}` });
+      else if (!other.links.includes(node.id)) {
+        issues.push({ where, message: `つながり ${link} が双方向ではない` });
+      }
+      if (link === node.id) issues.push({ where, message: "自分自身へのつながり" });
+    }
+    for (const e of node.effects) {
+      if (!effectIds.has(e)) issues.push({ where, message: `存在しない効果 ${e}` });
+    }
+    if (node.type === "星門" && !node.gate) issues.push({ where, message: "星門に条件がない" });
+    if (node.type === "始点" && !node.start) issues.push({ where, message: "始点に start がない" });
+    if (node.type !== "始点" && node.type !== "星門" && node.effects.length === 0) {
+      issues.push({ where, message: "効果のないノード" });
+    }
+    if (node.gate) {
+      for (const t of [
+        ...(node.gate.condition.tags?.all_of ?? []),
+        ...(node.gate.condition.tags?.any_of ?? []),
+      ]) {
+        if (!tagIds.has(t)) issues.push({ where, message: `星門の条件に存在しないタグ ${t}` });
+      }
+    }
+  }
+  // 全てのノードが、どれかの始点から到達できる
+  const starts = data.starNodes.filter((n) => n.type === "始点").map((n) => n.id);
+  const seen = new Set(starts);
+  const queue = [...starts];
+  while (queue.length > 0) {
+    const id = queue.pop() as string;
+    for (const link of nodes.get(id)?.links ?? []) {
+      if (nodes.has(link) && !seen.has(link)) {
+        seen.add(link);
+        queue.push(link);
+      }
+    }
+  }
+  for (const node of data.starNodes) {
+    if (!seen.has(node.id))
+      issues.push({ where: `starNodes:${node.id}`, message: "始点から到達できない" });
+  }
+  // 星座
+  for (const c of data.constellations) {
+    const where = `constellations:${c.id}`;
+    if (!effectIds.has(c.completionEffect)) {
+      issues.push({ where, message: `存在しない完成ボーナス ${c.completionEffect}` });
+    }
+    for (const id of c.nodes) {
+      const node = nodes.get(id);
+      if (!node) issues.push({ where, message: `存在しないノード ${id}` });
+      else if (node.constellation !== c.id)
+        issues.push({ where, message: `${id} の constellation が一致しない` });
+    }
+  }
+  for (const node of data.starNodes) {
+    if (
+      node.constellation !== undefined &&
+      !data.constellations.some((c) => c.id === node.constellation)
+    ) {
+      issues.push({
+        where: `starNodes:${node.id}`,
+        message: `存在しない星座 ${node.constellation}`,
+      });
     }
   }
   return issues;

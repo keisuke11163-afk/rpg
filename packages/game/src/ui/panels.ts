@@ -109,3 +109,53 @@ export function characterText(
   }
   return lines.join("\n");
 }
+
+import type { BoardData, BoardEvaluation, EffectDef, Modifier, StarNodeDef } from "@stella/core";
+
+function modifierText(m: Modifier, tagName: (id: string) => string): string {
+  if (m.kind === "挙動") return `【ルール】${m.hook}`;
+  if (m.kind === "変換") return `${m.stat}: ${tagName(m.from)}→${tagName(m.to)}`;
+  if (m.kind === "付け替え") return `${m.stat}を付け替える`;
+  const filter =
+    "filter" in m && m.filter
+      ? `[${[
+          ...(m.filter.tags?.all_of ?? []).map(tagName),
+          ...(m.filter.ailment ? [tagName(m.filter.ailment)] : []),
+        ].join("・")}] `
+      : "";
+  if (m.kind === "乗算") return `${filter}${m.stat} ×${String(m.value)}`;
+  if (m.kind === "固定の追加")
+    return `${filter}${m.stat} ${m.value >= 0 ? "+" : ""}${String(m.value)}`;
+  if (m.kind === "上限") return `${m.stat}の上限 ${String(m.value)}`;
+  return `${filter}${m.stat} ${m.value >= 0 ? "+" : ""}${(m.value * 100).toFixed(0)}%`;
+}
+
+/** 星辰盤のノードの説明（ホバーで出す）。休眠の理由も出す */
+export function describeStarNode(
+  node: StarNodeDef,
+  data: BoardData,
+  taken: boolean,
+  evaluation: BoardEvaluation,
+  tagName: (id: string) => string,
+): string {
+  const lines = [`【${node.type}】${node.name}${taken ? "（取得済み）" : ""}`];
+  if (node.gate) lines.push(`条件：${node.gate.label}`);
+  for (const eid of node.effects) {
+    const e: EffectDef | undefined = data.effects.get(eid);
+    if (!e) continue;
+    for (const m of e.modifiers) lines.push(`・${modifierText(m, tagName)}`);
+    if (e.note) lines.push(`　${e.note}`);
+    if (e.resonance_variant)
+      lines.push(`　共鳴変化（共鳴紋${String(e.resonance_variant.min_resonance)}個以上）あり`);
+  }
+  if (node.constellation) {
+    const c = data.constellations.get(node.constellation);
+    if (c) {
+      const done = c.nodes.filter((n) => evaluation.active.includes(n)).length;
+      lines.push(`星座「${c.name}」${String(done)}/${String(c.nodes.length)}`);
+    }
+  }
+  const dormant = evaluation.dormant.find((d) => d.id === node.id);
+  if (dormant) lines.push(`！休眠：${dormant.reason}`);
+  return lines.join("\n");
+}

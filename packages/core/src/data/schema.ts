@@ -135,6 +135,15 @@ export const affectsSchema = z.strictObject({
   基準値: affectFlag,
 });
 
+/** 共鳴変化（本仕様書 6.1）：その星域の共鳴紋が min_resonance 個以上のとき、修正値を差し替える・足す */
+export const resonanceVariantSchema = z.strictObject({
+  region: idSchema,
+  min_resonance: z.number().int().min(1),
+  /** 種類と能力値が同じ修正値を、これで置き換える */
+  replace: z.array(modifierSchema).optional(),
+  add: z.array(modifierSchema).optional(),
+});
+
 export const effectSchema = z.strictObject({
   id: idSchema,
   source: sourceSchema,
@@ -145,10 +154,43 @@ export const effectSchema = z.strictObject({
   scope: scopeSchema,
   /** 積み重ねの上限 */
   stack_cap: z.number().int().positive().optional(),
+  resonance_variant: resonanceVariantSchema.optional(),
   note: z.string().optional(),
   provisional,
 });
 export type EffectDef = z.infer<typeof effectSchema>;
+
+export const NODE_TYPES = ["始点", "小星", "輝星", "転変", "天極", "星門", "共鳴座"] as const;
+
+/** 星辰盤のノード（開発計画書 6.8）。つながりは双方向で、両側に書く */
+export const starNodeSchema = z.strictObject({
+  id: idSchema,
+  region: idSchema,
+  type: z.enum(NODE_TYPES),
+  name: z.string().min(1),
+  links: z.array(idSchema),
+  effects: z.array(idSchema),
+  constellation: idSchema.optional(),
+  /** 星門：条件を満たしたときだけ、この先が有効になる */
+  gate: z.strictObject({ condition: conditionSchema, label: z.string() }).optional(),
+  /** 始点：job が null なら予約枠（通過も取得もできるが、出自の始点ではない） */
+  start: z.strictObject({ job: z.string().nullable() }).optional(),
+  /** 画面上の座標（0〜640 × 0〜360） */
+  x: z.number(),
+  y: z.number(),
+  provisional,
+});
+export type StarNodeDef = z.infer<typeof starNodeSchema>;
+
+export const constellationSchema = z.strictObject({
+  id: idSchema,
+  name: z.string().min(1),
+  region: idSchema,
+  nodes: z.array(idSchema).min(2),
+  completionEffect: idSchema,
+  provisional,
+});
+export type ConstellationDef = z.infer<typeof constellationSchema>;
 
 /** 1つのデータファイルの形 */
 export const dataFileSchema = z.strictObject({
@@ -157,15 +199,19 @@ export const dataFileSchema = z.strictObject({
 });
 
 /** データの種類。フォルダ名と対応する */
-export const DATA_KINDS = ["tags", "effects"] as const;
+export const DATA_KINDS = ["tags", "effects", "starNodes", "constellations"] as const;
 export type DataKind = (typeof DATA_KINDS)[number];
 
 export const kindSchemas = {
   tags: tagSchema,
   effects: effectSchema,
+  starNodes: starNodeSchema,
+  constellations: constellationSchema,
 } as const;
 
 export interface DataSet {
   tags: TagDef[];
   effects: EffectDef[];
+  starNodes: StarNodeDef[];
+  constellations: ConstellationDef[];
 }

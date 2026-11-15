@@ -1,0 +1,56 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "CONST-FORGE",
+      "name": "鍛冶座",
+      "region": "TAG-REGION-GOU",
+      "nodes": [
+        "STAR-GOU-0029",
+        "STAR-GOU-0030",
+        "STAR-GOU-0031",
+        "STAR-GOU-0032",
+        "STAR-GOU-0033",
+        "STAR-GOU-0034",
+        "STAR-GOU-0035",
+        "STAR-GOU-0036"
+      ],
+      "completionEffect": "EFF-CONST-FORGE",
+      "provisional": true
+    },
+    {
+      "id": "CONST-DUALBLADE",
+      "name": "双刃座",
+      "region": "TAG-REGION-GOUJIN",
+      "nodes": [
+        "STAR-GOUJIN-0073",
+        "STAR-GOUJIN-0074",
+        "STAR-GOUJIN-0075",
+        "STAR-GOUJIN-0076",
+        "STAR-GOUJIN-0077",
+        "STAR-GOUJIN-0078",
+        "STAR-GOUJIN-0079"
+      ],
+      "completionEffect": "EFF-CONST-DUALBLADE",
+      "provisional": true
+    },
+    {
+      "id": "CONST-VIPER",
+      "name": "毒蛇座",
+      "region": "TAG-REGION-JIN",
+      "nodes": [
+        "STAR-JIN-0110",
+        "STAR-JIN-0111",
+        "STAR-JIN-0112",
+        "STAR-JIN-0113",
+        "STAR-JIN-0114",
+        "STAR-JIN-0115",
+        "STAR-JIN-0116",
+        "STAR-JIN-0117",
+        "STAR-JIN-0118"
+      ],
+      "completionEffect": "EFF-CONST-VIPER",
+      "provisional": true
+    }
+  ]
+}

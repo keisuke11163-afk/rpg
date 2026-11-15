@@ -3,6 +3,12 @@ import { BrowserStorage } from "../save/browserStorage.ts";
 import {
   AttackRunner,
   AutoSaver,
+  ConditionRegistry,
+  StarBoard,
+  TagRegistry,
+  buildBoardContext,
+  evaluate,
+  type BoardEvaluation,
   Equipment,
   Progression,
   SaveManager,
@@ -48,8 +54,21 @@ import {
   type HitShape,
   type HitSpec,
 } from "@stella/core";
-import { GEAR_DATA, GENERATION_DATA, enemyDef, itemBase } from "@stella/content";
-import { characterText, entryLabel, inventoryEntries, tooltipText } from "../ui/panels.ts";
+import {
+  BOARD_DATA,
+  GEAR_DATA,
+  GENERATION_DATA,
+  TAG_DATA,
+  enemyDef,
+  itemBase,
+} from "@stella/content";
+import {
+  characterText,
+  describeStarNode,
+  entryLabel,
+  inventoryEntries,
+  tooltipText,
+} from "../ui/panels.ts";
 import { SCREEN } from "../config.ts";
 
 /** 1m = 16ピクセル */
@@ -117,6 +136,20 @@ export class PlayScene extends Phaser.Scene {
   private readonly bag = new ItemBag();
   private readonly purse = new Purse();
   private readonly equipment = new Equipment();
+  private board = new StarBoard(BOARD_DATA, "STAR-GOU-START");
+  /** 星辰盤のポイント（キャラLv 2〜20で19。開発用に P キーで+5） */
+  private starPoints = 0;
+  private boardEval: BoardEvaluation = {
+    active: [],
+    dormant: [],
+    effects: [],
+    completedConstellations: [],
+    regionCount: 0,
+  };
+  private readonly tagRegistry = new TagRegistry(TAG_DATA);
+  private readonly tagName = new Map(TAG_DATA.map((t) => [t.id, t.name]));
+  private readonly tagIdByName = new Map(TAG_DATA.map((t) => [t.name, t.id]));
+  private boardGfx!: Phaser.GameObjects.Graphics;
   private readonly saves = new SaveManager(new BrowserStorage());
   private readonly autoSaver = new AutoSaver();
   private readonly jobRegistry = createStandardJobs();
@@ -124,7 +157,7 @@ export class PlayScene extends Phaser.Scene {
   private progression = new Progression(createStandardJobs(), "JOB-WARRIOR");
   private slot = 1;
   /** 開いている画面（I：持ち物、C：キャラクター） */
-  private panel: "none" | "inventory" | "character" = "none";
+  private panel: "none" | "inventory" | "character" | "star" = "none";
   private panelCursor = 0;
   private panelText!: Phaser.GameObjects.Text;
   private panelTip!: Phaser.GameObjects.Text;
@@ -207,6 +240,25 @@ export class PlayScene extends Phaser.Scene {
   private applyGear(): void {
     const stats = this.job.startingStats;
     this.fighter.setGear(computeGear(this.equipment, GEAR_DATA, stats));
+    this.applyBoard();
+  }
+
+  /** 星辰盤の評価をやり直し、効果を戦闘に反映する（装備・ポイントが変わるたびに計算し直す） */
+  private applyBoard(): void {
+    const bc = buildBoardContext(this.equipment, GEAR_DATA, {
+      tags: this.tagRegistry,
+      characterStats: this.job.startingStats,
+      ...(this.job.aptitude.dualWield !== undefined && this.equipment.get("副手")
+        ? { dualWield: true }
+        : {}),
+    });
+    this.boardEval = this.board.evaluate(this.starPoints, bc);
+    const ev = evaluate(this.boardEval.effects, bc.ctx, new ConditionRegistry());
+    this.fighter.setEffects(ev, (skill) =>
+      this.tagRegistry.expand(
+        skill.tags.map((t) => this.tagIdByName.get(t)).filter((x): x is string => x !== undefined),
+      ),
+    );
   }
 
   constructor() {
@@ -225,6 +277,7 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(10);
     this.cameras.main.startFollow(this.body, true, 0.15, 0.15);
+    this.boardGfx = this.add.graphics().setScrollFactor(0).setDepth(22);
     this.panelBg = this.add
       .rectangle(320, 180, 600, 330, 0x0d0c14, 0.92)
       .setScrollFactor(0)
@@ -483,13 +536,23 @@ export class PlayScene extends Phaser.Scene {
     const jp = this.justPressed;
     if (jp.has("KeyI")) this.panel = this.panel === "inventory" ? "none" : "inventory";
     if (jp.has("KeyC")) this.panel = this.panel === "character" ? "none" : "character";
+    if (jp.has("KeyT")) this.panel = this.panel === "star" ? "none" : "star";
+    if (jp.has("KeyP")) {
+      this.starPoints += 5;
+      this.applyBoard();
+    }
     if (jp.has("Escape")) this.panel = "none";
     const open = this.panel !== "none";
     this.panelBg.setVisible(open);
+    this.hud.setVisible(!open);
+    if (this.panel !== "star") this.boardGfx.clear();
     this.panelText.setVisible(open);
     this.panelTip.setVisible(open);
     if (!open) return false;
 
+    if (this.panel === "star") return this.updateStarPanel();
+    this.panelText.setPosition(30, 30);
+    this.panelTip.setPosition(330, 30);
     const stats = this.job.startingStats;
     const dual = this.job.aptitude.dualWield !== undefined;
     if (this.panel === "character") {
@@ -532,6 +595,86 @@ export class PlayScene extends Phaser.Scene {
     this.panelTip.setText(
       tooltipText(list[this.panelCursor], GEAR_DATA, this.equipment, stats, this.job.id, dual),
     );
+    return true;
+  }
+
+  /** 星辰盤の画面：ノードの上にマウスを置くと説明、左クリックで取得、右クリックで返却 */
+  private updateStarPanel(): boolean {
+    const p = this.input.activePointer;
+    let hover: string | undefined;
+    let best = 7;
+    for (const n of BOARD_DATA.nodes.values()) {
+      const d = Math.hypot(n.x - p.x, n.y - p.y);
+      if (d < best) {
+        best = d;
+        hover = n.id;
+      }
+    }
+    const jp = this.justPressed;
+    if (hover) {
+      if (jp.has("Mouse0")) this.board.allocate(hover, this.starPoints);
+      if (jp.has("Mouse2")) this.board.refund(hover);
+      if (jp.has("Mouse0") || jp.has("Mouse2")) this.applyBoard();
+    }
+    const g = this.boardGfx;
+    g.clear();
+    const active = new Set(this.boardEval.active);
+    const dormant = new Set(this.boardEval.dormant.map((d) => d.id));
+    g.lineStyle(1, 0x3a3855, 1);
+    for (const n of BOARD_DATA.nodes.values()) {
+      for (const l of n.links) {
+        const o = BOARD_DATA.nodes.get(l);
+        if (o && n.id < l) g.lineBetween(n.x, n.y, o.x, o.y);
+      }
+    }
+    for (const n of BOARD_DATA.nodes.values()) {
+      const taken = this.board.has(n.id) || this.board.entrances.includes(n.id);
+      const color = !taken
+        ? 0x5c5a78
+        : dormant.has(n.id)
+          ? 0x8a8a8a
+          : n.type === "天極"
+            ? 0xffd86b
+            : 0x6fb1d8;
+      const r =
+        n.type === "天極"
+          ? 6
+          : n.type === "輝星" || n.type === "星門" || n.type === "転変"
+            ? 4
+            : n.type === "始点"
+              ? 5
+              : 2.5;
+      g.fillStyle(color, taken ? 1 : 0.8);
+      g.fillCircle(n.x, n.y, r);
+      if (n.id === hover) {
+        g.lineStyle(1, 0xffffff, 1);
+        g.strokeCircle(n.x, n.y, r + 2);
+      }
+      if (n.constellation && !taken) {
+        g.lineStyle(1, 0x7bd35a, 0.6);
+        g.strokeCircle(n.x, n.y, r + 1);
+      }
+    }
+    const names = BOARD_DATA.nodes;
+    this.panelText
+      .setPosition(6, 6)
+      .setText(
+        `【星辰盤】ポイント ${String(this.board.pointsUsed)}/${String(this.starPoints)}（Pで+5・開発用）  有効 ${String(active.size)}  休眠 ${String(dormant.size)}  星座 ${String(this.boardEval.completedConstellations.length)}完成\n左クリック 取得 / 右クリック 返却 / T 閉じる`,
+      );
+    const node = hover ? names.get(hover) : undefined;
+    this.panelTip
+      .setPosition(6, 300 - 0)
+      .setText(
+        node
+          ? describeStarNode(
+              node,
+              BOARD_DATA,
+              this.board.has(node.id),
+              this.boardEval,
+              (id) => this.tagName.get(id) ?? id,
+            )
+          : "",
+      );
     return true;
   }
 

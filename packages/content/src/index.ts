@@ -7,6 +7,9 @@ import {
 } from "@stella/core";
 import ja from "../text/ja.json" with { type: "json" };
 import effectsSamples from "../data/effects/samples.json" with { type: "json" };
+import starConstellations from "../data/star/constellations.json" with { type: "json" };
+import starEffects from "../data/star/effects.json" with { type: "json" };
+import starNodes from "../data/star/nodes.json" with { type: "json" };
 import tagsAilment from "../data/tags/ailment.json" with { type: "json" };
 import tagsElement from "../data/tags/element.json" with { type: "json" };
 import tagsEnemy from "../data/tags/enemy.json" with { type: "json" };
@@ -36,6 +39,9 @@ export const RAW_FILES: readonly RawFile[] = (
     ["tags/weapon.json", "tags", tagsWeapon],
     ["tags/weaponGroup.json", "tags", tagsWeaponGroup],
     ["effects/samples.json", "effects", effectsSamples],
+    ["star/effects.json", "effects", starEffects],
+    ["star/nodes.json", "starNodes", starNodes],
+    ["star/constellations.json", "constellations", starConstellations],
   ] as [string, DataKind, unknown][]
 ).map(([file, kind, json]) => ({ file, kind, json }));
 
@@ -47,3 +53,14 @@ export function loadContent(files: readonly RawFile[] = RAW_FILES): LoadResult {
 
 export * from "./enemies.ts";
 export * from "./items.ts";
+
+import { makeBoardData } from "@stella/core";
+const loaded = loadContent();
+/** 星辰盤のデータ（ノード・効果・星座）。読み込みの検証を通ったものだけ使う */
+export const BOARD_DATA = makeBoardData(
+  loaded.data.starNodes,
+  loaded.data.effects,
+  loaded.data.constellations,
+);
+/** 全タグの親子関係。装備・技のタグの展開に使う */
+export const TAG_DATA = loaded.data.tags;

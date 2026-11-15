@@ -1,0 +1,4098 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "EFF-GOUJIN-0001",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0002",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.016
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0003",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0004",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "命中",
+          "value": 15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0005",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0006",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.017
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0007",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0008",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.052000000000000005
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "命中",
+          "value": 15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0009",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0010",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.015
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0011",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0012",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.054000000000000006
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "命中",
+          "value": 15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0013",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0014",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.016
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0015",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0016",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "命中",
+          "value": 15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0017",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0018",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.017
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0019",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0020",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.032
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 8
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0021",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.044
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0022",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0023",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.042
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0024",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0025",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.03
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 8
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0026",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.042
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0027",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.064
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0028",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.04
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0029",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.05
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0030",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.05
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0031",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0032",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.062
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0033",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.044
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0034",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0035",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.032
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 8
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0036",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.044
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-CONST-FORGE",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "value": 0.004,
+          "per": {
+            "count": "装備の強化値の合計"
+          },
+          "cap": 0.44
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "鍛冶座の完成ボーナス：装備の強化値の合計×0.4%（最大+44%）"
+    },
+    {
+      "id": "EFF-NODE-SEVERING-EDGE",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.2
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.2,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "崩れた敵"
+            }
+          ]
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0037",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0038",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.042
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0039",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0040",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.03
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 8
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "MUT-HEAVY-001",
+      "source": "転変",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "value": 0.6
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "value": 0.3
+        },
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": -0.3
+        },
+        {
+          "kind": "挙動",
+          "hook": "タグ付与:重撃"
+        }
+      ],
+      "affects": {
+        "打撃値": true,
+        "基準値": true
+      },
+      "scope": "自分の技",
+      "provisional": true,
+      "target_skill_tags": {
+        "all_of": ["TAG-FORM-MELEE"]
+      },
+      "note": "重撃化：近接の技に崩し値+60%・ダメージ+30%、攻撃速度-30%"
+    },
+    {
+      "id": "EFF-GOU-0043",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.042
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0044",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.064
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0045",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.04
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0046",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-NODE-SWORD-AURA",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "衝撃波",
+          "params": {
+            "chance": 0.1,
+            "damageRatio": 0.5
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "剣気：剣での攻撃は、10%の確率で斬撃の衝撃波（武器ダメージの50%）"
+    },
+    {
+      "id": "EFF-GOU-0049",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.034
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 8
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0050",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0051",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.062
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-NODE-IRON-SKIN",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.3
+        },
+        {
+          "kind": "挙動",
+          "hook": "ガード中崩されない"
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0052",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.044
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0053",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0054",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.032
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 8
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0055",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.044
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-KEY-K10",
+      "source": "天極",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "value": 0.05,
+          "per": {
+            "count": "装備中の防具種",
+            "value": "重装"
+          }
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "value": 0.08,
+          "per": {
+            "count": "装備中の防具種",
+            "value": "重装"
+          }
+        },
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": -0.12
+        },
+        {
+          "kind": "挙動",
+          "hook": "崩されない",
+          "conditions": [
+            {
+              "type": "装備数",
+              "armor_class": "重装",
+              "min": 4
+            }
+          ]
+        }
+      ],
+      "affects": {
+        "打撃値": true,
+        "基準値": "仮"
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "代償：移動速度-12%",
+      "resonance_variant": {
+        "region": "TAG-REGION-GOU",
+        "min_resonance": 3,
+        "replace": [
+          {
+            "kind": "加算％",
+            "stat": "移動速度",
+            "value": -0.06
+          }
+        ]
+      }
+    },
+    {
+      "id": "EFF-GOU-0058",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0059",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.042
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0060",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0061",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.03
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 8
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0062",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.042
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-KEY-K01",
+      "source": "天極",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "スキルコストをHPで支払う",
+          "params": {
+            "mpMultiplier": 1.5
+          }
+        },
+        {
+          "kind": "加算％",
+          "stat": "HP回復効果",
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "代償：MPがほぼ不要になる代わりにHP管理が必要",
+      "resonance_variant": {
+        "region": "TAG-REGION-GOU",
+        "min_resonance": 3,
+        "add": [
+          {
+            "kind": "挙動",
+            "hook": "支払ったHPの返還",
+            "params": {
+              "ratio": 0.2,
+              "delaySeconds": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "EFF-GOU-0064",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.064
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0065",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.04
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0066",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-RES-GOU",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "残響の台座",
+          "params": {
+            "slot": "GOU"
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0068",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.034
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 8
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0069",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0070",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.062
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0071",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.044
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOU-0072",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0073",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.03,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0074",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.03,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0075",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.03,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0076",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.03,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0077",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.03,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0078",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.03,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0079",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.03,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-CONST-DUALBLADE",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "value": 0.3,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流の2撃目"
+            }
+          ]
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "双刃座の完成ボーナス：二刀流のとき、交互攻撃の2撃目の崩し値+30%"
+    },
+    {
+      "id": "EFF-GOUJIN-0080",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.016
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0081",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0082",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "命中",
+          "value": 15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0083",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-KEY-K09",
+      "source": "天極",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "素手の基礎ダメージ",
+          "params": {
+            "perLevelMin": 1,
+            "perLevelMax": 1.8,
+            "speed": 1.6,
+            "crit": 0.06
+          }
+        },
+        {
+          "kind": "挙動",
+          "hook": "副手の基礎性能・詞・固有効果が2倍",
+          "params": {
+            "except": "片手武器"
+          }
+        },
+        {
+          "kind": "挙動",
+          "hook": "禁止:主手の武器"
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "代償：主手に武器を持てない（持つとこの天極は無効になる）",
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "主手が空"
+        }
+      ]
+    },
+    {
+      "id": "EFF-NODE-GALE",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.08
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.2,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "移動中"
+            }
+          ]
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0085",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.017
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0086",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0087",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.052000000000000005
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "命中",
+          "value": 15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "MUT-PRJ-001",
+      "source": "転変",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "投射物の追加",
+          "params": {
+            "count": 2,
+            "spread_deg": 40
+          }
+        },
+        {
+          "kind": "乗算",
+          "stat": "ダメージ",
+          "value": 0.8
+        }
+      ],
+      "affects": {
+        "打撃値": true,
+        "基準値": true
+      },
+      "scope": "自分の技",
+      "provisional": true,
+      "target_skill_tags": {
+        "all_of": ["TAG-FORM-PROJECTILE"]
+      }
+    },
+    {
+      "id": "EFF-GOUJIN-0089",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0090",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.015
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0091",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0093",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.054000000000000006
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "命中",
+          "value": 15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0094",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-RES-GOUJIN",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "残響の台座",
+          "params": {
+            "slot": "GOUJIN"
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0096",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.016
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0097",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "二刀流"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0098",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "命中",
+          "value": 15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0099",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0100",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0101",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.032
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0102",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0103",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0104",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.016
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0105",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0106",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.03
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0107",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0108",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.054000000000000006
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0109",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.015
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0110",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0111",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0112",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0113",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0114",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0115",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0116",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0117",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0118",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-CONST-VIPER",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "毒だまり",
+          "params": {
+            "minStacks": 10,
+            "ratioPerSecond": 0.2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "毒蛇座の完成ボーナス：毒が10スタック以上の敵が移動すると、通った場所に毒だまり（毒の基準値の20%／秒）"
+    },
+    {
+      "id": "EFF-NODE-AIM",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.4,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "3秒同じ敵に当て続けた"
+            }
+          ]
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-NODE-WOUND",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "出血の持続延長",
+          "params": {
+            "seconds": 1,
+            "maxRatio": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0119",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.016
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0120",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0121",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.03
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0123",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0124",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.054000000000000006
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0125",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.015
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0126",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "MUT-BLEED-001",
+      "source": "転変",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "出血スタックの即時ダメージ"
+        },
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": -0.15
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分の技",
+      "provisional": true,
+      "target_skill_tags": {
+        "all_of": ["TAG-AIL-BLEED"]
+      },
+      "note": "血の刃：出血を1スタック消費して残りダメージを即座に与える"
+    },
+    {
+      "id": "EFF-JIN-0129",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.034
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0130",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0131",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.052000000000000005
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-NODE-HUNT",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "value": 0.25,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "HPが50%以下の敵"
+            }
+          ]
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0134",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.017
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0135",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0136",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.032
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-KEY-K15",
+      "source": "天極",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "遅延ダメージ",
+          "params": {
+            "ratio": 0.35,
+            "seconds": 4,
+            "cancelOnKill": 0.2
+          }
+        },
+        {
+          "kind": "挙動",
+          "hook": "禁止:遅延分の回復"
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "代償：回復で遅延分を減らすことはできない"
+    },
+    {
+      "id": "EFF-JIN-0137",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0138",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0139",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.016
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0140",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-KEY-K12",
+      "source": "天極",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "臨界",
+          "params": {
+            "kinds": 3,
+            "ratio": 0.6,
+            "intervalSeconds": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "代償：状態異常が消えるので、付け直しが必要になる"
+    },
+    {
+      "id": "EFF-JIN-0142",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.03
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0143",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0144",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.054000000000000006
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0145",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.015
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0146",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0147",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.034
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0149",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0150",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.052000000000000005
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0151",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.017
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-RES-JIN",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "残響の台座",
+          "params": {
+            "slot": "JIN"
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0153",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0154",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.032
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0155",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    }
+  ]
+}

@@ -19,6 +19,7 @@ const effect = (id: string, source: string, modifiers: object[], extra: object =
   modifiers,
   affects: { 打撃値: false, 基準値: false },
   scope: "自分",
+  ...(source === "天極" ? { note: "代償：試験用" } : {}),
   ...extra,
 });
 const messages = (files: RawFile[]): string =>
