@@ -453,9 +453,14 @@ export class Fighter {
       shape: eff.shape,
       damage: {
         base: {
-          physical: rng.int(range.physical.min * 100, range.physical.max * 100) / 100,
+          physical:
+            rng.int(Math.round(range.physical.min * 100), Math.round(range.physical.max * 100)) /
+            100,
           ...(range.fire.max > 0
-            ? { fire: rng.int(range.fire.min * 100, range.fire.max * 100) / 100 }
+            ? {
+                fire:
+                  rng.int(Math.round(range.fire.min * 100), Math.round(range.fire.max * 100)) / 100,
+              }
             : {}),
         },
         skillMultiplier: eff.multiplier,

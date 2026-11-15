@@ -1949,7 +1949,10 @@ export class PlayScene extends Phaser.Scene {
       const spec: HitSpec = {
         shape: { kind: "cone", range: 1.6, arcDegrees: 90 },
         damage: {
-          base: { physical: this.rng.int(weapon.min * 100, weapon.max * 100) / 100 },
+          base: {
+            physical:
+              this.rng.int(Math.round(weapon.min * 100), Math.round(weapon.max * 100)) / 100,
+          },
           skillMultiplier: 1,
           generic: { addPct: 0.004 * 20 },
         },

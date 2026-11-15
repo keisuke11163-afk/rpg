@@ -1,29 +1,43 @@
 /**
- * DPSシミュレーターの実行（pnpm sim）。標準の的に、定義したビルドで戦って、DPSを出す。
+ * DPSシミュレーターの実行（pnpm sim）。標準のビルドで、ボスの撃破時間を測って表にする。
+ * 測るのは、敵の攻撃を避け続ける理想的なプレイヤーの撃破時間（目標：標準のビルドで60〜120秒）。
  */
-import { STANDARD_DUMMY, WEAPONS, simulate, type BuildDef } from "./sim.ts";
+import { buildFighter, fightBoss, type BuildSpec } from "./builds.ts";
+import {
+  DIFFERENT_BUILDS,
+  ROGUE_LV15,
+  ROGUE_LV20,
+  WARRIOR_LV15,
+  WARRIOR_LV20,
+} from "./standard.ts";
 
 export * from "./sim.ts";
+export * from "./builds.ts";
+export * from "./standard.ts";
 
-const builds: BuildDef[] = [
-  {
-    name: "Lv1 長剣の通常攻撃",
-    charLevel: 1,
-    weapon:
-      WEAPONS["longsword"] ??
-      (() => {
-        throw new Error("long");
-      })(),
-    skills: [{ name: "通常攻撃", multiplier: 1, cooldown: 0 }],
-    stats: { 剛: 20, 迅: 10 },
-  },
-];
+const average = (spec: BuildSpec, boss: string, level: number, seeds = 5): number => {
+  let sum = 0;
+  for (let i = 0; i < seeds; i++) {
+    sum += fightBoss(buildFighter(spec).fighter, spec, boss, level, `cli${String(i)}`).seconds;
+  }
+  return sum / seeds;
+};
 
 if (import.meta.url === `file://${process.argv[1] ?? ""}`) {
-  for (const build of builds) {
-    const r = simulate(build, STANDARD_DUMMY, { seed: "sim", maxSeconds: 60 });
-    console.log(
-      `${build.name}: DPS ${r.dps.toFixed(2)}（${String(r.hits)}ヒット、会心${String(r.crits)}）`,
-    );
+  console.log("ボスの撃破時間（秒）。目標：標準のビルドで60〜120");
+  const rows: [BuildSpec, string, number, string][] = [
+    [WARRIOR_LV15, "BOSS-CH1", 14, "腐根の母樹"],
+    [ROGUE_LV15, "BOSS-CH1", 14, "腐根の母樹"],
+    [WARRIOR_LV20, "BOSS-ABYSS", 21, "深淵の母樹"],
+    [ROGUE_LV20, "BOSS-ABYSS", 21, "深淵の母樹"],
+    ...DIFFERENT_BUILDS.slice(2).map((b): [BuildSpec, string, number, string] => [
+      b,
+      "BOSS-ABYSS",
+      21,
+      "深淵の母樹",
+    ]),
+  ];
+  for (const [spec, boss, level, label] of rows) {
+    console.log(`  ${spec.name.padEnd(28)} ${label}: ${average(spec, boss, level).toFixed(1)}秒`);
   }
 }
