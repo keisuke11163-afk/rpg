@@ -6,6 +6,7 @@ import type { Rng } from "../rng.ts";
 import type { Vec2 } from "../player/controller.ts";
 import { strike, type Combatant, type HitResult, type HitSpec } from "../combat/combatant.ts";
 import type { HitShape } from "../combat/geometry.ts";
+import type { GroundEffects } from "../combat/zones.ts";
 import type { WeaponDef } from "../combat/weapons.ts";
 import { JobGauge, type GaugeDef } from "./gauge.ts";
 import {
@@ -29,6 +30,8 @@ export interface FighterInit {
   gauge: GaugeDef;
   stats?: Readonly<Record<string, number>>;
   accuracy?: number;
+  /** 背面判定の補正（盗賊の職能：会心率+10%（固定値）・付与率+25%。本仕様書 5.6） */
+  backstab?: { critAdd: number; ailmentAdd: number };
 }
 
 /** 実際に使うときの技の値（激化・武器による変化を反映した後） */
@@ -57,7 +60,16 @@ function scaleShape(shape: HitShape, scale: number): HitShape {
   }
 }
 
-export type UseDenied = "unknown" | "notLearned" | "mp" | "cooldown" | "gauge" | "stunned";
+export type UseDenied =
+  "unknown" | "notLearned" | "mp" | "cooldown" | "gauge" | "stunned" | "noTarget";
+
+/** 技を使うときの周囲の情報 */
+export interface UseContext {
+  /** 照準の点（ワールド座標）。地面に置く技・瞬間移動に使う */
+  aim?: Vec2;
+  /** 地面に置く効果の置き場 */
+  ground?: GroundEffects;
+}
 
 export interface UseOutcome {
   ok: boolean;
@@ -81,6 +93,8 @@ export class Fighter {
   buffs = {
     attackBonus: { value: 0, left: 0 },
     damageTaken: { value: 1, left: 0 },
+    /** 状態異常の付与率の加算（毒塗り） */
+    ailmentBonus: { value: {} as Partial<Record<string, number>>, left: 0 },
   };
   /** 外から与える補正（ツリー・装備の効果を集計した値） */
   damageAddPct = 0;
@@ -134,6 +148,7 @@ export class Fighter {
       for (const [k, v] of Object.entries(p.ailments ?? {})) {
         eff.ailments[k] = (eff.ailments[k] ?? 0) + v;
       }
+      if (p.hits !== undefined) eff.hits = p.hits;
       if (p.hitsPerSecond !== undefined)
         eff.hits = Math.round(p.hitsPerSecond * skill.totalSeconds);
       if (p.hooks) eff.hooks.push(...p.hooks);
@@ -159,6 +174,7 @@ export class Fighter {
     if (this.stunLeft > 0) return { ok: false, reason: "stunned" };
     if (this.cooldownLeft(id) > 0) return { ok: false, reason: "cooldown" };
     if (skill.release && !this.gauge.canRelease) return { ok: false, reason: "gauge" };
+    if (skill.finisher && this.gauge.value < 1) return { ok: false, reason: "gauge" };
     if (this.mp < skill.mpCost) return { ok: false, reason: "mp" };
     return { ok: true };
   }
@@ -171,7 +187,13 @@ export class Fighter {
       this.damageAddPct +
       strength * 0.002 +
       (this.buffs.attackBonus.left > 0 ? this.buffs.attackBonus.value : 0);
-    const ailmentBase: HitSpec["ailmentBase"] = eff.ailments;
+    const ailmentBase: Partial<Record<string, number>> = { ...eff.ailments };
+    if (this.buffs.ailmentBonus.left > 0) {
+      for (const [k, v] of Object.entries(this.buffs.ailmentBonus.value)) {
+        ailmentBase[k] = (ailmentBase[k] ?? 0) + (v ?? 0);
+      }
+    }
+    const bs = this.init.backstab;
     return {
       shape: eff.shape,
       damage: {
@@ -183,7 +205,8 @@ export class Fighter {
       accuracy: this.init.accuracy ?? 2,
       breakCoefficient: eff.skill.breakCoefficient,
       breakBonus: eff.breakBonus,
-      ailmentBase,
+      ailmentBase: ailmentBase,
+      ...(bs ? { backCritAdd: bs.critAdd, backAilmentBonus: bs.ailmentAdd } : {}),
     };
   }
 
@@ -194,12 +217,29 @@ export class Fighter {
     angle: number,
     targets: readonly Combatant[],
     rng: Rng,
+    ctx: UseContext = {},
   ): UseOutcome {
     const check = this.canUse(id);
     if (!check.ok)
       return { ok: false, ...(check.reason ? { reason: check.reason } : {}), hits: [] };
     const skill = this.init.skills.find((s) => s.id === id) as SkillDef;
     const eff = this.effective(skill);
+
+    // 対象が必要な技は、対象がいなければ使えない（コストも払わない）
+    let teleportTarget: Combatant | undefined;
+    if (skill.teleportBehind) {
+      const aim = ctx.aim ?? { x: origin.x + Math.cos(angle), y: origin.y + Math.sin(angle) };
+      let best = Infinity;
+      for (const t of targets) {
+        if (t.hp <= 0) continue;
+        const d = Math.hypot(t.pos.x - aim.x, t.pos.y - aim.y);
+        if (d <= skill.teleportBehind.range && d < best) {
+          best = d;
+          teleportTarget = t;
+        }
+      }
+      if (!teleportTarget) return { ok: false, reason: "noTarget", hits: [] };
+    }
 
     this.mp -= skill.mpCost;
     this.cooldowns.set(id, skill.cooldownSeconds);
@@ -214,6 +254,9 @@ export class Fighter {
           left: skill.buff.seconds,
         };
       }
+      if (skill.buff.ailmentBonus) {
+        this.buffs.ailmentBonus = { value: skill.buff.ailmentBonus, left: skill.buff.seconds };
+      }
       if (skill.buff.enemyBreakBonus) {
         const area = eff.shape;
         for (const t of targets) {
@@ -226,9 +269,53 @@ export class Fighter {
     }
 
     const out: UseOutcome = { ok: true, effective: eff, hits: [] };
+
+    // 敵の背後へ瞬間移動する（背面は、向きの反対側）
+    if (teleportTarget) {
+      const behind = teleportTarget.noFacing === true ? 0 : teleportTarget.facing + Math.PI;
+      out.movedTo = {
+        x: teleportTarget.pos.x + Math.cos(behind) * (teleportTarget.radius + 0.8),
+        y: teleportTarget.pos.y + Math.sin(behind) * (teleportTarget.radius + 0.8),
+      };
+      return out;
+    }
+
+    // 地面に置く技（煙玉・罠）
+    if (skill.ground) {
+      const aim = ctx.aim ?? { x: origin.x + Math.cos(angle), y: origin.y + Math.sin(angle) };
+      const dx = aim.x - origin.x;
+      const dy = aim.y - origin.y;
+      const d = Math.hypot(dx, dy);
+      const k = d > skill.ground.placeRange ? skill.ground.placeRange / d : 1;
+      const pos = { x: origin.x + dx * k, y: origin.y + dy * k };
+      if (ctx.ground) {
+        if (skill.ground.zone === "smoke") {
+          ctx.ground.placeSmoke({
+            pos,
+            left: skill.ground.seconds,
+            radius: skill.ground.radius,
+            accuracyPenalty: 0.3,
+          });
+        } else {
+          ctx.ground.placeTrap(
+            {
+              pos,
+              left: skill.ground.seconds,
+              radius: skill.ground.radius,
+              makeSpec: () => ({
+                ...this.hitSpec({ ...eff, shape: { kind: "circle", radius: 1 } }, rng),
+                forcedAilments: ["bleed"],
+              }),
+            },
+            skill.ground.max ?? 3,
+          );
+        }
+      }
+      return out;
+    }
+
     if (skill.multiplier === 0 && eff.multiplier === 0) return out;
 
-    let from = origin;
     let shape = eff.shape;
     if (skill.kind === "dash") {
       shape = {
@@ -241,18 +328,36 @@ export class Fighter {
         y: origin.y + Math.sin(angle) * eff.dashDistance,
       };
     }
+
+    // 終結技：コンボ点に応じて倍率が上がり、使うと全て使う。最大点なら必ず会心
+    let forceCrit = false;
+    if (skill.finisher) {
+      const points = this.gauge.value;
+      eff.multiplier += skill.finisher.bonusPerPoint * points;
+      forceCrit = points >= skill.finisher.guaranteedCritAt;
+      this.gauge.consume();
+    }
+
     const heavy = skill.tags.includes("重撃");
     const hitCount = Math.max(1, eff.hits);
+    let landed = false;
     for (let i = 0; i < hitCount; i++) {
-      const spec = { ...this.hitSpec({ ...eff, shape }, rng) };
-      const results = strike(from, angle, targets, spec, rng);
+      const spec = {
+        ...this.hitSpec({ ...eff, shape }, rng),
+        ...(forceCrit ? { forceCrit: true } : {}),
+      };
+      const results = strike(origin, angle, targets, spec, rng);
       for (const r of results) {
-        if (r.result.hit) this.gauge.onHit(heavy);
+        if (r.result.hit) {
+          landed = true;
+          this.gauge.onHit(heavy);
+        }
         if (eff.breaksAll) r.target.breakGauge.add(r.target.breakGauge.currentMax);
       }
       out.hits.push(...results);
     }
-    from = origin;
+    // ヒットを当てると、1回の使用につきゲージ+N（連刃：コンボ点+1）
+    if (landed && skill.gaugeOnHit) this.gauge.add(skill.gaugeOnHit);
     return out;
   }
 
@@ -272,6 +377,7 @@ export class Fighter {
     }
     this.buffs.attackBonus.left = Math.max(0, this.buffs.attackBonus.left - dt);
     this.buffs.damageTaken.left = Math.max(0, this.buffs.damageTaken.left - dt);
+    this.buffs.ailmentBonus.left = Math.max(0, this.buffs.ailmentBonus.left - dt);
     this.stunLeft = Math.max(0, this.stunLeft - dt);
     // MPは毎秒、最大MPの6%回復する（本仕様書 2.3）
     this.mp = Math.min(this.init.maxMp, this.mp + this.init.maxMp * 0.06 * dt);

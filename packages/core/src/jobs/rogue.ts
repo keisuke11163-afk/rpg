@@ -1,0 +1,135 @@
+/**
+ * 盗賊のデータ（本仕様書 5.6、補助仕様書 3.5・3.6）。数値は仮値。
+ */
+import type { GaugeDef } from "./gauge.ts";
+import type { Aptitude, SkillDef, WeaponClass } from "./skills.ts";
+
+/** 職能ゲージ「コンボ点」（0〜5）。連撃系の技を当てると+1（技のデータ側で指定）。自然には減らない */
+export const COMBO: GaugeDef = {
+  id: "GAUGE-COMBO",
+  name: "コンボ点",
+  max: 5,
+  hitGain: 0,
+  heavyHitGain: 0,
+  damagedGainPerPercentMaxHp: 0,
+  idleDecayPerSecond: 0,
+  idleAfterSeconds: 5,
+  provisional: true,
+};
+
+/** 盗賊の背面判定の補正（会心率+10%（固定値）・付与率+25%） */
+export const ROGUE_BACKSTAB = { critAdd: 0.1, ailmentAdd: 0.25 } as const;
+
+/** 盗賊の武器適性（本仕様書 5.6） */
+export const ROGUE_APTITUDE: Readonly<Partial<Record<WeaponClass, Aptitude>>> = {
+  dagger: "S",
+  claw: "S",
+  dualWield: "A",
+  longsword: "B",
+  bow: "B",
+  staff: "C",
+};
+
+export const ROGUE_SKILLS: readonly SkillDef[] = [
+  {
+    id: "SKL-ROG-FLURRY",
+    name: "連刃",
+    tags: ["近接"],
+    kind: "attack",
+    mpCost: 4,
+    cooldownSeconds: 0,
+    shape: { kind: "cone", range: 1.4, arcDegrees: 70 },
+    multiplier: 0.6,
+    breakCoefficient: 0.15,
+    totalSeconds: 0.6,
+    hitTimes: [0.15, 0.3, 0.45],
+    gaugeOnHit: 1,
+    weaponVariants: {
+      dagger: { hits: 3 },
+      claw: { hits: 4, ailments: { bleed: 0.25 } },
+      longsword: { hits: 2, shape: { kind: "cone", range: 2, arcDegrees: 120 } },
+    },
+    learnLevel: 1,
+    provisional: true,
+  },
+  {
+    id: "SKL-ROG-SHADOWSTEP",
+    name: "影走り",
+    tags: ["移動"],
+    kind: "teleport",
+    mpCost: 8,
+    cooldownSeconds: 4,
+    shape: { kind: "circle", radius: 0 },
+    multiplier: 0,
+    breakCoefficient: 0,
+    totalSeconds: 0.2,
+    hitTimes: [0.1],
+    teleportBehind: { range: 8 },
+    learnLevel: 3,
+    provisional: true,
+  },
+  {
+    id: "SKL-ROG-FINISH",
+    name: "急所穿ち",
+    tags: ["近接", "終結"],
+    kind: "attack",
+    mpCost: 6,
+    cooldownSeconds: 0,
+    shape: { kind: "cone", range: 1.4, arcDegrees: 60 },
+    multiplier: 1,
+    breakCoefficient: 0.3,
+    totalSeconds: 0.5,
+    hitTimes: [0.2],
+    finisher: { bonusPerPoint: 0.8, guaranteedCritAt: 5 },
+    learnLevel: 5,
+    provisional: true,
+  },
+  {
+    id: "SKL-ROG-POISONCOAT",
+    name: "毒塗り",
+    tags: ["補助"],
+    kind: "buff",
+    mpCost: 10,
+    cooldownSeconds: 15,
+    shape: { kind: "circle", radius: 0 },
+    multiplier: 0,
+    breakCoefficient: 0,
+    totalSeconds: 0.4,
+    hitTimes: [0.2],
+    buff: { seconds: 12, ailmentBonus: { poison: 0.4 } },
+    learnLevel: 7,
+    provisional: true,
+  },
+  {
+    id: "SKL-ROG-SMOKE",
+    name: "煙玉",
+    tags: ["範囲", "防御"],
+    kind: "ground",
+    mpCost: 12,
+    cooldownSeconds: 10,
+    shape: { kind: "circle", radius: 3 },
+    multiplier: 0,
+    breakCoefficient: 0,
+    totalSeconds: 0.4,
+    hitTimes: [0.2],
+    ground: { placeRange: 6, zone: "smoke", seconds: 4, radius: 3 },
+    learnLevel: 10,
+    provisional: true,
+  },
+  {
+    id: "SKL-ROG-TRAP",
+    name: "罠設置",
+    tags: ["罠"],
+    kind: "ground",
+    mpCost: 10,
+    cooldownSeconds: 0,
+    shape: { kind: "circle", radius: 1 },
+    multiplier: 1.2,
+    breakCoefficient: 0.3,
+    totalSeconds: 0.5,
+    hitTimes: [0.25],
+    ground: { placeRange: 5, zone: "trap", seconds: 10, radius: 1, max: 3 },
+    learnLevel: 12,
+    provisional: true,
+  },
+];

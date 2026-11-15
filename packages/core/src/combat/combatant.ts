@@ -39,6 +39,8 @@ export interface Combatant {
   breakGauge: BreakGauge;
   /** 崩されやすさ（戦吼の+20%）。残り時間つき */
   breakTaken: { bonus: number; left: number };
+  /** 煙玉：敵の命中の低下（0.3＝-30%）と残り時間 */
+  accuracyPenalty: { value: number; left: number };
   /** 向きを持たない（罠・召喚物など）。常に背面として扱う（本仕様書 7章） */
   noFacing?: boolean;
 }
@@ -69,6 +71,7 @@ export function createCombatant(init: {
     ailments: new AilmentSet({ maxHp: init.maxHp, isBoss }),
     breakGauge: new BreakGauge(enemyBreakParams(init.maxHp, isBoss)),
     breakTaken: { bonus: 0, left: 0 },
+    accuracyPenalty: { value: 0, left: 0 },
   };
 }
 
@@ -93,6 +96,10 @@ export interface HitSpec {
   breakBonus?: number;
   ailmentBase?: Partial<Record<AilmentKind, number>>;
   ailmentBonus?: number;
+  /** 背面からのときだけ、状態異常の付与率に加える（盗賊の背面判定：+25%） */
+  backAilmentBonus?: number;
+  /** 必ず会心する（急所穿ちの5点） */
+  forceCrit?: boolean;
   forcedAilments?: readonly AilmentKind[];
   /** 状態異常の持続ダメージの補正 */
   ailmentAddPct?: number;
@@ -130,7 +137,7 @@ export function resolveHit(attacker: Vec2, target: Combatant, spec: HitSpec, rng
     back ? (spec.backCritAdd ?? 0) : 0,
     spec.critIncrease ?? 0,
   );
-  const crit = rng.chance(chance);
+  const crit = spec.forceCrit === true || rng.chance(chance);
   const result = computeDamage({
     ...spec.damage,
     crit,
@@ -160,7 +167,11 @@ export function resolveHit(attacker: Vec2, target: Combatant, spec: HitSpec, rng
   ]);
   for (const kind of kinds) {
     const forced = spec.forcedAilments?.includes(kind) === true;
-    const p = applyChance(spec.ailmentBase?.[kind] ?? 0, spec.ailmentBonus ?? 0, forced);
+    const p = applyChance(
+      spec.ailmentBase?.[kind] ?? 0,
+      (spec.ailmentBonus ?? 0) + (back ? (spec.backAilmentBonus ?? 0) : 0),
+      forced,
+    );
     if (p > 0 && rollApply(rng, p)) {
       const burst = target.ailments.apply(kind, { reference: result.reference });
       target.hp = Math.max(0, target.hp - burst);
@@ -256,5 +267,6 @@ export function tickCombatant(c: Combatant, dt: number): number {
   c.hp = Math.max(0, c.hp - damage);
   c.breakGauge.tick(dt);
   c.breakTaken.left = Math.max(0, c.breakTaken.left - dt);
+  c.accuracyPenalty.left = Math.max(0, c.accuracyPenalty.left - dt);
   return damage;
 }

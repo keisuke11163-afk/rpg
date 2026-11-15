@@ -33,3 +33,8 @@ export * from "./jobs/fighter.ts";
 export * from "./enemy/stats.ts";
 export * from "./enemy/def.ts";
 export * from "./enemy/ai.ts";
+export * from "./jobs/rogue.ts";
+export * from "./combat/zones.ts";
+export * from "./progress/exp.ts";
+export * from "./progress/jobs.ts";
+export * from "./jobs/definitions.ts";

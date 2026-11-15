@@ -1,14 +1,17 @@
 import Phaser from "phaser";
 import {
   AttackRunner,
-  FURY,
+  GroundEffects,
+  ROGUE_JOB,
+  WARRIOR_JOB,
+  createFighter,
+  tickCombatant,
+  type JobDef,
   FixedStepper,
-  Fighter,
+  type Fighter,
   PLAYER,
   ProjectilePool,
   TICK_SECONDS,
-  WARRIOR_SKILLS,
-  WEAPONS,
   alertPack,
   basicAttackTiming,
   canBeHit,
@@ -88,26 +91,24 @@ export class PlayScene extends Phaser.Scene {
   private readonly projectiles = new ProjectilePool();
   private readonly projectileGfx = new Map<object, Phaser.GameObjects.Arc>();
   private readonly telegraphs = new Map<Enemy, { shape: HitShape; angle: number }>();
-  /** 戦士。HP・MPはLv1の基礎値（U-10 の経験値とLvで置き換える）。大剣・適性S・ジョブLv12（全技を使える試験用） */
-  private readonly fighter = new Fighter({
-    maxHp: 60,
-    maxMp: 60,
-    weapon: WEAPONS["greatsword"] ?? { name: "", min: 1, max: 1, speed: 1, crit: 0 },
-    weaponClass: "greatsword",
-    aptitude: "S",
-    jobLevel: 12,
-    skills: WARRIOR_SKILLS,
-    gauge: FURY,
-    stats: { 剛: 20 },
-  });
-  /** 技の枠と行動の対応（補助仕様書 1.1）。破軍は枠が足りないので、試験用に R に置く */
-  private static readonly SLOTS: readonly [string, string][] = [
-    ["skill2", "SKL-WAR-SWEEP"],
-    ["skill3", "SKL-WAR-RIFT"],
-    ["skill4", "SKL-WAR-SHOUT"],
-    ["skill5", "SKL-WAR-CHARGE"],
-    ["skill6", "SKL-WAR-WHIRL"],
-  ];
+  /** 今のジョブ。K キーで戦士と盗賊を切り替える（開発用。本番の転職は U-18a の転職神殿） */
+  private job: JobDef = WARRIOR_JOB;
+  private fighter: Fighter = PlayScene.makeFighter(WARRIOR_JOB);
+  private readonly ground = new GroundEffects();
+  private groundLayer!: Phaser.GameObjects.Graphics;
+  /** 技の枠と行動の対応（補助仕様書 1.1）。6つ目の枠は、試験用に R に置く */
+  private static readonly SLOT_ACTIONS = ["skill2", "skill3", "skill4", "skill5", "skill6", "KeyR"];
+
+  /** HP・MPはLv1の基礎値（U-10 の経験値とLvで置き換える）。ジョブLv12（全技を使える試験用） */
+  private static makeFighter(job: JobDef): Fighter {
+    return createFighter(job, {
+      maxHp: 60,
+      maxMp: 60,
+      weaponKey: job.startingWeapon.weaponKey,
+      weaponClass: job.startingWeapon.weaponClass,
+      jobLevel: 12,
+    });
+  }
 
   constructor() {
     super("play");
@@ -117,6 +118,7 @@ export class PlayScene extends Phaser.Scene {
     this.add.grid(0, 0, 80 * M, 60 * M, M, M, 0x1d1c26, 1, 0x26253a, 1).setDepth(-10);
     this.swing = this.add.graphics().setDepth(4);
     this.warn = this.add.graphics().setDepth(0);
+    this.groundLayer = this.add.graphics().setDepth(0);
     this.body = this.add.rectangle(0, 0, 12, 18, 0x6fb1d8).setDepth(2);
     this.arrow = this.add.triangle(0, 0, 0, -3, 0, 3, 7, 0, 0xffffff).setDepth(3);
     this.hud = this.add
@@ -204,6 +206,7 @@ export class PlayScene extends Phaser.Scene {
       this.updateSkills(actions);
       this.updateAttack(actions.has("skill1"));
       this.updateEnemies();
+      this.updateGround();
       this.updateClouds();
       this.updateProjectiles();
     }
@@ -310,19 +313,30 @@ export class PlayScene extends Phaser.Scene {
 
   /** 技の枠のキーを押している間、使える状態になるたびに使う（補助仕様書 1.1） */
   private updateSkills(actions: ReadonlySet<string>): void {
+    if (this.justPressed.has("KeyK")) {
+      this.job = this.job === WARRIOR_JOB ? ROGUE_JOB : WARRIOR_JOB;
+      this.fighter = PlayScene.makeFighter(this.job);
+      this.attack = undefined;
+    }
     if (this.time.now < this.busyUntil || this.attack || isDodging(this.player)) return;
-    const slots: [boolean, string][] = [
-      ...PlayScene.SLOTS.map(([action, id]): [boolean, string] => [actions.has(action), id]),
-      [this.pressed.has("KeyR") || this.justPressed.has("KeyR"), "SKL-WAR-RUIN"],
-    ];
-    for (const [held, id] of slots) {
+    for (const [i, skill] of this.job.skills.entries()) {
+      const key = PlayScene.SLOT_ACTIONS[i] ?? "";
+      const held =
+        key === "KeyR"
+          ? this.pressed.has("KeyR") || this.justPressed.has("KeyR")
+          : actions.has(key);
       if (!held) continue;
+      const world = this.cameras.main.getWorldPoint(
+        this.input.activePointer.x,
+        this.input.activePointer.y,
+      );
       const out = this.fighter.use(
-        id,
+        skill.id,
         this.player.pos,
         this.player.aimAngle,
         this.enemies.map((e) => e.body),
         this.rng,
+        { aim: { x: world.x / M, y: world.y / M }, ground: this.ground },
       );
       if (!out.ok || !out.effective) continue;
       this.busyUntil = this.time.now + out.effective.skill.totalSeconds * 1000;
@@ -335,6 +349,32 @@ export class PlayScene extends Phaser.Scene {
       }
       this.flashArea(out.effective.shape, this.player.aimAngle);
       break;
+    }
+  }
+
+  /** 地面に置いた効果（罠・煙玉）を進める */
+  private updateGround(): void {
+    const bodies = this.enemies.map((e) => e.body);
+    for (const ev of this.ground.step(TICK_SECONDS, bodies, this.rng)) {
+      if (ev.type === "trap") {
+        this.onPlayerHit(
+          ev.target.id,
+          ev.result.damage,
+          ev.result.crit,
+          ev.result.back,
+          ev.result.feedback,
+        );
+      }
+    }
+    for (const b of bodies) tickCombatant(b, 0);
+    this.groundLayer.clear();
+    for (const t of this.ground.traps) {
+      this.groundLayer.fillStyle(0xd8c36f, 0.5);
+      this.groundLayer.fillCircle(t.pos.x * M, t.pos.y * M, 4);
+    }
+    for (const sm of this.ground.smokes) {
+      this.groundLayer.fillStyle(0xb0b0c0, 0.25);
+      this.groundLayer.fillCircle(sm.pos.x * M, sm.pos.y * M, sm.radius * M);
     }
   }
 
@@ -393,8 +433,7 @@ export class PlayScene extends Phaser.Scene {
 
   /** 左クリックの通常攻撃（仮実装: 通常攻撃は技として扱う単位が決まったら置き換える） */
   private updateAttack(held: boolean): void {
-    const weapon = WEAPONS["greatsword"];
-    if (!weapon) return;
+    const weapon = this.fighter.init.weapon;
     if (!this.attack && held && !isDodging(this.player) && this.time.now >= this.busyUntil) {
       this.attack = new AttackRunner(basicAttackTiming(this.fighter.attackSpeed));
       this.attackAngle = this.player.aimAngle;
@@ -480,7 +519,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.hud.setText(
-      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  闘志 ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右 薙ぎ払い・1 地割り・2 戦吼・3 突進・4 旋風・R 破軍 / Space 回避\n敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
+      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避\n敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
     );
   }
 }

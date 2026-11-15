@@ -39,9 +39,11 @@ export interface SkillPatch {
   breaksAll?: boolean;
   /** 突進などの移動距離の加算（m） */
   dashDistanceAdd?: number;
+  /** ヒット数（連刃：短剣3・爪4・片手剣2） */
+  hits?: number;
 }
 
-export type SkillKind = "attack" | "buff" | "channel" | "dash";
+export type SkillKind = "attack" | "buff" | "channel" | "dash" | "teleport" | "ground";
 
 export interface SkillDef {
   id: string;
@@ -60,14 +62,30 @@ export interface SkillDef {
   /** 動作の長さと、ヒットが発生する時刻（秒） */
   totalSeconds: number;
   hitTimes: readonly number[];
-  /** 技を使った直後に得る・消費するゲージ */
+  /** 技を使った直後に得るゲージ */
   gaugeGain?: number;
+  /** ヒットを当てると、1回の使用につきゲージ+N（連刃：コンボ点+1） */
+  gaugeOnHit?: number;
+  /** 終結技：ゲージの点数に応じて効果が上がり、使うと全て使う */
+  finisher?: { bonusPerPoint: number; guaranteedCritAt: number };
+  /** 敵の背後へ瞬間移動する。照準の近くrange(m)以内の敵が対象 */
+  teleportBehind?: { range: number };
+  /** 地面に置く技（照準の位置・射程内） */
+  ground?: {
+    placeRange: number;
+    zone: "smoke" | "trap";
+    seconds: number;
+    radius: number;
+    max?: number;
+  };
   /** 使った後の効果（秒・値）。戦吼・破軍の被ダメージ軽減など */
   buff?: {
     seconds: number;
     attackBonus?: number;
     damageTakenMultiplier?: number;
     enemyBreakBonus?: number;
+    /** 状態異常の付与率の加算（毒塗り：poison +0.4） */
+    ailmentBonus?: Partial<Record<AilmentKind, number>>;
   };
   /** 激化したときの差分 */
   intensified?: SkillPatch;

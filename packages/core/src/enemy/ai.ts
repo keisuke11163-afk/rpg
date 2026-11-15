@@ -199,6 +199,7 @@ export function stepEnemy(enemy: Enemy, target: Target, dt: number, rng: Rng): E
   }
   body.breakGauge.tick(dt);
   body.breakTaken.left = Math.max(0, body.breakTaken.left - dt);
+  body.accuracyPenalty.left = Math.max(0, body.accuracyPenalty.left - dt);
   const dots = body.ailments.tick(dt, {
     addPct: 0,
     mult: 1,
@@ -308,7 +309,9 @@ export function stepEnemy(enemy: Enemy, target: Target, dt: number, rng: Rng): E
     case "attack": {
       const a = enemy.attack as EnemyAttackDef;
       const damage = enemy.attackPower * a.damageRatio;
-      const accuracy = enemyAccuracy(enemy.level);
+      const accuracy =
+        enemyAccuracy(enemy.level) *
+        (1 - (body.accuracyPenalty.left > 0 ? body.accuracyPenalty.value : 0));
       if (a.dashSpeed !== undefined) {
         // 突進の間は曲がれない
         body.pos.x += Math.cos(body.facing) * a.dashSpeed * dt;
