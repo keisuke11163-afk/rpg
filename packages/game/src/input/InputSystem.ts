@@ -94,7 +94,21 @@ export class InputSystem {
       x: (held.has("moveRight") ? 1 : 0) - (held.has("moveLeft") ? 1 : 0),
       y: (held.has("moveDown") ? 1 : 0) - (held.has("moveUp") ? 1 : 0),
     };
+    return { held, pressed, move, pointerWorld: this.pointerWorld() };
+  }
+
+  /**
+   * 照準の世界座標。カメラの scroll・zoom と、ポインターの画面座標から計算する。
+   * Phaser の pointer.worldX/Y は、カメラの揺れ（cameras.main.shake。Math.random で決まる表示だけの値）を含む行列で
+   * 計算されるので使わない。表示の乱数がシミュレーションへの入力（照準）に入ってしまうため。
+   * worldView は揺れを含まない（Camera.preRender で揺れは行列にだけ足される）。回転は使っていない。
+   */
+  pointerWorld(): { x: number; y: number } {
+    const cam = this.scene.cameras.main;
     const pointer = this.scene.input.activePointer;
-    return { held, pressed, move, pointerWorld: { x: pointer.worldX, y: pointer.worldY } };
+    return {
+      x: cam.worldView.x + (pointer.x - cam.x) / cam.zoomX,
+      y: cam.worldView.y + (pointer.y - cam.y) / cam.zoomY,
+    };
   }
 }

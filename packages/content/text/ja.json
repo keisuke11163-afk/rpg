@@ -596,6 +596,7 @@
   "hud.levelUp": "Lv UP！　Lv{n}",
   "hud.jobLevelUp": "ジョブLv UP！　{job} Lv{n}",
   "hud.trial": "試し打ちの場（振り直し無料・離れると戻る）",
+  "hud.temple.needLevel": "キャラLv{n}で転職できる",
   "hud.save.loaded": "スロット{n}から読み込んだ",
   "hud.save.none": "セーブデータなし（新しく始めた）",
   "hud.save.corrupt": "セーブデータが壊れている（{kind}）。元のデータは残し、新しく始めた",

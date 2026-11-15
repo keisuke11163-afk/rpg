@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { FLASK_RULES } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
 import { DEFAULT_SETTINGS, effectiveBindings, rebind } from "../src/settings/settings.ts";
-import { ArenaSimulation, SKILL_SLOTS } from "../src/scenes/arena-simulation.ts";
+import {
+  ArenaSimulation,
+  newCharacterProfile,
+  SKILL_SLOTS,
+} from "../src/scenes/arena-simulation.ts";
 import {
   buildHudModel,
   CooldownTracker,
@@ -13,9 +17,11 @@ import {
   type HudSource,
   LOW_HP_RATIO,
   promptOf,
+  secondsText,
   shortBindingName,
   shortName,
   vitalText,
+  wholeText,
 } from "../src/ui/hud-model.ts";
 import { loadGameContent } from "@stella/content";
 
@@ -70,18 +76,56 @@ describe("数値の表示 vitalText", () => {
     expect(vitalText(268, 268)).toBe("268／268");
   });
 
-  it("小数は四捨五入する", () => {
+  it("小数は切り上げる（ボスのHPの表示と同じ）", () => {
     expect(vitalText(267.6, 268)).toBe("268／268");
-    expect(vitalText(267.4, 268)).toBe("267／268");
+    expect(vitalText(267.4, 268)).toBe("268／268");
     expect(vitalText(2.5, 10)).toBe("3／10");
   });
 
-  it("0 は 0 と表示する", () => {
+  it("生きている間（HP が 0 より大きい）は 0 と表示しない", () => {
+    expect(vitalText(0.2, 100)).toBe("1／100");
+    expect(vitalText(0.99, 100)).toBe("1／100");
+  });
+
+  it("0 は 0 と表示する（-0 や負の数にならない）", () => {
     expect(vitalText(0, 100)).toBe("0／100");
+    expect(vitalText(-0.5, 100)).toBe("0／100");
+    expect(vitalText(Number.NaN, 100)).toBe("0／100");
+  });
+
+  it("浮動小数点の誤差（100.00000001）で1つ上がらない", () => {
+    expect(vitalText(100 + 1e-9, 100)).toBe("100／100");
+    expect(wholeText(3 + 1e-9)).toBe("3");
+  });
+
+  it("切り捨ての向きもある（ゲージは溜まった分だけ）", () => {
+    expect(vitalText(49.9, 100, "floor")).toBe("49／100");
+    expect(wholeText(5 - 1e-9, "floor")).toBe("5");
   });
 
   it("現在値が最大より大きくても、数値は表示どおり（割合のほうがクランプされる）", () => {
     expect(vitalText(120, 100)).toBe("120／100");
+  });
+});
+
+describe("CDの残り秒の表示 secondsText", () => {
+  it("10秒未満は0.1秒単位（切り上げ）、10秒以上は整数（切り上げ）", () => {
+    expect(secondsText(4)).toBe("4.0");
+    expect(secondsText(3.01)).toBe("3.1");
+    expect(secondsText(0.04)).toBe("0.1");
+    expect(secondsText(12.2)).toBe("13");
+  });
+
+  it("10秒の前後で桁が行き来しない：減っていくと 11 → 10 → 9.9 の順で、10.0 や 9 → 10 は出ない", () => {
+    const seq = [10.99, 10.01, 10, 9.99, 9.95, 9.91, 9.9, 9.85].map(secondsText);
+    expect(seq).toEqual(["11", "11", "10", "10", "10", "10", "9.9", "9.9"]);
+    // 減る一方の値で、表示の数字が増えることはない
+    const nums = Array.from({ length: 300 }, (_, i) => secondsText(12 - i * 0.04)).map(Number);
+    for (let i = 1; i < nums.length; i++) expect(nums[i]).toBeLessThanOrEqual(nums[i - 1] ?? 0);
+  });
+
+  it("効果の札の秒（Math.ceil）と、整数のところで同じ", () => {
+    for (const s of [10.4, 11.9, 25.01, 10]) expect(secondsText(s)).toBe(String(Math.ceil(s)));
   });
 });
 
@@ -170,13 +214,36 @@ describe("技のCDの総時間 CooldownTracker", () => {
     expect(t.observe("A", 4)).toBe(4);
   });
 
-  it("endFrame は、1回目の刻みを終えるだけ。観測されなかった技の総時間は消さない", () => {
+  it("endFrame は、その刻みに観測された技の総時間を消さない（毎刻み観測していれば、総時間は変わらない）", () => {
     const t = new CooldownTracker();
     t.endFrame();
     expect(t.observe("A", 2)).toBe(2);
-    // A は次の刻みでは見ない（枠から外されていた想定）
     t.endFrame();
     expect(t.observe("A", 1)).toBe(2);
+    t.endFrame();
+    expect(t.observe("A", 0.5)).toBe(2);
+  });
+
+  it("endFrame は、その刻みに観測されなかった技（枠から外していた）を忘れる", () => {
+    const t = new CooldownTracker();
+    t.endFrame();
+    expect(t.observe("A", 2)).toBe(2);
+    t.endFrame();
+    // A を観測しない刻み
+    t.endFrame();
+    // 入れ直したとき：古い総時間（2）ではなく、この時点の残りが総時間
+    expect(t.observe("A", 1)).toBe(1);
+  });
+
+  it("枠から外している間に別の技を観測し続けても、その技の総時間は残る", () => {
+    const t = new CooldownTracker();
+    t.endFrame();
+    t.observe("A", 2);
+    t.observe("B", 5);
+    t.endFrame();
+    t.observe("B", 4);
+    t.endFrame();
+    expect(t.observe("B", 3)).toBe(5);
   });
 
   it("技ごとに別々に覚える", () => {
@@ -193,28 +260,55 @@ describe("技のCDの総時間 CooldownTracker", () => {
     t.endFrame();
     expect(t.observe("A", 2)).toBe(2);
     t.endFrame();
+    // 枠から外している刻み（A を観測しない。endFrame は毎刻み呼ぶ）。この間にCDが終わった
+    t.endFrame();
     const total = t.observe("A", 1.5);
     expect(total === undefined || Math.abs(total - 1.5) < 1e-9).toBe(true);
   });
 });
 
 describe("HUD の手応えのきっかけ HudEventTracker", () => {
-  const base = { hitsTaken: 0, level: 5, jobId: "JOB-WARRIOR", jobLevel: 3 };
+  const base = { hitsTaken: 0, hp: 100, level: 5, jobId: "JOB-WARRIOR", jobLevel: 3 };
 
   it("最初の observe では何も出さない（開始時に Lv UP・被弾が出ない）", () => {
     const t = new HudEventTracker();
-    expect(t.observe({ ...base, hitsTaken: 9, level: 20, jobLevel: 20 })).toEqual({
+    expect(t.observe({ ...base, hitsTaken: 9, hp: 1, level: 20, jobLevel: 20 })).toEqual({
       hurt: false,
       levelUp: undefined,
       jobLevelUp: undefined,
     });
   });
 
-  it("被弾の回数が増えたら hurt、同じなら false", () => {
+  it("被弾の回数が増え、HP が減ったら hurt、同じなら false", () => {
     const t = new HudEventTracker();
     t.observe(base);
-    expect(t.observe({ ...base, hitsTaken: 1 }).hurt).toBe(true);
-    expect(t.observe({ ...base, hitsTaken: 1 }).hurt).toBe(false);
+    expect(t.observe({ ...base, hitsTaken: 1, hp: 90 }).hurt).toBe(true);
+    expect(t.observe({ ...base, hitsTaken: 1, hp: 90 }).hurt).toBe(false);
+  });
+
+  it("被弾の回数だけ増えて HP が減らない（盾で防いだ・魔障で全部吸収した）なら hurt を出さない", () => {
+    const t = new HudEventTracker();
+    t.observe(base);
+    expect(t.observe({ ...base, hitsTaken: 1, hp: 100 }).hurt).toBe(false);
+  });
+
+  it("被弾の回数が増えても HP が増えていれば（同じ刻みに回復）hurt を出さない", () => {
+    const t = new HudEventTracker();
+    t.observe({ ...base, hp: 50 });
+    expect(t.observe({ ...base, hitsTaken: 1, hp: 60 }).hurt).toBe(false);
+  });
+
+  it("HP だけが減って被弾の回数が増えない（毒など持続ダメージ）なら hurt を出さない（毎フレーム揺れない）", () => {
+    const t = new HudEventTracker();
+    t.observe(base);
+    for (let hp = 99; hp > 90; hp--) expect(t.observe({ ...base, hp }).hurt).toBe(false);
+  });
+
+  it("回復・最大HPの増加（HP が増える）では hurt を出さない", () => {
+    const t = new HudEventTracker();
+    t.observe({ ...base, hp: 50 });
+    expect(t.observe({ ...base, hp: 80 }).hurt).toBe(false);
+    expect(t.observe({ ...base, hp: 120 }).hurt).toBe(false);
   });
 
   it("キャラLvが上がったら、上がった後のLvを出す", () => {
@@ -247,7 +341,7 @@ describe("HUD の手応えのきっかけ HudEventTracker", () => {
 
   it("値が減ったとき（場面の作り直し）に出さない", () => {
     const t = new HudEventTracker();
-    t.observe({ ...base, hitsTaken: 10, level: 9, jobLevel: 9 });
+    t.observe({ ...base, hitsTaken: 10, hp: 10, level: 9, jobLevel: 9 });
     const e = t.observe(base);
     expect(e).toEqual({ hurt: false, levelUp: undefined, jobLevelUp: undefined });
   });
@@ -308,6 +402,52 @@ describe("buildHudModel：本物の ArenaSimulation から作る", () => {
       const m = build(sim);
       expect(m.vitals.hp.ratio).toBe(0);
       expect(m.lowHp).toBe(false);
+    });
+  });
+
+  describe("ゲージの区切り pips", () => {
+    const pipsOf = (job: string): number | undefined => {
+      const db = loadGameContent();
+      const sim = new ArenaSimulation(undefined, {
+        db,
+        enemies: false,
+        profile: newCharacterProfile(db, job, "試験"),
+      });
+      return build(sim).vitals.gauge.pips;
+    };
+
+    it("段階の無い、個数で数えるゲージ（盗賊のコンボ点 0〜5・騎士の信念 0〜10）は最大の数", () => {
+      expect(pipsOf("JOB-ROGUE")).toBe(5);
+      expect(pipsOf("JOB-KNIGHT")).toBe(10);
+    });
+
+    it("段階のしきい値があるゲージ（戦士の闘志）や、最大が大きいゲージには pips が無い", () => {
+      const sim = new ArenaSimulation(undefined, { enemies: false });
+      expect(build(sim).vitals.gauge.stages.length).toBeGreaterThan(0);
+      expect(build(sim).vitals.gauge.pips).toBeUndefined();
+    });
+
+    it("条件：段階が無く、最大が2〜10の整数のときだけ", () => {
+      const sim = new ArenaSimulation(undefined, { enemies: false });
+      const gaugeOf = (max: number, stages: unknown[] = []) =>
+        build(
+          withOverrides(sim, {
+            jobGauge: {
+              def: { ...sim.jobGauge.def, stages },
+              value: 0,
+              max,
+              hasStage: () => false,
+              fusion: undefined,
+            },
+          }),
+        ).vitals.gauge.pips;
+      expect(gaugeOf(10)).toBe(10);
+      expect(gaugeOf(2)).toBe(2);
+      expect(gaugeOf(11)).toBeUndefined();
+      expect(gaugeOf(1)).toBeUndefined();
+      expect(gaugeOf(4.5)).toBeUndefined();
+      expect(gaugeOf(100)).toBeUndefined();
+      expect(gaugeOf(5, [{ id: "s", text: "gauge.fervor.empowered", min: 3 }])).toBeUndefined();
     });
   });
 
@@ -379,6 +519,38 @@ describe("buildHudModel：本物の ArenaSimulation から作る", () => {
       const sim = new ArenaSimulation(undefined, { enemies: false, carry: { hp: 1, mp: 0 } });
       sim.cooldowns.start("SKL-WARRIOR-SWEEP", 2);
       expect(skillOf(build(sim), "SKL-WARRIOR-SWEEP").state).toBe("cooldown");
+    });
+
+    it("CD中でなければ onCooldown は false、CD中なら true（cooldownRemaining > 0 と同じ）", () => {
+      const sim = new ArenaSimulation(undefined, { enemies: false });
+      expect(skillOf(build(sim), "SKL-WARRIOR-SWEEP").onCooldown).toBe(false);
+      sim.cooldowns.start("SKL-WARRIOR-SWEEP", 4);
+      expect(skillOf(build(sim), "SKL-WARRIOR-SWEEP").onCooldown).toBe(true);
+      expect(build(sim).skills.find((x) => x.skill === "SKL-BASIC-ATTACK")?.onCooldown).toBe(false);
+    });
+
+    it("対象なし・MP不足・ゲージ不足・未習得でも、CD中なら onCooldown（覆いと残り秒は出る）。状態の色はそのまま", () => {
+      const sim = new ArenaSimulation(undefined, { enemies: false });
+      sim.cooldowns.start("SKL-WARRIOR-SWEEP", 4);
+      for (const block of ["target", "mp", "gauge", "locked"] as const) {
+        const src = withOverrides(sim, { blockOf: () => block });
+        const s = skillOf(build(src), "SKL-WARRIOR-SWEEP");
+        expect(s.state).toBe(block);
+        expect(s.onCooldown).toBe(true);
+        expect(s.cooldownRemaining).toBe(4);
+      }
+    });
+
+    it("技を入れていない枠は onCooldown が false", () => {
+      const sim = new ArenaSimulation(undefined, { enemies: false });
+      sim.setSlotSkill(2, undefined);
+      expect(build(sim).skills[2]?.onCooldown).toBe(false);
+    });
+
+    it("CD中の残り秒の表示は 0.1秒単位の切り上げ", () => {
+      const sim = new ArenaSimulation(undefined, { enemies: false });
+      sim.cooldowns.start("SKL-WARRIOR-SWEEP", 3.01);
+      expect(skillOf(build(sim), "SKL-WARRIOR-SWEEP").stateLabel).toBe("3.1秒");
     });
 
     it("職能ゲージが足りないと gauge（例：怒涛は「闘志不足」）", () => {

@@ -44,6 +44,8 @@ export interface HudVital {
   readonly ratio: number;
   /** 数値の表示（例：268／268）。 */
   readonly text: string;
+  /** 今の値だけの表示（例：268。最大は付けない）。 */
+  readonly valueText: string;
 }
 
 /** 職能ゲージの段階のしきい値（例：闘志の激化は50）。 */
@@ -61,6 +63,11 @@ export interface HudGauge extends HudVital {
   /** 今の段階（最も高いもの。位相のゲージは合成魔法）。段階に入っていなければ undefined。 */
   readonly stageId: string | undefined;
   readonly stageLabel: string | undefined;
+  /**
+   * 個数で数えるゲージ（コンボ点・信念など）の区切りの数。棒を個数で区切って見せる。
+   * 段階のしきい値が無く、最大が2〜10の整数のときだけ。それ以外は undefined。
+   */
+  readonly pips?: number;
 }
 
 /** 技の枠の状態。empty は技を入れていない枠。 */
@@ -75,9 +82,12 @@ export interface HudSkillSlot {
   readonly name: string;
   /** 枠の中に収まる短い名前（4文字まで）。 */
   readonly shortName: string;
+  /** 枠の色などに使う状態。CD中でも、CDより優先する理由（MP不足など）があればそちらになる。 */
   readonly state: HudSkillState;
   /** 状態の短い説明（使えるときは空）。 */
   readonly stateLabel: string;
+  /** CD中か（state に関わらず、残りが0より大きければ true。覆いと残り秒はこれで描く）。 */
+  readonly onCooldown: boolean;
   /** CDの残り（秒。CD中でなければ0）。 */
   readonly cooldownRemaining: number;
   /** CDの総時間（秒）。見ていた間に分からなければ undefined（そのときは残り秒だけを出す）。 */
@@ -157,6 +167,9 @@ export interface HudModel {
 /** HPが少ないとみなす割合（仮値。D-HUD-3）。 */
 export const LOW_HP_RATIO = 0.3;
 
+/** ゲージの棒を個数で区切る上限（最大がこれ以下の整数で、段階のしきい値が無いとき）。 */
+export const PIPS_MAX_COUNT = 10;
+
 const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
 const ratioOf = (value: number, max: number): number => (max > 0 ? clamp01(value / max) : 0);
 
@@ -168,13 +181,43 @@ export function fill(template: string, vars: Readonly<Record<string, string | nu
   });
 }
 
-/** 数値の表示（例：268／268）。小数は切り捨てず四捨五入。 */
-export function vitalText(value: number, max: number): string {
-  return `${Math.round(value).toFixed(0)}／${Math.round(max).toFixed(0)}`;
+/** 小数を整数に丸める向き。切り上げ＝生きている間は0にならない（HP）。切り捨て＝溜まった分だけ（ゲージ）。 */
+export type WholeMode = "ceil" | "floor";
+
+/** 整数の表示。浮動小数点の誤差（100.00000001 など）で1つ上がらないよう、ごく小さな値を引いてから丸める。0未満は0。 */
+export function wholeText(n: number, mode: WholeMode = "ceil"): string {
+  if (!Number.isFinite(n)) return "0";
+  const v = mode === "ceil" ? Math.ceil(n - 1e-6) : Math.floor(n + 1e-6);
+  return String(Math.max(0, v));
 }
 
-function vital(id: HudVital["id"], label: string, value: number, max: number): HudVital {
-  return { id, label, value, max, ratio: ratioOf(value, max), text: vitalText(value, max) };
+/** 数値の表示（例：268／268）。現在値は mode の向きに丸め（HPは切り上げ。ボスのHPの表示と同じ）、最大は切り上げ。 */
+export function vitalText(value: number, max: number, mode: WholeMode = "ceil"): string {
+  return `${wholeText(value, mode)}／${wholeText(max)}`;
+}
+
+function vital(
+  id: HudVital["id"],
+  label: string,
+  value: number,
+  max: number,
+  mode: WholeMode = "ceil",
+): HudVital {
+  return {
+    id,
+    label,
+    value,
+    max,
+    ratio: ratioOf(value, max),
+    text: vitalText(value, max, mode),
+    valueText: wholeText(value, mode),
+  };
+}
+
+/** CDの残り秒の表示。10秒未満は0.1秒単位、10秒以上は整数。どちらも切り上げなので、10秒の前後で桁が行き来しない（効果の札の秒も切り上げ）。 */
+export function secondsText(s: number): string {
+  const tenth = Math.ceil(s * 10 - 1e-6) / 10;
+  return tenth >= 10 ? String(Math.ceil(s - 1e-6)) : tenth.toFixed(1);
 }
 
 /** 割り当ての短い名前（マウスは「左」「右」。キーは表示の名前）。 */
@@ -184,28 +227,42 @@ export function shortBindingName(b: Binding | undefined): string {
   return bindingName(b);
 }
 
+/** 書記素（見た目の1文字）で数えるための分割器（毎回作らず、1つを使い回す）。 */
+const SEGMENTER = new Intl.Segmenter("ja", { granularity: "grapheme" });
+
 /** 枠に収まる短い名前（max 文字まで。超えたら切る）。 */
 export function shortName(name: string, max = 4): string {
-  // 書記素（見た目の1文字）で数える
-  const chars = Array.from(
-    new Intl.Segmenter("ja", { granularity: "grapheme" }).segment(name),
-    (x) => x.segment,
-  );
+  const chars = Array.from(SEGMENTER.segment(name), (x) => x.segment);
   return chars.length <= max ? name : chars.slice(0, max).join("");
+}
+
+/** 技IDごとの短い名前（名前は変わらないので、1度作ったら覚えておく。毎フレームの割り当てを減らす）。 */
+const shortNames = new Map<string, string>();
+function shortNameOf(skill: string, name: string): string {
+  let s = shortNames.get(skill);
+  if (s === undefined) {
+    s = shortName(name);
+    shortNames.set(skill, s);
+  }
+  return s;
 }
 
 /**
  * 技のCDの総時間を覚える（ArenaSimulation の Cooldowns は残りしか持たないため、表示の側で、CDが始まったときの
  * 残りを総時間として覚える）。Phaser に依存しない。
+ * シーンを作るたびに新しく作る（ArenaScene.create）。作った直後の最初の刻みで既にCD中だった技は、総時間が分からない。
  */
 export class CooldownTracker {
   private readonly totals = new Map<string, number>();
-  /** 見ていない間に始まったCD（シーンを作り直した直後など）。総時間が分からない。 */
+  /** 見ていない間に始まったCD（作った直後に既にCD中だった技）。総時間が分からない。 */
   private readonly unknown = new Set<string>();
+  /** この刻みに observe された技（endFrame で、されなかった技を忘れるのに使う）。 */
+  private readonly seen = new Set<string>();
   private first = true;
 
   /** 今の残りを見せて、総時間（分からなければ undefined）を返す。 */
   observe(skill: string, remaining: number): number | undefined {
+    this.seen.add(skill);
     if (!(remaining > 0)) {
       this.totals.delete(skill);
       this.unknown.delete(skill);
@@ -221,9 +278,20 @@ export class CooldownTracker {
     return this.unknown.has(skill) ? undefined : this.totals.get(skill);
   }
 
-  /** 1回分の見る作業が終わった（以後に始まったCDは、総時間が分かる）。 */
+  /**
+   * 1回分の見る作業が終わった（以後に始まったCDは、総時間が分かる）。毎刻み必ず呼ぶ。
+   * この刻みに observe されなかった技（枠から外していた）は忘れる：外している間にCDが終わっていても、
+   * 入れ直したときに古い総時間を返さないため。
+   */
   endFrame(): void {
     this.first = false;
+    for (const skill of [...this.totals.keys()]) {
+      if (!this.seen.has(skill)) {
+        this.totals.delete(skill);
+        this.unknown.delete(skill);
+      }
+    }
+    this.seen.clear();
   }
 }
 
@@ -285,6 +353,7 @@ function skillSlots(
         shortName: "",
         state: "empty",
         stateLabel: text(SKILL_STATE_TEXT.empty),
+        onCooldown: false,
         cooldownRemaining: 0,
         cooldownTotal: undefined,
         cooldownRatio: undefined,
@@ -302,16 +371,17 @@ function skillSlots(
       keyLabel,
       skill: entry.skill,
       name,
-      shortName: shortName(name),
+      shortName: shortNameOf(entry.skill, name),
       state,
       stateLabel:
         state === "ready"
           ? ""
           : state === "cooldown"
-            ? fill(text(SKILL_STATE_TEXT.cooldown), { s: remaining.toFixed(1) })
+            ? fill(text(SKILL_STATE_TEXT.cooldown), { s: secondsText(remaining) })
             : state === "gauge"
               ? fill(text(SKILL_STATE_TEXT.gauge), { gauge: gaugeName })
               : text(SKILL_STATE_TEXT[state]),
+      onCooldown: remaining > 0,
       cooldownRemaining: remaining,
       cooldownTotal: total,
       cooldownRatio: total === undefined ? undefined : clamp01(remaining / total),
@@ -325,7 +395,8 @@ function skillSlots(
 function gaugeVital(src: HudSource): HudGauge {
   const g = src.jobGauge;
   const label = text(g.def.text as TextKey);
-  const base = vital("gauge", label, g.value, g.max);
+  // ゲージは溜まった分だけを見せる（切り捨て）
+  const base = vital("gauge", label, g.value, g.max, "floor");
   const stages = g.def.stages.map((s) => ({
     id: s.id,
     label: text(s.text as TextKey),
@@ -336,12 +407,18 @@ function gaugeVital(src: HudSource): HudGauge {
   const top = reached[reached.length - 1];
   // 位相のゲージ（魔法使い）は、段階の代わりに合成魔法の名前
   const fusion = g.fusion;
+  // 段階の無い、個数で数えるゲージ（コンボ点0〜5・信念0〜10など）は、棒を個数で区切る
+  const pips =
+    stages.length === 0 && Number.isInteger(g.max) && g.max >= 2 && g.max <= PIPS_MAX_COUNT
+      ? g.max
+      : undefined;
   return {
     ...base,
     id: "gauge",
     stages,
     stageId: top?.id ?? fusion?.id,
     stageLabel: top?.label ?? (fusion === undefined ? undefined : text(fusion.text as TextKey)),
+    ...(pips === undefined ? {} : { pips }),
   };
 }
 
@@ -368,6 +445,22 @@ function bossOf(src: HudSource): HudBoss | undefined {
   };
 }
 
+/** 受けている状態異常（全ての種類）。詳しい情報（ArenaScene）の文字も、これを使う。 */
+export function ailmentsOf(src: Pick<HudSource, "db" | "player">): HudEffect[] {
+  const db = src.db;
+  const st = src.player.ailments;
+  return st.activeTags().map((tag) => {
+    const def = [...db.ailments.values()].find((a) => a.tag === tag);
+    const tagDef = db.tags.get(tag);
+    return {
+      kind: "ailment" as const,
+      label: tagDef === undefined ? tag : text(tagDef.text as TextKey),
+      remaining: undefined,
+      stacks: def === undefined ? 0 : st.stacks(def.id),
+    };
+  });
+}
+
 function effectsOf(src: HudSource): HudEffect[] {
   const out: HudEffect[] = src.buffs.active.map((b) => ({
     kind: "buff" as const,
@@ -375,19 +468,7 @@ function effectsOf(src: HudSource): HudEffect[] {
     remaining: b.remaining,
     stacks: 1,
   }));
-  // 状態異常（ArenaScene の ailmentText と同じ内容）
-  const db = src.db;
-  const st = src.player.ailments;
-  for (const tag of st.activeTags()) {
-    const def = [...db.ailments.values()].find((a) => a.tag === tag);
-    const tagDef = db.tags.get(tag);
-    out.push({
-      kind: "ailment",
-      label: tagDef === undefined ? tag : text(tagDef.text as TextKey),
-      remaining: undefined,
-      stacks: def === undefined ? 0 : st.stacks(def.id),
-    });
-  }
+  out.push(...ailmentsOf(src));
   if (src.player.stagger.broken)
     out.push({ kind: "stagger", label: text("hud.staggered"), remaining: undefined, stacks: 1 });
   return out;
@@ -439,6 +520,8 @@ export function buildHudModel(src: HudSource, options: HudModelOptions): HudMode
       ),
       gauge,
     },
+    // 「HPの割合が 0.3 未満」。HP が 0（倒れた瞬間）は false：倒れると ArenaScene がすぐ町へ移る（シーンを作り直す）ので、
+    // 0 の絵を点滅させても見えない。0 で true にすると、移るまでの1フレームだけ点滅の色が出てしまう。
     lowHp: hp.maxHp > 0 && hp.hp > 0 && hp.hp / hp.maxHp < LOW_HP_RATIO,
     skills: skillSlots(src, bindings, options.cooldowns),
     flasks: [
@@ -473,8 +556,10 @@ export function buildHudModel(src: HudSource, options: HudModelOptions): HudMode
 
 /** 手応えの表示のきっかけを見つけるための、状態の数（ArenaSimulation から読む）。 */
 export interface HudEventInput {
-  /** 被弾した回数（敵の攻撃と、試験用の場の危険地帯の合計）。 */
+  /** 被弾した回数（敵の攻撃と、試験用の場の危険地帯の合計。盾で防いだ分も数える）。 */
   readonly hitsTaken: number;
+  /** 今のHP（ヒットで実際に減ったかを見るのに使う）。 */
+  readonly hp: number;
   readonly level: number;
   readonly jobId: string;
   readonly jobLevel: number;
@@ -491,7 +576,9 @@ export interface HudEvents {
 
 /**
  * 状態の数の増加から、手応えの表示（被弾の赤い縁・Lv UP）のきっかけを見つける。規則には関わらない。
- * 最初に見たときは、何も起きていない扱い。
+ * 最初に見たときは、何も起きていない扱い（シーンを作るたびに新しく作る）。
+ * 被弾（hurt）は「被弾の回数が増え、かつ HP が前より減った」ときだけ。盾で防いだ・魔障で全部吸収した（HPが減らない）
+ * 被弾と、毒など持続ダメージの小さな減り（回数が増えない）では出さない。
  */
 export class HudEventTracker {
   private last: HudEventInput | undefined;
@@ -501,7 +588,7 @@ export class HudEventTracker {
     this.last = now;
     if (prev === undefined) return { hurt: false, levelUp: undefined, jobLevelUp: undefined };
     return {
-      hurt: now.hitsTaken > prev.hitsTaken,
+      hurt: now.hitsTaken > prev.hitsTaken && now.hp < prev.hp,
       levelUp: now.level > prev.level ? now.level : undefined,
       jobLevelUp:
         now.jobId === prev.jobId && now.jobLevel > prev.jobLevel ? now.jobLevel : undefined,

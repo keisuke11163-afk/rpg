@@ -11,6 +11,7 @@ import { loadGameContent, text, type TextKey } from "@stella/content";
 import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
+import { fill } from "../ui/hud-model.ts";
 import { newCharacterProfile, testStartProfile } from "./arena-simulation.ts";
 import { type ArenaSceneData, TOWN_REGION } from "./ArenaScene.ts";
 
@@ -65,20 +66,31 @@ export class TitleScene extends Phaser.Scene {
       .rectangle(x - 6, y - 2, 2, t.height + 4, 0xc3a6ff, 0.9)
       .setOrigin(0, 0)
       .setVisible(false);
+    const hover = (on: boolean): void => {
+      glow.setVisible(on);
+      edge.setVisible(on);
+      t.setColor(on ? "#ffffff" : color);
+    };
     t.setDepth(1)
       .setInteractive({ useHandCursor: true })
       .on("pointerdown", run)
       .on("pointerover", () => {
-        glow.setVisible(true);
-        edge.setVisible(true);
-        t.setColor("#ffffff");
+        hover(true);
       })
       .on("pointerout", () => {
-        glow.setVisible(false);
-        edge.setVisible(false);
-        t.setColor(color);
+        hover(false);
       });
     this.texts.push(glow, edge, t);
+    // 描き直した（スロットを選んだ）直後、ポインターがこの行の上に乗ったままなら、動かさなくてもホバーの帯を出す
+    // （Phaser は、ポインターが動くまで pointerover を出さないため）
+    const p = this.input.activePointer;
+    if (t.getBounds().contains(p.x, p.y)) {
+      hover(true);
+      // Phaser はこの行を「乗った」と数えていないので、離れても pointerout が出ない。次に動いたとき、外れていれば自分で戻す
+      this.input.once("pointermove", (q: Phaser.Input.Pointer) => {
+        if (t.active && !t.getBounds().contains(q.x, q.y)) hover(false);
+      });
+    }
   }
 
   /** 背景の飾り（題字の下の線と星・薄い星空・下端の一言）。作ったときに1回だけ。 */
@@ -194,7 +206,7 @@ export class TitleScene extends Phaser.Scene {
       if (!r.ok) return false;
       profile = r.profile;
       status =
-        how === "continue" ? `スロット${String(slot)}から読み込んだ` : "1つ前の保存から再開した";
+        how === "continue" ? fill(text("hud.save.loaded"), { n: slot }) : "1つ前の保存から再開した";
     } else if (how === "dev") {
       profile = testStartProfile(this.db);
       status = "開発用の初期の状態で始めた";

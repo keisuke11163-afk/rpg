@@ -24,6 +24,7 @@ import {
   type JobBoardAllocation,
 } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
+import { setTextColor, setTextWrapWidth } from "./text-style.ts";
 import { type ArenaSimulation, SKILL_SLOTS, type SkillSlot } from "../scenes/arena-simulation.ts";
 import { ACTIONS, type Action, type Binding } from "../input/actions.ts";
 import {
@@ -656,8 +657,9 @@ export class EquipmentPanel {
       this.pool.push(t);
     }
     this.used += 1;
-    t.setPosition(x, y).setText(l.text).setColor(l.color).setVisible(true);
-    t.setWordWrapWidth(width ?? 0, true);
+    // style 系は、前と違うときだけ設定する（毎フレームの描き直しを避ける。text-style.ts）
+    setTextColor(t.setPosition(x, y).setText(l.text), l.color).setVisible(true);
+    setTextWrapWidth(t, width ?? 0);
     this.shown.push(l.text);
   }
 

@@ -6,6 +6,7 @@ import {
   type FlaskState,
   type HitReport,
   type HitShape,
+  JOB_CHANGE_LEVEL,
   type PlayerProfile,
   SaveDataError,
   SaveStore,
@@ -21,8 +22,11 @@ import {
   FACILITY_TEXT,
   HudEventTracker,
   type HudModel,
+  ailmentsOf,
   buildHudModel,
   fill,
+  promptOf,
+  shortBindingName,
 } from "../ui/hud-model.ts";
 import { itemName } from "../ui/item-text.ts";
 import { BIG_MAP, MINIMAP, type MinimapMarkKind, minimapMarks } from "../ui/minimap.ts";
@@ -128,8 +132,11 @@ export class ArenaScene extends Phaser.Scene {
   private debugText!: Phaser.GameObjects.Text;
   /** 戦闘画面の HUD（補助仕様書16章）。 */
   private hudView!: Hud;
-  private readonly cooldownTracker = new CooldownTracker();
-  private readonly hudEvents = new HudEventTracker();
+  /** 技のCDの総時間・手応えのきっかけを覚えるもの。シーンを作るたび（create）に新しくする。 */
+  private cooldownTracker = new CooldownTracker();
+  private hudEvents = new HudEventTracker();
+  /** 手応えの表示を出した回数（開発用の確認 hud() が返す。シーンを作るたびに0から）。 */
+  private hudCounts = { hurt: 0, levelUp: 0, jobLevelUp: 0 };
   /** 最後に作った HUD のビューモデル（開発用の確認 hud() が返す）。 */
   private hudModel: HudModel | undefined;
   private bars!: Phaser.GameObjects.Graphics;
@@ -235,6 +242,9 @@ export class ArenaScene extends Phaser.Scene {
     // 棒・地図は世界の絵（敵・プレイヤー）より上、画面（深さ1000）より下
     this.bars = this.add.graphics().setScrollFactor(0).setDepth(900);
     this.hudView = new Hud(this);
+    this.cooldownTracker = new CooldownTracker();
+    this.hudEvents = new HudEventTracker();
+    this.hudCounts = { hurt: 0, levelUp: 0, jobLevelUp: 0 };
     // 詳しい情報は、左上の HUD（地域・Lv・ジョブ）の下に、下敷き付きで出す
     this.debugText = this.add
       .text(8, 50, "", {
@@ -525,6 +535,16 @@ export class ArenaScene extends Phaser.Scene {
         model: this.hudModel ?? null,
         debugVisible: this.debugText.visible,
         debugHud: this.settings.debugHud,
+        // 手応えの表示を出した回数（このシーンを作ってからの累計）
+        events: { ...this.hudCounts },
+        // 配置（通常・画面を開いている間の下の帯）と、主な部品の表示
+        view: this.hudView.snapshot(),
+      }),
+      // 照準の世界座標：揺れを含まない式（InputSystem）と、Phaser の pointer.worldX/Y（揺れを含む）の両方
+      aim: () => ({
+        ...this.controls.pointerWorld(),
+        phaserX: this.input.activePointer.worldX,
+        phaserY: this.input.activePointer.worldY,
       }),
       // 刻みが0のフレームを再現するため（pnpm e2e）。null で元に戻す
       setFrameDeltaMs: (ms: number | null) => {
@@ -597,7 +617,8 @@ export class ArenaScene extends Phaser.Scene {
         this.panel.show("teleport");
         break;
       case "temple":
-        if (!this.sim.character.canChangeJob) this.popText("キャラLv15で転職できる", at, "#ff6b6b");
+        if (!this.sim.character.canChangeJob)
+          this.popText(fill(text("hud.temple.needLevel"), { n: JOB_CHANGE_LEVEL }), at, "#ff6b6b");
         else this.jobPressed = true;
         break;
       case "altar":
@@ -716,18 +737,10 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
-  /** 受けている状態異常（全ての種類。補助仕様書16章「状態異常のアイコン」の文字の版）。 */
+  /** 受けている状態異常（全ての種類。補助仕様書16章「状態異常のアイコン」の文字の版）。HUD の札と同じ内容（ailmentsOf）。 */
   private ailmentText(): string {
-    const db = this.sim.db;
-    const st = this.sim.player.ailments;
-    return st
-      .activeTags()
-      .map((tag) => {
-        const def = [...db.ailments.values()].find((a) => a.tag === tag);
-        const name = db.tags.has(tag) ? text(db.tags.get(tag)?.text as TextKey) : tag;
-        const n = def === undefined ? 0 : st.stacks(def.id);
-        return `・${name}${n > 1 ? ` ${String(n)}` : ""}`;
-      })
+    return ailmentsOf(this.sim)
+      .map((a) => `・${a.label}${a.stacks > 1 ? ` ${String(a.stacks)}` : ""}`)
       .join("");
   }
 
@@ -883,22 +896,32 @@ export class ArenaScene extends Phaser.Scene {
     this.hudModel = model;
     const ev = this.hudEvents.observe({
       hitsTaken: sim.hitsTaken + sim.hazardHits,
+      hp: sim.playerHealth.hp,
       level: sim.character.level,
       jobId: sim.job.id,
       jobLevel: sim.character.jobLevel(sim.job.id),
     });
     if (ev.hurt) {
-      // 被弾：画面の縁を短く赤く・カメラを小さく揺らす（約2ピクセル・100ミリ秒）
+      // 被弾（HPが実際に減ったとき）：画面の縁を短く赤く・カメラを小さく揺らす（約2ピクセル・100ミリ秒）
+      this.hudCounts.hurt += 1;
       this.hudView.hurt(now);
       this.cameras.main.shake(100, 0.003);
     }
-    if (ev.levelUp !== undefined)
-      this.hudView.levelUp(fill(text("hud.levelUp"), { n: ev.levelUp }));
-    else if (ev.jobLevelUp !== undefined)
+    // キャラLv UP とジョブLv UP が同じ刻みに起きたら、両方を縦にずらして出す
+    let row = 0;
+    if (ev.levelUp !== undefined) {
+      this.hudCounts.levelUp += 1;
+      this.hudView.levelUp(fill(text("hud.levelUp"), { n: ev.levelUp }), undefined, row);
+      row += 1;
+    }
+    if (ev.jobLevelUp !== undefined) {
+      this.hudCounts.jobLevelUp += 1;
       this.hudView.levelUp(
         fill(text("hud.jobLevelUp"), { job: model.level.jobName, n: ev.jobLevelUp }),
         "#e2d4ff",
+        row,
       );
+    }
     this.hudView.render(model, {
       panelOpen: this.panel.open !== undefined,
       bigMap: this.bigMap,
@@ -1116,15 +1139,9 @@ export class ArenaScene extends Phaser.Scene {
     this.debugText.setText(
       [
         `${region === undefined ? "試験用の場（開発用。B 鍛冶屋・G 転職）" : text(region.text as TextKey)}　${this.controlsHint()}${(() => {
-          const n = sim.nearbyInteractable();
-          if (n === undefined) return "";
-          return n.kind === "facility"
-            ? `　【F：${facilityName(n.facility)}】`
-            : n.kind === "chest"
-              ? "　【F：宝箱を開ける】"
-              : n.kind === "secret"
-                ? "　【F：調べる】"
-                : "　【F：転移の石に触れる】";
+          // 近くの物の案内は HUD と同じ文章（promptOf。割り当てを変えていればそのキーの名前）
+          const p = promptOf(sim, shortBindingName(effectiveBindings(this.settings).interact[0]));
+          return p === undefined ? "" : `　【${p}】`;
         })()}`,
         `Lv${String(c.level)}（経験値 ${c.progress.xp.toFixed(0)}／${String(c.progress.toNext)}）・${text(sim.job.text as TextKey)} ジョブLv${String(c.jobLevel(sim.job.id))}（${c.jobTrack(sim.job.id).xp.toFixed(0)}／${String(c.jobTrack(sim.job.id).toNext)}）${c.catchingUp ? "・追いつき補正×2" : ""}`,
         slots,

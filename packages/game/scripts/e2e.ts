@@ -192,6 +192,7 @@ type DebugWindow = {
     startSlot: (slot: number, how: string) => boolean;
     subJob: () => SubJobInfo;
     hud: () => HudInfo;
+    aim: () => { x: number; y: number; phaserX: number; phaserY: number };
   };
 };
 /**
@@ -206,6 +207,7 @@ interface HudInfo {
       keyLabel: string;
       skill?: string;
       state: string;
+      onCooldown: boolean;
       cooldownRemaining: number;
       cooldownRatio?: number;
     }[];
@@ -221,6 +223,16 @@ interface HudInfo {
   } | null;
   debugVisible: boolean;
   debugHud: boolean;
+  /** 手応えの表示を出した回数（このシーンを作ってからの累計）。 */
+  events: { hurt: number; levelUp: number; jobLevelUp: number };
+  /** HUD の配置（通常 full・画面を開いている間の下の帯 strip）と、主な部品の表示。 */
+  view: {
+    mode: "full" | "strip";
+    regionVisible: boolean;
+    skillKeysVisible: number;
+    vitalLabelY: number;
+    vitalLabelsVisible: number;
+  };
 }
 interface JobBoardInfo {
   job: string;
@@ -624,6 +636,17 @@ try {
       tip.lines.some((l) => l.startsWith("通常攻撃の毎秒ダメージ")),
     `画面 ${String(tip.open)}・行 ${String(tip.lines.length)}・${tip.lines.filter((l) => l.includes("大斧") || l.startsWith("通常攻撃")).join("／")}`,
   );
+  // HUD：画面を開いている間は、下の帯の表示（左上の地域・技の枠は隠れ、棒は画面の下の端に横に並ぶ）
+  const stripHud = (await hud()).view;
+  check(
+    "HUD：画面（I）を開いている間は、下の帯の表示になる（左上・技の枠は隠れ、HPなどの棒だけが下の端に並ぶ）",
+    stripHud.mode === "strip" &&
+      !stripHud.regionVisible &&
+      stripHud.skillKeysVisible === 0 &&
+      stripHud.vitalLabelsVisible === 4 &&
+      stripHud.vitalLabelY > 330,
+    `配置 ${stripHud.mode}・地域 ${String(stripHud.regionVisible)}・技のキー ${String(stripHud.skillKeysVisible)}・棒の名前 ${String(stripHud.vitalLabelsVisible)}・y ${String(stripHud.vitalLabelY)}`,
+  );
   const hitsBeforeClick = (await dummy()).hits;
   await page.mouse.down();
   await page.mouse.up();
@@ -638,6 +661,12 @@ try {
   await page.waitForTimeout(100);
   const closed = await panel();
   check("I でインベントリの画面を閉じる", closed.open === null, `画面 ${String(closed.open)}`);
+  const fullHud = (await hud()).view;
+  check(
+    "HUD：画面を閉じると、通常の表示に戻る",
+    fullHud.mode === "full" && fullHud.regionVisible && fullHud.skillKeysVisible === 6,
+    `配置 ${fullHud.mode}・地域 ${String(fullHud.regionVisible)}・技のキー ${String(fullHud.skillKeysVisible)}`,
+  );
   await setFervor(0);
   await waitIdle();
   await clickDummy("right");
@@ -715,6 +744,18 @@ try {
       cdSlot.cooldownRatio < 1,
     `状態 ${String(cdSlot?.state)}・残り ${String(cdSlot?.cooldownRemaining.toFixed(2))}・割合 ${String(cdSlot?.cooldownRatio?.toFixed(2))}`,
   );
+  // 照準の世界座標は、カメラの揺れを含まない式で出す（揺れは Math.random で決まる表示だけの値）。
+  // 揺れていない・止まっているときは、Phaser の pointer.worldX/Y（揺れを含む）と一致する
+  await waitIdle();
+  await page.waitForTimeout(800);
+  await page.mouse.move(420, 210);
+  await page.waitForTimeout(250);
+  const aim = await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.aim());
+  check(
+    "照準の世界座標（揺れを含まない式）は、止まっていて揺れていないとき、Phaser の pointer.worldX/Y と一致する",
+    Math.abs(aim.x - aim.phaserX) < 0.01 && Math.abs(aim.y - aim.phaserY) < 0.01,
+    `式 (${aim.x.toFixed(2)}, ${aim.y.toFixed(2)})・Phaser (${aim.phaserX.toFixed(2)}, ${aim.phaserY.toFixed(2)})`,
+  );
 
   // 転職と盗賊（仕様書5.1・5.6）
   await waitIdle();
@@ -730,9 +771,18 @@ try {
       sr.weapon === "test-dagger",
     `ジョブ ${sw.job} → ${sr.job}・ジョブLv ${JSON.stringify(sr.jobLevels)}・武器 ${String(sr.weapon)}`,
   );
+  const hudBeforeXp = await hud();
   await page.evaluate(
     (v: number) => (window as unknown as DebugWindow).__STELLA_DEBUG__.grantXp(v),
     30000,
+  );
+  await page.waitForTimeout(150);
+  const hudAfterXp = await hud();
+  check(
+    "HUD：経験値を与えると、キャラLv UP とジョブLv UP の表示がそれぞれ1回出る（同じ刻みでも両方。L7）",
+    hudAfterXp.events.levelUp === hudBeforeXp.events.levelUp + 1 &&
+      hudAfterXp.events.jobLevelUp === hudBeforeXp.events.jobLevelUp + 1,
+    `Lv UP ${String(hudBeforeXp.events.levelUp)} → ${String(hudAfterXp.events.levelUp)}・ジョブLv UP ${String(hudBeforeXp.events.jobLevelUp)} → ${String(hudAfterXp.events.jobLevelUp)}`,
   );
   const sg = await skills();
   check(
@@ -771,6 +821,29 @@ try {
     pt.x > dd.x + 0.5 && Math.abs(pt.y - dd.y) < 0.5,
     `プレイヤー (${pt.x.toFixed(2)}, ${pt.y.toFixed(2)})・人形 (${dd.x.toFixed(1)}, ${dd.y.toFixed(1)})`,
   );
+
+  // HUD：影走りの CD 中に、対象のいない所（人形から離れる）へ行っても、枠は「対象なし」の色のまま、CDの覆いと残り秒が出る（M1）
+  await page.evaluate(
+    (a: { x: number; y: number }) =>
+      (window as unknown as DebugWindow).__STELLA_DEBUG__.teleportTo(a.x, a.y),
+    { x: dd.x - 20, y: dd.y },
+  );
+  await page.waitForTimeout(100);
+  const noTarget = (await hud()).model?.skills[3];
+  check(
+    "HUD：CD中の影走りは、対象がいなくても（対象なし）、CDの覆いと残り秒が出る（onCooldown。M1）",
+    noTarget?.skill === "SKL-ROGUE-SHADOWSTEP" &&
+      noTarget.state === "target" &&
+      noTarget.onCooldown &&
+      noTarget.cooldownRemaining > 0,
+    `技 ${String(noTarget?.skill)}・状態 ${String(noTarget?.state)}・CD中 ${String(noTarget?.onCooldown)}・残り ${String(noTarget?.cooldownRemaining.toFixed(2))}`,
+  );
+  await page.evaluate(
+    (a: { x: number; y: number }) =>
+      (window as unknown as DebugWindow).__STELLA_DEBUG__.teleportTo(a.x, a.y),
+    { x: pt.x, y: pt.y },
+  );
+  await page.waitForTimeout(100);
 
   // 弓使い（仕様書v0.2 5.7）：G で転職し、8m 離れた人形を左クリックで撃つ。矢が飛び、人形に当たる
   await waitIdle();

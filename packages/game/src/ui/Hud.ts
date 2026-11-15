@@ -13,6 +13,7 @@
 import Phaser from "phaser";
 import { text } from "@stella/content";
 import { MINIMAP } from "./minimap.ts";
+import { setTextColor } from "./text-style.ts";
 import {
   type HudEffect,
   type HudFlask,
@@ -21,6 +22,7 @@ import {
   type HudSkillSlot,
   type HudVital,
   fill,
+  secondsText,
 } from "./hud-model.ts";
 
 /** HUD の深さ（棒・地図の Graphics は900。画面は1000）。 */
@@ -32,7 +34,7 @@ const H = 360;
 /** 配置の数値（画面のピクセル）。 */
 export const HUD_LAYOUT = {
   vitals: { x: 8, labelRight: 41, barX: 44, barWidth: 84, barHeight: 8, row: 11, rows: 4 },
-  skills: { box: 34, height: 28, gap: 3, flask: 22, flaskGap: 8, bottom: 6 },
+  skills: { box: 38, height: 28, gap: 3, flask: 22, flaskGap: 8, bottom: 6 },
   chips: { height: 11, gap: 3 },
   top: { x: 8, y: 5 },
   boss: { width: 280, y: 4 },
@@ -126,6 +128,8 @@ export class Hud {
   private readonly flaskKeys: Phaser.GameObjects.Text[];
   private readonly flaskCounts: Phaser.GameObjects.Text[];
   private readonly chips: Phaser.GameObjects.Text[] = [];
+  /** 画面を開いている間に隠す文字（chips は数が変わるので別）。 */
+  private readonly fixedTexts: readonly Phaser.GameObjects.Text[];
   private readonly prompt: Phaser.GameObjects.Text;
   private readonly bossName: Phaser.GameObjects.Text;
   private readonly bossStage: Phaser.GameObjects.Text;
@@ -138,6 +142,8 @@ export class Hud {
   private bossTrail = 1;
   private hurtAt = -Infinity;
   private lastNow = 0;
+  /** 今の配置：full＝通常、strip＝画面を開いている間の下の帯（開発用の確認 snapshot が返す）。 */
+  private mode: "full" | "strip" = "full";
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -186,6 +192,23 @@ export class Hud {
     this.save = t(8, "#b8b4c8")
       .setOrigin(1, 0)
       .setPosition(W - 8, HUD_LAYOUT.top.y);
+    // 全体を隠すときの対象（作ったときに1回だけ並べる。毎フレーム配列を作らない）
+    this.fixedTexts = [
+      this.region,
+      this.lv,
+      this.jobLv,
+      this.catchUp,
+      this.trial,
+      this.prompt,
+      this.bossName,
+      this.bossStage,
+      this.bossHp,
+      ...this.slotKeys,
+      ...this.slotNames,
+      ...this.slotCds,
+      ...this.flaskKeys,
+      ...this.flaskCounts,
+    ];
   }
 
   /** 被弾した（赤い縁を短く出す）。 */
@@ -193,10 +216,10 @@ export class Hud {
     this.hurtAt = now;
   }
 
-  /** Lvが上がった：画面の中央に短く出す。 */
-  levelUp(label: string, color = "#ffd166"): void {
+  /** Lvが上がった：画面の中央に短く出す。同じ刻みに2つ出すときは row をずらして重ならないようにする。 */
+  levelUp(label: string, color = "#ffd166", row = 0): void {
     const t = this.scene.add
-      .text(W / 2, 112, label, {
+      .text(W / 2, 112 + row * 20, label, {
         fontFamily: FONT,
         fontSize: "14px",
         color,
@@ -218,6 +241,23 @@ export class Hud {
     });
   }
 
+  /** 開発用の確認：今の配置と、主な部品の表示（pnpm e2e が見る）。 */
+  snapshot(): {
+    mode: "full" | "strip";
+    regionVisible: boolean;
+    skillKeysVisible: number;
+    vitalLabelY: number;
+    vitalLabelsVisible: number;
+  } {
+    return {
+      mode: this.mode,
+      regionVisible: this.region.visible,
+      skillKeysVisible: this.slotKeys.filter((t) => t.visible).length,
+      vitalLabelY: this.vitalLabels[0]?.y ?? 0,
+      vitalLabelsVisible: this.vitalLabels.filter((t) => t.visible).length,
+    };
+  }
+
   render(m: HudModel, o: HudRenderOptions): void {
     const dt = Math.max(0, o.now - this.lastNow) / 1000;
     this.lastNow = o.now;
@@ -225,6 +265,7 @@ export class Hud {
     this.renderEdge(m, o.now);
     this.renderSave(m.saveStatus, o.now);
     const full = !o.panelOpen;
+    this.mode = full ? "full" : "strip";
     // 画面を開いている間：HPなどの棒だけを、画面の下の帯（画面の外）に横に並べる
     if (o.panelOpen) this.renderVitalsStrip(g, m, o.now);
     else this.renderVitals(g, m, o.now);
@@ -242,24 +283,10 @@ export class Hud {
 
   /** 全体の表示を切り替える（画面を開いている間の、下の帯の棒は別）。 */
   private setVisible(full: boolean): void {
-    for (const t of [
-      this.region,
-      this.lv,
-      this.jobLv,
-      this.catchUp,
-      this.trial,
-      this.prompt,
-      this.bossName,
-      this.bossStage,
-      this.bossHp,
-      ...this.slotKeys,
-      ...this.slotNames,
-      ...this.slotCds,
-      ...this.flaskKeys,
-      ...this.flaskCounts,
-      ...this.chips,
-    ])
-      if (!full) t.setVisible(false);
+    // 全体を出すときは、各 render* がそれぞれ表示を決める
+    if (full) return;
+    for (const t of this.fixedTexts) t.setVisible(false);
+    for (const t of this.chips) t.setVisible(false);
   }
 
   private renderEdge(m: HudModel, now: number): void {
@@ -329,7 +356,10 @@ export class Hud {
     }
   }
 
-  /** 段階のしきい値の刻み（職能ゲージ）。 */
+  /**
+   * 職能ゲージの刻み。段階のしきい値は白い刻み、個数で数えるゲージ（pips）は暗い区切り。
+   * stub が true なら、段階の刻みは棒の外（上下に2ピクセル）にだけ描く：数値の文字を棒の上に重ねる帯で、文字と重ならないように。
+   */
   private gaugeTicks(
     g: Phaser.GameObjects.Graphics,
     gauge: HudGauge,
@@ -337,21 +367,26 @@ export class Hud {
     y: number,
     w: number,
     h: number,
+    stub = false,
   ): void {
     for (const s of gauge.stages) {
       if (s.ratio <= 0 || s.ratio >= 1) continue;
       const tx = x + Math.round(w * s.ratio);
-      g.fillStyle(0xffffff, gauge.value >= s.min ? 0.9 : 0.5).fillRect(tx, y - 1, 1, h + 2);
+      g.fillStyle(0xffffff, gauge.value >= s.min ? 0.9 : 0.5);
+      if (stub) g.fillRect(tx, y - 2, 1, 2).fillRect(tx, y + h, 1, 2);
+      else g.fillRect(tx, y - 1, 1, h + 2);
     }
+    const pips = gauge.pips;
+    if (pips !== undefined)
+      for (let i = 1; i < pips; i++)
+        g.fillStyle(COLOR.barEdge, 0.9).fillRect(x + Math.round((w * i) / pips), y, 1, h);
   }
 
   private vitalText(v: HudVital): string {
     if (v.id !== "gauge") return v.text;
     // 段階に入っている間は、量と段階の名前（最大は刻みで分かるので省く。棒の右に収めるため）
     const gauge = v as HudGauge;
-    return gauge.stageLabel === undefined
-      ? v.text
-      : `${Math.round(v.value).toFixed(0)} ${gauge.stageLabel}`;
+    return gauge.stageLabel === undefined ? v.text : `${v.valueText} ${gauge.stageLabel}`;
   }
 
   private vitalList(m: HudModel): readonly HudVital[] {
@@ -377,12 +412,14 @@ export class Hud {
         ?.setText(v.label)
         .setPosition(L.labelRight, y - 1)
         .setVisible(true);
-      this.vitalValues[i]
+      const value = this.vitalValues[i];
+      value
         ?.setText(this.vitalText(v))
         .setOrigin(0, 0)
         .setPosition(L.barX + L.barWidth + 4, y - 1)
-        .setColor(v.id === "hp" && m.lowHp ? "#ff8a8a" : "#e8e6f0")
         .setVisible(true);
+      if (value !== undefined)
+        setTextColor(value, v.id === "hp" && m.lowHp ? "#ff8a8a" : "#e8e6f0");
     });
   }
 
@@ -399,12 +436,11 @@ export class Hud {
       const bx = x0 + lw + 3;
       const bw = Math.round(cell - lw - 12);
       this.bar(g, bx, y, bw, 8, v.ratio, this.vitalColor(v, m, now));
-      if (v.id === "gauge") this.gaugeTicks(g, m.vitals.gauge, bx, y, bw, 8);
-      this.vitalValues[i]
-        ?.setText(this.vitalText(v))
-        .setOrigin(0.5, 0)
+      if (v.id === "gauge") this.gaugeTicks(g, m.vitals.gauge, bx, y, bw, 8, true);
+      const value = this.vitalValues[i];
+      if (value === undefined) return;
+      setTextColor(value.setText(this.vitalText(v)).setOrigin(0.5, 0), "#ffffff")
         .setPosition(bx + bw / 2, y - 1)
-        .setColor("#ffffff")
         .setVisible(true);
     });
   }
@@ -498,13 +534,14 @@ export class Hud {
       const tint = SLOT_TINT[s.state];
       if (tint !== undefined)
         g.fillStyle(tint, s.state === "locked" ? 0.55 : 0.45).fillRect(x, y, w, h);
-      if (s.state === "cooldown") {
+      if (s.onCooldown) {
         // CDの覆い：上の辺が下へ下がっていく（残りの割合の高さ）。総時間が分からなければ全体を覆う
         const r = s.cooldownRatio ?? 1;
         const ch = Math.round(h * r);
         g.fillStyle(0x000000, 0.6).fillRect(x, y + h - ch, w, ch);
       }
       if (s.state === "locked") this.lockIcon(g, x + w - 8, y + 3);
+      // 使えない理由（MP不足など）が別にあっても、CD中なら覆いと残り秒は出る（枠の色は理由の色）
       const border = s.executing ? 0xffffff : SLOT_BORDER[s.state];
       g.lineStyle(1, border, 1).strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
       if (s.state === "ready" || s.executing)
@@ -515,16 +552,19 @@ export class Hud {
         .setPosition(x + 2, y)
         .setAlpha(dim ? 0.5 : 1)
         .setVisible(true);
-      this.slotNames[i]
-        ?.setText(s.shortName)
-        .setPosition(x + w / 2, y + h - 1)
-        .setColor(s.state === "mp" ? "#9cc4ff" : s.state === "gauge" ? "#ffc489" : "#e8e6f0")
-        .setAlpha(s.state === "ready" || s.state === "cooldown" ? 1 : 0.6)
-        .setVisible(true);
+      const name = this.slotNames[i];
+      if (name !== undefined)
+        setTextColor(
+          name.setText(s.shortName),
+          s.state === "mp" ? "#9cc4ff" : s.state === "gauge" ? "#ffc489" : "#e8e6f0",
+        )
+          .setPosition(x + w / 2, y + h - 1)
+          .setAlpha(s.state === "ready" || s.state === "cooldown" ? 1 : 0.6)
+          .setVisible(true);
       this.slotCds[i]
-        ?.setText(s.state === "cooldown" ? this.cdText(s.cooldownRemaining) : "")
+        ?.setText(s.onCooldown ? secondsText(s.cooldownRemaining) : "")
         .setPosition(x + w / 2, y + h / 2 + 1)
-        .setVisible(s.state === "cooldown");
+        .setVisible(s.onCooldown);
     });
     // 薬瓶（Q：HP・E：MP。残りの回数）
     const fx0 = x0 + 6 * (S.box + S.gap) - S.gap + S.flaskGap;
@@ -545,16 +585,13 @@ export class Hud {
         ?.setText(f.keyLabel)
         .setPosition(x + 2, y)
         .setVisible(true);
-      this.flaskCounts[i]
-        ?.setText(String(f.charges))
-        .setPosition(x + w - 1, y + h + 1)
-        .setColor(empty ? "#ff6b6b" : "#ffffff")
-        .setVisible(true);
+      // 回数は枠の中の右下（枠の下の線に重ならないよう、線の1ピクセル内側に収める）
+      const count = this.flaskCounts[i];
+      if (count !== undefined)
+        setTextColor(count.setText(String(f.charges)), empty ? "#ff6b6b" : "#ffffff")
+          .setPosition(x + w - 2, y + h - 2)
+          .setVisible(true);
     });
-  }
-
-  private cdText(s: number): string {
-    return s >= 10 ? s.toFixed(0) : s.toFixed(1);
   }
 
   /** 鍵の印（未習得の技）。 */
@@ -576,9 +613,9 @@ export class Hud {
       const label = `${e.label}${e.stacks > 1 ? ` ${String(e.stacks)}` : ""}${
         e.remaining === undefined
           ? ""
-          : ` ${fill(text("hud.skill.cooldown"), { s: Math.ceil(e.remaining) })}`
+          : ` ${fill(text("hud.skill.cooldown"), { s: Math.ceil(e.remaining - 1e-6) })}`
       }`;
-      t.setText(label).setColor(style.color);
+      setTextColor(t.setText(label), style.color);
       const w = Math.ceil(t.width) + 6;
       if (x + w > xMax) {
         t.setVisible(false);
