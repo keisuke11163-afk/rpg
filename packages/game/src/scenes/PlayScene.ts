@@ -4,6 +4,19 @@ import {
   AttackRunner,
   AutoSaver,
   ConditionRegistry,
+  FACILITIES,
+  sellPrice,
+  FILL_VALUE,
+  Flask,
+  Merchant,
+  TOWN_ID,
+  World,
+  createCombatant,
+  facilityUnlocked,
+  resolveWalls,
+  type Combatant,
+  type FacilityId,
+  type MapDef,
   MATERIAL,
   awaken,
   carve,
@@ -66,7 +79,6 @@ import {
   isDodging,
   moveVector,
   pressedActions,
-  spawnPack,
   stepEnemies,
   stepPlayer,
   strike,
@@ -76,7 +88,9 @@ import {
   type HitSpec,
 } from "@stella/core";
 import {
+  ALL_MAPS,
   BOARD_DATA,
+  TOWN_FACILITY_POS,
   CRAFT_DATA,
   UNIQUE_DATA,
   UNIQUES,
@@ -149,6 +163,19 @@ export class PlayScene extends Phaser.Scene {
   /** 技の使用の動作が終わる時刻（ミリ秒）。動作中は次の技を出せない */
   private busyUntil = 0;
   private readonly enemies: Enemy[] = [];
+  private readonly world = new World(ALL_MAPS, enemyDef, "MAP-A1");
+  private mapDef: MapDef = ALL_MAPS[0] as MapDef;
+  /** 今の場所の背景・壁・施設などの表示物。場所を移るたびに作り直す */
+  private locationObjs: Phaser.GameObjects.GameObject[] = [];
+  private readonly hpFlask = new Flask("hp");
+  private readonly mpFlask = new Flask("mp");
+  private readonly stash = new ItemBag(120);
+  private readonly merchant = new Merchant();
+  /** 町の訓練用の人形 */
+  private townDummy: Combatant | undefined;
+  private lastHitBy = "不明";
+  private containerViews = new Map<string, Phaser.GameObjects.Rectangle>();
+  private listMode: "buy" | "sell" = "buy";
   private readonly views: EnemyView[] = [];
   private readonly clouds: Cloud[] = [];
   private readonly projectiles = new ProjectilePool();
@@ -201,7 +228,17 @@ export class PlayScene extends Phaser.Scene {
   private progression = new Progression(createStandardJobs(), "JOB-WARRIOR");
   private slot = 1;
   /** 開いている画面（I：持ち物、C：キャラクター） */
-  private panel: "none" | "inventory" | "character" | "star" | "job" | "smith" = "none";
+  private panel:
+    | "none"
+    | "inventory"
+    | "character"
+    | "star"
+    | "job"
+    | "smith"
+    | "merchant"
+    | "stash"
+    | "teleport"
+    | "temple" = "none";
   private panelCursor = 0;
   private panelText!: Phaser.GameObjects.Text;
   private panelTip!: Phaser.GameObjects.Text;
@@ -352,7 +389,6 @@ export class PlayScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.add.grid(0, 0, 80 * M, 60 * M, M, M, 0x1d1c26, 1, 0x26253a, 1).setDepth(-10);
     this.swing = this.add.graphics().setDepth(4);
     this.warn = this.add.graphics().setDepth(0);
     this.groundLayer = this.add.graphics().setDepth(0);
@@ -385,23 +421,7 @@ export class PlayScene extends Phaser.Scene {
     this.equipStarting();
     void this.restoreFromSave();
 
-    // 試験用の配置：森狼の群れ・牙猪・棘吐き蜥蜴・樹皮熊・腐根の苗
-    const place = (id: string, x: number, y: number, packId: string, level = 3): void => {
-      for (const e of spawnPack({
-        def: enemyDef(id),
-        level,
-        center: { x, y },
-        rng: this.rng,
-        packId,
-      })) {
-        this.addEnemy(e);
-      }
-    };
-    place("ENM-FOREST-WOLF", 16, -4, "W1");
-    place("ENM-FANG-BOAR", 14, 10, "B1");
-    place("ENM-SPIT-LIZARD", 24, 2, "L1");
-    place("ENM-BARK-BEAR", 30, -10, "R1");
-    place("ENM-ROT-SPROUT", 12, 0, "S1");
+    this.enterLocation(TOWN_ID);
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
@@ -478,6 +498,7 @@ export class PlayScene extends Phaser.Scene {
       this.updateEnemies();
       this.updateGround();
       this.updateLoot();
+      this.updateWorld();
       if (this.autoSaver.tick(TICK_SECONDS, true)) void this.autoSave();
       this.updateClouds();
       this.updateProjectiles();
@@ -538,6 +559,7 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private hurtPlayer(rawDamage: number, attacker?: Enemy): void {
+    if (this.world.inTown) return;
     // 敵の命中に対するプレイヤーの回避値は今は0（装備の画面 U-12 で扱う）
     if (!canBeHit(this.player)) return;
     const behind =
@@ -554,12 +576,8 @@ export class PlayScene extends Phaser.Scene {
     }
     this.cameras.main.shake(80, 0.002);
     this.showText(this.player.pos.x, this.player.pos.y, `-${dealt.toFixed(1)}`, "#ff8a8a", 9);
-    if (this.fighter.hp <= 0) {
-      // 仮実装: U-18a で、死亡時は町に戻る処理に置き換える
-      this.fighter.hp = this.fighter.init.maxHp;
-      this.player.pos.x = 0;
-      this.player.pos.y = 0;
-    }
+    if (attacker) this.lastHitBy = attacker.def.name;
+    if (this.fighter.hp <= 0) this.die();
   }
 
   private updateClouds(): void {
@@ -619,7 +637,7 @@ export class PlayScene extends Phaser.Scene {
         skill.id,
         this.player.pos,
         this.player.aimAngle,
-        this.enemies.map((e) => e.body),
+        this.targetBodies(),
         this.rng,
         { aim: { x: world.x / M, y: world.y / M }, ground: this.ground },
       );
@@ -684,6 +702,14 @@ export class PlayScene extends Phaser.Scene {
     }
     this.panelText.setWordWrapWidth(this.panel === "smith" ? 290 : 1200);
     if (this.panel === "smith") return this.updateSmithPanel();
+    if (
+      this.panel === "merchant" ||
+      this.panel === "stash" ||
+      this.panel === "teleport" ||
+      this.panel === "temple"
+    ) {
+      return this.updateFacilityPanel();
+    }
     this.panelText.setPosition(30, 30);
     this.panelTip.setPosition(330, 30);
     const stats = this.job.startingStats;
@@ -906,11 +932,507 @@ export class PlayScene extends Phaser.Scene {
     return true;
   }
 
+  /** 戦う対象（敵と、町の人形） */
+  private targetBodies(): Combatant[] {
+    return [...this.enemies.map((e) => e.body), ...(this.townDummy ? [this.townDummy] : [])];
+  }
+
+  /** 場所を移る：今の場所の表示物・敵・地面のアイテムを片付け、行き先を作る */
+  private enterLocation(id: string, fromId?: string): void {
+    for (const o of this.locationObjs) o.destroy();
+    this.locationObjs = [];
+    for (const v of this.views) {
+      v.body.destroy();
+      v.facing.destroy();
+      v.hp.destroy();
+    }
+    this.views.length = 0;
+    this.enemies.length = 0;
+    this.dropped.clear();
+    this.telegraphs.clear();
+    for (const g of this.projectileGfx.values()) g.destroy();
+    this.projectileGfx.clear();
+    for (const c of this.clouds) c.gfx.destroy();
+    this.clouds.length = 0;
+    // 地面に落ちていて拾っていないアイテムは失われる（地域が作り直されるため）
+    for (const label of this.lootLabels.values()) label.destroy();
+    this.lootLabels.clear();
+    this.loot.entries.length = 0;
+    for (const v of this.containerViews.values()) v.destroy();
+    this.containerViews.clear();
+    this.townDummy = undefined;
+    this.ground.traps.length = 0;
+    this.ground.smokes.length = 0;
+
+    const map = ALL_MAPS.find((m) => m.id === id) ?? this.mapDef;
+    this.mapDef = map;
+    this.world.location = id;
+    const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
+      this.locationObjs.push(o);
+      return o;
+    };
+    // 地面と壁
+    add(
+      this.add
+        .rectangle(
+          (map.width * M) / 2,
+          (map.height * M) / 2,
+          map.width * M,
+          map.height * M,
+          0x1d1c26,
+        )
+        .setDepth(-12),
+    );
+    add(
+      this.add
+        .grid(
+          (map.width * M) / 2,
+          (map.height * M) / 2,
+          map.width * M,
+          map.height * M,
+          M,
+          M,
+          0x1d1c26,
+          0,
+          0x26253a,
+          1,
+        )
+        .setDepth(-10),
+    );
+    for (const w of map.walls) {
+      add(
+        this.add
+          .rectangle(
+            (w.x + w.w / 2) * M,
+            (w.y + w.h / 2) * M,
+            w.w * M,
+            w.h * M,
+            id === TOWN_ID ? 0x3a3550 : 0x2b4a2f,
+          )
+          .setDepth(-5),
+      );
+    }
+    // 出口
+    for (const e of map.exits) {
+      add(this.add.circle(e.pos.x * M, e.pos.y * M, e.radius * M, 0xd8c36f, 0.25).setDepth(-4));
+      add(
+        this.add
+          .text(
+            e.pos.x * M,
+            (e.pos.y - e.radius - 1.5) * M,
+            e.to === TOWN_ID ? "町へ" : "次の地域へ",
+            { fontFamily: "sans-serif", fontSize: "8px", color: "#d8c36f" },
+          )
+          .setOrigin(0.5)
+          .setDepth(-3),
+      );
+    }
+    if (id === TOWN_ID) {
+      // 町：施設の目印。安全地帯（敵は出ない）。薬瓶は全回復、HP・MPも回復
+      for (const f of FACILITIES) {
+        const pos = TOWN_FACILITY_POS[f.id];
+        const open = facilityUnlocked(f.id, {
+          charLevel: this.progression.character.level,
+          firstKills: this.world.firstKills,
+        });
+        add(
+          this.add.rectangle(pos.x * M, pos.y * M, 24, 24, open ? 0x6f8bd8 : 0x555566).setDepth(-3),
+        );
+        add(
+          this.add
+            .text(pos.x * M, (pos.y - 2.2) * M, f.name + (open ? "" : "（未開放）"), {
+              fontFamily: "sans-serif",
+              fontSize: "8px",
+              color: open ? "#cfd8ff" : "#777788",
+            })
+            .setOrigin(0.5)
+            .setDepth(-3),
+        );
+      }
+      this.townDummy = createCombatant({
+        id: "TOWN-DUMMY",
+        pos: TOWN_FACILITY_POS.DUMMY,
+        maxHp: 1e9,
+        facing: Math.PI,
+      });
+      this.fighter.hp = this.fighter.maxHp;
+      this.fighter.mp = this.fighter.init.maxMp;
+      this.hpFlask.refill();
+      this.mpFlask.refill();
+      this.merchant.restock(
+        GENERATION_DATA,
+        5,
+        () => `shop_${String(this.itemSerial++)}`,
+        this.rng,
+      );
+      this.world.returnToTown();
+    } else {
+      const region =
+        this.world.region?.map.id === id ? this.world.region : this.world.enter(id, this.rng);
+      for (const e of region.enemies) this.addEnemy(e);
+      for (const c of region.containers) {
+        this.containerViews.set(
+          c.id,
+          this.add
+            .rectangle(
+              c.pos.x * M,
+              c.pos.y * M,
+              c.kind === "chest" ? 14 : 10,
+              c.kind === "chest" ? 10 : 10,
+              c.kind === "chest" ? 0xd8a24a : 0x8a6b3a,
+            )
+            .setDepth(-2),
+        );
+      }
+      if (map.teleportStone) {
+        add(
+          this.add
+            .circle(
+              map.teleportStone.x * M,
+              map.teleportStone.y * M,
+              6,
+              this.world.unlockedTeleports.has(id) ? 0x7bd3ff : 0x556688,
+            )
+            .setDepth(-2),
+        );
+      }
+    }
+    // 入口に現れる
+    const arrive =
+      fromId !== undefined && fromId !== TOWN_ID && map.exits.some((e) => e.to === fromId)
+        ? map.exits.find((e) => e.to === fromId)?.pos
+        : undefined;
+    const start = arrive
+      ? { x: arrive.x + (arrive.x < map.width / 2 ? 4 : -4), y: arrive.y }
+      : map.entrance;
+    this.player.pos.x = start.x;
+    this.player.pos.y = start.y;
+    this.lastPos = { ...start };
+    this.cameras.main.setBounds(0, 0, map.width * M, map.height * M);
+    this.cameras.main.centerOn(start.x * M, start.y * M);
+  }
+
+  /** 死亡：町に戻る。アイテム・経験値・素材・金貨は失わない。HP・MP・薬瓶は全回復。記録を残す */
+  private die(): void {
+    if (this.world.inTown) return;
+    const record = this.world.die(this.lastHitBy);
+    this.notice = `倒れた（${record.cause}）。星見の村に戻った（${String(this.world.deaths)}回目）`;
+    this.noticeLeft = 6;
+    this.attack = undefined;
+    this.enterLocation(TOWN_ID);
+    if (this.autoSaver.onEvent("enterTown")) void this.autoSave();
+  }
+
+  /** 出口・転移の石・薬瓶・地域の進行を毎刻確かめる */
+  private updateWorld(): void {
+    const map = this.mapDef;
+    // 壁との衝突
+    const fixed = resolveWalls(this.player.pos, 0.4, map.walls, {
+      width: map.width,
+      height: map.height,
+    });
+    this.player.pos.x = fixed.x;
+    this.player.pos.y = fixed.y;
+    // 出口
+    for (const e of map.exits) {
+      if (Math.hypot(this.player.pos.x - e.pos.x, this.player.pos.y - e.pos.y) <= e.radius) {
+        const from = this.world.location;
+        if (e.to === TOWN_ID) {
+          this.enterLocation(TOWN_ID);
+          if (this.autoSaver.onEvent("enterTown")) void this.autoSave();
+        } else {
+          this.world.touchTeleportStone(e.to);
+          this.world.move(e.to, this.rng);
+          this.enterLocation(e.to, from);
+          if (this.autoSaver.onEvent("changeArea")) void this.autoSave();
+        }
+        return;
+      }
+    }
+    // 入口の転移の石に触れて解放する
+    if (
+      map.teleportStone &&
+      Math.hypot(
+        this.player.pos.x - map.teleportStone.x,
+        this.player.pos.y - map.teleportStone.y,
+      ) <= 1.5
+    ) {
+      if (this.world.touchTeleportStone(map.id)) {
+        this.notice = `転移の石を解放した：${map.name}`;
+        this.noticeLeft = 4;
+      }
+    }
+    // 開発用：Lで即死（死亡の処理の確認）
+    if (this.justPressed.has("KeyL")) {
+      this.lastHitBy = "開発用の即死";
+      this.fighter.hp = 0;
+      this.die();
+      return;
+    }
+    // 薬瓶（Q：HP瓶、E：MP瓶）
+    if (this.justPressed.has("KeyQ")) {
+      this.hpFlask.use(this.fighter.maxHp, this.gearFlaskBonus());
+    }
+    if (this.justPressed.has("KeyE")) {
+      this.mpFlask.use(this.fighter.init.maxMp, this.gearFlaskBonus());
+    }
+    this.fighter.hp = Math.min(
+      this.fighter.maxHp,
+      this.fighter.hp + this.hpFlask.tick(TICK_SECONDS),
+    );
+    this.fighter.mp = Math.min(
+      this.fighter.init.maxMp,
+      this.fighter.mp + this.mpFlask.tick(TICK_SECONDS),
+    );
+    // 町では、地面の戦闘の対象は人形だけ。町はHPが減らない（敵がいない）
+  }
+
+  private gearFlaskBonus(): number {
+    return (
+      computeGear(this.equipment, GEAR_DATA, this.job.startingStats).totals["薬瓶の回復量"] ?? 0
+    );
+  }
+
+  /** F：近くの施設・宝箱を調べる。なければ装備を拾う */
+  private interact(): boolean {
+    const p = this.player.pos;
+    if (this.world.inTown) {
+      for (const f of FACILITIES) {
+        const pos = TOWN_FACILITY_POS[f.id];
+        if (Math.hypot(pos.x - p.x, pos.y - p.y) > 3) continue;
+        if (
+          !facilityUnlocked(f.id, {
+            charLevel: this.progression.character.level,
+            firstKills: this.world.firstKills,
+          })
+        ) {
+          this.notice = `${f.name}はまだ使えない`;
+          this.noticeLeft = 3;
+          return true;
+        }
+        this.openFacility(f.id);
+        return true;
+      }
+    }
+    const region = this.world.region;
+    if (region) {
+      for (const c of region.containers) {
+        if (c.opened || Math.hypot(c.pos.x - p.x, c.pos.y - p.y) > 2) continue;
+        c.opened = true;
+        this.containerViews.get(c.id)?.setFillStyle(0x444444);
+        const drop = rollDrops(
+          GENERATION_DATA,
+          {
+            source: c.kind,
+            enemyLevel: region.map.sections[0]?.levelMax ?? 1,
+            generate: {},
+            uid: () => `itm_${String(this.itemSerial++).padStart(6, "0")}`,
+          },
+          this.rng,
+        );
+        this.loot.spawn(c.pos, drop);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private openFacility(id: FacilityId): void {
+    this.panelCursor = 0;
+    switch (id) {
+      case "SMITH":
+        this.panel = "smith";
+        break;
+      case "STAR_READER":
+        this.panel = "star";
+        break;
+      case "MERCHANT":
+        this.panel = "merchant";
+        break;
+      case "STASH":
+        this.panel = "stash";
+        break;
+      case "TELEPORT":
+        this.panel = "teleport";
+        break;
+      case "TEMPLE":
+        this.panel = "temple";
+        break;
+      case "ALTAR":
+        this.notice = "討伐証の交換（母樹の討伐証は U-19 で実装）";
+        this.noticeLeft = 3;
+        break;
+      case "DUMMY":
+        this.notice = "訓練用の人形：叩くとダメージが出る";
+        this.noticeLeft = 3;
+        break;
+    }
+  }
+
+  /** 町の施設の画面（商人・倉庫・転移の石・転職神殿） */
+  private updateFacilityPanel(): boolean {
+    const jp = this.justPressed;
+    this.panelText.setPosition(30, 30);
+    this.panelTip.setPosition(330, 30);
+    const move = (jp.has("ArrowDown") ? 1 : 0) - (jp.has("ArrowUp") ? 1 : 0);
+    if (this.panel === "teleport") {
+      const regions = ALL_MAPS.filter((m) => m.id !== TOWN_ID);
+      this.panelCursor = Math.max(0, Math.min(regions.length - 1, this.panelCursor + move));
+      const target = regions[this.panelCursor];
+      if (jp.has("Enter") && target) {
+        const r = this.world.teleportTo(target.id, this.rng);
+        if (r.ok) {
+          this.panel = "none";
+          this.world.returnToTown();
+          this.enterLocation(target.id);
+          if (this.autoSaver.onEvent("changeArea")) void this.autoSave();
+          return false;
+        }
+        this.notice = "その地域の転移の石はまだ解放していない";
+        this.noticeLeft = 3;
+      }
+      this.panelText.setText(
+        `【転移の石】↑↓ 選ぶ / Enter 移動 / Esc 閉じる\n\n${regions.map((m, i) => `${i === this.panelCursor ? "▶" : " "}${m.name} ${this.world.unlockedTeleports.has(m.id) ? "" : "（未解放）"}`).join("\n")}`,
+      );
+      this.panelTip.setText("");
+      return true;
+    }
+    if (this.panel === "temple") {
+      const jobs = [WARRIOR_JOB, ROGUE_JOB];
+      this.panelCursor = Math.max(0, Math.min(jobs.length - 1, this.panelCursor + move));
+      const target = jobs[this.panelCursor];
+      if (jp.has("KeyY")) {
+        this.progression.character.level = Math.max(15, this.progression.character.level);
+        this.notice = "開発用：キャラLvを15にした";
+        this.noticeLeft = 3;
+      }
+      if (jp.has("Enter") && target && target !== this.job) {
+        const res = this.progression.canChangeJob(target.id);
+        if (res.ok) {
+          this.progression.changeJob(target.id);
+          this.job = target;
+          this.fighter = PlayScene.makeFighter(this.job);
+          this.board = new StarBoard(
+            BOARD_DATA,
+            STAR_START_OF_JOB[this.job.id] ?? "STAR-GOU-START",
+          );
+          this.equipStarting();
+          this.notice = `${target.name}に転職した`;
+        } else {
+          this.notice = "転職はキャラLv15から（Yキーで開発用にLv15にできる）";
+        }
+        this.noticeLeft = 3;
+      }
+      if (jp.has("KeyR")) {
+        const jb = this.currentJobBoard();
+        const ok = jb.respec(this.progression.jobLevel, this.purse);
+        this.notice = ok
+          ? "職紋盤を振り直した"
+          : `金貨が足りない（${String(20 * this.progression.jobLevel)}G）`;
+        this.noticeLeft = 3;
+        this.applyBoard();
+      }
+      this.panelText.setText(
+        `【転職神殿】↑↓ 選ぶ / Enter 転職（キャラLv15〜）/ R 職紋盤の振り直し / Esc 閉じる\n今のジョブ：${this.job.name}（キャラLv${String(this.progression.character.level)}）\n\n${jobs.map((j, i) => `${i === this.panelCursor ? "▶" : " "}${j.name}`).join("\n")}`,
+      );
+      this.panelTip.setText("");
+      return true;
+    }
+    if (this.panel === "stash") {
+      const entries = [
+        ...this.bag.items().map((item) => ({ item, where: "持ち物" as const })),
+        ...this.stash.items().map((item) => ({ item, where: "倉庫" as const })),
+      ];
+      this.panelCursor = Math.max(0, Math.min(entries.length - 1, this.panelCursor + move));
+      const cur = entries[this.panelCursor];
+      if (jp.has("Enter") && cur) {
+        const [from, to] = cur.where === "持ち物" ? [this.bag, this.stash] : [this.stash, this.bag];
+        if (!to.full) {
+          from.remove(cur.item.uid);
+          to.add(cur.item);
+        }
+      }
+      this.panelText.setText(
+        `【倉庫】持ち物 ${String(this.bag.count)}/${String(this.bag.capacity)}  倉庫 ${String(this.stash.count)}/${String(this.stash.capacity)}\n↑↓ 選ぶ / Enter 移す / Esc 閉じる\n\n${entries
+          .slice(0, 22)
+          .map(
+            (e, i) =>
+              `${i === this.panelCursor ? "▶" : " "}[${e.where}] ${entryLabel({ item: e.item, equipped: false }, GEAR_DATA)}`,
+          )
+          .join("\n")}`,
+      );
+      this.panelTip.setText(
+        cur
+          ? tooltipText(
+              { item: cur.item, equipped: false },
+              GEAR_DATA,
+              this.equipment,
+              this.job.startingStats,
+              this.job.id,
+              false,
+              new Set(this.discoveries.all()),
+            )
+          : "",
+      );
+      return true;
+    }
+    // 商人：Tab で買う／売る
+    if (jp.has("Tab")) this.listMode = this.listMode === "buy" ? "sell" : "buy";
+    const list = this.listMode === "buy" ? this.merchant.stock : this.bag.items();
+    this.panelCursor = Math.max(0, Math.min(list.length - 1, this.panelCursor + move));
+    const cur = list[this.panelCursor];
+    if (jp.has("Enter") && cur) {
+      if (this.listMode === "buy") {
+        const r = this.merchant.buy(cur.uid, this.bag, this.purse);
+        if (!r.ok) this.notice = r.reason === "gold" ? "金貨が足りない" : "持ち物がいっぱい";
+        else if (this.autoSaver.onEvent("trade")) void this.autoSave();
+      } else {
+        this.merchant.sell(cur.uid, this.bag, this.purse);
+        if (this.autoSaver.onEvent("trade")) void this.autoSave();
+      }
+      this.noticeLeft = 3;
+    }
+    if (jp.has("KeyD")) {
+      if (this.merchant.buyAwakeningDust(this.purse)) {
+        if (this.autoSaver.onEvent("trade")) void this.autoSave();
+      } else {
+        this.notice = "金貨が足りない";
+        this.noticeLeft = 3;
+      }
+    }
+    this.panelText.setText(
+      `【商人】金貨 ${String(this.purse.gold)}  ${this.listMode === "buy" ? "買う" : "売る"}（Tabで切替）\n↑↓ 選ぶ / Enter 決定 / D 目覚めの粉を買う(30G) / Esc 閉じる\n\n${list
+        .slice(0, 20)
+        .map(
+          (e, i) =>
+            `${i === this.panelCursor ? "▶" : " "}${entryLabel({ item: e, equipped: false }, GEAR_DATA)}  ${this.listMode === "buy" ? String(10 + 4 * e.ilvl) : String(sellPrice(e))}G`,
+        )
+        .join("\n")}`,
+    );
+    this.panelTip.setText(
+      cur
+        ? tooltipText(
+            { item: cur, equipped: false },
+            GEAR_DATA,
+            this.equipment,
+            this.job.startingStats,
+            this.job.id,
+            false,
+            new Set(this.discoveries.all()),
+          )
+        : "",
+    );
+    return true;
+  }
+
   /** 倒した敵のドロップを出し、金貨・素材を自動で拾い、Fで装備を拾う */
   private updateLoot(): void {
     for (const enemy of this.enemies) {
       if (enemy.body.hp > 0 || this.dropped.has(enemy)) continue;
       this.dropped.add(enemy);
+      const fill = FILL_VALUE[enemy.rank];
+      this.hpFlask.addFill(fill);
+      this.mpFlask.addFill(fill);
       this.fighter.onEnemyKilled(
         enemy.body,
         this.enemies.map((e) => e.body),
@@ -938,7 +1460,7 @@ export class PlayScene extends Phaser.Scene {
       this.lootLabels.get(picked)?.destroy();
       this.lootLabels.delete(picked);
     }
-    if (this.justPressed.has("KeyF")) {
+    if (this.justPressed.has("KeyF") && !this.interact()) {
       const res = this.loot.pickupNearestItem(this.player.pos, this.bag);
       if (res.reason === "full")
         this.showText(this.player.pos.x, this.player.pos.y, "持ち物がいっぱい", "#ff8a8a", 9);
@@ -986,7 +1508,7 @@ export class PlayScene extends Phaser.Scene {
 
   /** 地面に置いた効果（罠・煙玉）を進める */
   private updateGround(): void {
-    const bodies = this.enemies.map((e) => e.body);
+    const bodies = this.targetBodies();
     for (const ev of this.ground.step(TICK_SECONDS, bodies, this.rng)) {
       if (ev.type === "trap") {
         this.onPlayerHit(
@@ -1086,7 +1608,7 @@ export class PlayScene extends Phaser.Scene {
       for (const { target, result } of strike(
         this.player.pos,
         this.attackAngle,
-        this.enemies.map((e) => e.body),
+        this.targetBodies(),
         spec,
         this.rng,
       )) {
@@ -1151,7 +1673,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.hud.setText(
-      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避${this.noticeLeft > 0 ? `\n★ ${this.notice}` : ""}\n金貨 ${String(this.purse.gold)}${this.savedNote}  持ち物 ${String(this.bag.count)}/${String(this.bag.capacity)}（F で拾う）  敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
+      `【${this.mapDef.name}】 HP瓶${String(this.hpFlask.charges)}(Q) MP瓶${String(this.mpFlask.charges)}(E)\nHP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避${this.noticeLeft > 0 ? `\n★ ${this.notice}` : ""}\n金貨 ${String(this.purse.gold)}${this.savedNote}  持ち物 ${String(this.bag.count)}/${String(this.bag.capacity)}（F で拾う）  敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
     );
   }
 }

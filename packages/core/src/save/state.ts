@@ -19,6 +19,13 @@ export interface GameState {
   bossTokens: Record<string, number>;
   questPoints: number;
   explorationPoints: number;
+  /** 世界の進行（転移の石・初回討伐・死亡の記録） */
+  world: {
+    unlockedRegions: string[];
+    firstKills: string[];
+    deaths: number;
+    lastDeathCause: string | null;
+  };
   /** 職紋盤の配置（ジョブごと）。ジョブを切り替えても残る */
   jobBoards: Record<string, { allocation: string[]; mastery: string | null }>;
   /** 経由した状態（職紋盤の配置・職奥義・ロードアウトなど、他の単位が足す部分）を保つための元のデータ */
@@ -36,6 +43,7 @@ export function newGameState(registry: JobRegistry, name: string, originJob: str
     bossTokens: {},
     questPoints: 0,
     explorationPoints: 0,
+    world: { unlockedRegions: [], firstKills: [], deaths: 0, lastDeathCause: null },
     jobBoards: {},
     base: newSave({ name, originJob }),
   };
@@ -93,6 +101,7 @@ export function toSave(state: GameState): SaveData {
     bossTokens: { ...state.bossTokens },
     questPoints: state.questPoints,
     explorationPoints: state.explorationPoints,
+    world: state.world,
   };
 }
 
@@ -132,6 +141,7 @@ export function fromSave(save: SaveData, registry: JobRegistry, gear: GearData):
       { allocation: [...j.boardAllocation], mastery: j.masteryChoice },
     ]),
   );
+  if (save.world) state.world = { ...save.world };
   state.questPoints = save.questPoints;
   state.explorationPoints = save.explorationPoints;
   return state;

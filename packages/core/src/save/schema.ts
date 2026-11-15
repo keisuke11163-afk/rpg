@@ -77,6 +77,15 @@ export const saveSchema = z.strictObject({
     bondsRevealed: z.array(z.string()),
     interactionsSeen: z.array(z.string()),
   }),
+  /** 世界の進行：解放した転移の石・初回討伐・死亡の記録（補助仕様書 7・9.4章） */
+  world: z
+    .strictObject({
+      unlockedRegions: z.array(z.string()),
+      firstKills: z.array(z.string()),
+      deaths: z.number().int().min(0),
+      lastDeathCause: z.string().nullable(),
+    })
+    .optional(),
   questPoints: z.number().int().min(0),
   explorationPoints: z.number().int().min(0),
   settings: z.strictObject({ keybinds: z.record(z.string(), z.array(z.string())) }),

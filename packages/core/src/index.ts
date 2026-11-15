@@ -57,3 +57,7 @@ export * from "./board/job.ts";
 export * from "./items/unique.ts";
 export * from "./board/flags.ts";
 export * from "./craft/craft.ts";
+export * from "./world/map.ts";
+export * from "./world/region.ts";
+export * from "./world/flow.ts";
+export * from "./combat/potion.ts";

@@ -147,3 +147,4 @@ export const CRAFT_DATA: CraftData = {
 };
 /** ユニークの固有効果・潜在効果のデータ */
 export const UNIQUE_DATA = makeUniqueData(loaded.data.uniques, loaded.data.effects);
+export * from "./maps.ts";
