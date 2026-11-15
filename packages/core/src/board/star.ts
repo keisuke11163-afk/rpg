@@ -134,6 +134,23 @@ export class StarBoard {
     return check;
   }
 
+  /**
+   * 還星の灯を使って、1ノードを返却する（本仕様書 4.13）。灯が1個ない・返却できないときは、何も変えない。
+   * 全体の振り直し（reset）は、町の星読み師で行う。
+   */
+  refundWithLamp(
+    id: string,
+    purse: { material(id: string): number; spendMaterial(id: string, n: number): boolean },
+    lampId: string,
+  ): { ok: boolean; reason?: AllocateDenied | "lamp" } {
+    const check = this.canRefund(id);
+    if (!check.ok) return check;
+    if (purse.material(lampId) < 1) return { ok: false, reason: "lamp" };
+    purse.spendMaterial(lampId, 1);
+    this.allocated.splice(this.allocated.indexOf(id), 1);
+    return { ok: true };
+  }
+
   /** 他ジョブの始点を追加の入口として開く（3ポイント。出自と合わせて最大2つ） */
   openEntrance(startId: string, pointsTotal: number): { ok: boolean; reason?: AllocateDenied } {
     const node = this.data.nodes.get(startId);
@@ -144,6 +161,16 @@ export class StarBoard {
     if (this.pointsUsed + EXTRA_ENTRANCE_COST > pointsTotal) return { ok: false, reason: "points" };
     this.entrances.push(startId);
     return { ok: true };
+  }
+
+  /** セーブ・ロードアウトの復元：入口と取得したノードを、取った順に戻す（ポイントの検査は評価で行う） */
+  restore(allocated: readonly string[], extraEntrances: readonly string[]): void {
+    this.reset();
+    for (const e of extraEntrances) {
+      if (!this.entrances.includes(e) && this.data.nodes.get(e)?.type === "始点")
+        this.entrances.push(e);
+    }
+    for (const id of allocated) this.allocate(id, Number.MAX_SAFE_INTEGER);
   }
 
   /** 全体の振り直し。入口は出自の1つに戻る */

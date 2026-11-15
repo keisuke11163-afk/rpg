@@ -44,6 +44,13 @@ export const loadoutSchema = z.strictObject({
   equipment: z.partialRecord(equipSlot, z.string().nullable()),
   starAllocation: z.array(z.string()),
   extraEntries: z.array(z.string()),
+  /** 職紋盤の配置（ジョブごと）。ロードアウトごとにポイントを別々に振れる（本仕様書 4.13） */
+  jobBoards: z
+    .record(
+      z.string(),
+      z.strictObject({ allocation: z.array(z.string()), mastery: z.string().nullable() }),
+    )
+    .optional(),
 });
 
 export const saveSchema = z.strictObject({

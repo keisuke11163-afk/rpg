@@ -29,6 +29,9 @@ export interface GameState {
   };
   /** クエストの進行（クエストID → 達成した段階） */
   quests: Record<string, string[]>;
+  /** 星辰盤の取得したノードと追加の入口（今のロードアウト） */
+  starAllocation: string[];
+  extraEntries: string[];
   /** 職紋盤の配置（ジョブごと）。ジョブを切り替えても残る */
   jobBoards: Record<string, { allocation: string[]; mastery: string | null }>;
   /** 経由した状態（職紋盤の配置・職奥義・ロードアウトなど、他の単位が足す部分）を保つための元のデータ */
@@ -54,6 +57,8 @@ export function newGameState(registry: JobRegistry, name: string, originJob: str
       foundSecrets: [],
     },
     quests: {},
+    starAllocation: [],
+    extraEntries: [],
     jobBoards: {},
     base: newSave({ name, originJob }),
   };
@@ -89,7 +94,21 @@ export function toSave(state: GameState): SaveData {
   }
   const active = state.base.activeLoadout;
   const loadouts = state.base.loadouts.map((l) =>
-    l.id === active ? { ...l, mainJob: p.mainJob, equipment: equipment } : l,
+    l.id === active
+      ? {
+          ...l,
+          mainJob: p.mainJob,
+          equipment: equipment,
+          starAllocation: [...state.starAllocation],
+          extraEntries: [...state.extraEntries],
+          jobBoards: Object.fromEntries(
+            Object.entries(state.jobBoards).map(([job, b]) => [
+              job,
+              { allocation: [...b.allocation], mastery: b.mastery },
+            ]),
+          ),
+        }
+      : l,
   );
   return {
     ...state.base,
@@ -152,6 +171,19 @@ export function fromSave(save: SaveData, registry: JobRegistry, gear: GearData):
       { allocation: [...j.boardAllocation], mastery: j.masteryChoice },
     ]),
   );
+  // 今のロードアウトの、星辰盤・職紋盤の配置
+  if (loadout) {
+    state.starAllocation = [...loadout.starAllocation];
+    state.extraEntries = [...loadout.extraEntries];
+    if (loadout.jobBoards) {
+      state.jobBoards = Object.fromEntries(
+        Object.entries(loadout.jobBoards).map(([job, b]) => [
+          job,
+          { allocation: [...b.allocation], mastery: b.mastery },
+        ]),
+      );
+    }
+  }
   if (save.world) state.world = { ...save.world };
   if (save.quests) state.quests = { ...save.quests };
   state.questPoints = save.questPoints;

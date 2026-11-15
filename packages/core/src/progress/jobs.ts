@@ -128,6 +128,13 @@ export class Progression {
     return { ok: true };
   }
 
+  /** メインジョブを直接決める（ロードアウトの切り替え。転職の条件は、ロードアウトを作るときに満たしている） */
+  setMainJob(id: string): void {
+    this.registry.get(id);
+    this.mainJob = id;
+    this.jobState(id);
+  }
+
   /** 追いつき補正が効いているか：メインジョブのLvが、最も高いジョブLv-10未満のあいだ */
   get catchUpActive(): boolean {
     return this.jobLevel < this.highestJobLevel - CATCH_UP_GAP;

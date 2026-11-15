@@ -5,6 +5,13 @@ import {
   AutoSaver,
   ConditionRegistry,
   FACILITIES,
+  applyLoadout,
+  captureLoadout,
+  loadoutsReferencing,
+  putLoadout,
+  removeFromLoadouts,
+  type Loadout,
+  type LoadoutHost,
   ABYSS_TREE_DROP,
   MOTHER_TREE_DROP,
   TOKEN_EXCHANGE_COST,
@@ -202,6 +209,9 @@ export class PlayScene extends Phaser.Scene {
     { shape: HitShape; angle: number; at?: { pos: { x: number; y: number }; radius: number }[] }
   >();
   private bossTokens: Record<string, number> = {};
+  private loadouts: Loadout[] = [];
+  private activeLoadout = 1;
+  private pendingDisassemble: string | undefined;
   private bossBar!: Phaser.GameObjects.Graphics;
   private bossLabel!: Phaser.GameObjects.Text;
   /** 今のジョブ。K キーで戦士と盗賊を切り替える（開発用。本番の転職は U-18a の転職神殿） */
@@ -262,7 +272,8 @@ export class PlayScene extends Phaser.Scene {
     | "stash"
     | "teleport"
     | "temple"
-    | "altar" = "none";
+    | "altar"
+    | "loadout" = "none";
   private panelCursor = 0;
   private panelText!: Phaser.GameObjects.Text;
   private panelTip!: Phaser.GameObjects.Text;
@@ -326,6 +337,17 @@ export class PlayScene extends Phaser.Scene {
     }
     this.explorationPoints = state.explorationPoints;
     this.bossTokens = { ...state.bossTokens };
+    this.loadouts = state.base.loadouts.map((l) => ({ ...l }));
+    this.activeLoadout = state.base.activeLoadout;
+    this.syncFromHost({
+      equipment: this.equipment,
+      bag: this.bag,
+      stash: this.stash,
+      mainJob: state.progression.mainJob,
+      starAllocation: state.starAllocation,
+      extraEntries: state.extraEntries,
+      jobBoards: state.jobBoards,
+    });
     for (const item of state.stash.items()) this.stash.add(item);
     this.fighter.setCharLevel(this.progression.character.level);
     this.refreshPoints();
@@ -347,6 +369,15 @@ export class PlayScene extends Phaser.Scene {
     state.questPoints = this.quests.questPoints;
     state.explorationPoints = this.explorationPoints;
     state.bossTokens = { ...this.bossTokens };
+    const host = this.liveHost();
+    state.starAllocation = host.starAllocation;
+    state.extraEntries = host.extraEntries;
+    state.jobBoards = host.jobBoards;
+    state.base = {
+      ...state.base,
+      loadouts: this.loadouts.length > 0 ? this.loadouts : state.base.loadouts,
+      activeLoadout: this.activeLoadout,
+    };
     for (const item of this.stash.items()) state.stash.add(item);
     try {
       await this.saves.save(this.slot, toSave(state));
@@ -724,6 +755,8 @@ export class PlayScene extends Phaser.Scene {
     if (jp.has("KeyT")) this.panel = this.panel === "star" ? "none" : "star";
     if (jp.has("KeyJ")) this.panel = this.panel === "job" ? "none" : "job";
     if (jp.has("KeyB")) this.panel = this.panel === "smith" ? "none" : "smith";
+    if (jp.has("KeyL") && this.world.inTown)
+      this.panel = this.panel === "loadout" ? "none" : "loadout";
     if (jp.has("KeyM")) {
       // 開発用：クラフト素材を100ずつ入れる
       for (const id of Object.values(MATERIAL)) this.purse.addMaterial(id, 100);
@@ -767,7 +800,9 @@ export class PlayScene extends Phaser.Scene {
       this.panel === "merchant" ||
       this.panel === "stash" ||
       this.panel === "teleport" ||
-      this.panel === "temple"
+      this.panel === "temple" ||
+      this.panel === "altar" ||
+      this.panel === "loadout"
     ) {
       return this.updateFacilityPanel();
     }
@@ -854,6 +889,16 @@ export class PlayScene extends Phaser.Scene {
         "Digit3",
         () => {
           if (!it) return undefined;
+          const refs = loadoutsReferencing(this.loadouts, it.uid);
+          if (refs.length > 0 && this.pendingDisassemble !== it.uid) {
+            this.pendingDisassemble = it.uid;
+            return {
+              ok: false,
+              reason: `ロードアウト${refs.join("・")}に登録されている。もう一度3で分解（その部位は空きになる）`,
+            };
+          }
+          this.pendingDisassemble = undefined;
+          removeFromLoadouts(this.loadouts, it.uid);
           const gained = disassembleYield(it);
           disassemble(it.uid, this.bag, this.purse);
           return { ok: true, reason: `分解：${JSON.stringify(gained)}` };
@@ -925,6 +970,13 @@ export class PlayScene extends Phaser.Scene {
       }
     }
     const jp = this.justPressed;
+    if (!isJob && jp.has("KeyR") && this.world.inTown) {
+      // 全体の振り直し（町の星読み師。MVPでは常に無料）
+      this.board.reset();
+      this.notice = "星辰盤を全て振り直した（無料）";
+      this.noticeLeft = 3;
+      this.applyBoard();
+    }
     if (hover) {
       if (jp.has("Mouse0")) {
         if (isJob) jb.allocate(hover, points);
@@ -932,7 +984,20 @@ export class PlayScene extends Phaser.Scene {
       }
       if (jp.has("Mouse2")) {
         if (isJob) jb.refund(hover);
-        else this.board.refund(hover);
+        else {
+          // 星辰盤の返却は、還星の灯を1個使う（町の星読み師）。灯がなければ返却できない
+          if (!this.world.inTown) {
+            this.notice = "星辰盤の返却は、町の星読み師でだけできる";
+            this.noticeLeft = 3;
+          } else {
+            const r = this.board.refundWithLamp(hover, this.purse, MATERIAL.returnLamp);
+            if (!r.ok) {
+              this.notice =
+                r.reason === "lamp" ? "還星の灯が足りない" : "返却できない（つながりが切れる）";
+              this.noticeLeft = 3;
+            }
+          }
+        }
       }
       if (jp.has("Mouse0") || jp.has("Mouse2")) this.applyBoard();
     }
@@ -974,7 +1039,7 @@ export class PlayScene extends Phaser.Scene {
     this.panelText
       .setPosition(6, 6)
       .setText(
-        `【${isJob ? `職紋盤：${this.job.name}` : "星辰盤"}】ポイント ${String(board.pointsUsed)}/${String(points)}（Pで+5・開発用）  有効 ${String(evaluation.active.length)}  休眠 ${String(dormant.size)}${isJob ? `  職奥義 ${jb.mastery ? "選択済み" : "未選択"}` : `  星座 ${String(evaluation.completedConstellations.length)}完成`}\n左クリック 取得 / 右クリック 返却 / ${isJob ? "J" : "T"} 閉じる`,
+        `【${isJob ? `職紋盤：${this.job.name}` : "星辰盤"}】ポイント ${String(board.pointsUsed)}/${String(points)}（Pで+5・開発用）  有効 ${String(evaluation.active.length)}  休眠 ${String(dormant.size)}${isJob ? `  職奥義 ${jb.mastery ? "選択済み" : "未選択"}` : `  星座 ${String(evaluation.completedConstellations.length)}完成`}\n左クリック 取得 / 右クリック 返却${isJob ? "" : "（還星の灯1個・町）／ R 全体の振り直し（町・無料）"} / ${isJob ? "J" : "T"} 閉じる`,
       );
     const node = hover ? data.nodes.get(hover) : undefined;
     this.panelTip
@@ -1013,6 +1078,44 @@ export class PlayScene extends Phaser.Scene {
       this.refreshPoints();
     }
     if (this.autoSaver.onEvent("changeArea")) void this.autoSave();
+  }
+
+  /** 今のビルドを、ロードアウトの保存・適用の対象としてまとめる */
+  private liveHost(): LoadoutHost {
+    const jobBoards: LoadoutHost["jobBoards"] = {};
+    for (const [id, jb] of this.jobBoards) jobBoards[id] = jb.snapshot();
+    return {
+      equipment: this.equipment,
+      bag: this.bag,
+      stash: this.stash,
+      mainJob: this.job.id,
+      starAllocation: [...this.board.allocated],
+      extraEntries: this.board.entrances.slice(1),
+      jobBoards,
+    };
+  }
+
+  /** ロードアウトを適用した後、ゲームの状態（ジョブ・ツリー・戦闘者）を合わせる */
+  private syncFromHost(host: LoadoutHost): void {
+    const job = [WARRIOR_JOB, ROGUE_JOB].find((j) => j.id === host.mainJob) ?? this.job;
+    if (job !== this.job) {
+      this.job = job;
+      this.fighter = PlayScene.makeFighter(job);
+      this.fighter.setCharLevel(this.progression.character.level);
+    }
+    this.progression.setMainJob(job.id);
+    this.board = new StarBoard(BOARD_DATA, STAR_START_OF_JOB[job.id] ?? "STAR-GOU-START");
+    this.board.restore(host.starAllocation, host.extraEntries);
+    this.jobBoards.clear();
+    for (const [id, b] of Object.entries(host.jobBoards)) {
+      const def = JOB_BOARDS[id];
+      if (!def) continue;
+      const jb = new JobBoard(def.data, def.start, id);
+      jb.restore(b.allocation);
+      this.jobBoards.set(id, jb);
+    }
+    this.applyGear();
+    this.refreshPoints();
   }
 
   /** 星辰盤・職紋盤のポイントを計算し直す（キャラLv＋星図の欠片＋隠し星／ジョブLv） */
@@ -1447,6 +1550,47 @@ export class PlayScene extends Phaser.Scene {
     this.panelText.setPosition(30, 30);
     this.panelTip.setPosition(330, 30);
     const move = (jp.has("ArrowDown") ? 1 : 0) - (jp.has("ArrowUp") ? 1 : 0);
+    if (this.panel === "loadout") {
+      const slots = [1, 2, 3];
+      this.panelCursor = Math.max(0, Math.min(slots.length - 1, this.panelCursor + move));
+      const id = slots[this.panelCursor] as number;
+      const current = this.loadouts.find((l) => l.id === id);
+      if (jp.has("KeyS")) {
+        // 今のビルドを、この番号に保存する
+        putLoadout(this.loadouts, captureLoadout(this.liveHost(), id, `ロードアウト${String(id)}`));
+        this.activeLoadout = id;
+        this.notice = `ロードアウト${String(id)}に保存した`;
+        this.noticeLeft = 3;
+        if (this.autoSaver.onEvent("respec")) void this.autoSave();
+      }
+      if (jp.has("Enter") && current) {
+        const host = this.liveHost();
+        const r = applyLoadout(host, current, GEAR_DATA, {
+          inTown: this.world.inTown,
+          canUseJob: (jobId) => jobId === this.job.id || this.progression.canChangeJob(jobId).ok,
+        });
+        if (r.ok) {
+          this.syncFromHost(host);
+          this.activeLoadout = id;
+          this.notice = `ロードアウト${String(id)}に切り替えた${r.emptied.length > 0 ? `（なくなった装備の部位は空き：${r.emptied.join("・")}）` : ""}`;
+          if (this.autoSaver.onEvent("respec")) void this.autoSave();
+        } else {
+          this.notice =
+            r.reason === "full" ? "持ち物と倉庫がいっぱいで切り替えられない" : "切り替えられない";
+        }
+        this.noticeLeft = 4;
+      }
+      this.panelText.setText(
+        `【ロードアウト】町でだけ切り替えられる（今：${String(this.activeLoadout)}番）\n↑↓ 選ぶ / Enter 切り替え / S 今のビルドを保存 / Esc 閉じる\n\n${slots
+          .map((n) => {
+            const l = this.loadouts.find((x) => x.id === n);
+            return `${n === id ? "▶" : " "}${String(n)}番 ${l ? `${l.name}（${l.mainJob === "JOB-WARRIOR" ? "戦士" : "盗賊"}・装備${String(Object.values(l.equipment).filter((u) => u).length)}・星${String(l.starAllocation.length)}）` : "（空き）"}`;
+          })
+          .join("\n")}`,
+      );
+      this.panelTip.setText("");
+      return true;
+    }
     if (this.panel === "altar") {
       const pool = MOTHER_TREE_DROP.uniquePool;
       this.panelCursor = Math.max(0, Math.min(pool.length - 1, this.panelCursor + move));
