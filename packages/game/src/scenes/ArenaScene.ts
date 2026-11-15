@@ -15,6 +15,9 @@ import {
 import { loadGameContent } from "@stella/content";
 import { text, type TextKey } from "@stella/content";
 import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
+import { sfx } from "../audio/sfx.ts";
+import { SfxEventTracker, type SfxKey, SfxLimiter, hitSfx, skillSfx } from "../audio/sfx-events.ts";
+import { ScreenShake, shakeWithinBounds } from "../ui/screen-shake.ts";
 import { EquipmentPanel } from "../ui/EquipmentPanel.ts";
 import { Hud } from "../ui/Hud.ts";
 import {
@@ -103,6 +106,17 @@ const SLOT_LABEL: Readonly<Record<string, string>> = {
   skill6: "4",
 };
 
+/**
+ * 画面の揺れ（表示だけ。カメラのスクロールに足す。HUD は揺れない。docs/progress D-HUD-4・D-HUD-12）：
+ * 始めの大きさ（ピクセル）と、0まで減る時間（ミリ秒）。仮値: 仕様書に無い（docs/progress D-HUD-4）。
+ */
+const SHAKE = {
+  hurt: { strength: 3, durationMs: 110 },
+  crit: { strength: 2, durationMs: 90 },
+} as const;
+/** カメラがプレイヤーを追う速さ（1フレームに残りの距離のこの割合だけ近づく。元の startFollow と同じ）。 */
+const CAMERA_LERP = 0.2;
+
 /** 召喚物の色（図形の仮の表示）。 */
 const MINION_COLORS: Readonly<Record<string, number>> = {
   "MIN-SKELETON": 0xe8e2d0,
@@ -150,6 +164,15 @@ export class ArenaScene extends Phaser.Scene {
   private slot = 1;
   /** 開発用：描画のフレームの経過時間を固定する（ミリ秒）。null なら実際の経過時間を使う。 */
   private debugFrameDeltaMs: number | null = null;
+  /** 画面の揺れ（表示だけ。乱数は Math.random だが、照準の計算では差し引くのでシミュレーションには入らない）。 */
+  private readonly shake = new ScreenShake();
+  /** 揺れを足す前のカメラのスクロール（プレイヤーを追った位置）。最初のフレームまでは undefined。 */
+  private cameraBase: { x: number; y: number } | undefined;
+  /** 今カメラのスクロールに足している揺れのずれ（端で削った後の、実際の値）。 */
+  private cameraShake = { x: 0, y: 0 };
+  /** 効果音のきっかけを見るもの・間引くもの。シーンを作るたび（create）に新しくする。 */
+  private sfxEvents!: SfxEventTracker;
+  private sfxLimiter = new SfxLimiter();
 
   constructor() {
     super("arena");
@@ -176,9 +199,11 @@ export class ArenaScene extends Phaser.Scene {
       ...(data.carry === undefined ? {} : { carry: data.carry }),
       layoutSeed: `${regionId}-${String(entryCount)}-${String(Date.now())}`,
       onHit: (report, at) => {
-        // 会心・崩し：カメラを小さく揺らす（約2ピクセル）。当てた敵は短く白く光らせる（表示だけ）
-        if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.003);
+        // 会心・崩し：画面を小さく揺らす（HUD は揺らさない）。当てた敵は短く白く光らせる（表示だけ）
+        if (report.hit.crit || report.staggerBroke)
+          this.shake.trigger(SHAKE.crit.strength, SHAKE.crit.durationMs);
         this.enemyView?.flash(report.targetId);
+        this.sfxLimiter.request(hitSfx(report));
         this.popDamage(report, at);
       },
       onText: (label, at, color) => {
@@ -234,10 +259,28 @@ export class ArenaScene extends Phaser.Scene {
       if (this.sim.region === undefined) this.jobPressed = true;
     });
 
+    // カメラはプレイヤーを自分で追う（followCamera）。Phaser の startFollow を使うと、揺れのずれを
+    // スクロールに足したときに追う計算（補間）に混ざるため（docs/progress D-HUD-12）
     const camera = this.cameras.main;
     camera.setBounds(0, 0, toPixels(size.width), toPixels(size.height));
-    camera.startFollow(this.body, true, 0.2, 0.2);
     camera.setRoundPixels(true);
+    this.shake.reset();
+    this.cameraBase = undefined;
+    this.cameraShake = { x: 0, y: 0 };
+
+    // 効果音（仮素材）：AudioContext は Phaser の WebAudio の音の管理のもの（ゲームに1つ）を使い回す。
+    // 最初のキー・クリックで動かす（ブラウザの自動再生の制限。Phaser も同じことをする）
+    sfx.attach(
+      this.sound instanceof Phaser.Sound.WebAudioSoundManager ? this.sound.context : undefined,
+    );
+    this.sfxEvents = new SfxEventTracker((id) => this.skillSound(id));
+    this.sfxLimiter = new SfxLimiter();
+    keyboard.on("keydown", () => {
+      sfx.unlock();
+    });
+    this.input.on("pointerdown", () => {
+      sfx.unlock();
+    });
 
     // 棒・地図は世界の絵（敵・プレイヤー）より上、画面（深さ1000）より下
     this.bars = this.add.graphics().setScrollFactor(0).setDepth(900);
@@ -268,6 +311,8 @@ export class ArenaScene extends Phaser.Scene {
         get: () => this.settings,
         set: (s) => {
           const bindingsChanged = s.bindings !== this.settings.bindings;
+          // 音量を変えたら、今の音量が分かるように確認の音を1回鳴らす（音量0なら鳴らない）
+          if (s.volume !== this.settings.volume) this.sfxLimiter.request("ui");
           this.settings = s;
           saveSettings({ ...s, bindings: {} });
           if (bindingsChanged) {
@@ -291,9 +336,9 @@ export class ArenaScene extends Phaser.Scene {
         invulnerable: sim.motion.invulnerable,
         dodgePending: sim.dodgePending,
         totalSteps: sim.clock.totalSteps,
-        // 画面の上の位置（ゲームのピクセル。カメラの位置を引いたもの）
-        screenX: this.body.x - this.cameras.main.scrollX,
-        screenY: this.body.y - this.cameras.main.scrollY,
+        // 画面の上の位置（ゲームのピクセル。揺れを含まないカメラの位置を引いたもの）
+        screenX: this.body.x - this.viewScrollX(),
+        screenY: this.body.y - this.viewScrollY(),
       }),
       hazard: () => ({
         hits: sim.hazardHits,
@@ -318,8 +363,8 @@ export class ArenaScene extends Phaser.Scene {
           lastAilments: sim.lastHit?.ailments.map((a) => a.tag) ?? [],
           broken: d.stagger.broken,
           statuses: d.statuses.active.map((s) => s.effectId),
-          screenX: img.x - this.cameras.main.scrollX,
-          screenY: img.y - this.cameras.main.scrollY,
+          screenX: img.x - this.viewScrollX(),
+          screenY: img.y - this.viewScrollY(),
         };
       },
       // 地域（U-18a）：今の地域・近くの調べられるもの・宝箱・転移の石・死亡の記録
@@ -540,12 +585,25 @@ export class ArenaScene extends Phaser.Scene {
         // 配置（通常・画面を開いている間の下の帯）と、主な部品の表示
         view: this.hudView.snapshot(),
       }),
-      // 照準の世界座標：揺れを含まない式（InputSystem）と、Phaser の pointer.worldX/Y（揺れを含む）の両方
+      // 照準の世界座標：揺れを含まない式（InputSystem）と、Phaser の pointer.worldX/Y（揺れを含む）の両方。
+      // shakeX/Y は今カメラのスクロールに足している揺れのずれ
       aim: () => ({
         ...this.controls.pointerWorld(),
         phaserX: this.input.activePointer.worldX,
         phaserY: this.input.activePointer.worldY,
+        shakeX: this.cameraShake.x,
+        shakeY: this.cameraShake.y,
       }),
+      // 確認用：画面を揺らす（開発版だけ。照準が揺れに影響されないことを確かめる）
+      shake: (strength?: number | string, ms?: number | string) => {
+        this.shake.trigger(Number(strength ?? 3), Number(ms ?? 100));
+        return this.shake.active;
+      },
+      // 効果音（仮素材）：種類ごとの鳴らそうとした回数・実際に合成した回数（ゲームを開いてからの累計）と、
+      // AudioContext の状態
+      sfx: () => ({ ...sfx.counts(), state: sfx.state, volume: this.settings.volume }),
+      // 敵の手応えの表示（ヒットの白い光・撃破で散る図形）を出した回数（このシーンを作ってからの累計）
+      fx: () => this.enemyView?.counts() ?? { flashes: 0, bursts: 0 },
       // 刻みが0のフレームを再現するため（pnpm e2e）。null で元に戻す
       setFrameDeltaMs: (ms: number | null) => {
         this.debugFrameDeltaMs = ms;
@@ -704,6 +762,101 @@ export class ArenaScene extends Phaser.Scene {
     if (this.sim.autosave.due()) this.saveNow();
     this.render();
     this.panel.render();
+    this.playSfx();
+    this.followCamera(deltaMs);
+  }
+
+  /** 揺れを含まないカメラのスクロール（画面の上の位置の確認用）。 */
+  private viewScrollX(): number {
+    return this.cameras.main.scrollX - this.cameraShake.x;
+  }
+  private viewScrollY(): number {
+    return this.cameras.main.scrollY - this.cameraShake.y;
+  }
+
+  /**
+   * カメラでプレイヤーを追い、揺れのずれを足す（docs/progress D-HUD-12）。
+   * 追う位置（cameraBase）は揺れを含まない。揺れはその上に足すだけなので、追う計算に混ざらない。
+   * 地図の端（カメラの bounds）では、ずれを反対の向きにする（shakeWithinBounds）。
+   * 実際に足したずれは InputSystem に渡し、照準の計算で差し引く（揺れが照準に入らないように）。
+   * @param deltaMs 実際のフレームの経過時間（揺れの減衰に使う。表示だけ）
+   */
+  private followCamera(deltaMs: number): void {
+    const cam = this.cameras.main;
+    // Phaser の startFollow と同じ：対象を画面の中心（origin）に置くスクロール
+    const tx = this.body.x - cam.width * cam.originX;
+    const ty = this.body.y - cam.height * cam.originY;
+    const prev = this.cameraBase;
+    const bx = cam.clampX(prev === undefined ? tx : prev.x + (tx - prev.x) * CAMERA_LERP);
+    const by = cam.clampY(prev === undefined ? ty : prev.y + (ty - prev.y) * CAMERA_LERP);
+    this.cameraBase = { x: bx, y: by };
+    const off = this.shake.update(deltaMs);
+    const sx = shakeWithinBounds(
+      bx,
+      Math.round(off.x),
+      cam.clampX(-Infinity),
+      cam.clampX(Infinity),
+    );
+    const sy = shakeWithinBounds(
+      by,
+      Math.round(off.y),
+      cam.clampY(-Infinity),
+      cam.clampY(Infinity),
+    );
+    cam.setScroll(sx, sy);
+    this.cameraShake = { x: sx - bx, y: sy - by };
+    this.controls.setViewOffset(this.cameraShake.x, this.cameraShake.y);
+  }
+
+  /** 技を使ったときの音（技のタグと動き方。武器による変化でタグが替わる通常攻撃（弓）も見る）。 */
+  private skillSound(id: string): SfxKey {
+    const def = this.sim.db.skills.get(id);
+    if (def === undefined) return "skillMelee";
+    let tags: readonly string[] = def.tags;
+    let action: string = def.action.type;
+    const last = this.sim.lastSkill;
+    if (last?.id === id)
+      for (const v of def.weaponVariants ?? [])
+        if (last.variants.includes(`weapon:${v.weaponTag}`)) {
+          tags = v.mods.tags ?? tags;
+          action = v.mods.action?.type ?? action;
+        }
+    return skillSfx(tags, action);
+  }
+
+  /** 効果音：このフレームの出来事を集め、間引いて鳴らす（表示の時計。シミュレーションには関わらない）。 */
+  private playSfx(): void {
+    const sim = this.sim;
+    const inv = sim.inventory;
+    let materials = 0;
+    for (const n of inv.materials.values()) materials += n;
+    const equipment = sim.equipment
+      .entries()
+      .map(([slot, item]) => `${slot}:${item.uid}`)
+      .join(",");
+    for (const key of this.sfxEvents.observe({
+      hitsTaken: sim.hitsTaken + sim.hazardHits,
+      hp: sim.playerHealth.hp,
+      kills: sim.field?.kills ?? 0,
+      guards: sim.guardCount + sim.parryCount,
+      dodging: sim.motion.dodging,
+      // 写しを渡す（sim の Map は同じものが増えていくため）
+      skillUses: new Map(sim.uses),
+      flaskCharges: sim.hpFlask.charges + sim.mpFlask.charges,
+      groundItems: sim.loot.drops.length,
+      carried: inv.items.length + inv.gold + materials,
+      level: sim.character.level,
+      jobId: sim.job.id,
+      jobLevel: sim.character.jobLevel(sim.job.id),
+      deaths: sim.deaths,
+      chestsOpened: sim.chests.reduce((n, c) => n + (c.opened ? 1 : 0), 0),
+      panel: this.panel.open,
+      equipment,
+      nodes:
+        sim.stars.nodes.length + sim.jobBoard.nodes.length + (sim.subJobBoard?.nodes.length ?? 0),
+    }))
+      this.sfxLimiter.request(key);
+    sfx.play(this.sfxLimiter.flush(this.time.now));
   }
 
   /** 操作の説明（今の割り当てで。設定で変えると変わる）。 */
@@ -716,6 +869,7 @@ export class ArenaScene extends Phaser.Scene {
   /** 音量と画面の拡大率を効かせる（割り当ては InputSystem.setBindings）。 */
   private applySettings(): void {
     this.sound.volume = this.settings.volume;
+    sfx.setVolume(this.settings.volume);
     const scale = this.scale;
     // 窓に収まらない整数倍（窓を小さくした後など）は、画面に合わせる
     const s = scaleFits(this.settings.scale, {
@@ -902,10 +1056,10 @@ export class ArenaScene extends Phaser.Scene {
       jobLevel: sim.character.jobLevel(sim.job.id),
     });
     if (ev.hurt) {
-      // 被弾（HPが実際に減ったとき）：画面の縁を短く赤く・カメラを小さく揺らす（約2ピクセル・100ミリ秒）
+      // 被弾（HPが実際に減ったとき）：画面の縁を短く赤く・画面を小さく揺らす（HUD は揺らさない）
       this.hudCounts.hurt += 1;
       this.hudView.hurt(now);
-      this.cameras.main.shake(100, 0.003);
+      this.shake.trigger(SHAKE.hurt.strength, SHAKE.hurt.durationMs);
     }
     // キャラLv UP とジョブLv UP が同じ刻みに起きたら、両方を縦にずらして出す
     let row = 0;

@@ -13,6 +13,8 @@ export class InputSystem {
   private previous = new Set<Action>();
   /** 前回の read() の後に押されたキー・ボタン（同じフレームの間に押して離した入力も取りこぼさない）。 */
   private readonly latched = new Set<string>();
+  /** カメラのスクロールに足している揺れのずれ（表示だけ。照準の計算では差し引く。D-HUD-12）。 */
+  private viewOffset = { x: 0, y: 0 };
 
   constructor(
     scene: Phaser.Scene,
@@ -98,17 +100,25 @@ export class InputSystem {
   }
 
   /**
+   * 今カメラのスクロールに足している揺れのずれを知らせる（ArenaScene が毎フレーム、スクロールを決めた後に呼ぶ）。
+   * 照準の計算では差し引く（揺れは Math.random で決まる表示だけの値で、シミュレーションへの入力に入れないため）。
+   */
+  setViewOffset(x: number, y: number): void {
+    this.viewOffset = { x, y };
+  }
+
+  /**
    * 照準の世界座標。カメラの scroll・zoom と、ポインターの画面座標から計算する。
-   * Phaser の pointer.worldX/Y は、カメラの揺れ（cameras.main.shake。Math.random で決まる表示だけの値）を含む行列で
-   * 計算されるので使わない。表示の乱数がシミュレーションへの入力（照準）に入ってしまうため。
-   * worldView は揺れを含まない（Camera.preRender で揺れは行列にだけ足される）。回転は使っていない。
+   * 揺れはカメラのスクロールに足しているので（ArenaScene。docs/progress D-HUD-12）、worldView から
+   * そのずれを差し引いて、揺れを含まない値にする。Phaser の pointer.worldX/Y は揺れを含むので使わない。
+   * 回転は使っていない。
    */
   pointerWorld(): { x: number; y: number } {
     const cam = this.scene.cameras.main;
     const pointer = this.scene.input.activePointer;
     return {
-      x: cam.worldView.x + (pointer.x - cam.x) / cam.zoomX,
-      y: cam.worldView.y + (pointer.y - cam.y) / cam.zoomY,
+      x: cam.worldView.x - this.viewOffset.x + (pointer.x - cam.x) / cam.zoomX,
+      y: cam.worldView.y - this.viewOffset.y + (pointer.y - cam.y) / cam.zoomY,
     };
   }
 }

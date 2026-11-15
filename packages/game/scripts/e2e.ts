@@ -25,6 +25,7 @@ interface Page {
   mouse: Mouse;
   keyboard: Keyboard;
   on(event: "pageerror", listener: (error: Error) => void): void;
+  on(event: "console", listener: (message: { type(): string; text(): string }) => void): void;
   goto(url: string): Promise<unknown>;
   waitForFunction(
     fn: () => boolean,
@@ -192,9 +193,26 @@ type DebugWindow = {
     startSlot: (slot: number, how: string) => boolean;
     subJob: () => SubJobInfo;
     hud: () => HudInfo;
-    aim: () => { x: number; y: number; phaserX: number; phaserY: number };
+    aim: () => {
+      x: number;
+      y: number;
+      phaserX: number;
+      phaserY: number;
+      shakeX: number;
+      shakeY: number;
+    };
+    shake: (strength: number, ms: number) => boolean;
+    sfx: () => SfxInfo;
+    fx: () => { flashes: number; bursts: number };
   };
 };
+/** 効果音（src/audio/sfx.ts）：種類ごとの鳴らそうとした回数・合成した回数と、AudioContext の状態。 */
+interface SfxInfo {
+  triggered: Record<string, number>;
+  played: Record<string, number>;
+  state: string;
+  volume: number;
+}
 /**
  * HUD のビューモデル（src/ui/hud-model.ts の HudModel のうち、確認に使う所だけ）。
  * ページから JSON で渡るので、undefined の項目は消える（省略できる項目にしておく）。
@@ -314,6 +332,8 @@ const server = await createServer({
 await server.listen();
 const browser = await chromium.launch();
 const errors: string[] = [];
+/** コンソールのエラーと、音（AudioContext）に関わる警告。 */
+const consoleProblems: string[] = [];
 try {
   // 画面は 640×360 を2倍に拡大して表示する（1ゲームピクセル＝画面の2ピクセル）
   const page = await browser.newPage({
@@ -321,6 +341,10 @@ try {
     deviceScaleFactor: 1,
   });
   page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => {
+    if (m.type() === "error" || (m.type() === "warning" && /audio/i.test(m.text())))
+      consoleProblems.push(`[${m.type()}] ${m.text()}`);
+  });
   await page.goto("http://localhost:5174/");
   await page.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
     timeout: 20000,
@@ -532,10 +556,24 @@ try {
     await page.mouse.up({ button });
     await page.waitForTimeout(900);
   };
+  const sfxInfo = (): Promise<SfxInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.sfx());
+  /** ヒットの音（通常・会心・崩しのどれか）の回数。 */
+  const hitSounds = (x: Record<string, number>): number =>
+    (x["hit"] ?? 0) + (x["crit"] ?? 0) + (x["break"] ?? 0);
   const d0 = await dummy();
   await walkTo(d0.x - 1.2, d0.y);
+  const sfxBeforeHit = await sfxInfo();
   await clickDummy();
   const d1 = await dummy();
+  const sfxAfterHit = await sfxInfo();
+  check(
+    "効果音：通常攻撃を当てるとヒットの音を鳴らす（AudioContext が動いていれば合成もする。D-SFX-2）",
+    hitSounds(sfxAfterHit.triggered) > hitSounds(sfxBeforeHit.triggered) &&
+      (sfxAfterHit.state !== "running" ||
+        hitSounds(sfxAfterHit.played) > hitSounds(sfxBeforeHit.played)),
+    `ヒットの音 ${String(hitSounds(sfxBeforeHit.triggered))} → ${String(hitSounds(sfxAfterHit.triggered))}・合成 ${String(hitSounds(sfxBeforeHit.played))} → ${String(hitSounds(sfxAfterHit.played))}・状態 ${sfxAfterHit.state}`,
+  );
   check(
     "通常攻撃で人形のHPが減る（下級の大剣 14–24、技レベル3・剛20、会心で×1.5）",
     d1.hits === d0.hits + 1 && d1.lastDamage >= 14 && d1.lastDamage <= 39 && d1.hp < d0.hp,
@@ -756,6 +794,22 @@ try {
     Math.abs(aim.x - aim.phaserX) < 0.01 && Math.abs(aim.y - aim.phaserY) < 0.01,
     `式 (${aim.x.toFixed(2)}, ${aim.y.toFixed(2)})・Phaser (${aim.phaserX.toFixed(2)}, ${aim.phaserY.toFixed(2)})`,
   );
+  // 揺れはカメラのスクロールに足す（HUD は揺れない。D-HUD-12）。揺れている最中も、照準の世界座標は変わらない
+  await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.shake(6, 1500));
+  let aimDrift = 0;
+  let shakenFrames = 0;
+  for (let i = 0; i < 8; i++) {
+    await page.waitForTimeout(40);
+    const a = await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.aim());
+    aimDrift = Math.max(aimDrift, Math.abs(a.x - aim.x), Math.abs(a.y - aim.y));
+    if (a.shakeX !== 0 || a.shakeY !== 0) shakenFrames += 1;
+  }
+  check(
+    "画面が揺れている最中も、照準の世界座標は変わらない（揺れのずれを差し引く。D-HUD-12）",
+    aimDrift < 0.01 && shakenFrames >= 4,
+    `照準のずれの最大 ${aimDrift.toFixed(3)}・揺れていたフレーム ${String(shakenFrames)}／8`,
+  );
+  await page.waitForTimeout(1500);
 
   // 転職と盗賊（仕様書5.1・5.6）
   await waitIdle();
@@ -974,6 +1028,10 @@ try {
   await waitIdle();
   const xpBeforeRat = (await skills()).xp;
   const levelBeforeRat = (await skills()).level;
+  const fxInfo = (): Promise<{ flashes: number; bursts: number }> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.fx());
+  const fxBeforeRat = await fxInfo();
+  const sfxBeforeRat = await sfxInfo();
   const ratId = await spawn("ENM-THORN-RAT");
   await page.waitForTimeout(500);
   const rat0 = await enemy(ratId);
@@ -988,6 +1046,15 @@ try {
   }
   await page.waitForTimeout(700);
   const afterRat = await combat();
+  const fxAfterRat = await fxInfo();
+  const sfxAfterRat = await sfxInfo();
+  check(
+    "敵に当てると白く光り、倒すと図形が散り、撃破の音を鳴らす（表示だけ。HUD-7・D-SFX-2）",
+    fxAfterRat.flashes > fxBeforeRat.flashes &&
+      fxAfterRat.bursts > fxBeforeRat.bursts &&
+      (sfxAfterRat.triggered["kill"] ?? 0) > (sfxBeforeRat.triggered["kill"] ?? 0),
+    `白い光 ${String(fxBeforeRat.flashes)} → ${String(fxAfterRat.flashes)}・散る図形 ${String(fxBeforeRat.bursts)} → ${String(fxAfterRat.bursts)}・撃破の音 ${String(sfxBeforeRat.triggered["kill"] ?? 0)} → ${String(sfxAfterRat.triggered["kill"] ?? 0)}`,
+  );
   check(
     "敵は視界に入ると気づいて追い、攻撃を受けると倒れる（経験値を得る）",
     rat0 !== undefined &&
@@ -1215,6 +1282,61 @@ try {
     "設定の「詳しい情報」をクリックすると開発用の文字が出て、もう一度で消える（D-HUD-1）",
     hudOn.debugHud && hudOn.debugVisible && !hudOff.debugHud && !hudOff.debugVisible,
     `1回目 ${String(hudOn.debugVisible)}・2回目 ${String(hudOff.debugVisible)}`,
+  );
+  // 効果音（D-SFX-5）：音量を0まで下げると、鳴らそうとした回数は増えるが合成はしない。
+  // 音量を変えると確認の音（ui）を鳴らす。音量を戻すと合成する
+  const clickVolume = async (button: "left" | "right", times: number): Promise<void> => {
+    for (let i = 0; i < times; i++) {
+      const rows = (await settings()).rows;
+      const r = rows[rows.length - 3];
+      const c = await canvasRect();
+      if (r === undefined || c === null) return;
+      const k = c.width / 640;
+      await page.mouse.move(c.left + r.x * k, c.top + r.y * k);
+      await page.mouse.down({ button });
+      await page.mouse.up({ button });
+      await page.waitForTimeout(80);
+    }
+  };
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  const volumeBefore = (await settings()).volume;
+  await clickVolume("right", 11);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  const sfxMuted0 = await sfxInfo();
+  // 音量0で画面を開く（ui）・回避する（dodge）
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  const dodgeKey = (await settings()).dodge[0] === "SPACE" ? "Space" : "KeyK";
+  await page.keyboard.press(dodgeKey);
+  await page.waitForTimeout(400);
+  const sfxMuted1 = await sfxInfo();
+  const playedTotal = (x: SfxInfo): number => Object.values(x.played).reduce((a, b) => a + b, 0);
+  check(
+    "効果音：音量0では、鳴らそうとした回数は増えるが合成しない（画面を開いた音・回避の音。D-SFX-5）",
+    sfxMuted1.volume === 0 &&
+      (sfxMuted1.triggered["ui"] ?? 0) > (sfxMuted0.triggered["ui"] ?? 0) &&
+      (sfxMuted1.triggered["dodge"] ?? 0) > (sfxMuted0.triggered["dodge"] ?? 0) &&
+      playedTotal(sfxMuted1) === playedTotal(sfxMuted0),
+    `音量 ${String(sfxMuted1.volume)}・ui ${String(sfxMuted0.triggered["ui"] ?? 0)} → ${String(sfxMuted1.triggered["ui"] ?? 0)}・回避 ${String(sfxMuted0.triggered["dodge"] ?? 0)} → ${String(sfxMuted1.triggered["dodge"] ?? 0)}・合成の合計 ${String(playedTotal(sfxMuted0))} → ${String(playedTotal(sfxMuted1))}・状態 ${sfxMuted1.state}`,
+  );
+  // 音量を元に戻す：上げるたびに確認の音を合成する（AudioContext が動いていれば）
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await clickVolume("left", Math.round(volumeBefore * 10));
+  const sfxRestored = await sfxInfo();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  check(
+    "効果音：音量を変えると確認の音を鳴らす（音量を戻すと合成する。D-SFX-5）",
+    Math.abs(sfxRestored.volume - volumeBefore) < 1e-9 &&
+      (sfxRestored.triggered["ui"] ?? 0) >= (sfxMuted1.triggered["ui"] ?? 0) + 2 &&
+      (sfxRestored.state !== "running" ||
+        (sfxRestored.played["ui"] ?? 0) > (sfxMuted1.played["ui"] ?? 0)),
+    `音量 ${String(volumeBefore)} に戻す・ui ${String(sfxMuted1.triggered["ui"] ?? 0)} → ${String(sfxRestored.triggered["ui"] ?? 0)}・合成 ${String(sfxMuted1.played["ui"] ?? 0)} → ${String(sfxRestored.played["ui"] ?? 0)}・状態 ${sfxRestored.state}`,
   );
   await page.keyboard.press("KeyT");
   await page.waitForTimeout(100);
@@ -1653,6 +1775,10 @@ try {
       deviceScaleFactor: 1,
     });
     sp.on("pageerror", (e) => errors.push(e.message));
+    sp.on("console", (m) => {
+      if (m.type() === "error" || (m.type() === "warning" && /audio/i.test(m.text())))
+        consoleProblems.push(`[${m.type()}] ${m.text()}`);
+    });
     await sp.goto("http://localhost:5174/");
     const spReady = (): Promise<unknown> =>
       sp.waitForFunction(() => document.body.dataset["stellaReady"] === "true", undefined, {
@@ -2060,6 +2186,8 @@ try {
 
 for (const r of results) console.log(`${r.ok ? "✓" : "✗"} ${r.name}（${r.detail}）`);
 if (errors.length > 0) console.error(`ページのエラー：\n${errors.join("\n")}`);
-const failed = results.filter((r) => !r.ok).length + errors.length;
+if (consoleProblems.length > 0)
+  console.error(`コンソールのエラー・音の警告：\n${consoleProblems.join("\n")}`);
+const failed = results.filter((r) => !r.ok).length + errors.length + consoleProblems.length;
 console.log(failed === 0 ? "操作の確認：全て合格" : `操作の確認：${String(failed)}件の失敗`);
 process.exit(failed === 0 ? 0 : 1);
