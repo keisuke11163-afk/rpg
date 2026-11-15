@@ -44,3 +44,5 @@ export function loadContent(files: readonly RawFile[] = RAW_FILES): LoadResult {
   const loaded = parseFiles(files);
   return { data: loaded.data, issues: [...loaded.issues, ...validateData(loaded.data)] };
 }
+
+export * from "./enemies.ts";

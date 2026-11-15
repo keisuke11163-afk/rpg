@@ -30,3 +30,6 @@ export * from "./jobs/gauge.ts";
 export * from "./jobs/skills.ts";
 export * from "./jobs/warrior.ts";
 export * from "./jobs/fighter.ts";
+export * from "./enemy/stats.ts";
+export * from "./enemy/def.ts";
+export * from "./enemy/ai.ts";
