@@ -14,6 +14,7 @@ export const WEAPONS: Readonly<Record<string, WeaponDef>> = {
   greatsword: { name: "大剣", min: 14, max: 24, speed: 1.05, crit: 0.05 },
   dagger: { name: "短剣", min: 4, max: 9, speed: 1.6, crit: 0.08 },
   claw: { name: "爪", min: 5, max: 8, speed: 1.7, crit: 0.06 },
+  axe: { name: "片手斧", min: 7, max: 13, speed: 1.3, crit: 0.05 },
   greataxe: { name: "大斧", min: 16, max: 28, speed: 0.95, crit: 0.05 },
   greathammer: { name: "大槌", min: 18, max: 27, speed: 0.9, crit: 0.04 },
 };

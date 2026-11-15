@@ -46,3 +46,4 @@ export function loadContent(files: readonly RawFile[] = RAW_FILES): LoadResult {
 }
 
 export * from "./enemies.ts";
+export * from "./items.ts";

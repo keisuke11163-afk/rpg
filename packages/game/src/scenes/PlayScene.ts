@@ -2,6 +2,12 @@ import Phaser from "phaser";
 import {
   AttackRunner,
   GroundEffects,
+  GroundLoot,
+  ItemBag,
+  Purse,
+  rollDrops,
+  type DropSource,
+  type GroundEntry,
   ROGUE_JOB,
   WARRIOR_JOB,
   createFighter,
@@ -31,7 +37,7 @@ import {
   type HitShape,
   type HitSpec,
 } from "@stella/core";
-import { enemyDef } from "@stella/content";
+import { GENERATION_DATA, enemyDef, itemBase } from "@stella/content";
 import { SCREEN } from "../config.ts";
 
 /** 1m = 16ピクセル */
@@ -95,6 +101,12 @@ export class PlayScene extends Phaser.Scene {
   private job: JobDef = WARRIOR_JOB;
   private fighter: Fighter = PlayScene.makeFighter(WARRIOR_JOB);
   private readonly ground = new GroundEffects();
+  private readonly loot = new GroundLoot();
+  private readonly bag = new ItemBag();
+  private readonly purse = new Purse();
+  private itemSerial = 0;
+  private readonly dropped = new Set<Enemy>();
+  private readonly lootLabels = new Map<GroundEntry, Phaser.GameObjects.Text>();
   private groundLayer!: Phaser.GameObjects.Graphics;
   /** 技の枠と行動の対応（補助仕様書 1.1）。6つ目の枠は、試験用に R に置く */
   private static readonly SLOT_ACTIONS = ["skill2", "skill3", "skill4", "skill5", "skill6", "KeyR"];
@@ -207,6 +219,7 @@ export class PlayScene extends Phaser.Scene {
       this.updateAttack(actions.has("skill1"));
       this.updateEnemies();
       this.updateGround();
+      this.updateLoot();
       this.updateClouds();
       this.updateProjectiles();
     }
@@ -351,6 +364,80 @@ export class PlayScene extends Phaser.Scene {
       break;
     }
   }
+
+  /** 倒した敵のドロップを出し、金貨・素材を自動で拾い、Fで装備を拾う */
+  private updateLoot(): void {
+    for (const enemy of this.enemies) {
+      if (enemy.body.hp > 0 || this.dropped.has(enemy)) continue;
+      this.dropped.add(enemy);
+      const source: DropSource = enemy.rank === "normal" ? "normal" : enemy.rank;
+      const classes = Object.entries(this.job.aptitude)
+        .filter(([, apt]) => apt === "S" || apt === "A")
+        .map(([k]) => k);
+      const drop = rollDrops(
+        GENERATION_DATA,
+        {
+          source,
+          enemyLevel: enemy.level,
+          ...(enemy.def.familyTag ? { family: enemy.def.familyTag } : {}),
+          generate: {
+            job: { jobId: this.job.id, weaponClasses: classes as never },
+          },
+          uid: () => `itm_${String(this.itemSerial++).padStart(6, "0")}`,
+        },
+        this.rng,
+      );
+      this.loot.spawn(enemy.body.pos, drop);
+    }
+    for (const picked of this.loot.autoPickup(this.player.pos, this.purse)) {
+      this.lootLabels.get(picked)?.destroy();
+      this.lootLabels.delete(picked);
+    }
+    if (this.justPressed.has("KeyF")) {
+      const res = this.loot.pickupNearestItem(this.player.pos, this.bag);
+      if (res.reason === "full")
+        this.showText(this.player.pos.x, this.player.pos.y, "持ち物がいっぱい", "#ff8a8a", 9);
+    }
+    // ラベルの更新（拾われたものは消す）
+    for (const e of this.loot.entries) {
+      if (!this.lootLabels.has(e)) {
+        const color =
+          e.kind === "item" ? (PlayScene.RARITY_COLOR[e.item.rarity] ?? "#ffffff") : "#d8c36f";
+        const name =
+          e.kind === "item"
+            ? itemBase(e.item.baseId).name
+            : e.kind === "gold"
+              ? `${String(e.amount)}G`
+              : e.id.replace("MAT-", "");
+        this.lootLabels.set(
+          e,
+          this.add
+            .text(e.pos.x * M, e.pos.y * M, name, {
+              fontFamily: "sans-serif",
+              fontSize: "8px",
+              color,
+            })
+            .setOrigin(0.5)
+            .setDepth(6),
+        );
+      }
+    }
+    for (const [e, label] of this.lootLabels) {
+      if (!this.loot.entries.includes(e)) {
+        label.destroy();
+        this.lootLabels.delete(e);
+      }
+    }
+  }
+
+  private static readonly RARITY_COLOR: Record<string, string> = {
+    normal: "#ffffff",
+    magic: "#6f9bff",
+    rare: "#ffd86b",
+    unique: "#ff9b4a",
+    set: "#6fdc8a",
+    astral: "#c07bff",
+  };
 
   /** 地面に置いた効果（罠・煙玉）を進める */
   private updateGround(): void {
@@ -519,7 +606,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.hud.setText(
-      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避\n敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
+      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避\n金貨 ${String(this.purse.gold)}  持ち物 ${String(this.bag.count)}/${String(this.bag.capacity)}（F で拾う）  敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
     );
   }
 }
