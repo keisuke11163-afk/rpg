@@ -55,7 +55,31 @@ export function enemyTexture(enemyId: string): string {
 
 /** プレイヤーの仮素材のキー（ジョブごと。表に無いジョブは TEXTURES.player）。 */
 export function playerTexture(jobId: string): string {
-  return jobId in JOB_LOOKS ? `chr/player/${jobId.toLowerCase()}/body` : TEXTURES.player;
+  // 素の `in` だと constructor など Object の継承プロパティを真と判定するので、自分のプロパティだけを見る
+  return Object.hasOwn(JOB_LOOKS, jobId)
+    ? `chr/player/${jobId.toLowerCase()}/body`
+    : TEXTURES.player;
+}
+
+/** createPlaceholderTextures が図形から作ったキー（本素材として読み込まれたキーは入らない）。 */
+const generatedKeys = new Set<string>();
+
+/**
+ * 実際に使うプレイヤーのキー（本素材への差し替えを保つ）。ジョブごとのキーが本素材なら、それを使う。
+ * ジョブごとのキーが図形の仮素材で、`chr/player/body` だけが本素材（読み込んだ画像）なら、図形のジョブの姿ではなく
+ * `chr/player/body` を使う（「同じキーで読み込めば差し替わる」を保つ）。
+ */
+export function playerTextureIn(textures: Phaser.Textures.TextureManager, jobId: string): string {
+  const jobKey = playerTexture(jobId);
+  if (jobKey === TEXTURES.player) return jobKey;
+  if (!textures.exists(jobKey)) return TEXTURES.player;
+  if (
+    generatedKeys.has(jobKey) &&
+    textures.exists(TEXTURES.player) &&
+    !generatedKeys.has(TEXTURES.player)
+  )
+    return TEXTURES.player;
+  return jobKey;
 }
 
 /** 町の施設の仮素材のキー。 */
@@ -90,6 +114,7 @@ export function createPlaceholderTextures(
     g.clear();
     draw();
     g.generateTexture(key, w, h);
+    generatedKeys.add(key);
   };
   // 敵：当たり判定の直径の正方形に、種類ごとの姿（16ピクセル＝1m）
   for (const e of enemies) {

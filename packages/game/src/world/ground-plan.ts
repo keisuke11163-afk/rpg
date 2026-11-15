@@ -146,19 +146,37 @@ function planPatches(
 ): void {
   const p = theme.palette;
   const s = theme.seed;
-  for (let y = 0; y < h; y += SUB)
+  for (let y = 0; y < h; y += SUB) {
+    // 同じ色の升が横に続く間は1つの四角にまとめる（見た目は同じ。命令の数を大きく減らす。D-WORLD-9）
+    let runColor = -1;
+    let runStart = 0;
+    const flush = (end: number): void => {
+      if (runColor >= 0) ops.rect(runStart, y, end - runStart, SUB, runColor);
+      runColor = -1;
+    };
     for (let x = 0; x < w; x += SUB) {
-      if (skip?.(x + SUB / 2, y + SUB / 2) === true) continue;
-      // 升の縁を少しぎざぎざにする（同じ値の升が四角く並ばないように）
-      const jitter = (hash2(x, y, s ^ 0x5bd1) - 0.5) * 0.04;
-      // 大きなかたまり（80px）に、中くらいのゆらぎ（24px）を足して縁を自然に
-      const n = 0.65 * valueNoise(x, y, 80, s) + 0.35 * valueNoise(x, y, 24, s ^ 0x3c6e) + jitter;
-      const m =
-        0.65 * valueNoise(x, y, 56, s ^ 0x9e37) + 0.35 * valueNoise(x, y, 20, s ^ 0x1f) + jitter;
-      if (n < 0.33) ops.rect(x, y, SUB, SUB, p.dark);
-      else if (n > 0.67 - soilBias) ops.rect(x, y, SUB, SUB, p.soil);
-      else if (m > 0.7) ops.rect(x, y, SUB, SUB, p.light);
+      let color = -1;
+      if (skip?.(x + SUB / 2, y + SUB / 2) !== true) {
+        // 升の縁を少しぎざぎざにする（同じ値の升が四角く並ばないように）
+        const jitter = (hash2(x, y, s ^ 0x5bd1) - 0.5) * 0.04;
+        // 大きなかたまり（80px）に、中くらいのゆらぎ（24px）を足して縁を自然に
+        const n = 0.65 * valueNoise(x, y, 80, s) + 0.35 * valueNoise(x, y, 24, s ^ 0x3c6e) + jitter;
+        const m =
+          0.65 * valueNoise(x, y, 56, s ^ 0x9e37) + 0.35 * valueNoise(x, y, 20, s ^ 0x1f) + jitter;
+        if (n < 0.33) color = p.dark;
+        else if (n > 0.67 - soilBias) color = p.soil;
+        else if (m > 0.7) color = p.light;
+      }
+      if (color !== runColor) {
+        flush(x);
+        if (color >= 0) {
+          runColor = color;
+          runStart = x;
+        }
+      }
     }
+    flush(w);
+  }
 }
 
 /** 草の房（細い3本の線）。 */

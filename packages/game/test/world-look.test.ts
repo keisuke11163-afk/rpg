@@ -15,12 +15,13 @@ import {
 } from "../src/world/ground-theme.ts";
 import { type GroundLayout, type GroundOp, planGround } from "../src/world/ground-plan.ts";
 import { exitDirection, pulse } from "../src/world/prop-plan.ts";
-import { WORLD_DEPTH } from "../src/world/depth.ts";
+import { ENTITY_DEPTH, WORLD_DEPTH } from "../src/world/depth.ts";
 import {
   DEFAULT_JOB_LOOK,
   ENEMY_LOOKS,
   enemyBodySize,
   enemyLook,
+  facingScaleOf,
   FACILITY_LOOKS,
   FALLBACK_ENEMY_LOOK,
   GROUND_PALETTES,
@@ -518,6 +519,16 @@ describe("世界の見た目の表 look-tables.ts", () => {
     expect(enemyLook("constructor")).toBe(FALLBACK_ENEMY_LOOK);
   });
 
+  describe("facingScaleOf（向きの印の大きさ）", () => {
+    it("小さい体ほど小さく、0.4〜0.7 の範囲に収まる", () => {
+      expect(facingScaleOf(10)).toBe(0.4);
+      expect(facingScaleOf(26)).toBeCloseTo(0.7, 5);
+      expect(facingScaleOf(48)).toBe(0.7);
+      expect(facingScaleOf(18)).toBeLessThan(facingScaleOf(22));
+      expect(facingScaleOf(Number.NaN)).toBe(0.4);
+    });
+  });
+
   describe("enemyBodySize", () => {
     it("半径×32 を丸めた値（直径＝半径×2×16ピクセル）", () => {
       expect(enemyBodySize(0.4)).toBe(13);
@@ -747,6 +758,15 @@ describe("深さ depth.ts", () => {
 
   it("地面・場の物は、予兆・体（深さ0。ArenaScene の fx と敵・プレイヤー）より奥", () => {
     for (const d of Object.values(WORLD_DEPTH)) expect(d).toBeLessThan(0);
+  });
+
+  it("重なりの順を明示する：影 < ドロップの印 < 予兆（fx）< 体 < 名前（ドロップの印は体より奥）", () => {
+    expect(WORLD_DEPTH.prop).toBeLessThan(WORLD_DEPTH.regionLabel);
+    expect(WORLD_DEPTH.regionLabel).toBeLessThan(WORLD_DEPTH.shadow);
+    expect(WORLD_DEPTH.shadow).toBeLessThan(WORLD_DEPTH.loot);
+    expect(WORLD_DEPTH.loot).toBeLessThan(WORLD_DEPTH.fx);
+    expect(WORLD_DEPTH.fx).toBeLessThan(ENTITY_DEPTH.body);
+    expect(ENTITY_DEPTH.body).toBeLessThan(ENTITY_DEPTH.label);
   });
 
   it("全ての深さは HUD（900 以上。ArenaScene）より手前", () => {

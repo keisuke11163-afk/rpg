@@ -28,6 +28,11 @@ export type PropSource = Pick<
 /** 場の物の絵の、位置に対する原点（下の辺の少し上が位置。足元に影を置く）。 */
 const PROP_ORIGIN_Y = 0.62;
 
+/** 場の物の絵（高さ height ピクセル）の、位置より下にはみ出す高さ（名前を絵の下に置くのに使う）。 */
+export function propBelow(height: number): number {
+  return Math.round((1 - PROP_ORIGIN_Y) * height);
+}
+
 interface Prop {
   readonly image: Phaser.GameObjects.Image;
   readonly shadow: Phaser.GameObjects.Image;
@@ -53,8 +58,8 @@ export class PropView {
   /** 開いた出口（明滅させる）と閉じた出口の絵。 */
   private readonly exitsOpen: Phaser.GameObjects.Graphics;
   private readonly exitsClosed: Phaser.GameObjects.Graphics;
-  /** 出口の開閉（前のフレーム。変わったときだけ描き直す）。 */
-  private exitState = "";
+  /** 出口の開閉（前のフレーム。変わったときだけ描き直す。毎フレーム文字列を作らないよう、真偽値の列で持つ）。 */
+  private exitState: boolean[] | undefined;
 
   constructor(scene: Phaser.Scene, src: PropSource) {
     this.scene = scene;
@@ -170,13 +175,19 @@ export class PropView {
   /** 出口：開いている＝緑の光る帯と外向きの矢印、閉じている＝赤い帯と格子。開閉が変わったときだけ描く。 */
   private drawExits(src: PropSource, now: number): void {
     const exits = src.region?.exits ?? [];
-    const state = exits.map((x) => (src.exitOpen(x) ? "1" : "0")).join("");
-    if (state !== this.exitState) {
+    const prev = this.exitState;
+    let changed = prev?.length !== exits.length;
+    for (let i = 0; !changed && i < exits.length; i++) {
+      const x = exits[i];
+      if (x !== undefined && src.exitOpen(x) !== prev?.[i]) changed = true;
+    }
+    if (changed) {
+      const state = exits.map((x) => src.exitOpen(x));
       this.exitState = state;
       this.exitsOpen.clear();
       this.exitsClosed.clear();
       exits.forEach((x, i) => {
-        const open = state[i] === "1";
+        const open = state[i] === true;
         const g = open ? this.exitsOpen : this.exitsClosed;
         const color = open ? PROP_COLORS.exitOpen : PROP_COLORS.exitClosed;
         const rx = toPixels(x.rect.x);
@@ -214,7 +225,7 @@ export class PropView {
         }
       });
     }
-    // 開いた出口はゆっくり明滅（閉じた出口は止めておく）
-    this.exitsOpen.setAlpha(0.7 + 0.3 * pulse(now, 1400));
+    // 開いた出口はゆっくり明滅（閉じた出口は止めておく。明滅は弱め：0.8〜1）
+    this.exitsOpen.setAlpha(0.8 + 0.2 * pulse(now, 1400));
   }
 }

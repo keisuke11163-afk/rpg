@@ -28,6 +28,9 @@ export function hash2(x: number, y: number, seed: number): number {
  * 地面の大きなまだら（土・草のかたまり）に使う。
  */
 export function valueNoise(x: number, y: number, cell: number, seed: number): number {
+  // 前提違反（格子の間隔が 0 以下・NaN、座標が有限でない）：割り算が NaN になるので、補間をやめて整数座標のハッシュを返す
+  if (!(cell > 0) || !Number.isFinite(cell) || !Number.isFinite(x) || !Number.isFinite(y))
+    return hash2(Number.isFinite(x) ? x : 0, Number.isFinite(y) ? y : 0, seed);
   const gx = Math.floor(x / cell);
   const gy = Math.floor(y / cell);
   const fx = x / cell - gx;

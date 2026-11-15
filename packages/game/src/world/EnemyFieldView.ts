@@ -2,7 +2,8 @@ import Phaser from "phaser";
 import { type Enemy, type EnemyRank, type HitShape, type Vec2, cloudCenters } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
 import type { EnemyField } from "./EnemyField.ts";
-import { type EnemyLook, enemyLook } from "./look-tables.ts";
+import { type EnemyLook, enemyLook, facingScaleOf } from "./look-tables.ts";
+import { ENTITY_DEPTH } from "./depth.ts";
 import { enemyTexture, TEXTURES } from "./placeholders.ts";
 import { fillShadow } from "./sprites.ts";
 import { PIXELS_PER_METER, toPixels } from "./units.ts";
@@ -28,6 +29,11 @@ interface EnemySprites {
   /** 今の白い光の終わりの時刻（数え直さないため。確認用の counts）。 */
   flashUntil: number | undefined;
 }
+
+/** 向きの印の色（予兆の赤と混ざらない、骨のような淡い色）。 */
+const FACING_COLOR = 0xf2e6c8;
+/** 画面の外の敵の影・輪・HP の棒を描かない範囲の余白（ピクセル。カメラは1フレーム遅れて動くので広めに）。 */
+const CULL_MARGIN = 48;
 
 /** 当てたときに白く光らせる時間（ミリ秒）。 */
 const HIT_FLASH_MS = 70;
@@ -62,10 +68,13 @@ export class EnemyFieldView {
 
   private create(e: Enemy): EnemySprites {
     const look = enemyLook(e.def.id);
-    const body = this.scene.add.image(0, 0, enemyTexture(e.def.id)).setScale(e.rank.scale);
+    const body = this.scene.add
+      .image(0, 0, enemyTexture(e.def.id))
+      .setScale(e.rank.scale)
+      .setDepth(ENTITY_DEPTH.body);
     const w = body.displayWidth;
-    // 向きの印（赤い三角）：体の輪郭のすぐ外に置く（頭に重ねない）。小さな敵は少し小さく
-    const facingScale = w < 14 ? 0.55 : 0.7;
+    // 向きの印（淡い三角。予兆の赤とは別の色）：体の輪郭のすぐ外に置く（頭に重ねない）。小さな敵ほど小さく
+    const facingScale = facingScaleOf(w);
     const facing =
       e.def.turnRate === null
         ? undefined
@@ -73,14 +82,18 @@ export class EnemyFieldView {
             .image(0, 0, TEXTURES.facing)
             .setOrigin(-(w / 2 - 1) / (10 * facingScale), 0.5)
             .setScale(facingScale)
-            .setTint(0xff6b6b);
+            // 元の絵は黄色なので、掛け算の色では淡い色にならない。単色で塗る（FILL）
+            .setTint(FACING_COLOR)
+            .setTintMode(Phaser.TintModes.FILL)
+            .setDepth(ENTITY_DEPTH.body);
     const label = this.scene.add
       .text(0, 0, `${text(e.def.text as TextKey)} Lv${String(e.level)}`, {
         fontFamily: "sans-serif",
         fontSize: "8px",
         color: RANK_COLOR[e.rank.rank],
       })
-      .setOrigin(0.5, 1);
+      .setOrigin(0.5, 1)
+      .setDepth(ENTITY_DEPTH.label);
     return { body, look, facing, label, deadAt: undefined, flashUntil: undefined };
   }
 
@@ -202,12 +215,20 @@ export class EnemyFieldView {
         }
       }
     }
+    // 画面の外の敵は、影・輪・HP の棒を描かない（毎フレームの描く量を減らす）
+    const view = this.scene.cameras.main.worldView;
     for (const { enemy: e } of field.entries) {
       const v = this.sprites.get(e);
       if (v === undefined) continue;
       const x = Math.round(toPixels(e.position.x));
       const y = Math.round(toPixels(e.position.y));
       const now = this.scene.time.now;
+      const reach = Math.max(v.body.displayWidth, v.body.displayHeight) / 2 + CULL_MARGIN;
+      const onScreen =
+        x >= view.x - reach &&
+        x <= view.right + reach &&
+        y >= view.y - reach &&
+        y <= view.bottom + reach;
       // 倒れた：最初に見たときに散らし、だんだん消す（sim から消えるまで薄く残す）
       if (e.state !== "dead") v.deadAt = undefined;
       else if (v.deadAt === undefined) {
@@ -229,14 +250,15 @@ export class EnemyFieldView {
       v.body.setPosition(x, y).setAlpha(alpha);
       // 真上から見た獣は、体を向きに合わせて回す（頭が向き。背面を取る遊びのため）。木・苗は回さない
       if (v.look.rotates) v.body.setRotation(e.facing);
-      // 影（体の幅、高さは半分。木・苗は根元に平たく）。地中にいる間・消えた後は出さない
+      // 影。回る獣：体の向きで形が変わらないよう、当たり判定の円の中に収まる小さめの楕円（回る体の左右に
+      // はみ出して、体を横切る帯に見えたため。D-WORLD-6）。木・苗は根元に平たく。地中にいる間・消えた後は出さない
       const r0 = v.body.displayWidth / 2;
-      if (!e.underground && (v.deadAt === undefined || alpha > DEAD_ALPHA))
+      if (onScreen && !e.underground && (v.deadAt === undefined || alpha > DEAD_ALPHA))
         fillShadow(
           shadows,
           x,
-          y + Math.round(v.look.rotates ? r0 * 0.25 : r0 * 0.55),
-          r0 * 2,
+          y + Math.round(v.look.rotates ? r0 * 0.3 : r0 * 0.55),
+          v.look.rotates ? r0 * 1.6 : r0 * 2,
           v.look.rotates ? r0 * 1.1 : r0 * 0.8,
           alpha,
         );
@@ -279,7 +301,7 @@ export class EnemyFieldView {
         );
       // 格（魔法・精鋭）：体を囲む輪と、足元の色の輪（精鋭は二重）。名前の色と同じ色
       const outline = RANK_OUTLINE[e.rank.rank];
-      if (outline !== undefined && e.state !== "dead") {
+      if (onScreen && outline !== undefined && e.state !== "dead") {
         const rr = v.body.displayWidth / 2;
         const gy = y + Math.round(rr * 0.3);
         g.fillStyle(outline, 0.16).fillEllipse(x, gy, rr * 2 + 8, rr + 6);
@@ -288,7 +310,7 @@ export class EnemyFieldView {
           g.lineStyle(1, outline, 0.6).strokeEllipse(x, gy, rr * 2 + 14, rr + 10);
         g.lineStyle(1, outline, 0.85).strokeCircle(x, y, rr + 1.5);
       }
-      if (e.state !== "dead") {
+      if (onScreen && e.state !== "dead") {
         const w = Math.max(12, Math.round(v.body.displayWidth));
         g.fillStyle(0x2a2934, 1)
           .fillRect(x - w / 2, y - half - 4, w, 2)

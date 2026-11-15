@@ -5,6 +5,7 @@ import { RARITY_COLOR } from "../ui/item-text.ts";
 import type { GroundLoot, LootField } from "./LootField.ts";
 
 export { RARITY_COLOR };
+import { ENTITY_DEPTH, WORLD_DEPTH } from "./depth.ts";
 import { toPixels } from "./units.ts";
 import { LOOT_COLORS } from "./look-tables.ts";
 import { TEXTURES } from "./placeholders.ts";
@@ -28,6 +29,8 @@ export class LootView {
   private readonly labels = new Map<number, Phaser.GameObjects.Text>();
   /** 地面の物の絵と影（ドロップの id ごと）。 */
   private readonly icons = new Map<number, Phaser.GameObjects.Image>();
+  /** 今のフレームで場にある物の id（毎フレーム作り直さず、空にして使い回す）。 */
+  private readonly alive = new Set<number>();
 
   constructor(scene: Phaser.Scene, db: ContentDb) {
     this.scene = scene;
@@ -64,7 +67,8 @@ export class LootView {
     shadows: Phaser.GameObjects.Graphics,
     now = this.scene.time.now,
   ): void {
-    const alive = new Set<number>();
+    const alive = this.alive;
+    alive.clear();
     for (const d of field.drops) {
       alive.add(d.id);
       const { text: label, color } = this.label(d);
@@ -78,7 +82,8 @@ export class LootView {
             : d.kind === "gold"
               ? TEXTURES.lootGold
               : TEXTURES.lootMaterial;
-        const icon = this.scene.add.image(x, y, key);
+        // 印はプレイヤー・敵の体より下（depth.ts の loot）
+        const icon = this.scene.add.image(x, y, key).setDepth(WORLD_DEPTH.loot);
         if (d.kind === "item") icon.setTint(colorNumber(color));
         v = icon;
         this.icons.set(d.id, v);
@@ -100,7 +105,8 @@ export class LootView {
       if (t === undefined) {
         t = this.scene.add
           .text(0, 0, label, { fontFamily: "sans-serif", fontSize: "8px", color })
-          .setOrigin(0.5, 1);
+          .setOrigin(0.5, 1)
+          .setDepth(ENTITY_DEPTH.label);
         this.labels.set(d.id, t);
       }
       const near = Math.hypot(d.position.x - player.x, d.position.y - player.y) <= LABEL_DISTANCE;

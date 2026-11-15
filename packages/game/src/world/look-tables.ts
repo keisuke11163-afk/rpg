@@ -42,7 +42,7 @@ export const ENEMY_LOOKS: Readonly<Record<string, EnemyLook>> = {
   },
   "ENM-THORN-RAT": {
     shape: "rat",
-    body: 0x9a8270,
+    body: 0xaa9078,
     dark: 0x5a4a3e,
     accent: 0xd8c08a,
     rotates: true,
@@ -56,14 +56,14 @@ export const ENEMY_LOOKS: Readonly<Record<string, EnemyLook>> = {
   },
   "ENM-TUSK-BOAR": {
     shape: "boar",
-    body: 0xa8704c,
+    body: 0xb87c56,
     dark: 0x5e3a28,
     accent: 0xf2ead8,
     rotates: true,
   },
   "ENM-BARK-BEAR": {
     shape: "bear",
-    body: 0x7e6448,
+    body: 0x9a7c58,
     dark: 0x463424,
     accent: 0xa89a70,
     rotates: true,
@@ -91,14 +91,14 @@ export const ENEMY_LOOKS: Readonly<Record<string, EnemyLook>> = {
   },
   "ENM-MOTHER-TREE": {
     shape: "tree",
-    body: 0x7a6040,
+    body: 0x9a7a52,
     dark: 0x3a2a1c,
     accent: 0xa8e070,
     rotates: false,
   },
   "ENM-ABYSS-MOTHER-TREE": {
     shape: "tree",
-    body: 0x5e4a70,
+    body: 0x7a62a0,
     dark: 0x2a1f36,
     accent: 0xd080ff,
     rotates: false,
@@ -116,12 +116,23 @@ export const FALLBACK_ENEMY_LOOK: EnemyLook = {
 
 /** 敵の見た目（表に無ければ灰色の丸）。 */
 export function enemyLook(enemyId: string): EnemyLook {
-  return ENEMY_LOOKS[enemyId] ?? FALLBACK_ENEMY_LOOK;
+  // 素の添字だと constructor など Object の継承プロパティを拾うので、自分のプロパティだけを見る
+  return Object.hasOwn(ENEMY_LOOKS, enemyId)
+    ? (ENEMY_LOOKS[enemyId] ?? FALLBACK_ENEMY_LOOK)
+    : FALLBACK_ENEMY_LOOK;
 }
 
 /** 敵の体のテクスチャの1辺（ピクセル）：当たり判定の直径（16ピクセル＝1m）。小さすぎる敵は6ピクセル。 */
 export function enemyBodySize(radius: number): number {
-  return Math.max(6, Math.round(radius * 2 * 16));
+  // NaN は Math.max が NaN を返すので、最小の大きさにする
+  return Number.isFinite(radius) ? Math.max(6, Math.round(radius * 2 * 16)) : 6;
+}
+
+/** 向きの印の大きさ（倍率）：体が小さいほど小さく（体と同じ大きさの三角が体を隠さないように）。 */
+export function facingScaleOf(bodyWidth: number): number {
+  // 体の幅が NaN のときも有限の値にする
+  if (!Number.isFinite(bodyWidth)) return 0.4;
+  return Math.min(0.7, Math.max(0.4, bodyWidth / 34));
 }
 
 /** プレイヤーの武器の形。 */
@@ -149,7 +160,8 @@ export const JOB_LOOKS: Readonly<Record<string, JobLook>> = {
     weapon: "greatsword",
     robe: false,
   },
-  "JOB-ROGUE": { cloth: 0x4c6470, trim: 0x2a3036, head: 0x2e3a40, weapon: "daggers", robe: false },
+  // 暗い森で沈まないよう、服と頭巾を明るめに（輪郭の暗さは残す）
+  "JOB-ROGUE": { cloth: 0x6a8ea0, trim: 0x46545c, head: 0x4c606a, weapon: "daggers", robe: false },
   "JOB-ARCHER": { cloth: 0x5a9a50, trim: 0xa07850, head: 0x8a6a40, weapon: "bow", robe: false },
   "JOB-MAGE": { cloth: 0x5a62c0, trim: 0xd8c070, head: 0x3a3a80, weapon: "staff", robe: true },
   "JOB-KNIGHT": {

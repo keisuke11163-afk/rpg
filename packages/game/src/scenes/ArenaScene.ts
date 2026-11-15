@@ -56,11 +56,12 @@ import type { Action } from "../input/actions.ts";
 import { type InputFrame, InputSystem } from "../input/InputSystem.ts";
 import { EnemyFieldView } from "../world/EnemyFieldView.ts";
 import { LootView } from "../world/LootView.ts";
-import { TEXTURES, playerTexture } from "../world/placeholders.ts";
-import { WORLD_DEPTH } from "../world/depth.ts";
+import { STONE_SIZE, TEXTURES, playerTextureIn } from "../world/placeholders.ts";
+import { FACILITY_LOOKS } from "../world/look-tables.ts";
+import { ENTITY_DEPTH, WORLD_DEPTH } from "../world/depth.ts";
 import { drawGround } from "../world/GroundView.ts";
 import { groundThemeOf } from "../world/ground-theme.ts";
-import { PropView } from "../world/PropView.ts";
+import { PropView, propBelow } from "../world/PropView.ts";
 import { fillShadow } from "../world/sprites.ts";
 import { PIXELS_PER_METER, toPixels } from "../world/units.ts";
 import { ARENA, ArenaSimulation, HAZARD } from "./arena-simulation.ts";
@@ -262,10 +263,10 @@ export class ArenaScene extends Phaser.Scene {
       },
     });
     this.propView = new PropView(this, this.sim);
-    // 足元の影（敵・ドロップ・プレイヤー）と、予兆・技の当たり判定・ドロップを描く Graphics。
-    // 地面・場の物より後、敵・プレイヤーの絵より前に作る（深さは全て0で、作る順で重なりが決まる。D-WORLD-6）
-    this.shadows = this.add.graphics();
-    this.fx = this.add.graphics();
+    // 足元の影（敵・ドロップ・プレイヤー）と、予兆・技の当たり判定・ドロップの光を描く Graphics。
+    // 重なりは深さで決める（影＜ドロップの印＜予兆＜体。depth.ts。作る順には頼らない）
+    this.shadows = this.add.graphics().setDepth(WORLD_DEPTH.shadow);
+    this.fx = this.add.graphics().setDepth(WORLD_DEPTH.fx);
     if (this.sim.field !== undefined) this.enemyView = new EnemyFieldView(this, this.sim.field);
     else this.enemyView = undefined;
     this.lootView = new LootView(this, this.sim.db);
@@ -275,23 +276,31 @@ export class ArenaScene extends Phaser.Scene {
     if (dummy !== undefined) {
       this.dummyImage = this.add
         .image(toPixels(dummy.position.x), toPixels(dummy.position.y), TEXTURES.dummy)
-        .setOrigin(0.5, 0.5);
+        .setOrigin(0.5, 0.5)
+        .setDepth(ENTITY_DEPTH.body);
       this.dummyFacing = this.add
         .image(toPixels(dummy.position.x), toPixels(dummy.position.y), TEXTURES.facing)
         .setOrigin(-0.6, 0.5)
         .setRotation(Math.PI)
-        .setTint(0xa07850);
+        .setTint(0xa07850)
+        .setDepth(ENTITY_DEPTH.body);
     } else {
       this.dummyImage = undefined;
       this.dummyFacing = undefined;
     }
-    this.bodyRing = this.add.image(0, 0, TEXTURES.playerRing);
-    this.body = this.add.image(0, 0, playerTexture(this.sim.job.id)).setOrigin(0.5, 0.5);
+    this.bodyRing = this.add.image(0, 0, TEXTURES.playerRing).setDepth(ENTITY_DEPTH.body);
+    this.body = this.add
+      .image(0, 0, playerTextureIn(this.textures, this.sim.job.id))
+      .setOrigin(0.5, 0.5)
+      .setDepth(ENTITY_DEPTH.body);
     this.walkMs = 0;
     this.lastBodyPos.x = toPixels(this.sim.motion.position.x);
     this.lastBodyPos.y = toPixels(this.sim.motion.position.y);
     // 向きの印：体と武器の外側（中心から約8ピクセル）に置く
-    this.facing = this.add.image(0, 0, TEXTURES.facing).setOrigin(-0.8, 0.5);
+    this.facing = this.add
+      .image(0, 0, TEXTURES.facing)
+      .setOrigin(-0.8, 0.5)
+      .setDepth(ENTITY_DEPTH.body);
     // 音量・拡大率は端末ごと（localStorage）、キーの割り当てはキャラクターのセーブ（開発計画書6.9）
     this.settings = { ...loadSettings(), bindings: keybindsToBindings(this.sim.keybinds) };
     this.controls = new InputSystem(this, effectiveBindings(this.settings));
@@ -747,7 +756,8 @@ export class ArenaScene extends Phaser.Scene {
   private drawRegionLabels(): void {
     const r = this.sim.region;
     if (r === undefined) return;
-    // 名前は場の物の絵の上（絵の高さは最大22ピクセルで、位置より約14ピクセル上まで）。
+    // 施設・転移の石の名前は絵の「下」に置く（origin (0.5, 0)）。上に置くと、地域の上の端の施設
+    // （町の y=6m。入った直後は画面の上の端）で名前が画面の外に切れたため（docs/progress WORLD-6 H2）。
     // 地面の模様の上でも読めるよう、暗い縁取りを付ける
     const style = {
       fontFamily: "sans-serif",
@@ -759,17 +769,24 @@ export class ArenaScene extends Phaser.Scene {
     for (const f of r.facilities ?? [])
       if (f.kind !== "dummy")
         this.add
-          .text(toPixels(f.at.x), toPixels(f.at.y) - 15, facilityName(f.kind), style)
-          .setOrigin(0.5, 1);
+          .text(
+            toPixels(f.at.x),
+            toPixels(f.at.y) + propBelow(FACILITY_LOOKS[f.kind].height) + 6,
+            facilityName(f.kind),
+            style,
+          )
+          .setOrigin(0.5, 0)
+          .setDepth(WORLD_DEPTH.regionLabel);
     if (r.teleportStone !== undefined && r.kind === "dungeon")
       this.add
         .text(
           toPixels(r.teleportStone.x),
-          toPixels(r.teleportStone.y) - 15,
+          toPixels(r.teleportStone.y) + propBelow(STONE_SIZE.height) + 6,
           text("facility.teleport"),
           style,
         )
-        .setOrigin(0.5, 1);
+        .setOrigin(0.5, 0)
+        .setDepth(WORLD_DEPTH.regionLabel);
     for (const x of r.exits ?? []) {
       const to = this.sim.db.regions.get(x.to);
       this.add
@@ -779,7 +796,8 @@ export class ArenaScene extends Phaser.Scene {
           `→ ${to === undefined ? x.to : text(to.text as TextKey)}${x.requires === undefined ? "" : "（ボスを倒すと開く）"}`,
           style,
         )
-        .setOrigin(0.5, 1);
+        .setOrigin(0.5, 1)
+        .setDepth(WORLD_DEPTH.regionLabel);
     }
   }
 
@@ -1167,7 +1185,7 @@ export class ArenaScene extends Phaser.Scene {
    */
   private renderPlayerBody(x: number, y: number): void {
     const motion = this.sim.motion;
-    const key = playerTexture(this.sim.job.id);
+    const key = playerTextureIn(this.textures, this.sim.job.id);
     if (this.body.texture.key !== key) this.body.setTexture(key);
     // 左向き（8方向の 3・4・5）は左右を反転。真上・真下は前の向きのまま
     const d8 = motion.direction8;

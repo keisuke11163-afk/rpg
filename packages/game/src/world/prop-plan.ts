@@ -25,5 +25,13 @@ export function exitDirection(
 
 /** 0〜1を行き来する脈（周期 periodMs ミリ秒。phase は 0〜1 のずれ）。 */
 export function pulse(nowMs: number, periodMs: number, phase = 0): number {
+  // 周期が 0 以下・NaN、時刻・ずれが有限でないときは、割り算や % が NaN になるので、脈の中ほど（0.5）を返す
+  if (
+    !(periodMs > 0) ||
+    !Number.isFinite(periodMs) ||
+    !Number.isFinite(nowMs) ||
+    !Number.isFinite(phase)
+  )
+    return 0.5;
   return 0.5 - 0.5 * Math.cos(((nowMs / periodMs + phase) % 1) * Math.PI * 2);
 }
