@@ -1,8 +1,34 @@
 import type Phaser from "phaser";
+import type { Facility } from "@stella/core";
+import {
+  DEFAULT_JOB_LOOK,
+  FACILITY_LOOKS,
+  JOB_LOOKS,
+  PLAYER_SPRITE,
+  enemyBodySize,
+  enemyLook,
+} from "./look-tables.ts";
+import {
+  drawChest,
+  drawDummy,
+  drawEnemy,
+  drawFacility,
+  drawGlow,
+  drawLootGold,
+  drawLootItem,
+  drawLootMaterial,
+  drawPlayer,
+  drawPlayerRing,
+  drawSecret,
+  drawShadow,
+  drawStone,
+} from "./sprites.ts";
 
 /**
  * 仮素材（補助仕様書 2章）：実行時に図形からテクスチャを作る。
  * キーは本素材と共通にする（本素材に替えても、使う側は変わらない）。
+ * 本素材に替えるときは、同じキーで画像を読み込み（BootScene の前に preload）、ここで作らないようにする
+ * （textures.exists で、既にあるキーは作らない）。
  */
 export const TEXTURES = {
   player: "chr/player/body",
@@ -10,6 +36,16 @@ export const TEXTURES = {
   floor: "tile/floor",
   dummy: "enemy/dummy/body",
   projectile: "fx/projectile/test",
+  /** 足元の影（体の幅に合わせて拡大する）。 */
+  shadow: "fx/shadow",
+  /** やわらかな光（色を掛けて加算で重ねる。F で使える物・転移の石・ドロップ）。 */
+  glow: "fx/glow",
+  /** プレイヤーの足元の輪。 */
+  playerRing: "fx/player/ring",
+  lootItem: "loot/item",
+  lootGold: "loot/gold",
+  lootMaterial: "loot/material",
+  secret: "prop/secret",
 } as const;
 
 /** 敵の仮素材のキー（敵の種類のIDごと）。 */
@@ -17,55 +53,118 @@ export function enemyTexture(enemyId: string): string {
   return `enemy/${enemyId.toLowerCase()}/body`;
 }
 
-/** 敵の仮素材の色（種類ごと。書かれていない種類は灰色）。 */
-const ENEMY_COLORS: Readonly<Record<string, number>> = {
-  "ENM-FOREST-WOLF": 0x8a8f99,
-  "ENM-THORN-RAT": 0x7a6a5a,
-  "ENM-SPINE-LIZARD": 0x5f9f5a,
-  "ENM-TUSK-BOAR": 0x8b5a3c,
-  "ENM-BARK-BEAR": 0x5c4632,
-  "ENM-ROT-SAPLING": 0x6b7f3a,
-  "ENM-PACK-LEADER": 0x6f737d,
-  "ENM-ROOT-TENTACLE": 0x5a6b2f,
-  "ENM-MOTHER-TREE": 0x4f5f2a,
-  "ENM-ABYSS-MOTHER-TREE": 0x3a2f4f,
-};
+/** プレイヤーの仮素材のキー（ジョブごと。表に無いジョブは TEXTURES.player）。 */
+export function playerTexture(jobId: string): string {
+  return jobId in JOB_LOOKS ? `chr/player/${jobId.toLowerCase()}/body` : TEXTURES.player;
+}
+
+/** 町の施設の仮素材のキー。 */
+export function facilityTexture(kind: Facility): string {
+  return `prop/facility/${kind}`;
+}
+
+/** 宝箱の仮素材のキー（木の宝箱・古い宝箱、閉じた・開いた）。 */
+export function chestTexture(kind: "woodChest" | "oldChest", opened: boolean): string {
+  return `prop/chest/${kind === "oldChest" ? "old" : "wood"}/${opened ? "open" : "closed"}`;
+}
+
+/** 転移の石の仮素材のキー（解放済みか）。 */
+export function stoneTexture(lit: boolean): string {
+  return `prop/stone/${lit ? "lit" : "dim"}`;
+}
+
+/** 転移の石の絵の寸法。 */
+export const STONE_SIZE = { width: 12, height: 20 } as const;
+/** 宝箱の絵の寸法。 */
+export const CHEST_SIZE = { width: 14, height: 12 } as const;
 
 export function createPlaceholderTextures(
   scene: Phaser.Scene,
   enemies: readonly { readonly id: string; readonly radius: number }[] = [],
+  jobs: readonly string[] = Object.keys(JOB_LOOKS),
 ): void {
   const g = scene.add.graphics();
-  // 敵：体の半径に合わせた四角（16ピクセル＝1m）
-  for (const e of enemies) {
-    const size = Math.max(6, Math.round(e.radius * 2 * 16));
+  const make = (key: string, w: number, h: number, draw: () => void): void => {
+    // 本素材を読み込んだキー（と、作り済みのキー）は作らない
+    if (scene.textures.exists(key)) return;
     g.clear();
-    g.fillStyle(ENEMY_COLORS[e.id] ?? 0x888888, 1).fillRect(0, 0, size, size);
-    g.fillStyle(0x1e1d26, 1).fillRect(Math.round(size * 0.6), Math.round(size * 0.25), 2, 2);
-    g.generateTexture(enemyTexture(e.id), size, size);
+    draw();
+    g.generateTexture(key, w, h);
+  };
+  // 敵：当たり判定の直径の正方形に、種類ごとの姿（16ピクセル＝1m）
+  for (const e of enemies) {
+    const size = enemyBodySize(e.radius);
+    make(enemyTexture(e.id), size, size, () => {
+      drawEnemy(g, enemyLook(e.id), size);
+    });
   }
-  // プレイヤー：16×24 の体
-  g.clear();
-  g.fillStyle(0x6fa8ff, 1).fillRect(2, 0, 12, 24);
-  g.fillStyle(0xe8e6f0, 1).fillRect(5, 3, 6, 6);
-  g.generateTexture(TEXTURES.player, 16, 24);
+  // プレイヤー：16×24 の姿（キー chr/player/body は表に無いジョブ用の元の青い体）
+  const { width: pw, height: ph } = PLAYER_SPRITE;
+  make(TEXTURES.player, pw, ph, () => {
+    drawPlayer(g, DEFAULT_JOB_LOOK);
+  });
+  for (const job of jobs) {
+    const look = JOB_LOOKS[job];
+    if (look !== undefined)
+      make(playerTexture(job), pw, ph, () => {
+        drawPlayer(g, look);
+      });
+  }
   // 向きの印：右向きの三角形（回転して8方向を表す）
-  g.clear();
-  g.fillStyle(0xffd166, 1).fillTriangle(0, 0, 10, 4, 0, 8);
-  g.generateTexture(TEXTURES.facing, 10, 8);
-  // 床のタイル：16×16 の格子
-  g.clear();
-  g.fillStyle(0x1e1d26, 1).fillRect(0, 0, 16, 16);
-  g.lineStyle(1, 0x2a2934, 1).strokeRect(0, 0, 16, 16);
-  g.generateTexture(TEXTURES.floor, 16, 16);
-  // 訓練用の人形：16×24 の木の色
-  g.clear();
-  g.fillStyle(0xa07850, 1).fillRect(3, 0, 10, 24);
-  g.fillStyle(0x6b4f33, 1).fillRect(0, 8, 16, 3);
-  g.generateTexture(TEXTURES.dummy, 16, 24);
+  make(TEXTURES.facing, 10, 8, () => {
+    g.fillStyle(0xffd166, 1).fillTriangle(0, 0, 10, 4, 0, 8);
+  });
+  // 床のタイル：16×16 の格子（試験用の場の地面）
+  make(TEXTURES.floor, 16, 16, () => {
+    g.fillStyle(0x1e1d26, 1).fillRect(0, 0, 16, 16);
+    g.lineStyle(1, 0x2a2934, 1).strokeRect(0, 0, 16, 16);
+  });
+  // 訓練用の人形：16×24
+  make(TEXTURES.dummy, 16, 24, () => {
+    drawDummy(g);
+  });
   // 試験用の投射物：6×2 の線
-  g.clear();
-  g.fillStyle(0xe8e6f0, 1).fillRect(0, 0, 6, 2);
-  g.generateTexture(TEXTURES.projectile, 6, 2);
+  make(TEXTURES.projectile, 6, 2, () => {
+    g.fillStyle(0xe8e6f0, 1).fillRect(0, 0, 6, 2);
+  });
+  make(TEXTURES.shadow, 16, 6, () => {
+    drawShadow(g);
+  });
+  make(TEXTURES.glow, 32, 32, () => {
+    drawGlow(g);
+  });
+  make(TEXTURES.playerRing, 18, 8, () => {
+    drawPlayerRing(g);
+  });
+  make(TEXTURES.lootItem, 9, 9, () => {
+    drawLootItem(g);
+  });
+  make(TEXTURES.lootGold, 9, 7, () => {
+    drawLootGold(g);
+  });
+  make(TEXTURES.lootMaterial, 6, 9, () => {
+    drawLootMaterial(g);
+  });
+  make(TEXTURES.secret, 16, 14, () => {
+    drawSecret(g);
+  });
+  // 場の物：施設・宝箱・転移の石
+  for (const [kind, look] of Object.entries(FACILITY_LOOKS) as [
+    Facility,
+    (typeof FACILITY_LOOKS)[Facility],
+  ][])
+    if (kind !== "dummy")
+      make(facilityTexture(kind), look.width, look.height, () => {
+        drawFacility(g, kind, look);
+      });
+  for (const kind of ["woodChest", "oldChest"] as const)
+    for (const opened of [false, true])
+      make(chestTexture(kind, opened), CHEST_SIZE.width, CHEST_SIZE.height, () => {
+        drawChest(g, kind === "oldChest", opened);
+      });
+  for (const lit of [false, true])
+    make(stoneTexture(lit), STONE_SIZE.width, STONE_SIZE.height, () => {
+      drawStone(g, lit);
+    });
   g.destroy();
 }

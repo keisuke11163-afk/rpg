@@ -2,7 +2,9 @@ import Phaser from "phaser";
 import { type Enemy, type EnemyRank, type HitShape, type Vec2, cloudCenters } from "@stella/core";
 import { text, type TextKey } from "@stella/content";
 import type { EnemyField } from "./EnemyField.ts";
+import { type EnemyLook, enemyLook } from "./look-tables.ts";
 import { enemyTexture, TEXTURES } from "./placeholders.ts";
+import { fillShadow } from "./sprites.ts";
 import { PIXELS_PER_METER, toPixels } from "./units.ts";
 
 const RANK_COLOR: Readonly<Record<EnemyRank, string>> = {
@@ -18,6 +20,7 @@ const RANK_OUTLINE: Readonly<Record<EnemyRank, number | undefined>> = {
 
 interface EnemySprites {
   readonly body: Phaser.GameObjects.Image;
+  readonly look: EnemyLook;
   readonly facing: Phaser.GameObjects.Image | undefined;
   readonly label: Phaser.GameObjects.Text;
   /** 倒れたのを見た時刻（ミリ秒。散る図形・消えていく表示に使う）。 */
@@ -58,14 +61,18 @@ export class EnemyFieldView {
   }
 
   private create(e: Enemy): EnemySprites {
+    const look = enemyLook(e.def.id);
     const body = this.scene.add.image(0, 0, enemyTexture(e.def.id)).setScale(e.rank.scale);
+    const w = body.displayWidth;
+    // 向きの印（赤い三角）：体の輪郭のすぐ外に置く（頭に重ねない）。小さな敵は少し小さく
+    const facingScale = w < 14 ? 0.55 : 0.7;
     const facing =
       e.def.turnRate === null
         ? undefined
         : this.scene.add
             .image(0, 0, TEXTURES.facing)
-            .setOrigin(-0.4, 0.5)
-            .setScale(0.7)
+            .setOrigin(-(w / 2 - 1) / (10 * facingScale), 0.5)
+            .setScale(facingScale)
             .setTint(0xff6b6b);
     const label = this.scene.add
       .text(0, 0, `${text(e.def.text as TextKey)} Lv${String(e.level)}`, {
@@ -74,7 +81,7 @@ export class EnemyFieldView {
         color: RANK_COLOR[e.rank.rank],
       })
       .setOrigin(0.5, 1);
-    return { body, facing, label, deadAt: undefined, flashUntil: undefined };
+    return { body, look, facing, label, deadAt: undefined, flashUntil: undefined };
   }
 
   /** 白い光（描いた敵の数。同じ光は1回）・散る図形を出した回数（このビューを作ってからの累計）。 */
@@ -139,6 +146,7 @@ export class EnemyFieldView {
     field: EnemyField,
     g: Phaser.GameObjects.Graphics,
     drawShape: (shape: HitShape, origin: Vec2, facing: number) => void,
+    shadows: Phaser.GameObjects.Graphics,
   ): void {
     this.sync(field);
     for (const c of field.clouds) {
@@ -219,6 +227,19 @@ export class EnemyFieldView {
             ? 0.3
             : 1;
       v.body.setPosition(x, y).setAlpha(alpha);
+      // 真上から見た獣は、体を向きに合わせて回す（頭が向き。背面を取る遊びのため）。木・苗は回さない
+      if (v.look.rotates) v.body.setRotation(e.facing);
+      // 影（体の幅、高さは半分。木・苗は根元に平たく）。地中にいる間・消えた後は出さない
+      const r0 = v.body.displayWidth / 2;
+      if (!e.underground && (v.deadAt === undefined || alpha > DEAD_ALPHA))
+        fillShadow(
+          shadows,
+          x,
+          y + Math.round(v.look.rotates ? r0 * 0.25 : r0 * 0.55),
+          r0 * 2,
+          v.look.rotates ? r0 * 1.1 : r0 * 0.8,
+          alpha,
+        );
       v.label.setAlpha(v.deadAt === undefined ? 1 : alpha);
       // 当てた直後は白く光らせる（Phaser 4 では setTintFill の代わりに setTint ＋ FILL）
       const flashUntil = this.flashes.get(e.id) ?? 0;
@@ -256,14 +277,17 @@ export class EnemyFieldView {
         v.label.setText(
           `${text(e.def.text as TextKey)} Lv${String(e.level)} 第${String(e.phase)}段階${e.shielded ? "（無敵）" : ""}`,
         );
+      // 格（魔法・精鋭）：体を囲む輪と、足元の色の輪（精鋭は二重）。名前の色と同じ色
       const outline = RANK_OUTLINE[e.rank.rank];
-      if (outline !== undefined)
-        g.lineStyle(1, outline, 1).strokeRect(
-          x - v.body.displayWidth / 2 - 1,
-          y - half - 1,
-          v.body.displayWidth + 2,
-          v.body.displayHeight + 2,
-        );
+      if (outline !== undefined && e.state !== "dead") {
+        const rr = v.body.displayWidth / 2;
+        const gy = y + Math.round(rr * 0.3);
+        g.fillStyle(outline, 0.16).fillEllipse(x, gy, rr * 2 + 8, rr + 6);
+        g.lineStyle(1, outline, 0.9).strokeEllipse(x, gy, rr * 2 + 8, rr + 6);
+        if (e.rank.rank === "elite")
+          g.lineStyle(1, outline, 0.6).strokeEllipse(x, gy, rr * 2 + 14, rr + 10);
+        g.lineStyle(1, outline, 0.85).strokeCircle(x, y, rr + 1.5);
+      }
       if (e.state !== "dead") {
         const w = Math.max(12, Math.round(v.body.displayWidth));
         g.fillStyle(0x2a2934, 1)

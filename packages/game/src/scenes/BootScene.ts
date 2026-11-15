@@ -51,6 +51,7 @@ export class BootScene extends Phaser.Scene {
     createPlaceholderTextures(
       this,
       [...content.enemies.values()].map((e) => ({ id: e.id, radius: e.radius })),
+      [...content.jobs.keys()],
     );
     // 少しだけ表題を見せてから、タイトル（キャラクターの選択）へ進む
     this.time.delayedCall(800, () => {
