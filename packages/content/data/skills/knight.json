@@ -38,7 +38,8 @@
       }
     ],
     "finisher": {
-      "pctPerPoint": 0.2
+      "pctPerPoint": 0.2,
+      "pctPerPointStat": "STAT-JOB-JUDGMENT-PER-POINT"
     },
     "gauge": {
       "cost": "all"

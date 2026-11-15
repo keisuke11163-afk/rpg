@@ -289,6 +289,8 @@ export const skillSchema = z.strictObject({
   finisher: z
     .strictObject({
       pctPerPoint: z.number().nonnegative(),
+      /** 1点につき足す技倍率に、さらに足す能力値（職奥義「断罪者」：断罪の刃の+20%を+30%に）。 */
+      pctPerPointStat: idSchema.optional(),
       forceCritAt: z.number().positive().optional(),
     })
     .optional(),

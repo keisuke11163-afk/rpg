@@ -121,6 +121,8 @@ export interface SkillContext {
   readonly dualWield?: boolean;
   /** 終結技で使うゲージの量（急所穿ちのコンボ点）。 */
   readonly gaugeSpent?: number;
+  /** 終結技の1点につき足す技倍率への加算（技の finisher.pctPerPointStat の値。職奥義「断罪者」）。 */
+  readonly finisherPctPerPointBonus?: number;
   /** 呪文を変える合成魔法（位相。魔法使い）。段階の変化の後に当てはめる。label は表示・確認用（例：fusion:steam）。 */
   readonly fusion?: { readonly id: string; readonly mods: SkillMods };
 }
@@ -266,7 +268,8 @@ export function resolveSkill(db: ContentDb, def: SkillDef, ctx: SkillContext): R
   pct *= pctMultiplier;
   // 終結技：使ったゲージの量に応じて技倍率が上がり、決まった量なら必ず会心
   const spent = ctx.gaugeSpent ?? 0;
-  if (def.finisher !== undefined) pct += def.finisher.pctPerPoint * spent;
+  if (def.finisher !== undefined)
+    pct += (def.finisher.pctPerPoint + (ctx.finisherPctPerPointBonus ?? 0)) * spent;
   const forceCrit =
     def.finisher?.forceCritAt !== undefined && spent >= def.finisher.forceCritAt - 1e-9;
 
