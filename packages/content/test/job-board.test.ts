@@ -16,6 +16,7 @@ import {
 } from "@stella/core";
 import { describe, expect, it } from "vitest";
 import { loadGameContent } from "../src/index.ts";
+import before from "./fixtures/job-board-before-shapes.json" with { type: "json" };
 
 const db: ContentDb = loadGameContent();
 const tags = new TagIndex(db.tags);
@@ -194,5 +195,152 @@ describe("職紋盤の効果", () => {
     const s = make([`${R}T1`, `${R}B1A`, `${R}B1B`, `${R}POISON-BLOOD`]);
     expect(s.latents[0]?.active).toBe(true);
     expect(s.evaluated.view.stat("STAT-UNQ-BLEED-AS-POISON").value).toBe(1);
+  });
+});
+
+/**
+ * ジョブごとの盤の形（docs/progress/sessions/jobboard-shapes.md D-JBS-1〜）：形を変える前のノード
+ * （fixtures/job-board-before-shapes.json）の ID・種類・効果・つながりは全て残し、位置を置き直して小ノードを足した。
+ */
+describe("職紋盤の形（ジョブごと。D-JBS）", () => {
+  const JOBS = ["JOB-WARRIOR", "JOB-ROGUE", "JOB-ARCHER", "JOB-MAGE", "JOB-KNIGHT", "JOB-SUMMONER"];
+  const nodesOf = (j: string) => [...db.jobNodes.values()].filter((n) => n.job === j);
+  const startOf = (j: string): string => {
+    const s = nodesOf(j).find((n) => n.kind === "start");
+    if (s === undefined) throw new Error(`${j} の始点が無い`);
+    return s.id;
+  };
+  /** 始点からの距離（skip のノードは通らない）。 */
+  const distances = (
+    links: ReadonlyMap<string, ReadonlySet<string>>,
+    root: string,
+    skip: (id: string) => boolean = () => false,
+  ): Map<string, number> => {
+    const d = new Map([[root, 0]]);
+    const queue = [root];
+    while (queue.length > 0) {
+      const cur = queue.shift() as string;
+      for (const n of links.get(cur) ?? [])
+        if (!d.has(n) && !skip(n)) {
+          d.set(n, (d.get(cur) ?? 0) + 1);
+          queue.push(n);
+        }
+    }
+    return d;
+  };
+  const oldLinks = new Map<string, Set<string>>(before.map((n) => [n.id, new Set<string>()]));
+  for (const n of before)
+    for (const l of n.links) {
+      oldLinks.get(n.id)?.add(l);
+      oldLinks.get(l)?.add(n.id);
+    }
+
+  it("形を変える前のノードは、ID・種類・効果・つながりが全て残る（セーブの互換）", () => {
+    expect(before.length).toBe(141);
+    for (const o of before) {
+      const n = db.jobNodes.get(o.id);
+      expect(n, o.id).toBeDefined();
+      expect(n?.kind, o.id).toBe(o.kind);
+      expect(n?.effects ?? [], o.id).toEqual(o.effects);
+      for (const l of o.links) expect(db.jobLinks.get(o.id)?.has(l), `${o.id}→${l}`).toBe(true);
+    }
+  });
+
+  it("足したノードは小ノードだけで、効果は同じ盤の既存の小ノードと同じもの（新しい数値を持たない）", () => {
+    const ids = new Set(before.map((n) => n.id));
+    for (const j of JOBS) {
+      const oldMinor = new Set(
+        nodesOf(j)
+          .filter((n) => ids.has(n.id) && n.kind === "minor")
+          .flatMap((n) => n.effects ?? []),
+      );
+      const added = nodesOf(j).filter((n) => !ids.has(n.id));
+      expect(added.length, j).toBeGreaterThan(0);
+      for (const n of added) {
+        expect(n.kind, n.id).toBe("minor");
+        expect(n.provisional, n.id).toBe(true);
+        expect(n.effects, n.id).toHaveLength(1);
+        for (const e of n.effects ?? []) expect(oldMinor.has(e), `${n.id} ${e}`).toBe(true);
+      }
+    }
+  });
+
+  it("各ジョブの盤は連結で、始点から全てのノードに届く。ノードは45以下（仕様書v0.2 4.10）", () => {
+    for (const j of JOBS) {
+      const nodes = nodesOf(j);
+      expect(nodes.length, j).toBeGreaterThanOrEqual(38);
+      expect(nodes.length, j).toBeLessThanOrEqual(45);
+      const d = distances(db.jobLinks, startOf(j));
+      for (const n of nodes) expect(d.has(n.id), n.id).toBe(true);
+      // 職奥義の先には何も無い（職奥義を通らないと届かないノードは無い）
+      const noMastery = distances(
+        db.jobLinks,
+        startOf(j),
+        (id) => db.jobNodes.get(id)?.kind === "mastery",
+      );
+      for (const n of nodes) if (n.kind !== "mastery") expect(noMastery.has(n.id), n.id).toBe(true);
+    }
+  });
+
+  it("前からあるノードへの最短の道は、長さも通るノードも変わらない（ボットの取り方・撃破時間を変えない）", () => {
+    const kinds = (id: string) => db.jobNodes.get(id)?.kind;
+    const skips: ((id: string) => boolean)[] = [
+      () => false,
+      (id) => kinds(id) === "mastery",
+      (id) => kinds(id) === "mastery" || kinds(id) === "connector",
+    ];
+    for (const j of JOBS) {
+      const root = startOf(j);
+      for (const skip of skips) {
+        const d0 = distances(oldLinks, root, skip);
+        const d1 = distances(db.jobLinks, root, skip);
+        for (const [id, v] of d0) {
+          expect(d1.get(id), id).toBe(v);
+          if (id === root) continue;
+          // 1つ手前のノードが1つだけ＝同じ長さの別の道が無い
+          const prev = [...(db.jobLinks.get(id) ?? [])].filter((x) => d1.get(x) === v - 1);
+          expect(prev, id).toHaveLength(1);
+        }
+      }
+    }
+  });
+
+  it("ノードの間隔：どの2つも盤の座標で26以上離れている", () => {
+    for (const j of JOBS) {
+      const nodes = nodesOf(j);
+      for (let a = 0; a < nodes.length; a++)
+        for (let b = a + 1; b < nodes.length; b++) {
+          const p = nodes[a];
+          const q = nodes[b];
+          if (p === undefined || q === undefined) continue;
+          const d = Math.hypot(p.position.x - q.position.x, p.position.y - q.position.y);
+          expect(d, `${p.id}・${q.id}`).toBeGreaterThanOrEqual(26);
+        }
+    }
+  });
+
+  it("ジョブごとに形が違う：始点から見た位置の重なりが半分未満で、つながりの数・枝分かれの数も全て違う", () => {
+    const relative = (j: string) => {
+      const s = db.jobNodes.get(startOf(j))?.position ?? { x: 0, y: 0 };
+      return new Set(
+        nodesOf(j).map((n) => `${String(n.position.x - s.x)},${String(n.position.y - s.y)}`),
+      );
+    };
+    const signature = (j: string) => {
+      const nodes = nodesOf(j);
+      const edges = nodes.reduce((sum, n) => sum + (db.jobLinks.get(n.id)?.size ?? 0), 0) / 2;
+      const degrees = nodes.map((n) => db.jobLinks.get(n.id)?.size ?? 0).sort((a, b) => a - b);
+      return `${String(nodes.length)}|${String(edges)}|${degrees.join(",")}`;
+    };
+    for (let a = 0; a < JOBS.length; a++)
+      for (let b = a + 1; b < JOBS.length; b++) {
+        const ja = JOBS[a] ?? "";
+        const jb = JOBS[b] ?? "";
+        const pa = relative(ja);
+        const pb = relative(jb);
+        const same = [...pa].filter((k) => pb.has(k)).length;
+        expect(same, `${ja}・${jb}`).toBeLessThan(Math.min(pa.size, pb.size) / 2);
+        expect(signature(ja), `${ja}・${jb}`).not.toBe(signature(jb));
+      }
   });
 });

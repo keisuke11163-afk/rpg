@@ -17,8 +17,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T2"],
     "position": {
-      "x": 0,
-      "y": 40
+      "x": 40,
+      "y": 0
     },
     "effects": ["EFF-JBN-WAR-STAGGER"],
     "provisional": true,
@@ -30,8 +30,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T3"],
     "position": {
-      "x": 0,
-      "y": 80
+      "x": 80,
+      "y": 0
     },
     "effects": ["EFF-JBN-WAR-MELEE"],
     "provisional": true,
@@ -43,8 +43,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T4"],
     "position": {
-      "x": 0,
-      "y": 120
+      "x": 120,
+      "y": 0
     },
     "effects": ["EFF-JBN-WAR-HP"],
     "provisional": true,
@@ -56,8 +56,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T5"],
     "position": {
-      "x": 0,
-      "y": 160
+      "x": 160,
+      "y": 0
     },
     "effects": ["EFF-JBN-WAR-GAIN"],
     "provisional": true,
@@ -69,8 +69,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T6"],
     "position": {
-      "x": 0,
-      "y": 200
+      "x": 200,
+      "y": 0
     },
     "effects": ["EFF-JBN-WAR-STAGGER"],
     "provisional": true,
@@ -82,8 +82,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T7"],
     "position": {
-      "x": 0,
-      "y": 240
+      "x": 240,
+      "y": 0
     },
     "effects": ["EFF-JBN-WAR-MELEE"],
     "provisional": true,
@@ -95,8 +95,8 @@
     "kind": "minor",
     "links": [],
     "position": {
-      "x": 0,
-      "y": 280
+      "x": 280,
+      "y": 0
     },
     "effects": ["EFF-JBN-WAR-HP"],
     "provisional": true,
@@ -108,8 +108,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T1"],
     "position": {
-      "x": -40,
-      "y": 40
+      "x": 40,
+      "y": -40
     },
     "effects": ["EFF-JBN-WAR-MELEE"],
     "provisional": true,
@@ -121,8 +121,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-B1A"],
     "position": {
-      "x": -80,
-      "y": 40
+      "x": 40,
+      "y": -80
     },
     "effects": ["EFF-JBN-WAR-HP"],
     "provisional": true,
@@ -134,8 +134,8 @@
     "kind": "notable",
     "links": ["JBN-WARRIOR-B1B"],
     "position": {
-      "x": -120,
-      "y": 40
+      "x": 40,
+      "y": -120
     },
     "text": "jobnode.warrior.forge",
     "description": "jobnode.warrior.forge.desc",
@@ -149,8 +149,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T2"],
     "position": {
-      "x": 40,
-      "y": 80
+      "x": 80,
+      "y": 40
     },
     "effects": ["EFF-JBN-WAR-HP"],
     "provisional": true,
@@ -175,8 +175,8 @@
     "kind": "notable",
     "links": ["JBN-WARRIOR-B2B"],
     "position": {
-      "x": 120,
-      "y": 80
+      "x": 80,
+      "y": 120
     },
     "text": "jobnode.warrior.blood",
     "description": "jobnode.warrior.blood.desc",
@@ -190,8 +190,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T3"],
     "position": {
-      "x": -40,
-      "y": 120
+      "x": 120,
+      "y": -40
     },
     "effects": ["EFF-JBN-WAR-GAIN"],
     "provisional": true,
@@ -203,8 +203,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-B3A"],
     "position": {
-      "x": -80,
-      "y": 120
+      "x": 120,
+      "y": -80
     },
     "effects": ["EFF-JBN-WAR-STAGGER"],
     "provisional": true,
@@ -216,8 +216,8 @@
     "kind": "notable",
     "links": ["JBN-WARRIOR-B3B"],
     "position": {
-      "x": -120,
-      "y": 120
+      "x": 120,
+      "y": -120
     },
     "text": "jobnode.warrior.twohand",
     "description": "jobnode.warrior.twohand.desc",
@@ -231,8 +231,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-T4"],
     "position": {
-      "x": 40,
-      "y": 160
+      "x": 160,
+      "y": 40
     },
     "effects": ["EFF-JBN-WAR-STAGGER"],
     "provisional": true,
@@ -244,8 +244,8 @@
     "kind": "minor",
     "links": ["JBN-WARRIOR-B4A"],
     "position": {
-      "x": 80,
-      "y": 160
+      "x": 160,
+      "y": 80
     },
     "effects": ["EFF-JBN-WAR-MELEE"],
     "provisional": true,
@@ -257,8 +257,8 @@
     "kind": "notable",
     "links": ["JBN-WARRIOR-B4B"],
     "position": {
-      "x": 120,
-      "y": 160
+      "x": 160,
+      "y": 120
     },
     "text": "jobnode.warrior.breaker",
     "description": "jobnode.warrior.breaker.desc",
@@ -272,8 +272,8 @@
     "kind": "connector",
     "links": ["JBN-WARRIOR-T5"],
     "position": {
-      "x": 40,
-      "y": 200
+      "x": 220,
+      "y": 40
     },
     "text": "jobnode.warrior.c1",
     "description": "jobnode.warrior.c1.desc",
@@ -286,8 +286,8 @@
     "kind": "connector",
     "links": ["JBN-WARRIOR-C1"],
     "position": {
-      "x": 80,
-      "y": 200
+      "x": 260,
+      "y": 40
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
@@ -300,8 +300,8 @@
     "kind": "connector",
     "links": ["JBN-WARRIOR-C2"],
     "position": {
-      "x": 120,
-      "y": 200
+      "x": 300,
+      "y": 40
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
@@ -314,8 +314,8 @@
     "kind": "mastery",
     "links": ["JBN-WARRIOR-T7"],
     "position": {
-      "x": -60,
-      "y": 330
+      "x": 332,
+      "y": -40
     },
     "text": "jobnode.warrior.m-unyielding",
     "description": "jobnode.warrior.m-unyielding.desc",
@@ -329,8 +329,8 @@
     "kind": "mastery",
     "links": ["JBN-WARRIOR-T7"],
     "position": {
-      "x": 0,
-      "y": 330
+      "x": 344,
+      "y": 0
     },
     "text": "jobnode.warrior.m-surge",
     "description": "jobnode.warrior.m-surge.desc",
@@ -344,14 +344,235 @@
     "kind": "mastery",
     "links": ["JBN-WARRIOR-T7"],
     "position": {
-      "x": 60,
-      "y": 330
+      "x": 332,
+      "y": 40
     },
     "text": "jobnode.warrior.m-demon",
     "description": "jobnode.warrior.m-demon.desc",
     "effects": ["EFF-JBM-WAR-DEMON"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-WARRIOR-X01",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-FORGE"],
+    "position": {
+      "x": 64,
+      "y": -152
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X02",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X01", "JBN-WARRIOR-TWOHAND"],
+    "position": {
+      "x": 96,
+      "y": -152
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X03",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T2"],
+    "position": {
+      "x": 80,
+      "y": -40
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X04",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X03"],
+    "position": {
+      "x": 80,
+      "y": -80
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X05",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-BLOOD"],
+    "position": {
+      "x": 104,
+      "y": 152
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X06",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X05", "JBN-WARRIOR-BREAKER"],
+    "position": {
+      "x": 136,
+      "y": 152
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X07",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T3"],
+    "position": {
+      "x": 120,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X08",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X07"],
+    "position": {
+      "x": 120,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X09",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-START"],
+    "position": {
+      "x": 0,
+      "y": -40
+    },
+    "effects": ["EFF-JBN-WAR-GAIN"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X10",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X09"],
+    "position": {
+      "x": 0,
+      "y": -80
+    },
+    "effects": ["EFF-JBN-WAR-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X11",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T1"],
+    "position": {
+      "x": 40,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-WAR-GAIN"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X12",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X11"],
+    "position": {
+      "x": 40,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-WAR-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X13",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-START"],
+    "position": {
+      "x": -40,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-WAR-STAGGER"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X14",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X13"],
+    "position": {
+      "x": -80,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-WAR-MELEE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X15",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T5"],
+    "position": {
+      "x": 220,
+      "y": -40
+    },
+    "effects": ["EFF-JBN-WAR-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X16",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X15"],
+    "position": {
+      "x": 260,
+      "y": -40
+    },
+    "effects": ["EFF-JBN-WAR-GAIN"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-WARRIOR-X17",
+    "job": "JOB-WARRIOR",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-X16", "JBN-WARRIOR-T7"],
+    "position": {
+      "x": 300,
+      "y": -40
+    },
+    "effects": ["EFF-JBN-WAR-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
   },
   {
     "id": "JBN-ROGUE-START",
@@ -371,8 +592,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T2"],
     "position": {
-      "x": 0,
-      "y": 40
+      "x": 40,
+      "y": -28
     },
     "effects": ["EFF-JBN-ROG-CRIT"],
     "provisional": true,
@@ -384,8 +605,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T3"],
     "position": {
-      "x": 0,
-      "y": 80
+      "x": 80,
+      "y": 0
     },
     "effects": ["EFF-JBN-ROG-AILMENT"],
     "provisional": true,
@@ -397,8 +618,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T4"],
     "position": {
-      "x": 0,
-      "y": 120
+      "x": 120,
+      "y": -28
     },
     "effects": ["EFF-JBN-ROG-SPEED"],
     "provisional": true,
@@ -410,8 +631,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T5"],
     "position": {
-      "x": 0,
-      "y": 160
+      "x": 160,
+      "y": 0
     },
     "effects": ["EFF-JBN-ROG-BACKSTAB"],
     "provisional": true,
@@ -423,8 +644,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T6"],
     "position": {
-      "x": 0,
-      "y": 200
+      "x": 200,
+      "y": -28
     },
     "effects": ["EFF-JBN-ROG-CRIT"],
     "provisional": true,
@@ -436,8 +657,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T7"],
     "position": {
-      "x": 0,
-      "y": 240
+      "x": 240,
+      "y": 0
     },
     "effects": ["EFF-JBN-ROG-AILMENT"],
     "provisional": true,
@@ -449,8 +670,8 @@
     "kind": "minor",
     "links": [],
     "position": {
-      "x": 0,
-      "y": 280
+      "x": 280,
+      "y": -28
     },
     "effects": ["EFF-JBN-ROG-SPEED"],
     "provisional": true,
@@ -462,8 +683,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T1"],
     "position": {
-      "x": -40,
-      "y": 40
+      "x": 16,
+      "y": -64
     },
     "effects": ["EFF-JBN-ROG-AILMENT"],
     "provisional": true,
@@ -475,8 +696,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-B1A"],
     "position": {
-      "x": -80,
-      "y": 40
+      "x": -8,
+      "y": -100
     },
     "effects": ["EFF-JBN-ROG-SPEED"],
     "provisional": true,
@@ -488,8 +709,8 @@
     "kind": "notable",
     "links": ["JBN-ROGUE-B1B"],
     "position": {
-      "x": -120,
-      "y": 40
+      "x": -32,
+      "y": -136
     },
     "text": "jobnode.rogue.poison-blood",
     "description": "jobnode.rogue.poison-blood.desc",
@@ -503,8 +724,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T2"],
     "position": {
-      "x": 40,
-      "y": 80
+      "x": 80,
+      "y": 40
     },
     "effects": ["EFF-JBN-ROG-SPEED"],
     "provisional": true,
@@ -529,8 +750,8 @@
     "kind": "notable",
     "links": ["JBN-ROGUE-B2B"],
     "position": {
-      "x": 120,
-      "y": 80
+      "x": 80,
+      "y": 120
     },
     "text": "jobnode.rogue.vitals",
     "description": "jobnode.rogue.vitals.desc",
@@ -544,8 +765,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-T3"],
     "position": {
-      "x": -40,
-      "y": 120
+      "x": 120,
+      "y": -68
     },
     "effects": ["EFF-JBN-ROG-BACKSTAB"],
     "provisional": true,
@@ -557,8 +778,8 @@
     "kind": "minor",
     "links": ["JBN-ROGUE-B3A"],
     "position": {
-      "x": -80,
-      "y": 120
+      "x": 120,
+      "y": -108
     },
     "effects": ["EFF-JBN-ROG-CRIT"],
     "provisional": true,
@@ -570,8 +791,8 @@
     "kind": "notable",
     "links": ["JBN-ROGUE-B3B"],
     "position": {
-      "x": -120,
-      "y": 120
+      "x": 120,
+      "y": -148
     },
     "text": "jobnode.rogue.quick",
     "description": "jobnode.rogue.quick.desc",
@@ -585,8 +806,8 @@
     "kind": "connector",
     "links": ["JBN-ROGUE-T5"],
     "position": {
-      "x": 40,
-      "y": 200
+      "x": 220,
+      "y": -64
     },
     "text": "jobnode.rogue.c1",
     "description": "jobnode.rogue.c1.desc",
@@ -599,8 +820,8 @@
     "kind": "connector",
     "links": ["JBN-ROGUE-C1"],
     "position": {
-      "x": 80,
-      "y": 200
+      "x": 240,
+      "y": -100
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
@@ -613,8 +834,8 @@
     "kind": "connector",
     "links": ["JBN-ROGUE-C2"],
     "position": {
-      "x": 120,
-      "y": 200
+      "x": 260,
+      "y": -136
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
@@ -627,8 +848,8 @@
     "kind": "mastery",
     "links": ["JBN-ROGUE-T7"],
     "position": {
-      "x": -60,
-      "y": 330
+      "x": 316,
+      "y": -64
     },
     "text": "jobnode.rogue.m-endless",
     "description": "jobnode.rogue.m-endless.desc",
@@ -642,8 +863,8 @@
     "kind": "mastery",
     "links": ["JBN-ROGUE-T7"],
     "position": {
-      "x": 0,
-      "y": 330
+      "x": 328,
+      "y": -16
     },
     "text": "jobnode.rogue.m-silent",
     "description": "jobnode.rogue.m-silent.desc",
@@ -657,8 +878,8 @@
     "kind": "mastery",
     "links": ["JBN-ROGUE-T7"],
     "position": {
-      "x": 60,
-      "y": 330
+      "x": 304,
+      "y": 28
     },
     "text": "jobnode.rogue.m-shadow",
     "description": "jobnode.rogue.m-shadow.desc",
@@ -667,13 +888,247 @@
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
   },
   {
+    "id": "JBN-ROGUE-X01",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-VITALS"],
+    "position": {
+      "x": 112,
+      "y": 143
+    },
+    "effects": ["EFF-JBN-ROG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X02",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X01"],
+    "position": {
+      "x": 100,
+      "y": 182
+    },
+    "effects": ["EFF-JBN-ROG-BACKSTAB"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X03",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X02"],
+    "position": {
+      "x": 60,
+      "y": 182
+    },
+    "effects": ["EFF-JBN-ROG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X04",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X03", "JBN-ROGUE-VITALS"],
+    "position": {
+      "x": 48,
+      "y": 143
+    },
+    "effects": ["EFF-JBN-ROG-BACKSTAB"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X05",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-POISON-BLOOD"],
+    "position": {
+      "x": 4,
+      "y": -172
+    },
+    "effects": ["EFF-JBN-ROG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X06",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X05"],
+    "position": {
+      "x": 44,
+      "y": -184
+    },
+    "effects": ["EFF-JBN-ROG-BACKSTAB"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X07",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X06", "JBN-ROGUE-QUICK"],
+    "position": {
+      "x": 84,
+      "y": -180
+    },
+    "effects": ["EFF-JBN-ROG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X08",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-QUICK"],
+    "position": {
+      "x": 160,
+      "y": -172
+    },
+    "effects": ["EFF-JBN-ROG-BACKSTAB"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X09",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X08"],
+    "position": {
+      "x": 200,
+      "y": -176
+    },
+    "effects": ["EFF-JBN-ROG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X10",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T4"],
+    "position": {
+      "x": 168,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-ROG-AILMENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X11",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X10"],
+    "position": {
+      "x": 176,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-ROG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X12",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X11"],
+    "position": {
+      "x": 184,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-ROG-AILMENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X13",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T6"],
+    "position": {
+      "x": 248,
+      "y": 40
+    },
+    "effects": ["EFF-JBN-ROG-AILMENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X14",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X13"],
+    "position": {
+      "x": 256,
+      "y": 80
+    },
+    "effects": ["EFF-JBN-ROG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X15",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X14"],
+    "position": {
+      "x": 264,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-ROG-AILMENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X16",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-START"],
+    "position": {
+      "x": -40,
+      "y": 24
+    },
+    "effects": ["EFF-JBN-ROG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X17",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X16"],
+    "position": {
+      "x": -80,
+      "y": 8
+    },
+    "effects": ["EFF-JBN-ROG-BACKSTAB"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ROGUE-X18",
+    "job": "JOB-ROGUE",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-X16"],
+    "position": {
+      "x": -48,
+      "y": 68
+    },
+    "effects": ["EFF-JBN-ROG-AILMENT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
     "id": "JBN-ARCHER-START",
     "job": "JOB-ARCHER",
     "kind": "start",
     "links": ["JBN-ARCHER-T1"],
     "position": {
-      "x": 0,
-      "y": 0
+      "x": -50,
+      "y": 144
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
@@ -684,8 +1139,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T2"],
     "position": {
-      "x": 0,
-      "y": 40
+      "x": -13,
+      "y": 119
     },
     "effects": ["EFF-JBN-ARC-CRIT"],
     "provisional": true,
@@ -697,8 +1152,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T3"],
     "position": {
-      "x": 0,
-      "y": 80
+      "x": 16,
+      "y": 85
     },
     "effects": ["EFF-JBN-ARC-PROJ"],
     "provisional": true,
@@ -710,8 +1165,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T4"],
     "position": {
-      "x": 0,
-      "y": 120
+      "x": 34,
+      "y": 44
     },
     "effects": ["EFF-JBN-ARC-SPEED"],
     "provisional": true,
@@ -723,8 +1178,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T5"],
     "position": {
-      "x": 0,
-      "y": 160
+      "x": 40,
+      "y": 0
     },
     "effects": ["EFF-JBN-ARC-FOCUS"],
     "provisional": true,
@@ -736,8 +1191,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T6"],
     "position": {
-      "x": 0,
-      "y": 200
+      "x": 34,
+      "y": -44
     },
     "effects": ["EFF-JBN-ARC-CRIT"],
     "provisional": true,
@@ -749,8 +1204,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T7"],
     "position": {
-      "x": 0,
-      "y": 240
+      "x": 16,
+      "y": -85
     },
     "effects": ["EFF-JBN-ARC-PROJ"],
     "provisional": true,
@@ -762,8 +1217,8 @@
     "kind": "minor",
     "links": [],
     "position": {
-      "x": 0,
-      "y": 280
+      "x": -13,
+      "y": -119
     },
     "effects": ["EFF-JBN-ARC-SPEED"],
     "provisional": true,
@@ -775,8 +1230,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T1"],
     "position": {
-      "x": -40,
-      "y": 40
+      "x": 14,
+      "y": 149
     },
     "effects": ["EFF-JBN-ARC-PROJ"],
     "provisional": true,
@@ -788,8 +1243,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-B1A"],
     "position": {
-      "x": -80,
-      "y": 40
+      "x": 41,
+      "y": 178
     },
     "effects": ["EFF-JBN-ARC-SPEED"],
     "provisional": true,
@@ -801,8 +1256,8 @@
     "kind": "notable",
     "links": ["JBN-ARCHER-B1B"],
     "position": {
-      "x": -120,
-      "y": 40
+      "x": 67,
+      "y": 208
     },
     "text": "jobnode.archer.mind-eye",
     "description": "jobnode.archer.mind-eye.desc",
@@ -816,8 +1271,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T2"],
     "position": {
-      "x": 40,
-      "y": 80
+      "x": 50,
+      "y": 106
     },
     "effects": ["EFF-JBN-ARC-SPEED"],
     "provisional": true,
@@ -829,8 +1284,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-B2A"],
     "position": {
-      "x": 80,
-      "y": 80
+      "x": 84,
+      "y": 127
     },
     "effects": ["EFF-JBN-ARC-FOCUS"],
     "provisional": true,
@@ -842,8 +1297,8 @@
     "kind": "notable",
     "links": ["JBN-ARCHER-B2B"],
     "position": {
-      "x": 120,
-      "y": 80
+      "x": 117,
+      "y": 148
     },
     "text": "jobnode.archer.range",
     "description": "jobnode.archer.range.desc",
@@ -857,8 +1312,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-T3"],
     "position": {
-      "x": -40,
-      "y": 120
+      "x": 72,
+      "y": 55
     },
     "effects": ["EFF-JBN-ARC-FOCUS"],
     "provisional": true,
@@ -870,8 +1325,8 @@
     "kind": "minor",
     "links": ["JBN-ARCHER-B3A"],
     "position": {
-      "x": -80,
-      "y": 120
+      "x": 111,
+      "y": 66
     },
     "effects": ["EFF-JBN-ARC-CRIT"],
     "provisional": true,
@@ -883,8 +1338,8 @@
     "kind": "notable",
     "links": ["JBN-ARCHER-B3B"],
     "position": {
-      "x": -120,
-      "y": 120
+      "x": 149,
+      "y": 77
     },
     "text": "jobnode.archer.quick",
     "description": "jobnode.archer.quick.desc",
@@ -898,8 +1353,8 @@
     "kind": "connector",
     "links": ["JBN-ARCHER-T5"],
     "position": {
-      "x": 40,
-      "y": 200
+      "x": 72,
+      "y": -55
     },
     "text": "jobnode.archer.c1",
     "description": "jobnode.archer.c1.desc",
@@ -912,8 +1367,8 @@
     "kind": "connector",
     "links": ["JBN-ARCHER-C1"],
     "position": {
-      "x": 80,
-      "y": 200
+      "x": 111,
+      "y": -66
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
@@ -926,8 +1381,8 @@
     "kind": "connector",
     "links": ["JBN-ARCHER-C2"],
     "position": {
-      "x": 120,
-      "y": 200
+      "x": 149,
+      "y": -77
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）",
@@ -940,8 +1395,8 @@
     "kind": "mastery",
     "links": ["JBN-ARCHER-T7"],
     "position": {
-      "x": -60,
-      "y": 330
+      "x": -52,
+      "y": -154
     },
     "text": "jobnode.archer.m-hawk",
     "description": "jobnode.archer.m-hawk.desc",
@@ -955,8 +1410,8 @@
     "kind": "mastery",
     "links": ["JBN-ARCHER-T7"],
     "position": {
-      "x": 0,
-      "y": 330
+      "x": -8,
+      "y": -168
     },
     "text": "jobnode.archer.m-gale",
     "description": "jobnode.archer.m-gale.desc",
@@ -970,14 +1425,235 @@
     "kind": "mastery",
     "links": ["JBN-ARCHER-T7"],
     "position": {
-      "x": 60,
-      "y": 330
+      "x": 38,
+      "y": -150
     },
     "text": "jobnode.archer.m-repeater",
     "description": "jobnode.archer.m-repeater.desc",
     "effects": ["EFF-JBM-ARC-REPEATER"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-U15-1）"
+  },
+  {
+    "id": "JBN-ARCHER-X01",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-START"],
+    "position": {
+      "x": -61,
+      "y": 108
+    },
+    "effects": ["EFF-JBN-ARC-FOCUS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X02",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X01"],
+    "position": {
+      "x": -73,
+      "y": 72
+    },
+    "effects": ["EFF-JBN-ARC-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X03",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X02"],
+    "position": {
+      "x": -84,
+      "y": 36
+    },
+    "effects": ["EFF-JBN-ARC-FOCUS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X04",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X03"],
+    "position": {
+      "x": -96,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-ARC-PROJ"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X05",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X04"],
+    "position": {
+      "x": -75,
+      "y": -30
+    },
+    "effects": ["EFF-JBN-ARC-FOCUS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X06",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X05"],
+    "position": {
+      "x": -54,
+      "y": -59
+    },
+    "effects": ["EFF-JBN-ARC-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X07",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X06", "JBN-ARCHER-T7"],
+    "position": {
+      "x": -34,
+      "y": -89
+    },
+    "effects": ["EFF-JBN-ARC-FOCUS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X08",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X04"],
+    "position": {
+      "x": -51,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-ARC-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X09",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X08", "JBN-ARCHER-T4"],
+    "position": {
+      "x": -5,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-ARC-PROJ"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X10",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T4"],
+    "position": {
+      "x": 80,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-ARC-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X11",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X10"],
+    "position": {
+      "x": 120,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-ARC-PROJ"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X12",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X11"],
+    "position": {
+      "x": 160,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-ARC-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X13",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X12"],
+    "position": {
+      "x": 200,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-ARC-PROJ"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X14",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X13"],
+    "position": {
+      "x": 178,
+      "y": -32
+    },
+    "effects": ["EFF-JBN-ARC-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X15",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X13"],
+    "position": {
+      "x": 178,
+      "y": 32
+    },
+    "effects": ["EFF-JBN-ARC-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X16",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T6"],
+    "position": {
+      "x": 50,
+      "y": -106
+    },
+    "effects": ["EFF-JBN-ARC-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-ARCHER-X17",
+    "job": "JOB-ARCHER",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-X16"],
+    "position": {
+      "x": 84,
+      "y": -127
+    },
+    "effects": ["EFF-JBN-ARC-FOCUS"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
   },
   {
     "id": "JBN-MAGE-START",
@@ -998,7 +1674,7 @@
     "links": ["JBN-MAGE-T2"],
     "position": {
       "x": 0,
-      "y": 40
+      "y": -40
     },
     "effects": ["EFF-JBN-MAG-CRIT"],
     "provisional": true,
@@ -1011,7 +1687,7 @@
     "links": ["JBN-MAGE-T3"],
     "position": {
       "x": 0,
-      "y": 80
+      "y": -80
     },
     "effects": ["EFF-JBN-MAG-SPELL"],
     "provisional": true,
@@ -1024,7 +1700,7 @@
     "links": ["JBN-MAGE-T4"],
     "position": {
       "x": 0,
-      "y": 120
+      "y": -120
     },
     "effects": ["EFF-JBN-MAG-SPEED"],
     "provisional": true,
@@ -1037,7 +1713,7 @@
     "links": ["JBN-MAGE-T5"],
     "position": {
       "x": 0,
-      "y": 160
+      "y": -160
     },
     "effects": ["EFF-JBN-MAG-MP"],
     "provisional": true,
@@ -1050,7 +1726,7 @@
     "links": ["JBN-MAGE-T6"],
     "position": {
       "x": 0,
-      "y": 200
+      "y": -200
     },
     "effects": ["EFF-JBN-MAG-CRIT"],
     "provisional": true,
@@ -1063,7 +1739,7 @@
     "links": ["JBN-MAGE-T7"],
     "position": {
       "x": 0,
-      "y": 240
+      "y": -240
     },
     "effects": ["EFF-JBN-MAG-SPELL"],
     "provisional": true,
@@ -1076,7 +1752,7 @@
     "links": [],
     "position": {
       "x": 0,
-      "y": 280
+      "y": -280
     },
     "effects": ["EFF-JBN-MAG-SPEED"],
     "provisional": true,
@@ -1088,8 +1764,8 @@
     "kind": "minor",
     "links": ["JBN-MAGE-T1"],
     "position": {
-      "x": -40,
-      "y": 40
+      "x": -59,
+      "y": -19
     },
     "effects": ["EFF-JBN-MAG-SPELL"],
     "provisional": true,
@@ -1101,8 +1777,8 @@
     "kind": "minor",
     "links": ["JBN-MAGE-B1A"],
     "position": {
-      "x": -80,
-      "y": 40
+      "x": -117,
+      "y": 3
     },
     "effects": ["EFF-JBN-MAG-SPEED"],
     "provisional": true,
@@ -1114,8 +1790,8 @@
     "kind": "notable",
     "links": ["JBN-MAGE-B1B"],
     "position": {
-      "x": -120,
-      "y": 40
+      "x": -176,
+      "y": 24
     },
     "text": "jobnode.mage.spellwork",
     "description": "jobnode.mage.spellwork.desc",
@@ -1129,8 +1805,8 @@
     "kind": "minor",
     "links": ["JBN-MAGE-T2"],
     "position": {
-      "x": 40,
-      "y": 80
+      "x": 59,
+      "y": -45
     },
     "effects": ["EFF-JBN-MAG-SPEED"],
     "provisional": true,
@@ -1142,8 +1818,8 @@
     "kind": "minor",
     "links": ["JBN-MAGE-B2A"],
     "position": {
-      "x": 80,
-      "y": 80
+      "x": 117,
+      "y": -11
     },
     "effects": ["EFF-JBN-MAG-MP"],
     "provisional": true,
@@ -1155,8 +1831,8 @@
     "kind": "notable",
     "links": ["JBN-MAGE-B2B"],
     "position": {
-      "x": 120,
-      "y": 80
+      "x": 176,
+      "y": 24
     },
     "text": "jobnode.mage.well",
     "description": "jobnode.mage.well.desc",
@@ -1170,8 +1846,8 @@
     "kind": "minor",
     "links": ["JBN-MAGE-T3"],
     "position": {
-      "x": -40,
-      "y": 120
+      "x": -29,
+      "y": -123
     },
     "effects": ["EFF-JBN-MAG-MP"],
     "provisional": true,
@@ -1183,8 +1859,8 @@
     "kind": "minor",
     "links": ["JBN-MAGE-B3A"],
     "position": {
-      "x": -80,
-      "y": 120
+      "x": -59,
+      "y": -125
     },
     "effects": ["EFF-JBN-MAG-CRIT"],
     "provisional": true,
@@ -1196,8 +1872,8 @@
     "kind": "notable",
     "links": ["JBN-MAGE-B3B"],
     "position": {
-      "x": -120,
-      "y": 120
+      "x": -88,
+      "y": -128
     },
     "text": "jobnode.mage.swift",
     "description": "jobnode.mage.swift.desc",
@@ -1211,8 +1887,8 @@
     "kind": "connector",
     "links": ["JBN-MAGE-T5"],
     "position": {
-      "x": 40,
-      "y": 200
+      "x": 29,
+      "y": -176
     },
     "text": "jobnode.mage.c1",
     "description": "jobnode.mage.c1.desc",
@@ -1225,8 +1901,8 @@
     "kind": "connector",
     "links": ["JBN-MAGE-C1"],
     "position": {
-      "x": 80,
-      "y": 200
+      "x": 59,
+      "y": -152
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）",
@@ -1239,8 +1915,8 @@
     "kind": "connector",
     "links": ["JBN-MAGE-C2"],
     "position": {
-      "x": 120,
-      "y": 200
+      "x": 88,
+      "y": -128
     },
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）",
@@ -1253,8 +1929,8 @@
     "kind": "mastery",
     "links": ["JBN-MAGE-T7"],
     "position": {
-      "x": -60,
-      "y": 330
+      "x": -40,
+      "y": -320
     },
     "text": "jobnode.mage.m-triphase",
     "description": "jobnode.mage.m-triphase.desc",
@@ -1268,7 +1944,7 @@
     "links": ["JBN-MAGE-T7"],
     "position": {
       "x": 0,
-      "y": 330
+      "y": -332
     },
     "text": "jobnode.mage.m-single",
     "description": "jobnode.mage.m-single.desc",
@@ -1281,13 +1957,221 @@
     "kind": "mastery",
     "links": ["JBN-MAGE-T7"],
     "position": {
-      "x": 60,
-      "y": 330
+      "x": 40,
+      "y": -320
     },
     "text": "jobnode.mage.m-silent",
     "description": "jobnode.mage.m-silent.desc",
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）。職奥義の効果（三相同調・単相の極み・無詠唱）は、位相の増え方の差し替えと過充填が要るので、まだ働かない（docs/progress Q-MAG-3・Q-MAG-4）"
+  },
+  {
+    "id": "JBN-MAGE-X01",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-SPELLWORK"],
+    "position": {
+      "x": -106,
+      "y": 45
+    },
+    "effects": ["EFF-JBN-MAG-SPELL"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X02",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X01"],
+    "position": {
+      "x": -35,
+      "y": 58
+    },
+    "effects": ["EFF-JBN-MAG-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X03",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X02"],
+    "position": {
+      "x": 35,
+      "y": 58
+    },
+    "effects": ["EFF-JBN-MAG-SPELL"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X04",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X03", "JBN-MAGE-WELL"],
+    "position": {
+      "x": 106,
+      "y": 45
+    },
+    "effects": ["EFF-JBN-MAG-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X05",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-SPELLWORK"],
+    "position": {
+      "x": -147,
+      "y": -27
+    },
+    "effects": ["EFF-JBN-MAG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X06",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X05", "JBN-MAGE-SWIFT"],
+    "position": {
+      "x": -117,
+      "y": -77
+    },
+    "effects": ["EFF-JBN-MAG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X07",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-SWIFT"],
+    "position": {
+      "x": -59,
+      "y": -179
+    },
+    "effects": ["EFF-JBN-MAG-SPEED"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X08",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X07", "JBN-MAGE-T7"],
+    "position": {
+      "x": -29,
+      "y": -229
+    },
+    "effects": ["EFF-JBN-MAG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X09",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-WELL"],
+    "position": {
+      "x": 147,
+      "y": -27
+    },
+    "effects": ["EFF-JBN-MAG-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X10",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X09"],
+    "position": {
+      "x": 117,
+      "y": -77
+    },
+    "effects": ["EFF-JBN-MAG-SPELL"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X11",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X10"],
+    "position": {
+      "x": 118,
+      "y": -128
+    },
+    "effects": ["EFF-JBN-MAG-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X12",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X11"],
+    "position": {
+      "x": 59,
+      "y": -179
+    },
+    "effects": ["EFF-JBN-MAG-SPELL"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X13",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-X12", "JBN-MAGE-T7"],
+    "position": {
+      "x": 29,
+      "y": -229
+    },
+    "effects": ["EFF-JBN-MAG-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X14",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-SPELLWORK"],
+    "position": {
+      "x": -211,
+      "y": 44
+    },
+    "effects": ["EFF-JBN-MAG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X15",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-WELL"],
+    "position": {
+      "x": 211,
+      "y": 44
+    },
+    "effects": ["EFF-JBN-MAG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-MAGE-X16",
+    "job": "JOB-MAGE",
+    "kind": "minor",
+    "links": ["JBN-MAGE-SWIFT"],
+    "position": {
+      "x": -123,
+      "y": -148
+    },
+    "effects": ["EFF-JBN-MAG-CRIT"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
   },
   {
     "id": "JBN-KNIGHT-START",
@@ -1563,8 +2447,8 @@
     "kind": "mastery",
     "links": ["JBN-KNIGHT-T7"],
     "position": {
-      "x": -60,
-      "y": 330
+      "x": -40,
+      "y": 312
     },
     "text": "jobnode.knight.m-iron",
     "description": "jobnode.knight.m-iron.desc",
@@ -1578,7 +2462,7 @@
     "links": ["JBN-KNIGHT-T7"],
     "position": {
       "x": 0,
-      "y": 330
+      "y": 328
     },
     "text": "jobnode.knight.m-condemn",
     "description": "jobnode.knight.m-condemn.desc",
@@ -1591,13 +2475,286 @@
     "kind": "mastery",
     "links": ["JBN-KNIGHT-T7"],
     "position": {
-      "x": 60,
-      "y": 330
+      "x": 40,
+      "y": 312
     },
     "text": "jobnode.knight.m-martyr",
     "description": "jobnode.knight.m-martyr.desc",
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）。職奥義の効果（鉄の守り・断罪者・殉教）は、まだ働かない（docs/progress Q-KNT-5）"
+  },
+  {
+    "id": "JBN-KNIGHT-X01",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-START"],
+    "position": {
+      "x": -48,
+      "y": -20
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X02",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X01"],
+    "position": {
+      "x": -100,
+      "y": -24
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X03",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X02"],
+    "position": {
+      "x": -152,
+      "y": -12
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X04",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X03"],
+    "position": {
+      "x": -172,
+      "y": 36
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X05",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X04"],
+    "position": {
+      "x": -172,
+      "y": 88
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X06",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X05"],
+    "position": {
+      "x": -168,
+      "y": 140
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X07",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X06"],
+    "position": {
+      "x": -156,
+      "y": 192
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X08",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X07"],
+    "position": {
+      "x": -132,
+      "y": 240
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X09",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X08"],
+    "position": {
+      "x": -96,
+      "y": 284
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X10",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X09"],
+    "position": {
+      "x": -52,
+      "y": 336
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X11",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-START"],
+    "position": {
+      "x": 48,
+      "y": -20
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X12",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X11"],
+    "position": {
+      "x": 100,
+      "y": -24
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X13",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X12"],
+    "position": {
+      "x": 152,
+      "y": -12
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X14",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X13"],
+    "position": {
+      "x": 172,
+      "y": 36
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X15",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X14"],
+    "position": {
+      "x": 172,
+      "y": 88
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X16",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X15"],
+    "position": {
+      "x": 168,
+      "y": 140
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X17",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X16"],
+    "position": {
+      "x": 156,
+      "y": 192
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X18",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X17"],
+    "position": {
+      "x": 132,
+      "y": 240
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X19",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X18"],
+    "position": {
+      "x": 96,
+      "y": 284
+    },
+    "effects": ["EFF-JBN-KNT-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X20",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X19"],
+    "position": {
+      "x": 52,
+      "y": 336
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-KNIGHT-X21",
+    "job": "JOB-KNIGHT",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-X10", "JBN-KNIGHT-X20"],
+    "position": {
+      "x": 0,
+      "y": 380
+    },
+    "effects": ["EFF-JBN-KNT-ARMOR"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
   },
   {
     "id": "JBN-SUMMONER-START",
@@ -1609,7 +2766,7 @@
       "y": 0
     },
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-T1",
@@ -1618,11 +2775,11 @@
     "links": ["JBN-SUMMONER-T2"],
     "position": {
       "x": 0,
-      "y": 40
+      "y": -72
     },
     "effects": ["EFF-JBN-SUM-MINION-HP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-T2",
@@ -1630,12 +2787,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-T3"],
     "position": {
-      "x": 0,
-      "y": 80
+      "x": 51,
+      "y": -51
     },
     "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-T3",
@@ -1643,12 +2800,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-T4"],
     "position": {
-      "x": 0,
-      "y": 120
+      "x": 72,
+      "y": 0
     },
     "effects": ["EFF-JBN-SUM-MP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-T4",
@@ -1656,12 +2813,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-T5"],
     "position": {
-      "x": 0,
-      "y": 160
+      "x": 51,
+      "y": 51
     },
     "effects": ["EFF-JBN-SUM-HP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-T5",
@@ -1670,11 +2827,11 @@
     "links": ["JBN-SUMMONER-T6"],
     "position": {
       "x": 0,
-      "y": 200
+      "y": 72
     },
     "effects": ["EFF-JBN-SUM-MINION-HP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-T6",
@@ -1682,12 +2839,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-T7"],
     "position": {
-      "x": 0,
-      "y": 240
+      "x": -51,
+      "y": 51
     },
     "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-T7",
@@ -1695,12 +2852,12 @@
     "kind": "minor",
     "links": [],
     "position": {
-      "x": 0,
-      "y": 280
+      "x": -72,
+      "y": 0
     },
     "effects": ["EFF-JBN-SUM-MP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-B1A",
@@ -1708,12 +2865,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-T1"],
     "position": {
-      "x": -40,
-      "y": 40
+      "x": 0,
+      "y": -116
     },
     "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-B1B",
@@ -1721,12 +2878,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-B1A"],
     "position": {
-      "x": -80,
-      "y": 40
+      "x": 0,
+      "y": -160
     },
     "effects": ["EFF-JBN-SUM-MP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-WARLORD",
@@ -1734,14 +2891,14 @@
     "kind": "notable",
     "links": ["JBN-SUMMONER-B1B"],
     "position": {
-      "x": -120,
-      "y": 40
+      "x": 0,
+      "y": -204
     },
     "text": "jobnode.summoner.warlord",
     "description": "jobnode.summoner.warlord.desc",
     "effects": ["EFF-JBN-SUM-WARLORD"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-B2A",
@@ -1749,12 +2906,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-T2"],
     "position": {
-      "x": 40,
-      "y": 80
+      "x": 82,
+      "y": -82
     },
     "effects": ["EFF-JBN-SUM-MP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-B2B",
@@ -1762,12 +2919,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-B2A"],
     "position": {
-      "x": 80,
-      "y": 80
+      "x": 113,
+      "y": -113
     },
     "effects": ["EFF-JBN-SUM-HP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-BONEBIND",
@@ -1775,14 +2932,14 @@
     "kind": "notable",
     "links": ["JBN-SUMMONER-B2B"],
     "position": {
-      "x": 120,
-      "y": 80
+      "x": 144,
+      "y": -144
     },
     "text": "jobnode.summoner.bonebind",
     "description": "jobnode.summoner.bonebind.desc",
     "effects": ["EFF-JBN-SUM-BONEBIND"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-B3A",
@@ -1790,12 +2947,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-T3"],
     "position": {
-      "x": -40,
-      "y": 120
+      "x": 116,
+      "y": 0
     },
     "effects": ["EFF-JBN-SUM-HP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-B3B",
@@ -1803,12 +2960,12 @@
     "kind": "minor",
     "links": ["JBN-SUMMONER-B3A"],
     "position": {
-      "x": -80,
-      "y": 120
+      "x": 160,
+      "y": 0
     },
     "effects": ["EFF-JBN-SUM-MINION-HP"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-VIGOR",
@@ -1816,14 +2973,14 @@
     "kind": "notable",
     "links": ["JBN-SUMMONER-B3B"],
     "position": {
-      "x": -120,
-      "y": 120
+      "x": 204,
+      "y": 0
     },
     "text": "jobnode.summoner.vigor",
     "description": "jobnode.summoner.vigor.desc",
     "effects": ["EFF-JBN-SUM-VIGOR"],
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-C1",
@@ -1831,13 +2988,13 @@
     "kind": "connector",
     "links": ["JBN-SUMMONER-T5"],
     "position": {
-      "x": 40,
-      "y": 200
+      "x": 0,
+      "y": 116
     },
     "text": "jobnode.summoner.c1",
     "description": "jobnode.summoner.c1.desc",
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-C2",
@@ -1845,11 +3002,11 @@
     "kind": "connector",
     "links": ["JBN-SUMMONER-C1"],
     "position": {
-      "x": 80,
-      "y": 200
+      "x": 0,
+      "y": 160
     },
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）",
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）",
     "text": "jobnode.summoner.c1",
     "description": "jobnode.summoner.c1.desc"
   },
@@ -1859,11 +3016,11 @@
     "kind": "connector",
     "links": ["JBN-SUMMONER-C2"],
     "position": {
-      "x": 120,
-      "y": 200
+      "x": 0,
+      "y": 204
     },
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）",
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）",
     "text": "jobnode.summoner.c1",
     "description": "jobnode.summoner.c1.desc"
   },
@@ -1873,13 +3030,13 @@
     "kind": "mastery",
     "links": ["JBN-SUMMONER-T7"],
     "position": {
-      "x": -60,
-      "y": 330
+      "x": -110,
+      "y": 32
     },
     "text": "jobnode.summoner.m-legion",
     "description": "jobnode.summoner.m-legion.desc",
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）",
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）",
     "effects": ["EFF-JBM-SUM-LEGION"]
   },
   {
@@ -1888,13 +3045,13 @@
     "kind": "mastery",
     "links": ["JBN-SUMMONER-T7"],
     "position": {
-      "x": 0,
-      "y": 330
+      "x": -122,
+      "y": 0
     },
     "text": "jobnode.summoner.m-single",
     "description": "jobnode.summoner.m-single.desc",
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
   },
   {
     "id": "JBN-SUMMONER-M-CYCLE",
@@ -1902,12 +3059,233 @@
     "kind": "mastery",
     "links": ["JBN-SUMMONER-T7"],
     "position": {
-      "x": 60,
-      "y": 330
+      "x": -110,
+      "y": -32
     },
     "text": "jobnode.summoner.m-cycle",
     "description": "jobnode.summoner.m-cycle.desc",
     "provisional": true,
-    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
+    "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-SUM-9）"
+  },
+  {
+    "id": "JBN-SUMMONER-X01",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-WARLORD"],
+    "position": {
+      "x": 27,
+      "y": -231
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X02",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-WARLORD"],
+    "position": {
+      "x": -27,
+      "y": -231
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X03",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X01", "JBN-SUMMONER-X02"],
+    "position": {
+      "x": 0,
+      "y": -258
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X04",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-BONEBIND"],
+    "position": {
+      "x": 182,
+      "y": -144
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X05",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-BONEBIND"],
+    "position": {
+      "x": 144,
+      "y": -182
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X06",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X04", "JBN-SUMMONER-X05"],
+    "position": {
+      "x": 182,
+      "y": -182
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X07",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-VIGOR"],
+    "position": {
+      "x": 231,
+      "y": 27
+    },
+    "effects": ["EFF-JBN-SUM-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X08",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-VIGOR"],
+    "position": {
+      "x": 231,
+      "y": -27
+    },
+    "effects": ["EFF-JBN-SUM-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X09",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X07", "JBN-SUMMONER-X08"],
+    "position": {
+      "x": 258,
+      "y": 0
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X10",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T4"],
+    "position": {
+      "x": 82,
+      "y": 82
+    },
+    "effects": ["EFF-JBN-SUM-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X11",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X10"],
+    "position": {
+      "x": 82,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X12",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X10"],
+    "position": {
+      "x": 120,
+      "y": 82
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X13",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X11", "JBN-SUMMONER-X12"],
+    "position": {
+      "x": 120,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X14",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T6"],
+    "position": {
+      "x": -82,
+      "y": 82
+    },
+    "effects": ["EFF-JBN-SUM-MP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X15",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X14"],
+    "position": {
+      "x": -120,
+      "y": 82
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X16",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X14"],
+    "position": {
+      "x": -82,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-SUM-MINION-HP"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
+  },
+  {
+    "id": "JBN-SUMMONER-X17",
+    "job": "JOB-SUMMONER",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-X15", "JBN-SUMMONER-X16"],
+    "position": {
+      "x": -120,
+      "y": 120
+    },
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"],
+    "provisional": true,
+    "provisionalNote": "職紋盤の形を作るために足した小ノード。効果は同じ盤の既存の小ノードと同じもの（新しい数値ではない）。配置は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress/sessions/jobboard-shapes.md D-JBS-2）"
   }
 ]
