@@ -1,0 +1,119 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "TAG-WPN-SWORD",
+      "category": "武器",
+      "name": "剣",
+      "parents": ["TAG-WPNGRP-SWORD"]
+    },
+    {
+      "id": "TAG-WPN-GREATSWORD",
+      "category": "武器",
+      "name": "大剣",
+      "parents": ["TAG-WPNGRP-SWORD"]
+    },
+    {
+      "id": "TAG-WPN-AXE",
+      "category": "武器",
+      "name": "斧",
+      "parents": ["TAG-WPNGRP-AXE"]
+    },
+    {
+      "id": "TAG-WPN-GREATAXE",
+      "category": "武器",
+      "name": "大斧",
+      "parents": ["TAG-WPNGRP-AXE"]
+    },
+    {
+      "id": "TAG-WPN-HAMMER",
+      "category": "武器",
+      "name": "槌",
+      "parents": ["TAG-WPNGRP-HAMMER"]
+    },
+    {
+      "id": "TAG-WPN-GREATHAMMER",
+      "category": "武器",
+      "name": "大槌",
+      "parents": ["TAG-WPNGRP-HAMMER"]
+    },
+    {
+      "id": "TAG-WPN-SPEAR",
+      "category": "武器",
+      "name": "槍"
+    },
+    {
+      "id": "TAG-WPN-DAGGER",
+      "category": "武器",
+      "name": "短剣"
+    },
+    {
+      "id": "TAG-WPN-CLAW",
+      "category": "武器",
+      "name": "爪"
+    },
+    {
+      "id": "TAG-WPN-BOW",
+      "category": "武器",
+      "name": "弓",
+      "parents": ["TAG-WPNGRP-BOW"]
+    },
+    {
+      "id": "TAG-WPN-LONGBOW",
+      "category": "武器",
+      "name": "長弓",
+      "parents": ["TAG-WPNGRP-BOW"]
+    },
+    {
+      "id": "TAG-WPN-CROSSBOW",
+      "category": "武器",
+      "name": "弩",
+      "parents": ["TAG-WPNGRP-BOW"]
+    },
+    {
+      "id": "TAG-WPN-STAFF",
+      "category": "武器",
+      "name": "杖"
+    },
+    {
+      "id": "TAG-WPN-WAND",
+      "category": "武器",
+      "name": "ワンド"
+    },
+    {
+      "id": "TAG-WPN-SCEPTER",
+      "category": "武器",
+      "name": "笏"
+    },
+    {
+      "id": "TAG-WPN-SCYTHE",
+      "category": "武器",
+      "name": "鎌"
+    },
+    {
+      "id": "TAG-WPN-SHIELD",
+      "category": "武器",
+      "name": "盾"
+    },
+    {
+      "id": "TAG-WPN-GRIMOIRE",
+      "category": "武器",
+      "name": "魔導書"
+    },
+    {
+      "id": "TAG-WPN-BELL",
+      "category": "武器",
+      "name": "呪鈴"
+    },
+    {
+      "id": "TAG-WPN-QUIVER",
+      "category": "武器",
+      "name": "矢筒"
+    },
+    {
+      "id": "TAG-WPN-UNARMED",
+      "category": "武器",
+      "name": "素手"
+    }
+  ]
+}

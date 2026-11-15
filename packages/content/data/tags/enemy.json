@@ -1,0 +1,35 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "TAG-ENEMY-BEAST",
+      "category": "敵系統",
+      "name": "獣"
+    },
+    {
+      "id": "TAG-ENEMY-UNDEAD",
+      "category": "敵系統",
+      "name": "不死"
+    },
+    {
+      "id": "TAG-ENEMY-DEMON",
+      "category": "敵系統",
+      "name": "魔人"
+    },
+    {
+      "id": "TAG-ENEMY-MACHINE",
+      "category": "敵系統",
+      "name": "機巧"
+    },
+    {
+      "id": "TAG-ENEMY-SPIRIT",
+      "category": "敵系統",
+      "name": "精霊"
+    },
+    {
+      "id": "TAG-ENEMY-STARBLIGHT",
+      "category": "敵系統",
+      "name": "星蝕体"
+    }
+  ]
+}

@@ -4,5 +4,5 @@
     "lib": ["ES2023"],
     "types": []
   },
-  "include": ["src", "text/*.json"]
+  "include": ["src", "text/*.json", "data/**/*.json"]
 }

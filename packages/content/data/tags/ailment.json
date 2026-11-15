@@ -1,0 +1,50 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "TAG-AIL-BURN",
+      "category": "状態異常",
+      "name": "燃焼"
+    },
+    {
+      "id": "TAG-AIL-CHILL",
+      "category": "状態異常",
+      "name": "冷却"
+    },
+    {
+      "id": "TAG-AIL-FREEZE",
+      "category": "状態異常",
+      "name": "凍結"
+    },
+    {
+      "id": "TAG-AIL-SHOCK",
+      "category": "状態異常",
+      "name": "感電"
+    },
+    {
+      "id": "TAG-AIL-BLEED",
+      "category": "状態異常",
+      "name": "出血"
+    },
+    {
+      "id": "TAG-AIL-POISON",
+      "category": "状態異常",
+      "name": "毒"
+    },
+    {
+      "id": "TAG-AIL-WEAKEN",
+      "category": "状態異常",
+      "name": "衰弱"
+    },
+    {
+      "id": "TAG-AIL-STIGMA",
+      "category": "状態異常",
+      "name": "聖痕"
+    },
+    {
+      "id": "TAG-AIL-BREAK",
+      "category": "状態異常",
+      "name": "崩し"
+    }
+  ]
+}

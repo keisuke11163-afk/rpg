@@ -1,0 +1,29 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "TAG-WPNGRP-SWORD",
+      "category": "武器の系統",
+      "name": "剣系",
+      "note": "武器のタグは親タグも持つ（本仕様書 1.5）"
+    },
+    {
+      "id": "TAG-WPNGRP-AXE",
+      "category": "武器の系統",
+      "name": "斧系",
+      "note": "武器のタグは親タグも持つ（本仕様書 1.5）"
+    },
+    {
+      "id": "TAG-WPNGRP-HAMMER",
+      "category": "武器の系統",
+      "name": "槌系",
+      "note": "武器のタグは親タグも持つ（本仕様書 1.5）"
+    },
+    {
+      "id": "TAG-WPNGRP-BOW",
+      "category": "武器の系統",
+      "name": "弓系",
+      "note": "武器のタグは親タグも持つ（本仕様書 1.5）"
+    }
+  ]
+}

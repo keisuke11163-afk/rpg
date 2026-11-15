@@ -1,0 +1,50 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "TAG-REGION-GOU",
+      "category": "星域",
+      "name": "剛域"
+    },
+    {
+      "id": "TAG-REGION-GOUKON",
+      "category": "星域",
+      "name": "剛魂域"
+    },
+    {
+      "id": "TAG-REGION-KON",
+      "category": "星域",
+      "name": "魂域"
+    },
+    {
+      "id": "TAG-REGION-RIKON",
+      "category": "星域",
+      "name": "理魂域"
+    },
+    {
+      "id": "TAG-REGION-RI",
+      "category": "星域",
+      "name": "理域"
+    },
+    {
+      "id": "TAG-REGION-JINRI",
+      "category": "星域",
+      "name": "迅理域"
+    },
+    {
+      "id": "TAG-REGION-JIN",
+      "category": "星域",
+      "name": "迅域"
+    },
+    {
+      "id": "TAG-REGION-GOUJIN",
+      "category": "星域",
+      "name": "剛迅域"
+    },
+    {
+      "id": "TAG-REGION-CORE",
+      "category": "星域",
+      "name": "星核"
+    }
+  ]
+}

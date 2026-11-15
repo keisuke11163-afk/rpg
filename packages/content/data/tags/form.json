@@ -1,0 +1,75 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "TAG-FORM-MELEE",
+      "category": "形態",
+      "name": "近接"
+    },
+    {
+      "id": "TAG-FORM-PROJECTILE",
+      "category": "形態",
+      "name": "投射"
+    },
+    {
+      "id": "TAG-FORM-SPELL",
+      "category": "形態",
+      "name": "呪文"
+    },
+    {
+      "id": "TAG-FORM-AREA",
+      "category": "形態",
+      "name": "範囲"
+    },
+    {
+      "id": "TAG-FORM-DOT",
+      "category": "形態",
+      "name": "持続"
+    },
+    {
+      "id": "TAG-FORM-SUMMON",
+      "category": "形態",
+      "name": "召喚"
+    },
+    {
+      "id": "TAG-FORM-TRAP",
+      "category": "形態",
+      "name": "罠"
+    },
+    {
+      "id": "TAG-FORM-AURA",
+      "category": "形態",
+      "name": "オーラ"
+    },
+    {
+      "id": "TAG-FORM-SHOUT",
+      "category": "形態",
+      "name": "戦吼"
+    },
+    {
+      "id": "TAG-FORM-MOVE",
+      "category": "形態",
+      "name": "移動"
+    },
+    {
+      "id": "TAG-FORM-GUARD",
+      "category": "形態",
+      "name": "防御"
+    },
+    {
+      "id": "TAG-FORM-FINISHER",
+      "category": "形態",
+      "name": "終結"
+    },
+    {
+      "id": "TAG-FORM-RELEASE",
+      "category": "形態",
+      "name": "解放"
+    },
+    {
+      "id": "TAG-FORM-HEAVY",
+      "category": "形態",
+      "name": "重撃"
+    }
+  ]
+}

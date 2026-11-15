@@ -1,0 +1,35 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "TAG-ELEM-PHYSICAL",
+      "category": "属性",
+      "name": "物理"
+    },
+    {
+      "id": "TAG-ELEM-FIRE",
+      "category": "属性",
+      "name": "火"
+    },
+    {
+      "id": "TAG-ELEM-COLD",
+      "category": "属性",
+      "name": "氷"
+    },
+    {
+      "id": "TAG-ELEM-LIGHTNING",
+      "category": "属性",
+      "name": "雷"
+    },
+    {
+      "id": "TAG-ELEM-HOLY",
+      "category": "属性",
+      "name": "聖"
+    },
+    {
+      "id": "TAG-ELEM-DARK",
+      "category": "属性",
+      "name": "闇"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "TAG-JOB-WARRIOR",
+      "category": "ジョブ",
+      "name": "戦士"
+    },
+    {
+      "id": "TAG-JOB-KNIGHT",
+      "category": "ジョブ",
+      "name": "騎士"
+    },
+    {
+      "id": "TAG-JOB-MAGE",
+      "category": "ジョブ",
+      "name": "魔法使い"
+    },
+    {
+      "id": "TAG-JOB-SUMMONER",
+      "category": "ジョブ",
+      "name": "召喚士"
+    },
+    {
+      "id": "TAG-JOB-ROGUE",
+      "category": "ジョブ",
+      "name": "盗賊"
+    },
+    {
+      "id": "TAG-JOB-ARCHER",
+      "category": "ジョブ",
+      "name": "弓使い"
+    }
+  ]
+}
