@@ -1,6 +1,10 @@
 import Phaser from "phaser";
 import {
   AttackRunner,
+  FURY,
+  Fighter,
+  WARRIOR_SKILLS,
+  tickCombatant,
   FixedStepper,
   PLAYER,
   WEAPONS,
@@ -29,6 +33,8 @@ const M = SCREEN.tileSize;
  */
 export class PlayScene extends Phaser.Scene {
   private readonly pressed = new Set<string>();
+  /** このフレームに押された入力。短く押して離しても、1回は処理に届くようにする */
+  private readonly justPressed = new Set<string>();
   private readonly stepper = new FixedStepper();
   private readonly player = createPlayer({ x: 0, y: 0 });
   private body!: Phaser.GameObjects.Rectangle;
@@ -43,9 +49,28 @@ export class PlayScene extends Phaser.Scene {
   private attackAngle = 0;
   private swing!: Phaser.GameObjects.Graphics;
   private hitStopLeft = 0;
-  /** HPとMPの表示用の値（Lv1の基礎値。U-10 の経験値とLvで置き換える） */
-  private readonly hp = 60;
-  private readonly mp = 60;
+  /** 技の使用の動作が終わる時刻（ミリ秒）。動作中は次の技を出せない */
+  private busyUntil = 0;
+  /** 戦士。HP・MPはLv1の基礎値（U-10 の経験値とLvで置き換える）。大剣・適性S・ジョブLv12（全技を使える試験用） */
+  private readonly fighter = new Fighter({
+    maxHp: 60,
+    maxMp: 60,
+    weapon: WEAPONS["greatsword"] ?? { name: "", min: 1, max: 1, speed: 1, crit: 0 },
+    weaponClass: "greatsword",
+    aptitude: "S",
+    jobLevel: 12,
+    skills: WARRIOR_SKILLS,
+    gauge: FURY,
+    stats: { 剛: 20 },
+  });
+  /** 技の枠と行動の対応（補助仕様書 1.1）。破軍は枠が足りないので、試験用に R に置く */
+  private static readonly SLOTS: readonly [string, string][] = [
+    ["skill2", "SKL-WAR-SWEEP"],
+    ["skill3", "SKL-WAR-RIFT"],
+    ["skill4", "SKL-WAR-SHOUT"],
+    ["skill5", "SKL-WAR-CHARGE"],
+    ["skill6", "SKL-WAR-WHIRL"],
+  ];
 
   constructor() {
     super("play");
@@ -76,15 +101,17 @@ export class PlayScene extends Phaser.Scene {
     if (keyboard) {
       keyboard.on("keydown", (e: KeyboardEvent) => {
         this.pressed.add(e.code);
+        this.justPressed.add(e.code);
         if (e.code === "Space") this.dodgePressedOnce = true;
         e.preventDefault();
       });
       keyboard.on("keyup", (e: KeyboardEvent) => this.pressed.delete(e.code));
     }
     this.input.mouse?.disableContextMenu();
-    this.input.on("pointerdown", (p: Phaser.Input.Pointer) =>
-      this.pressed.add(`Mouse${String(p.button)}`),
-    );
+    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      this.pressed.add(`Mouse${String(p.button)}`);
+      this.justPressed.add(`Mouse${String(p.button)}`);
+    });
     this.input.on("pointerup", (p: Phaser.Input.Pointer) =>
       this.pressed.delete(`Mouse${String(p.button)}`),
     );
@@ -97,7 +124,7 @@ export class PlayScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     const ticks = this.stepper.advance(delta);
-    const actions = pressedActions(this.pressed);
+    const actions = pressedActions(new Set([...this.pressed, ...this.justPressed]));
     const pointer = this.input.activePointer;
     const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     // ヒットストップ：短い間、ルールの時間を止める
@@ -107,6 +134,9 @@ export class PlayScene extends Phaser.Scene {
       return;
     }
     for (let i = 0; i < ticks; i++) {
+      this.fighter.tick(TICK_SECONDS);
+      tickCombatant(this.dummy, TICK_SECONDS);
+      this.updateSkills(actions);
       this.updateAttack(actions.has("skill1"));
       stepPlayer(
         this.player,
@@ -119,7 +149,69 @@ export class PlayScene extends Phaser.Scene {
       );
       this.dodgePressedOnce = false;
     }
+    if (ticks > 0) this.justPressed.clear();
     this.updateView(delta);
+  }
+
+  /** 技の枠のキーを押している間、使える状態になるたびに使う（補助仕様書 1.1） */
+  private updateSkills(actions: ReadonlySet<string>): void {
+    if (this.time.now < this.busyUntil || this.attack || isDodging(this.player)) return;
+    const slots: [boolean, string][] = [
+      ...PlayScene.SLOTS.map(([action, id]): [boolean, string] => [actions.has(action), id]),
+      [this.pressed.has("KeyR") || this.justPressed.has("KeyR"), "SKL-WAR-RUIN"],
+    ];
+    for (const [held, id] of slots) {
+      if (!held) continue;
+      const out = this.fighter.use(
+        id,
+        this.player.pos,
+        this.player.aimAngle,
+        [this.dummy],
+        this.rng,
+      );
+      if (!out.ok || !out.effective) continue;
+      this.busyUntil = this.time.now + out.effective.skill.totalSeconds * 1000;
+      if (out.movedTo) {
+        this.player.pos.x = out.movedTo.x;
+        this.player.pos.y = out.movedTo.y;
+      }
+      for (const { result } of out.hits) {
+        this.hitStopLeft = Math.max(this.hitStopLeft, result.feedback.hitStopSeconds);
+        this.cameras.main.shake(60, result.feedback.shake * 0.0008);
+        this.showDamage(
+          this.dummy.pos.x,
+          this.dummy.pos.y,
+          result.damage,
+          result.crit,
+          result.back,
+        );
+      }
+      this.flashArea(out.effective.shape, this.player.aimAngle);
+      break;
+    }
+  }
+
+  private flashArea(shape: import("@stella/core").HitShape, angle: number): void {
+    const cx = this.player.pos.x * M;
+    const cy = this.player.pos.y * M;
+    this.swing.clear();
+    this.swing.fillStyle(0xffffff, 0.3);
+    if (shape.kind === "cone") {
+      const half = (shape.arcDegrees * Math.PI) / 360;
+      this.swing.slice(cx, cy, shape.range * M, angle - half, angle + half);
+      this.swing.fillPath();
+    } else if (shape.kind === "circle") {
+      this.swing.fillCircle(cx, cy, shape.radius * M);
+    } else {
+      this.swing.fillRect(0, 0, 0, 0);
+      const w = shape.width * M;
+      this.swing.save();
+      this.swing.translateCanvas(cx, cy);
+      this.swing.rotateCanvas(angle);
+      this.swing.fillRect(0, -w / 2, shape.length * M, w);
+      this.swing.restore();
+    }
+    this.time.delayedCall(120, () => this.swing.clear());
   }
 
   /** 左クリックの通常攻撃（仮実装: U-08 feature/warrior の技の仕組みで置き換える） */
@@ -205,7 +297,7 @@ export class PlayScene extends Phaser.Scene {
     this.dummy.breakGauge.tick(delta / 1000);
     this.dummyBody.setFillStyle(this.dummy.breakGauge.broken ? 0xd8c36f : 0x8a4f4f);
     this.hud.setText(
-      `HP ${String(this.hp)}/${String(this.hp)}  MP ${String(this.mp)}/${String(this.mp)}  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\n人形の崩し ${String(Math.floor(this.dummy.breakGauge.gauge))}/${String(Math.floor(this.dummy.breakGauge.currentMax))}\nWASD 移動 / マウス 照準 / 左クリック 攻撃 / Space 回避`,
+      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  闘志 ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\n人形の崩し ${String(Math.floor(this.dummy.breakGauge.gauge))}/${String(Math.floor(this.dummy.breakGauge.currentMax))}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右 薙ぎ払い・1 地割り・2 戦吼・3 突進・4 旋風・R 破軍 / Space 回避`,
     );
   }
 }

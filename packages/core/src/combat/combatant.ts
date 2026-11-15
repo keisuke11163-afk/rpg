@@ -37,6 +37,8 @@ export interface Combatant {
   resistance: Partial<Record<Element, number>>;
   ailments: AilmentSet;
   breakGauge: BreakGauge;
+  /** 崩されやすさ（戦吼の+20%）。残り時間つき */
+  breakTaken: { bonus: number; left: number };
   /** 向きを持たない（罠・召喚物など）。常に背面として扱う（本仕様書 7章） */
   noFacing?: boolean;
 }
@@ -66,6 +68,7 @@ export function createCombatant(init: {
     resistance: init.resistance ?? {},
     ailments: new AilmentSet({ maxHp: init.maxHp, isBoss }),
     breakGauge: new BreakGauge(enemyBreakParams(init.maxHp, isBoss)),
+    breakTaken: { bonus: 0, left: 0 },
   };
 }
 
@@ -144,7 +147,8 @@ export function resolveHit(attacker: Vec2, target: Combatant, spec: HitSpec, rng
   // 崩し：打撃値（防御の前）× 技の崩し係数
   const preDefense = computeDamage({ ...spec.damage, crit }).total;
   const broke = target.breakGauge.add(
-    breakValue(preDefense, spec.breakCoefficient ?? 0.3, spec.breakBonus ?? 0),
+    breakValue(preDefense, spec.breakCoefficient ?? 0.3, spec.breakBonus ?? 0) *
+      (1 + (target.breakTaken.left > 0 ? target.breakTaken.bonus : 0)),
   );
 
   // 状態異常：種類ごとにヒット1回につき1回だけ判定する
@@ -238,4 +242,19 @@ export class AttackRunner {
     }
     return out;
   }
+}
+
+/** 戦う者の時間を進める。持続ダメージを受け、崩しゲージ・状態を更新する */
+export function tickCombatant(c: Combatant, dt: number): number {
+  const dots = c.ailments.tick(dt, {
+    addPct: 0,
+    mult: 1,
+    enemyDamageTaken: c.ailments.enemyDamageTakenMultiplier,
+    resistance: c.resistance,
+  });
+  const damage = dots.reduce((sum, d) => sum + d.damage, 0);
+  c.hp = Math.max(0, c.hp - damage);
+  c.breakGauge.tick(dt);
+  c.breakTaken.left = Math.max(0, c.breakTaken.left - dt);
+  return damage;
 }

@@ -26,3 +26,7 @@ export * from "./combat/weapons.ts";
 export * from "./combat/geometry.ts";
 export * from "./combat/combatant.ts";
 export * from "./combat/projectile.ts";
+export * from "./jobs/gauge.ts";
+export * from "./jobs/skills.ts";
+export * from "./jobs/warrior.ts";
+export * from "./jobs/fighter.ts";
