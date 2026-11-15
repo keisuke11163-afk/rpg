@@ -22,3 +22,7 @@ export * from "./combat/damage.ts";
 export * from "./combat/ailments.ts";
 export * from "./player/input.ts";
 export * from "./player/controller.ts";
+export * from "./combat/weapons.ts";
+export * from "./combat/geometry.ts";
+export * from "./combat/combatant.ts";
+export * from "./combat/projectile.ts";
