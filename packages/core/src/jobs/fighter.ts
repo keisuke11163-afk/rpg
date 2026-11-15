@@ -4,12 +4,25 @@
  */
 import type { Rng } from "../rng.ts";
 import type { Vec2 } from "../player/controller.ts";
-import { strike, type Combatant, type HitResult, type HitSpec } from "../combat/combatant.ts";
+import {
+  resolveHit,
+  strike,
+  type Combatant,
+  type HitResult,
+  type HitSpec,
+} from "../combat/combatant.ts";
+import type { AilmentKind } from "../combat/ailments.ts";
+import { armorReduction } from "../combat/damage.ts";
 import type { HitShape } from "../combat/geometry.ts";
 import type { GroundEffects } from "../combat/zones.ts";
 import type { WeaponDef } from "../combat/weapons.ts";
 import type { GearStats } from "../items/gear.ts";
-import { evaluate, type ActiveEffect, type Evaluation } from "../effects/evaluate.ts";
+import {
+  evaluate,
+  type ActiveEffect,
+  type Evaluation,
+  type HookCall,
+} from "../effects/evaluate.ts";
 import type { EvalContext } from "../effects/conditions.ts";
 import { JobGauge, type GaugeDef } from "./gauge.ts";
 import {
@@ -19,6 +32,22 @@ import {
   type SkillPatch,
   type WeaponClass,
 } from "./skills.ts";
+
+/** タグID（TAG-AIL-BLEED など）→ 状態異常の種類 */
+function tagToAilment(tag: unknown): AilmentKind | undefined {
+  if (typeof tag !== "string") return undefined;
+  const map: Record<string, AilmentKind> = {
+    "TAG-AIL-BLEED": "bleed",
+    "TAG-AIL-POISON": "poison",
+    "TAG-AIL-BURN": "burn",
+    "TAG-AIL-CHILL": "chill",
+    "TAG-AIL-FREEZE": "freeze",
+    "TAG-AIL-SHOCK": "shock",
+    "TAG-AIL-WEAKEN": "weaken",
+    "TAG-AIL-STIGMA": "stigma",
+  };
+  return map[tag];
+}
 
 export interface FighterInit {
   maxHp: number;
@@ -175,6 +204,60 @@ export class Fighter {
     return { addPct: r.addPct, mult: r.mult, flat: r.flat };
   }
 
+  /** 効果が呼んでいるルールフック（ユニーク・職紋盤など）。同じ名前が複数あれば、後のもの（潜在効果）が優先 */
+  private rule(name: string): HookCall | undefined {
+    const hooks = this.evalWith(this.useFlags)?.hooks() ?? [];
+    let found: HookCall | undefined;
+    for (const h of hooks) if (h.hook === name) found = h;
+    return found;
+  }
+
+  private ruleNum(name: string, key: string, fallback: number): number {
+    const v = this.rule(name)?.params[key];
+    return typeof v === "number" ? v : fallback;
+  }
+
+  /** 止まっている秒数（樹皮の盾：1秒ごとに防具値+10%）。動くと0に戻る */
+  private stillSeconds = 0;
+  private travelled = 0;
+  private cdReducedThisSecond = 0;
+  private cdWindow = 0;
+  /** 移動の技の後、全てのヒットを背面扱いにする残り時間（背向けの外套） */
+  private forceBackLeft = 0;
+  private backGainCooldown = 0;
+
+  /** 毎刻、プレイヤーが動いたか・動いた距離を伝える（静止の判定・旅人の古靴の短縮） */
+  noteMovement(moving: boolean, distance: number, dt: number): void {
+    this.stillSeconds = moving ? 0 : this.stillSeconds + dt;
+    if (distance <= 0) return;
+    this.travelled += distance;
+    const every = this.ruleNum("移動距離ごとのCD短縮", "distance", 0);
+    const seconds = this.ruleNum("移動距離ごとのCD短縮", "seconds", 0);
+    const max = this.ruleNum("移動距離ごとのCD短縮", "maxPerSecond", Infinity);
+    while (every > 0 && this.travelled >= every) {
+      this.travelled -= every;
+      // 1秒あたりの短縮には上限がある
+      if (this.cdReducedThisSecond + seconds <= max) {
+        this.cdReducedThisSecond += seconds;
+        for (const [id, left] of this.cooldowns) {
+          this.cooldowns.set(id, Math.max(0, left - seconds));
+        }
+      }
+    }
+  }
+
+  /** 移動速度の倍率（装備・ツリーの移動速度の加算）。-12%などは 0.88 */
+  get moveSpeedMultiplier(): number {
+    return Math.max(0.1, 1 + this.gearTotal("移動速度") + this.fx("移動速度").addPct);
+  }
+
+  /** 止まっているあいだの防具値の倍率（樹皮の盾） */
+  get armorMultiplier(): number {
+    const per = this.ruleNum("静止で防具値上昇", "perSecond", 0);
+    const max = this.ruleNum("静止で防具値上昇", "max", 0);
+    return 1 + Math.min(max, per * Math.floor(this.stillSeconds));
+  }
+
   /** 対象の状態から決まる旗 */
   private targetFlags(t: Combatant): Set<string> {
     const f = new Set(this.useFlags);
@@ -320,7 +403,20 @@ export class Fighter {
       }
     }
     const bs = this.init.backstab;
+    const forcedBleed = this.rule("強制付与:出血") !== undefined;
+    const alias = this.rule("別の異常として数える");
+    const aliasFrom = alias ? tagToAilment(alias.params["from"]) : undefined;
+    const aliasTo = alias ? tagToAilment(alias.params["to"]) : undefined;
+    const bleedAdd2 = this.fx("出血の最大スタック").flat;
+    const poisonRule = this.rule("毒スタックによる被ダメージ倍率");
+    const backRule = this.rule("背面ヒットでコンボ点");
     return {
+      ...(this.rule("禁止:会心") !== undefined ? { noCrit: true } : {}),
+      ...(this.rule("必中") !== undefined ? { alwaysHit: true } : {}),
+      ...(this.forceBackLeft > 0 && backRule === undefined ? { forceBack: true } : {}),
+      ...(forcedBleed ? { forcedAilments: ["bleed"] } : {}),
+      ...(bleedAdd2 > 0 ? { bleedMaxStacks: 8 + bleedAdd2 } : {}),
+      ...(aliasFrom && aliasTo ? { ailmentAliases: [[aliasFrom, aliasTo] as const] } : {}),
       shape: eff.shape,
       damage: {
         base: {
@@ -341,14 +437,29 @@ export class Fighter {
       accuracy: (this.init.accuracy ?? 2) + this.gearTotal("命中"),
       breakCoefficient: eff.skill.breakCoefficient,
       breakBonus: eff.breakBonus + this.gearTotal("崩し値") + treeBreak.addPct,
-      ...(this.evalWith(new Set())
+      ...(this.evalWith(new Set()) || poisonRule
         ? {
             targetBonus: (t: Combatant) => {
               const dyn = this.fx("ダメージ", eff.skill, this.targetFlags(t));
               const base = this.fx("ダメージ", eff.skill);
+              // 母樹の根冠：敵の毒10スタックにつき ×1.04（最大 ×1.20。毒蛇座で ×1.30）
+              let poison = 1;
+              if (poisonRule) {
+                const per =
+                  typeof poisonRule.params["perStacks"] === "number"
+                    ? poisonRule.params["perStacks"]
+                    : 10;
+                const m =
+                  typeof poisonRule.params["mult"] === "number" ? poisonRule.params["mult"] : 1;
+                const max =
+                  typeof poisonRule.params["max"] === "number"
+                    ? poisonRule.params["max"]
+                    : Infinity;
+                poison = Math.min(max, m ** Math.floor(t.ailments.countedStacks("poison") / per));
+              }
               return {
                 addPct: dyn.addPct - base.addPct,
-                mult: base.mult === 0 ? 1 : dyn.mult / base.mult,
+                mult: (base.mult === 0 ? 1 : dyn.mult / base.mult) * poison,
               };
             },
           }
@@ -426,6 +537,7 @@ export class Fighter {
     const flags = new Set<string>();
     if (this.gauge.outOfCombat) flags.add("戦闘外からの最初の一撃");
     if (skill.id === "SKL-ROG-FLURRY") flags.add("連刃を使用中");
+    if (this.gauge.forceIntensified) flags.add("鬼神中");
     this.useFlags = flags;
 
     // 敵の背後へ瞬間移動する（背面は、向きの反対側）
@@ -435,6 +547,9 @@ export class Fighter {
         x: teleportTarget.pos.x + Math.cos(behind) * (teleportTarget.radius + 0.8),
         y: teleportTarget.pos.y + Math.sin(behind) * (teleportTarget.radius + 0.8),
       };
+      if (this.rule("移動の技の後の背面扱い") && !this.rule("背面ヒットでコンボ点")) {
+        this.forceBackLeft = this.ruleNum("移動の技の後の背面扱い", "seconds", 0);
+      }
       return out;
     }
 
@@ -499,29 +614,141 @@ export class Fighter {
     const heavy = skill.tags.includes("重撃");
     const hitCount = Math.max(1, eff.hits);
     let landed = false;
+    const furyHit = this.rule("崩れた敵へのヒットで闘志");
+    const spread = this.rule("崩しの拡散");
+    const fork = this.rule("分岐ヒット");
+    const backCombo = this.rule("背面ヒットでコンボ点");
     for (let i = 0; i < hitCount; i++) {
       const spec = {
         ...this.hitSpec({ ...eff, shape }, rng),
         ...(forceCrit ? { forceCrit: true } : {}),
       };
+      // 打ち鳴らしの籠手：ヒットの前に崩れていた敵を覚えておく
+      const brokenBefore = new Set(targets.filter((t) => t.breakGauge.broken));
       const results = strike(origin, angle, targets, spec, rng);
+      const hitTargets = new Set(results.map((r) => r.target));
       for (const r of results) {
         if (r.result.hit) {
           landed = true;
           this.gauge.onHit(heavy);
+          if (furyHit && this.gauge.def.id === "GAUGE-FURY" && brokenBefore.has(r.target)) {
+            const g = this.ruleNum("崩れた敵へのヒットで闘志", "gain", 0);
+            const h = this.ruleNum("崩れた敵へのヒットで闘志", "heavyGain", g);
+            this.gauge.add(heavy ? h : g);
+          }
+          if (backCombo && r.result.back && this.backGainCooldown <= 0) {
+            this.gauge.add(this.ruleNum("背面ヒットでコンボ点", "gain", 1));
+            this.backGainCooldown = this.ruleNum("背面ヒットでコンボ点", "intervalSeconds", 1);
+          }
         }
         if (eff.breaksAll) r.target.breakGauge.add(r.target.breakGauge.currentMax);
+        // 敵の崩しゲージを満タンにすると、周囲の敵の崩しゲージを増やす
+        if (spread && r.result.broke) {
+          const radius = this.ruleNum("崩しの拡散", "radius", 0);
+          const ratio = this.ruleNum("崩しの拡散", "ratio", 0);
+          for (const other of targets) {
+            if (other === r.target || other.hp <= 0) continue;
+            if (Math.hypot(other.pos.x - r.target.pos.x, other.pos.y - r.target.pos.y) <= radius) {
+              other.breakGauge.add(other.breakGauge.currentMax * ratio);
+            }
+          }
+        }
+        // 二股の枝：近くの別の敵1体にも、そのヒットの50%が当たる
+        if (fork && r.result.hit) {
+          const radius = this.ruleNum("分岐ヒット", "radius", 0);
+          const ratio = this.ruleNum("分岐ヒット", "ratio", 0.5);
+          let near: Combatant | undefined;
+          let nearDist = radius;
+          for (const other of targets) {
+            if (other.hp <= 0 || other === r.target || hitTargets.has(other)) continue;
+            const d = Math.hypot(other.pos.x - r.target.pos.x, other.pos.y - r.target.pos.y);
+            if (d <= nearDist) {
+              nearDist = d;
+              near = other;
+            }
+          }
+          if (near) {
+            const withAilments = fork.params["ailments"] === true;
+            const forkSpec: HitSpec = {
+              ...spec,
+              damage: {
+                ...spec.damage,
+                generic: {
+                  addPct: spec.damage.generic?.addPct ?? 0,
+                  mult: (spec.damage.generic?.mult ?? 1) * ratio,
+                },
+              },
+              ...(withAilments
+                ? {}
+                : { ailmentBase: {}, ailmentBonus: 0, backAilmentBonus: 0, forcedAilments: [] }),
+            };
+            out.hits.push({ target: near, result: resolveHit(origin, near, forkSpec, rng) });
+          }
+        }
       }
       out.hits.push(...results);
     }
     // ヒットを当てると、1回の使用につきゲージ+N（連刃：コンボ点+1）
     if (landed && skill.gaugeOnHit) this.gauge.add(skill.gaugeOnHit);
+    // 移動の技の後、全てのヒットを背面扱いにする（背向けの外套。影法師では代わりにコンボ点）
+    if (skill.kind === "dash" && this.rule("移動の技の後の背面扱い") && !backCombo) {
+      this.forceBackLeft = this.ruleNum("移動の技の後の背面扱い", "seconds", 0);
+    }
     return out;
   }
 
-  /** 攻撃を受けた。無敵でなければ呼ぶ。被ダメージ軽減を反映してHPを減らす */
-  takeDamage(raw: number): number {
-    const dmg = raw * (this.buffs.damageTaken.left > 0 ? this.buffs.damageTaken.value : 1);
+  /** 敵を倒した。出血が残っていれば、最も近い敵1体に移す（狼牙の首飾り） */
+  onEnemyKilled(dead: Combatant, others: readonly Combatant[]): void {
+    const rule = this.rule("出血の移転");
+    if (!rule) return;
+    const stacks = dead.ailments.exportStacks("bleed");
+    if (stacks.length === 0) return;
+    let near: Combatant | undefined;
+    let best = Infinity;
+    for (const o of others) {
+      if (o === dead || o.hp <= 0) continue;
+      const d = Math.hypot(o.pos.x - dead.pos.x, o.pos.y - dead.pos.y);
+      if (d < best) {
+        best = d;
+        near = o;
+      }
+    }
+    if (!near) return;
+    const keep = rule.params["keepStacks"] === true;
+    // 移ると1スタックになる。傷口を抉る（輝星）があればスタック数を保つ
+    const moved = keep ? stacks : [stacks.reduce((a, b) => (b.total > a.total ? b : a))];
+    near.ailments.importStacks("bleed", moved);
+    dead.ailments.clear("bleed");
+  }
+
+  /** 攻撃を受けたときの反撃（樹皮の盾：攻撃してきた敵に毒を付与する。基準値は受けたダメージの30%） */
+  retaliate(attacker: Combatant, taken: number, others: readonly Combatant[]): void {
+    const rule = this.rule("被弾時の毒付与");
+    if (!rule) return;
+    const ratio = this.ruleNum("被弾時の毒付与", "ratio", 0.3);
+    const radius = this.ruleNum("被弾時の毒付与", "radius", 0);
+    const victims =
+      radius > 0
+        ? [attacker, ...others].filter(
+            (o) =>
+              o.hp > 0 && Math.hypot(o.pos.x - attacker.pos.x, o.pos.y - attacker.pos.y) <= radius,
+          )
+        : [attacker];
+    for (const v of new Set(victims))
+      v.ailments.apply("poison", { reference: { physical: taken * ratio } });
+  }
+
+  /**
+   * 攻撃を受けた。無敵でなければ呼ぶ。防具値（止まっている間は樹皮の盾で上がる）・被ダメージ軽減を反映してHPを減らす。
+   * playerBehindAttacker：自分が攻撃してきた敵の背後にいる（背向けの外套で被ダメージ-15%）。
+   */
+  takeDamage(raw: number, ctx: { playerBehindAttacker?: boolean } = {}): number {
+    const armor = (this.gearStats?.armor ?? 0) * this.armorMultiplier;
+    let dmg = raw * (1 - armorReduction(armor, raw));
+    dmg *= this.buffs.damageTaken.left > 0 ? this.buffs.damageTaken.value : 1;
+    if (ctx.playerBehindAttacker === true) {
+      dmg *= 1 - this.ruleNum("背後にいる間の被ダメージ軽減", "ratio", 0);
+    }
     this.hp = Math.max(0, this.hp - dmg);
     this.gauge.onDamaged(dmg, this.maxHp);
     return dmg;
@@ -537,6 +764,13 @@ export class Fighter {
     this.buffs.damageTaken.left = Math.max(0, this.buffs.damageTaken.left - dt);
     this.buffs.ailmentBonus.left = Math.max(0, this.buffs.ailmentBonus.left - dt);
     this.stunLeft = Math.max(0, this.stunLeft - dt);
+    this.forceBackLeft = Math.max(0, this.forceBackLeft - dt);
+    this.backGainCooldown = Math.max(0, this.backGainCooldown - dt);
+    this.cdWindow += dt;
+    if (this.cdWindow >= 1) {
+      this.cdWindow -= 1;
+      this.cdReducedThisSecond = 0;
+    }
     // MPは毎秒、最大MPの6%回復する（本仕様書 2.3）
     this.mp = Math.min(this.init.maxMp, this.mp + this.init.maxMp * 0.06 * dt);
     this.gauge.tick(dt);

@@ -26,17 +26,28 @@ export interface GearData {
   affixes: ReadonlyMap<string, AffixDef>;
   /** ベースの基本刻印の数値（ベースID → 能力値の名前 → 値）。百分率の値は 0.15 のように比で持つ */
   implicit: Readonly<Record<string, Readonly<Record<string, number>>>>;
+  /** ユニークの説明（ツールチップ用）。ID → 名前・固有効果の文・潜在効果の文・ヒント */
+  uniques: ReadonlyMap<string, UniqueText>;
+}
+
+export interface UniqueText {
+  name: string;
+  fixed: readonly string[];
+  latent: string;
+  hint: string;
 }
 
 export function makeGearData(
   bases: readonly ItemBase[],
   affixes: readonly AffixDef[],
   implicit: GearData["implicit"],
+  uniques: ReadonlyMap<string, UniqueText> = new Map(),
 ): GearData {
   return {
     bases: new Map(bases.map((b) => [b.id, b])),
     affixes: new Map(affixes.map((a) => [a.id, a])),
     implicit,
+    uniques,
   };
 }
 
@@ -84,8 +95,13 @@ export class Equipment {
     const base = data.bases.get(item.baseId);
     if (!base) return { ok: false, reason: "empty", replaced: [] };
     const candidates = this.slotsFor(base, options.canDualWield === true);
-    const slot: EquipSlot | undefined =
+    let slot: EquipSlot | undefined =
       options.slot ?? candidates.find((s) => !this.slots.has(s)) ?? candidates[0];
+    // 部位の指定がなく、主手に両手武器があるとき、片手武器は副手ではなく主手に入れ替える
+    if (options.slot === undefined && slot === "副手" && base.kind === "weapon") {
+      const main = this.slots.get("主手");
+      if (main && data.bases.get(main.baseId)?.hands === 2) slot = "主手";
+    }
     if (slot === undefined || !candidates.includes(slot)) {
       return { ok: false, reason: "slot", replaced: [] };
     }

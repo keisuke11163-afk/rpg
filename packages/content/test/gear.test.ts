@@ -280,3 +280,16 @@ describe("商人", () => {
     expect(purse.material("MAT-AWAKENING-DUST")).toBe(2);
   });
 });
+
+describe("部位の自動選択", () => {
+  it("両手武器を持っているとき、片手武器は副手ではなく主手に入れ替える（二刀流のジョブでも）", () => {
+    const eq = new Equipment();
+    eq.equip(item("BASE-WPN-GREATSWORD-T1"), GEAR_DATA);
+    const r = eq.equip(item("BASE-WPN-DAGGER-T1"), GEAR_DATA, { canDualWield: true });
+    expect(r.ok).toBe(true);
+    expect(r.slot).toBe("主手");
+    // 主手が片手武器なら、続けて入れると副手（二刀流）
+    const r2 = eq.equip(item("BASE-WPN-LONGSWORD-T1"), GEAR_DATA, { canDualWield: true });
+    expect(r2.slot).toBe("副手");
+  });
+});

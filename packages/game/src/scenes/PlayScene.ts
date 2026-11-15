@@ -4,6 +4,11 @@ import {
   AttackRunner,
   AutoSaver,
   ConditionRegistry,
+  DiscoveryTracker,
+  activeLatents,
+  boardFlags,
+  equippedUniqueEffects,
+  isBackHit,
   JobBoard,
   applyGaugeHooks,
   doubleNearStart,
@@ -59,6 +64,8 @@ import {
 } from "@stella/core";
 import {
   BOARD_DATA,
+  UNIQUE_DATA,
+  UNIQUES,
   JOB_BOARDS,
   STAR_START_OF_JOB,
   GEAR_DATA,
@@ -145,6 +152,12 @@ export class PlayScene extends Phaser.Scene {
   /** 職紋盤（ジョブごとに別。配置はジョブごとに残る） */
   private jobBoards = new Map<string, JobBoard>();
   private jobPoints = 0;
+  /** 潜在効果の発見（「？？？」の解放）。セーブの discoveries に保存する */
+  private readonly discoveries = new DiscoveryTracker();
+  private notice = "";
+  private noticeLeft = 0;
+  private lastPos = { x: 0, y: 0 };
+  private uniqueCursor = 0;
   private jobBoardEval: BoardEvaluation = {
     active: [],
     dormant: [],
@@ -280,14 +293,30 @@ export class PlayScene extends Phaser.Scene {
           2,
         )
       : this.boardEval.effects;
-    const all = [...starEffects, ...this.jobBoardEval.effects];
-    this.fighter.setEffectSource(all, bc.ctx, (skill) =>
+    // 潜在効果の発動条件に使う旗（ノード・星座・職奥義）。装備のユニークの効果を足して評価する
+    const flags = boardFlags([
+      { data: BOARD_DATA, evaluation: this.boardEval },
+      { data: JOB_BOARDS[this.job.id]?.data ?? BOARD_DATA, evaluation: this.jobBoardEval },
+    ]);
+    if (this.fighter.gauge.forceIntensified) flags.add("鬼神中");
+    const ctx = { ...bc.ctx, flags: new Set([...bc.ctx.flags, ...flags]) };
+    const all = [
+      ...starEffects,
+      ...this.jobBoardEval.effects,
+      ...equippedUniqueEffects(this.equipment, UNIQUE_DATA),
+    ];
+    const latent = activeLatents(evaluate(all, ctx, new ConditionRegistry()), UNIQUE_DATA);
+    for (const id of this.discoveries.update(latent)) {
+      this.notice = `潜在効果が目覚めた：${UNIQUE_DATA.uniques.get(id)?.name ?? id}`;
+      this.noticeLeft = 4;
+    }
+    this.fighter.setEffectSource(all, ctx, (skill) =>
       this.tagRegistry.expand(
         skill.tags.map((t) => this.tagIdByName.get(t)).filter((x): x is string => x !== undefined),
       ),
     );
     // 職能ゲージに作用する効果（闘志の炉・不屈の闘志・無限連撃など）
-    const hooks = evaluate(all, bc.ctx, new ConditionRegistry()).hooks();
+    const hooks = evaluate(all, ctx, new ConditionRegistry()).hooks();
     applyGaugeHooks(this.fighter.gauge, hooks);
   }
 
@@ -416,9 +445,17 @@ export class PlayScene extends Phaser.Scene {
           move: moveVector(actions),
           aimPoint: { x: world.x / M, y: world.y / M },
           dodgePressed: this.dodgePressedOnce || actions.has("dodge"),
+          speedMultiplier: this.fighter.moveSpeedMultiplier,
         },
         TICK_SECONDS,
       );
+      const moved = Math.hypot(
+        this.player.pos.x - this.lastPos.x,
+        this.player.pos.y - this.lastPos.y,
+      );
+      this.fighter.noteMovement(moved > 1e-6, moved, TICK_SECONDS);
+      this.lastPos = { x: this.player.pos.x, y: this.player.pos.y };
+      this.noticeLeft = Math.max(0, this.noticeLeft - TICK_SECONDS);
       this.dodgePressedOnce = false;
       this.updateSkills(actions);
       this.updateAttack(actions.has("skill1"));
@@ -452,7 +489,7 @@ export class PlayScene extends Phaser.Scene {
         this.telegraphs.set(e.enemy, { shape: e.attack.shape, angle: e.angle });
         break;
       case "hit":
-        this.hurtPlayer(e.damage);
+        this.hurtPlayer(e.damage, e.enemy);
         break;
       case "projectile": {
         const p = this.projectiles.spawn({
@@ -484,10 +521,21 @@ export class PlayScene extends Phaser.Scene {
     }
   }
 
-  private hurtPlayer(rawDamage: number): void {
+  private hurtPlayer(rawDamage: number, attacker?: Enemy): void {
     // 敵の命中に対するプレイヤーの回避値は今は0（装備の画面 U-12 で扱う）
     if (!canBeHit(this.player)) return;
-    const dealt = this.fighter.takeDamage(rawDamage);
+    const behind =
+      attacker !== undefined &&
+      attacker.def.noFacing !== true &&
+      isBackHit(this.player.pos, attacker.body.pos, attacker.body.facing);
+    const dealt = this.fighter.takeDamage(rawDamage, { playerBehindAttacker: behind });
+    if (attacker) {
+      this.fighter.retaliate(
+        attacker.body,
+        dealt,
+        this.enemies.map((e) => e.body),
+      );
+    }
     this.cameras.main.shake(80, 0.002);
     this.showText(this.player.pos.x, this.player.pos.y, `-${dealt.toFixed(1)}`, "#ff8a8a", 9);
     if (this.fighter.hp <= 0) {
@@ -580,6 +628,21 @@ export class PlayScene extends Phaser.Scene {
     if (jp.has("KeyC")) this.panel = this.panel === "character" ? "none" : "character";
     if (jp.has("KeyT")) this.panel = this.panel === "star" ? "none" : "star";
     if (jp.has("KeyJ")) this.panel = this.panel === "job" ? "none" : "job";
+    if (jp.has("KeyU")) {
+      // 開発用：ユニークを持ち物に入れる（Uキーで順番に）
+      const entry = UNIQUES[this.uniqueCursor++ % UNIQUES.length];
+      if (entry) {
+        this.bag.add({
+          uid: `itm_${String(this.itemSerial++).padStart(6, "0")}`,
+          baseId: entry.baseId,
+          rarity: "unique",
+          ilvl: 20,
+          affixes: [],
+          enhance: 0,
+          uniqueId: entry.id,
+        });
+      }
+    }
     if (jp.has("KeyP")) {
       this.starPoints += 5;
       this.jobPoints += 5;
@@ -637,7 +700,15 @@ export class PlayScene extends Phaser.Scene {
       `【持ち物】${String(this.bag.count)}/${String(this.bag.capacity)}  金貨 ${String(this.purse.gold)}\n↑↓ 選ぶ / Enter 装備・外す / I 閉じる\n\n${rows.join("\n")}`,
     );
     this.panelTip.setText(
-      tooltipText(list[this.panelCursor], GEAR_DATA, this.equipment, stats, this.job.id, dual),
+      tooltipText(
+        list[this.panelCursor],
+        GEAR_DATA,
+        this.equipment,
+        stats,
+        this.job.id,
+        dual,
+        new Set(this.discoveries.all()),
+      ),
     );
     return true;
   }
@@ -734,6 +805,10 @@ export class PlayScene extends Phaser.Scene {
     for (const enemy of this.enemies) {
       if (enemy.body.hp > 0 || this.dropped.has(enemy)) continue;
       this.dropped.add(enemy);
+      this.fighter.onEnemyKilled(
+        enemy.body,
+        this.enemies.map((e) => e.body),
+      );
       const source: DropSource = enemy.rank === "normal" ? "normal" : enemy.rank;
       const classes = Object.entries(this.job.aptitude)
         .filter(([, apt]) => apt === "S" || apt === "A")
@@ -970,7 +1045,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.hud.setText(
-      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避\n金貨 ${String(this.purse.gold)}${this.savedNote}  持ち物 ${String(this.bag.count)}/${String(this.bag.capacity)}（F で拾う）  敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
+      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避${this.noticeLeft > 0 ? `\n★ ${this.notice}` : ""}\n金貨 ${String(this.purse.gold)}${this.savedNote}  持ち物 ${String(this.bag.count)}/${String(this.bag.capacity)}（F で拾う）  敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
     );
   }
 }

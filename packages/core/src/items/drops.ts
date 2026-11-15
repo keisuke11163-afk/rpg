@@ -141,6 +141,12 @@ export function rollDrops(data: GenerationData, ctx: DropContext, rng: Rng): Dro
           ilvl,
           uid: ctx.uid,
           ...(ctx.family ? { enemyFamily: ctx.family } : {}),
+          uniqueSource:
+            ctx.source === "chapterBoss"
+              ? "boss-ch1"
+              : ctx.source === "elite" && ctx.family === "TAG-ENEMY-BEAST"
+                ? "elite-beast"
+                : "any",
           rarityContext: {
             rank,
             ...(ctx.floorBonus !== undefined ? { floorBonus: ctx.floorBonus } : {}),

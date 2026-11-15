@@ -35,7 +35,7 @@ export interface LoadResult {
 
 /** 生のJSONをスキーマで読み、データの集合にする。形の誤りは issues に集める */
 export function parseFiles(files: readonly RawFile[]): LoadResult {
-  const data: DataSet = { tags: [], effects: [], starNodes: [], constellations: [] };
+  const data: DataSet = { tags: [], effects: [], starNodes: [], constellations: [], uniques: [] };
   const issues: DataIssue[] = [];
   for (const { file, kind, json } of files) {
     const wrapper = dataFileSchema.safeParse(json);
@@ -202,6 +202,7 @@ export function validateData(data: DataSet): DataIssue[] {
     }
   }
   issues.push(...validateStarBoard(data, tagIds));
+  issues.push(...validateUniques(data));
 
   // 規則4（本仕様書 2.4.1）：同じ数値を上書きする効果で、同じ優先度は作らない
   const overrides = new Map<string, string>();
@@ -219,6 +220,29 @@ export function validateData(data: DataSet): DataIssue[] {
       } else {
         overrides.set(key, effect.id);
       }
+    }
+  }
+  return issues;
+}
+
+/** ユニークの検証（本仕様書 3.7・10.4）：効果の参照、固有効果の「ユニーク」出どころ、潜在効果は条件つき */
+function validateUniques(data: DataSet): DataIssue[] {
+  const issues: DataIssue[] = [];
+  const effects = new Map(data.effects.map((e) => [e.id, e]));
+  for (const u of data.uniques) {
+    const where = `uniques:${u.id}`;
+    for (const id of [...u.fixed, u.latent.effect]) {
+      const e = effects.get(id);
+      if (!e) issues.push({ where, message: `存在しない効果 ${id}` });
+      else if (e.source !== "ユニーク")
+        issues.push({ where, message: `${id} の出どころが「ユニーク」ではない` });
+    }
+    const latent = effects.get(u.latent.effect);
+    if (latent && latent.conditions.length === 0) {
+      issues.push({
+        where,
+        message: "潜在効果には、他のシステムを条件にした発動条件が必要（本仕様書 3.7 の3）",
+      });
     }
   }
   return issues;

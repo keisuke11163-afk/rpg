@@ -33,7 +33,8 @@ export function inventoryEntries(equipment: Equipment, bag: ItemBag): PanelEntry
 export function entryLabel(entry: PanelEntry, data: GearData): string {
   const base = data.bases.get(entry.item.baseId);
   const mark = entry.equipped ? `＊${entry.slot ?? ""} ` : "  ";
-  return `${mark}[${RARITY_NAME[entry.item.rarity]}] ${base?.name ?? "?"}`;
+  const unique = entry.item.uniqueId ? data.uniques.get(entry.item.uniqueId)?.name : undefined;
+  return `${mark}[${RARITY_NAME[entry.item.rarity]}] ${unique ? `「${unique}」` : (base?.name ?? "?")}`;
 }
 
 const pct = (v: number): string => `${(v * 100).toFixed(1)}%`;
@@ -51,6 +52,7 @@ export function tooltipText(
   stats: Readonly<Record<string, number>>,
   jobId: string,
   canDualWield: boolean,
+  revealedLatents: ReadonlySet<string> = new Set(),
 ): string {
   if (!entry) return "";
   const prefixes = {
@@ -62,7 +64,7 @@ export function tooltipText(
     warning: "！",
     latent: "？",
   } as const;
-  const lines = describeItem(entry.item, data, { jobId, stats }).map(
+  const lines = describeItem(entry.item, data, { jobId, stats, revealedLatents }).map(
     (l) => prefixes[l.kind] + l.text,
   );
   if (!entry.equipped) {

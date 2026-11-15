@@ -22,6 +22,8 @@ export interface TooltipContext {
   stats?: Readonly<Record<string, number>>;
   /** 今の技のタグ（タグの一致のヒント） */
   skillTags?: readonly string[];
+  /** 発動が確認されたユニークの潜在効果（ユニークのID）。まだのものは「？？？」と出す */
+  revealedLatents?: ReadonlySet<string>;
 }
 
 export type LineKind = "title" | "base" | "implicit" | "affix" | "hint" | "warning" | "latent";
@@ -100,7 +102,23 @@ export function describeItem(
     lines.push({ kind: "affix", text: d.text });
     if (d.hint) lines.push({ kind: "hint", text: d.hint });
   }
-  if (item.uniqueId !== undefined) lines.push({ kind: "latent", text: "潜在効果：？？？" });
+  if (item.uniqueId !== undefined) {
+    const u = data.uniques.get(item.uniqueId);
+    if (u) {
+      lines[0] = {
+        kind: "title",
+        text: `固有の${base.name}「${u.name}」${item.enhance > 0 ? ` +${String(item.enhance)}` : ""}`,
+      };
+      for (const f of u.fixed) lines.push({ kind: "affix", text: f });
+      lines.push(
+        ctx.revealedLatents?.has(item.uniqueId) === true
+          ? { kind: "latent", text: `潜在効果：${u.latent}` }
+          : { kind: "latent", text: `潜在効果：？？？（${u.hint}）` },
+      );
+    } else {
+      lines.push({ kind: "latent", text: "潜在効果：？？？" });
+    }
+  }
   if (base.requirement) {
     const have = ctx.stats?.[base.requirement.stat] ?? Infinity;
     const text = `要求 ${base.requirement.stat} ${String(base.requirement.value)}`;

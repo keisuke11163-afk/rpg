@@ -1,0 +1,489 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "EFF-UNQ-U02-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.12
+        },
+        {
+          "kind": "挙動",
+          "hook": "移動距離ごとのCD短縮",
+          "params": {
+            "distance": 10,
+            "seconds": 0.3,
+            "maxPerSecond": 1
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "移動速度+12%。10m移動するごとに、全スキルのクールダウンを0.3秒短縮する（1秒あたり最大1.0秒分）"
+    },
+    {
+      "id": "EFF-UNQ-U02-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "移動距離ごとのCD短縮",
+          "params": {
+            "distance": 10,
+            "seconds": 0.5,
+            "maxPerSecond": 1
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "星座:風見座"
+        }
+      ],
+      "note": "星座「風見座」を完成：短縮が0.5秒になる"
+    },
+    {
+      "id": "EFF-UNQ-U03-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "乗算",
+          "stat": "ダメージ",
+          "value": 0.6
+        },
+        {
+          "kind": "挙動",
+          "hook": "強制付与:出血"
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "出血の最大スタック",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": true,
+        "基準値": true
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "打撃値と基準値が-40%。物理ヒットは必ず出血を付与する。出血の最大スタック+4（8→12）"
+    },
+    {
+      "id": "EFF-UNQ-U03-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "別の異常として数える",
+          "params": {
+            "from": "TAG-AIL-BLEED",
+            "to": "TAG-AIL-POISON"
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "ノード:毒血同源"
+        }
+      ],
+      "note": "職紋「毒血同源」：出血が毒としても扱われる（ダメージは二重にならない。種類・数を数える効果に計上される）"
+    },
+    {
+      "id": "EFF-UNQ-U06-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "必中"
+        },
+        {
+          "kind": "挙動",
+          "hook": "禁止:会心"
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "value": 0.005,
+          "per": {
+            "count": "会心率増加%"
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "攻撃と呪文が必中になる。会心しなくなる。会心率の増加1%ごとに、ダメージ+0.5%（加算）"
+    },
+    {
+      "id": "EFF-UNQ-U06-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "集中の最大値",
+          "params": {
+            "add": 50
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "ノード:心眼"
+        }
+      ],
+      "note": "職紋（弓使い）「心眼」：集中の最大値+50"
+    },
+    {
+      "id": "EFF-UNQ-U13-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "静止で防具値上昇",
+          "params": {
+            "perSecond": 0.1,
+            "max": 0.5
+          }
+        },
+        {
+          "kind": "挙動",
+          "hook": "被弾時の毒付与",
+          "params": {
+            "ratio": 0.3,
+            "radius": 0
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "止まっている間、1秒ごとに防具値+10%（最大+50%。動くと0に戻る）。攻撃を受けると、攻撃してきた敵に毒を1スタック付与する（基準値は受けたダメージの30%）"
+    },
+    {
+      "id": "EFF-UNQ-U13-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "被弾時の毒付与",
+          "params": {
+            "ratio": 0.3,
+            "radius": 3
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "ノード:徒手の極意"
+        }
+      ],
+      "note": "天極「徒手の極意」：毒を付与する相手が、攻撃してきた敵の周囲3mの全ての敵になる"
+    },
+    {
+      "id": "EFF-UNQ-U14-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "出血の移転",
+          "params": {
+            "keepStacks": false
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "出血している敵を倒すと、残っていた出血が最も近い敵1体に移る（移ると1スタックになる）"
+    },
+    {
+      "id": "EFF-UNQ-U14-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "出血の移転",
+          "params": {
+            "keepStacks": true
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "ノード:傷口を抉る"
+        }
+      ],
+      "note": "輝星「傷口を抉る」：移るときにスタック数を保つ"
+    },
+    {
+      "id": "EFF-UNQ-U15-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "崩れた敵へのヒットで闘志",
+          "params": {
+            "gain": 3,
+            "heavyGain": 9
+          }
+        },
+        {
+          "kind": "挙動",
+          "hook": "崩しの拡散",
+          "params": {
+            "radius": 4,
+            "ratio": 0.3
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "崩れている敵へのヒットで闘志+3（重撃なら+9）。敵の崩しゲージを満タンにすると、周囲4mの敵の崩しゲージを最大値の30%だけ増やす"
+    },
+    {
+      "id": "EFF-UNQ-U15-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "崩しの拡散",
+          "params": {
+            "radius": 4,
+            "ratio": 0.5
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "ノード:鬼神化"
+        },
+        {
+          "type": "旗",
+          "name": "鬼神中"
+        }
+      ],
+      "note": "職奥義「鬼神化」：鬼神の間は、周囲へ増やす量が50%になる"
+    },
+    {
+      "id": "EFF-UNQ-U16-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "背後にいる間の被ダメージ軽減",
+          "params": {
+            "ratio": 0.15
+          }
+        },
+        {
+          "kind": "挙動",
+          "hook": "移動の技の後の背面扱い",
+          "params": {
+            "seconds": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "敵の背後にいる間、その敵から受けるダメージ-15%。移動の技を使った後2秒間、全てのヒットを背面からのヒットとして扱う"
+    },
+    {
+      "id": "EFF-UNQ-U16-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "背面ヒットでコンボ点",
+          "params": {
+            "gain": 1,
+            "intervalSeconds": 1
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "ノード:影法師"
+        }
+      ],
+      "note": "職奥義「影法師」：代わりに、背面からのヒットで得るコンボ点+1（1秒に1回まで）"
+    },
+    {
+      "id": "EFF-UNQ-U17-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "分岐ヒット",
+          "params": {
+            "ratio": 0.5,
+            "radius": 5,
+            "ailments": false
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "ヒットのたびに、近くの別の敵1体にも、そのヒットの50%のダメージが当たる（分かれたヒットは状態異常を付与しない）"
+    },
+    {
+      "id": "EFF-UNQ-U17-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "分岐ヒット",
+          "params": {
+            "ratio": 0.5,
+            "radius": 5,
+            "ailments": true
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "星座:双刃座"
+        },
+        {
+          "type": "旗",
+          "name": "二刀流"
+        }
+      ],
+      "note": "星座「双刃座」を完成：二刀流のとき、分かれたヒットも状態異常を付与する"
+    },
+    {
+      "id": "EFF-UNQ-U18-FIXED",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "毒スタックによる被ダメージ倍率",
+          "params": {
+            "perStacks": 10,
+            "mult": 1.04,
+            "max": 1.2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "敵の毒10スタックにつき、その敵が受けるダメージ×1.04（乗算。最大×1.20）"
+    },
+    {
+      "id": "EFF-UNQ-U18-LATENT",
+      "source": "ユニーク",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "毒スタックによる被ダメージ倍率",
+          "params": {
+            "perStacks": 10,
+            "mult": 1.04,
+            "max": 1.3
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "conditions": [
+        {
+          "type": "旗",
+          "name": "星座:毒蛇座"
+        }
+      ],
+      "note": "星座「毒蛇座」を完成：上限が×1.30になる"
+    }
+  ]
+}

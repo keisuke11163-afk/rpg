@@ -1,0 +1,131 @@
+{
+  "dataVersion": 1,
+  "items": [
+    {
+      "id": "UNQ-U02",
+      "name": "旅人の古靴",
+      "baseId": "BASE-ARM-LIGHT-FEET-T1",
+      "requiredLevel": 2,
+      "obtain": "any",
+      "weight": 1,
+      "fixed": ["EFF-UNQ-U02-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U02-LATENT",
+        "hint": "風を読む星座に応える"
+      },
+      "provisional": true
+    },
+    {
+      "id": "UNQ-U03",
+      "name": "千の小傷",
+      "baseId": "BASE-WPN-DAGGER-T1",
+      "requiredLevel": 14,
+      "obtain": "boss-ch1",
+      "weight": 1,
+      "fixed": ["EFF-UNQ-U03-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U03-LATENT",
+        "hint": "盗賊の毒の術に応える"
+      },
+      "provisional": true
+    },
+    {
+      "id": "UNQ-U06",
+      "name": "盲目の賢者の目隠し",
+      "baseId": "BASE-ARM-LIGHT-HEAD-T1",
+      "requiredLevel": 20,
+      "obtain": "any",
+      "weight": 1,
+      "fixed": ["EFF-UNQ-U06-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U06-LATENT",
+        "hint": "弓使いの心の目に応える"
+      },
+      "provisional": true
+    },
+    {
+      "id": "UNQ-U13",
+      "name": "樹皮の盾",
+      "baseId": "BASE-SHD-LARGE-T1",
+      "requiredLevel": 12,
+      "obtain": "boss-ch1",
+      "weight": 1,
+      "fixed": ["EFF-UNQ-U13-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U13-LATENT",
+        "hint": "素手の者の覚悟に応える"
+      },
+      "provisional": true
+    },
+    {
+      "id": "UNQ-U14",
+      "name": "狼牙の首飾り",
+      "baseId": "BASE-ACC-NECK-AMBER-T1",
+      "requiredLevel": 6,
+      "obtain": "elite-beast",
+      "weight": 3,
+      "fixed": ["EFF-UNQ-U14-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U14-LATENT",
+        "hint": "傷を抉る者に応える"
+      },
+      "provisional": true
+    },
+    {
+      "id": "UNQ-U15",
+      "name": "打ち鳴らしの籠手",
+      "baseId": "BASE-ARM-HEAVY-HANDS-T1",
+      "requiredLevel": 10,
+      "obtain": "any",
+      "weight": 1,
+      "fixed": ["EFF-UNQ-U15-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U15-LATENT",
+        "hint": "鬼神の宿る者に応える"
+      },
+      "provisional": true
+    },
+    {
+      "id": "UNQ-U16",
+      "name": "背向けの外套",
+      "baseId": "BASE-ARM-LIGHT-BODY-T1",
+      "requiredLevel": 16,
+      "obtain": "any",
+      "weight": 1,
+      "fixed": ["EFF-UNQ-U16-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U16-LATENT",
+        "hint": "影となる者に応える"
+      },
+      "provisional": true
+    },
+    {
+      "id": "UNQ-U17",
+      "name": "二股の枝",
+      "baseId": "BASE-WPN-AXE-T1",
+      "requiredLevel": 4,
+      "obtain": "any",
+      "weight": 1,
+      "fixed": ["EFF-UNQ-U17-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U17-LATENT",
+        "hint": "双つの刃の星座に応える"
+      },
+      "provisional": true
+    },
+    {
+      "id": "UNQ-U18",
+      "name": "母樹の根冠",
+      "baseId": "BASE-ARM-HEAVY-HEAD-T1",
+      "requiredLevel": 14,
+      "obtain": "boss-ch1",
+      "weight": 1,
+      "fixed": ["EFF-UNQ-U18-FIXED"],
+      "latent": {
+        "effect": "EFF-UNQ-U18-LATENT",
+        "hint": "毒蛇の星座に応える"
+      },
+      "provisional": true
+    }
+  ]
+}

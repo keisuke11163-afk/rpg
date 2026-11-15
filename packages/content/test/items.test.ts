@@ -276,8 +276,16 @@ describe("アイテムの生成", () => {
     }
     expect(jobAffix).toBeGreaterThan(plain);
   });
-  it("ユニークの抽選元が空のあいだは、希少になる（U-16 で9個を入れる）", () => {
-    expect(gen({ ilvl: 10, rarity: "unique" }, 1).rarity).toBe("rare");
+  it("ユニークは必要LvがiLv以下のものから抽選する。該当がなければ希少になる", () => {
+    expect(gen({ ilvl: 1, rarity: "unique" }, 1).rarity).toBe("rare");
+    const ids = new Set<string>();
+    for (let i = 0; i < 300; i++) {
+      const it = gen({ ilvl: 10, rarity: "unique" }, i);
+      expect(it.rarity).toBe("unique");
+      ids.add(it.uniqueId ?? "");
+    }
+    // iLv10：旅人の古靴（Lv2）・二股の枝（Lv4）・狼牙の首飾り（Lv6）・打ち鳴らしの籠手（Lv10）。第1章ボス専用は出ない
+    expect([...ids].sort()).toEqual(["UNQ-U02", "UNQ-U14", "UNQ-U15", "UNQ-U17"]);
   });
   it("同じシードで同じアイテム", () => {
     n = 0;

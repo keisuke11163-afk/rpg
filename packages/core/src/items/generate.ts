@@ -18,6 +18,9 @@ export interface UniqueEntry {
   id: string;
   baseId: string;
   requiredLevel: number;
+  /** any＝どこでも／elite-beast＝どこでも（獣系の精鋭から出やすい）／boss-ch1 など＝その入手元だけ */
+  obtain?: string;
+  weight?: number;
 }
 
 export interface GenerationData {
@@ -44,6 +47,8 @@ export interface GenerateContext {
   enemyFamily?: string;
   /** 出すtierの下限（数字が小さいほど高いtier）。MVPは5（T7〜T5） */
   tierFloor?: number;
+  /** ユニークの入手元（boss-ch1・elite-beast など）。専用のユニークは、この入手元のときだけ出る */
+  uniqueSource?: string;
   /** ジョブに合わせる確率（既定35%） */
   jobBiasChance?: number;
   uid: () => string;
@@ -123,9 +128,25 @@ export function generateItem(data: GenerationData, ctx: GenerateContext, rng: Rn
 
   // ユニーク・セット：必要LvがiLv以下のものから抽選する。なければ希少にする
   if (rarity === "unique" || rarity === "set") {
-    const pool = data.uniques.filter((u) => u.requiredLevel <= ctx.ilvl);
+    const source = ctx.uniqueSource ?? "any";
+    const pool = data.uniques.filter(
+      (u) =>
+        u.requiredLevel <= ctx.ilvl &&
+        (u.obtain === undefined ||
+          u.obtain === "any" ||
+          u.obtain === "elite-beast" ||
+          u.obtain === source),
+    );
     if (pool.length > 0) {
-      const u = rng.pick(pool);
+      // 獣系の精鋭から出やすいユニークは、その入手元のとき重みを増やす
+      const u = pool[
+        rng.weightedIndex(
+          pool.map(
+            (e) =>
+              (e.weight ?? 1) * (e.obtain === "elite-beast" && source === "elite-beast" ? 5 : 1),
+          ),
+        )
+      ] as UniqueEntry;
       return {
         uid: ctx.uid(),
         baseId: u.baseId,

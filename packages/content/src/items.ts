@@ -1,14 +1,7 @@
 /**
  * MVPのアイテムのデータ：下級のベース（補助仕様書 14章）と、詞（本仕様書 3.6）。数値は仮値。
  */
-import type {
-  AffixDef,
-  ArmorType,
-  GenerationData,
-  ItemBase,
-  Slot,
-  UniqueEntry,
-} from "@stella/core";
+import type { AffixDef, ArmorType, ItemBase, Slot } from "@stella/core";
 
 const w = (
   id: string,
@@ -406,15 +399,6 @@ export const AFFIXES: readonly AffixDef[] = [
   },
 ];
 
-/** ユニーク・セットの抽選元（U-16 feature/unique-items で9個を入れる）。今は空：抽選されたら希少になる */
-export const UNIQUES: readonly UniqueEntry[] = [];
-
-export const GENERATION_DATA: GenerationData = {
-  bases: ITEM_BASES,
-  affixes: AFFIXES,
-  uniques: UNIQUES,
-};
-
 export function itemBase(id: string): ItemBase {
   const base = ITEM_BASES.find((b) => b.id === id);
   if (!base) throw new Error(`ベースがない: ${id}`);
@@ -438,6 +422,3 @@ export const IMPLICIT_STATS: Readonly<Record<string, Readonly<Record<string, num
   "BASE-ACC-BELT-LEATHER-T1": { 薬瓶の回復量: 0.15 },
   "BASE-ACC-BELT-CHAIN-T1": { 防具値増加: 0.15, 移動速度: -0.02 },
 };
-
-import { makeGearData } from "@stella/core";
-export const GEAR_DATA = makeGearData(ITEM_BASES, AFFIXES, IMPLICIT_STATS);

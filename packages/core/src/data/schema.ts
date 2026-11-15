@@ -204,6 +204,26 @@ export const constellationSchema = z.strictObject({
 });
 export type ConstellationDef = z.infer<typeof constellationSchema>;
 
+/** ユニーク装備（本仕様書 3.7）：固有効果（ルール）と、他のシステムを条件にする潜在効果を1つ持つ */
+export const uniqueSchema = z.strictObject({
+  id: idSchema,
+  name: z.string().min(1),
+  baseId: z.string().min(1),
+  requiredLevel: z.number().int().min(1),
+  /** 入手：any＝どこでも／boss-ch1＝第1章ボス専用／elite-beast＝獣系の精鋭から出やすい など */
+  obtain: z.string().min(1),
+  /** 抽選の重み（同じ条件の中での出やすさ） */
+  weight: z.number().positive().default(1),
+  fixed: z.array(idSchema).min(1),
+  latent: z.strictObject({
+    effect: idSchema,
+    /** 発動前に出すヒント（発動するまで中身は「？？？」） */
+    hint: z.string().min(1),
+  }),
+  provisional,
+});
+export type UniqueDef = z.infer<typeof uniqueSchema>;
+
 /** 1つのデータファイルの形 */
 export const dataFileSchema = z.strictObject({
   dataVersion: z.literal(DATA_VERSION),
@@ -211,7 +231,7 @@ export const dataFileSchema = z.strictObject({
 });
 
 /** データの種類。フォルダ名と対応する */
-export const DATA_KINDS = ["tags", "effects", "starNodes", "constellations"] as const;
+export const DATA_KINDS = ["tags", "effects", "starNodes", "constellations", "uniques"] as const;
 export type DataKind = (typeof DATA_KINDS)[number];
 
 export const kindSchemas = {
@@ -219,6 +239,7 @@ export const kindSchemas = {
   effects: effectSchema,
   starNodes: starNodeSchema,
   constellations: constellationSchema,
+  uniques: uniqueSchema,
 } as const;
 
 export interface DataSet {
@@ -226,4 +247,5 @@ export interface DataSet {
   effects: EffectDef[];
   starNodes: StarNodeDef[];
   constellations: ConstellationDef[];
+  uniques: UniqueDef[];
 }

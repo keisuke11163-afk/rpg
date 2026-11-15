@@ -100,6 +100,16 @@ export interface HitSpec {
   backAilmentBonus?: number;
   /** 必ず会心する（急所穿ちの5点） */
   forceCrit?: boolean;
+  /** 会心しない（盲目の賢者の目隠し）。必ず会心より強い（本仕様書 2.4.1：禁止は強制に勝つ） */
+  noCrit?: boolean;
+  /** 必中（敵の回避を無視する） */
+  alwaysHit?: boolean;
+  /** 全てのヒットを背面からのヒットとして扱う（背向けの外套） */
+  forceBack?: boolean;
+  /** 出血の最大スタック（既定8。千の小傷で12） */
+  bleedMaxStacks?: number;
+  /** 別の異常として数える（出血を毒としても数える） */
+  ailmentAliases?: readonly (readonly [AilmentKind, AilmentKind])[];
   /** 対象の状態によって変わるダメージの補正（崩れた敵への+25%など）。ヒットごとに対象を見て求める */
   targetBonus?: (target: Combatant) => { addPct: number; mult: number };
   forcedAilments?: readonly AilmentKind[];
@@ -132,14 +142,24 @@ const MISS: HitResult = {
 
 /** 1体へのヒットを解決する。HP・崩し・状態異常を更新する */
 export function resolveHit(attacker: Vec2, target: Combatant, spec: HitSpec, rng: Rng): HitResult {
-  if (!rng.chance(hitChance(target.evasion, spec.accuracy, spec.isSpell === true))) return MISS;
-  const back = target.noFacing === true || isBackHit(attacker, target.pos, target.facing);
+  if (spec.bleedMaxStacks !== undefined) target.ailments.setMaxStacks("bleed", spec.bleedMaxStacks);
+  for (const [from, to] of spec.ailmentAliases ?? []) target.ailments.setAlias(from, to);
+  if (
+    spec.alwaysHit !== true &&
+    !rng.chance(hitChance(target.evasion, spec.accuracy, spec.isSpell === true))
+  ) {
+    return MISS;
+  }
+  const back =
+    spec.forceBack === true ||
+    target.noFacing === true ||
+    isBackHit(attacker, target.pos, target.facing);
   const chance = critChance(
     spec.weaponCrit,
     back ? (spec.backCritAdd ?? 0) : 0,
     spec.critIncrease ?? 0,
   );
-  const crit = spec.forceCrit === true || rng.chance(chance);
+  const crit = spec.noCrit === true ? false : spec.forceCrit === true || rng.chance(chance);
   const tb = spec.targetBonus?.(target);
   const damageInput = tb
     ? {

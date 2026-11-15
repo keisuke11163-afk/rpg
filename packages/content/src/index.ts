@@ -7,6 +7,8 @@ import {
 } from "@stella/core";
 import ja from "../text/ja.json" with { type: "json" };
 import effectsSamples from "../data/effects/samples.json" with { type: "json" };
+import uniqueEffects from "../data/unique/effects.json" with { type: "json" };
+import uniqueDefs from "../data/unique/uniques.json" with { type: "json" };
 import starConstellations from "../data/star/constellations.json" with { type: "json" };
 import starEffects from "../data/star/effects.json" with { type: "json" };
 import starNodes from "../data/star/nodes.json" with { type: "json" };
@@ -42,6 +44,8 @@ export const RAW_FILES: readonly RawFile[] = (
     ["star/effects.json", "effects", starEffects],
     ["star/nodes.json", "starNodes", starNodes],
     ["star/constellations.json", "constellations", starConstellations],
+    ["unique/effects.json", "effects", uniqueEffects],
+    ["unique/uniques.json", "uniques", uniqueDefs],
   ] as [string, DataKind, unknown][]
 ).map(([file, kind, json]) => ({ file, kind, json }));
 
@@ -54,7 +58,16 @@ export function loadContent(files: readonly RawFile[] = RAW_FILES): LoadResult {
 export * from "./enemies.ts";
 export * from "./items.ts";
 
-import { makeBoardData, type BoardData } from "@stella/core";
+import {
+  makeBoardData,
+  makeGearData,
+  makeUniqueData,
+  type BoardData,
+  type GenerationData,
+  type UniqueEntry,
+  type UniqueText,
+} from "@stella/core";
+import { AFFIXES, IMPLICIT_STATS, ITEM_BASES } from "./items.ts";
 const loaded = loadContent();
 /** 星辰盤のデータ（ノード・効果・星座）。読み込みの検証を通ったものだけ使う */
 const isJobNode = (id: string): boolean => id.startsWith("JNODE-");
@@ -89,3 +102,37 @@ export const STAR_START_OF_JOB: Readonly<Record<string, string>> = {
 };
 /** 全タグの親子関係。装備・技のタグの展開に使う */
 export const TAG_DATA = loaded.data.tags;
+
+/** ユニークの抽選元（必要Lv・入手元・重み）。第1章ボス専用のものは、ボスのドロップのときだけ出る */
+export const UNIQUES: readonly UniqueEntry[] = loaded.data.uniques.map((u) => ({
+  id: u.id,
+  baseId: u.baseId,
+  requiredLevel: u.requiredLevel,
+  obtain: u.obtain,
+  weight: u.weight,
+}));
+
+/** アイテム生成のデータ（ベース・詞・ユニーク） */
+export const GENERATION_DATA: GenerationData = {
+  bases: ITEM_BASES,
+  affixes: AFFIXES,
+  uniques: UNIQUES,
+};
+
+const uniqueEffectMap = new Map(loaded.data.effects.map((e) => [e.id, e]));
+const uniqueTexts = new Map<string, UniqueText>(
+  loaded.data.uniques.map((u) => [
+    u.id,
+    {
+      name: u.name,
+      fixed: u.fixed.map((id) => uniqueEffectMap.get(id)?.note ?? ""),
+      latent: uniqueEffectMap.get(u.latent.effect)?.note ?? "",
+      hint: u.latent.hint,
+    },
+  ]),
+);
+
+/** 装備のデータ（ベース・詞・基本刻印・ユニークの説明） */
+export const GEAR_DATA = makeGearData(ITEM_BASES, AFFIXES, IMPLICIT_STATS, uniqueTexts);
+/** ユニークの固有効果・潜在効果のデータ */
+export const UNIQUE_DATA = makeUniqueData(loaded.data.uniques, loaded.data.effects);

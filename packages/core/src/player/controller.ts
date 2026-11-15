@@ -54,6 +54,8 @@ export interface PlayerInput {
   aimPoint: Vec2;
   /** このフレームで回避が押された */
   dodgePressed: boolean;
+  /** 移動速度の倍率（装備・ツリーの移動速度。既定1）。回避の速さは変わらない */
+  speedMultiplier?: number;
 }
 
 export function isDodging(p: PlayerState): boolean {
@@ -99,7 +101,8 @@ export function stepPlayer(p: PlayerState, input: PlayerInput, dt: number): Play
     return stepPlayer(p, { ...input, dodgePressed: false }, dt);
   }
 
-  p.pos.x += input.move.x * PLAYER.moveSpeed * dt;
-  p.pos.y += input.move.y * PLAYER.moveSpeed * dt;
+  const speed = PLAYER.moveSpeed * (input.speedMultiplier ?? 1);
+  p.pos.x += input.move.x * speed * dt;
+  p.pos.y += input.move.y * speed * dt;
   return p;
 }

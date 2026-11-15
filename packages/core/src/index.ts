@@ -54,3 +54,5 @@ export * from "./save/state.ts";
 export * from "./board/star.ts";
 export * from "./board/context.ts";
 export * from "./board/job.ts";
+export * from "./items/unique.ts";
+export * from "./board/flags.ts";

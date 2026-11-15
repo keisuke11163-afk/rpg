@@ -151,6 +151,8 @@ export class AilmentSet {
   private freezeImmune = 0;
   private weakenLeft = 0;
   private readonly maxStackOverride: Partial<Record<AilmentKind, number>> = {};
+  /** 別の異常として数える（毒血同源：出血が毒としても数えられる）。ダメージは二重にならない */
+  private readonly aliases = new Map<AilmentKind, AilmentKind>();
 
   private readonly target: TargetInfo;
 
@@ -161,6 +163,45 @@ export class AilmentSet {
   /** 重ね掛けの上限を変える効果（千の小傷：出血12など） */
   setMaxStacks(kind: AilmentKind, max: number): void {
     this.maxStackOverride[kind] = max;
+  }
+
+  /** from の異常を、to としても数える。種類や数を数える効果にだけ計上される */
+  setAlias(from: AilmentKind, to: AilmentKind): void {
+    this.aliases.set(from, to);
+  }
+
+  /** 別の異常として数えるものを含めた、スタック数（例：出血+毒） */
+  countedStacks(kind: AilmentKind): number {
+    let total = this.stackCount(kind);
+    for (const [from, to] of this.aliases) if (to === kind) total += this.stackCount(from);
+    return total;
+  }
+
+  /** 掛かっている種類の数（別の異常として数えるものを含む。冷却・凍結は1種類） */
+  countedKinds(): number {
+    const kinds: AilmentKind[] = this.activeKinds();
+    for (const [from, to] of this.aliases) if (kinds.includes(from)) kinds.push(to);
+    return countAilmentKinds(kinds);
+  }
+
+  /** 掛かっているスタックの写し（出血の移転などで、別の敵に移すため） */
+  exportStacks(
+    kind: AilmentKind,
+  ): { total: number; remaining: number; duration: number; element: Element }[] {
+    return (this.stacks.get(kind) ?? []).map((s) => ({ ...s }));
+  }
+
+  /** スタックを加える（上限を超えない） */
+  importStacks(
+    kind: AilmentKind,
+    stacks: readonly { total: number; remaining: number; duration: number; element: Element }[],
+  ): void {
+    for (const s of stacks) this.push(kind, { total: s.total, element: s.element });
+  }
+
+  /** 全ての掛かっているスタックを消す（移転元など） */
+  clear(kind: AilmentKind): void {
+    this.stacks.delete(kind);
   }
 
   stackCount(kind: AilmentKind): number {
