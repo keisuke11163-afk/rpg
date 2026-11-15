@@ -11,6 +11,7 @@ import {
   SfxLimiter,
   type SfxObservation,
   skillSfx,
+  skillUseSfx,
 } from "../src/audio/sfx-events.ts";
 
 /** 既定の規則のリミッター。 */
@@ -26,7 +27,6 @@ const baseObs = (): SfxObservation => ({
   dodging: false,
   skillUses: new Map<string, number>(),
   flaskCharges: 5,
-  groundItems: 0,
   carried: 0,
   level: 1,
   jobId: "knight",
@@ -34,7 +34,7 @@ const baseObs = (): SfxObservation => ({
   deaths: 0,
   chestsOpened: 0,
   panel: undefined,
-  equipment: "sword:1",
+  equipment: ["sword:1", undefined],
   nodes: 0,
 });
 const obs = (over: Partial<SfxObservation> = {}): SfxObservation => ({ ...baseObs(), ...over });
@@ -48,7 +48,24 @@ const tracker = (start: SfxObservation = obs()): SfxEventTracker => {
   return t;
 };
 
+describe("skillUseSfx", () => {
+  it("通常攻撃の近接は鳴らさない。弓・杖の通常攻撃は投射・魔法の音", () => {
+    expect(skillUseSfx("SKL-BASIC-ATTACK", ["TAG-FORM-MELEE"], "melee")).toBeUndefined();
+    expect(skillUseSfx("SKL-BASIC-ATTACK", [], undefined)).toBeUndefined();
+    expect(skillUseSfx("SKL-BASIC-ATTACK", [], "projectile")).toBe("skillProjectile");
+    expect(skillUseSfx("SKL-BASIC-ATTACK", ["TAG-FORM-SPELL"], "projectile")).toBe("skillSpell");
+  });
+
+  it("通常攻撃以外の近接の技は skillMelee", () => {
+    expect(skillUseSfx("SKL-WHIRLWIND", ["TAG-FORM-MELEE"], "melee")).toBe("skillMelee");
+  });
+});
+
 describe("SFX_KEYS と SFX_RULES", () => {
+  it("hit の最小の間隔は 70 ミリ秒（連続ヒットが機関銃にならない。D-SFX-7）", () => {
+    expect(SFX_RULES.hit.minIntervalMs).toBe(70);
+  });
+
   it("全てのキーに規則がある", () => {
     for (const k of SFX_KEYS) expect(SFX_RULES[k]).toBeDefined();
   });
@@ -307,22 +324,67 @@ describe("SfxEventTracker", () => {
     expect(t.observe(obs({ skillUses: uses }))).toEqual(["skillSpell"]);
   });
 
+  it("同じ Map を渡し続けて回数が増えるたびに鳴り、増えないフレームは鳴らない", () => {
+    const uses = new Map<string, number>();
+    const t = new SfxEventTracker(skillKey);
+    t.observe(obs({ skillUses: uses }));
+    uses.set("SKILL-SPELL", 1);
+    expect(t.observe(obs({ skillUses: uses }))).toEqual(["skillSpell"]);
+    expect(t.observe(obs({ skillUses: uses }))).toEqual([]);
+    uses.set("SKILL-SPELL", 2);
+    expect(t.observe(obs({ skillUses: uses }))).toEqual(["skillSpell"]);
+  });
+
+  it("最初の observe で技の回数が既にあっても鳴らさない（その後の増加は鳴る）", () => {
+    const uses = new Map([["SKILL-SPELL", 7]]);
+    const t = new SfxEventTracker(skillKey);
+    expect(t.observe(obs({ skillUses: uses }))).toEqual([]);
+    expect(t.observe(obs({ skillUses: uses }))).toEqual([]);
+    uses.set("SKILL-SPELL", 8);
+    expect(t.observe(obs({ skillUses: uses }))).toEqual(["skillSpell"]);
+  });
+
   it("薬瓶の残りが減ったら flask。増えた（補充）ときは鳴らない", () => {
     const t = tracker();
     expect(t.observe(obs({ flaskCharges: 4 }))).toEqual(["flask"]);
     expect(t.observe(obs({ flaskCharges: 9 }))).toEqual([]);
   });
 
-  it("地面の物が減り、かつ持ち物が増えたら pickup", () => {
-    const t = tracker(obs({ groundItems: 2, carried: 0 }));
-    expect(t.observe(obs({ groundItems: 1, carried: 1 }))).toEqual(["pickup"]);
+  // 仕様変更（HUD-8／SFX-2）：前は「地面の物が減り、かつ持ち物が増えた」だった。同じフレームに別の物が落ちると
+  // 地面の物の数が変わらず鳴らなかったので、「持ち物が増え、画面を開いていない」に変えた（D-SFX-9）。
+  it("持ち物が増え、画面を開いていなければ pickup", () => {
+    const t = tracker(obs({ carried: 0 }));
+    expect(t.observe(obs({ carried: 1 }))).toEqual(["pickup"]);
   });
 
-  it("地面の物だけ減った・持ち物だけ増えたときは pickup なし", () => {
-    const a = tracker(obs({ groundItems: 2, carried: 0 }));
-    expect(a.observe(obs({ groundItems: 1, carried: 0 }))).toEqual([]);
-    const b = tracker(obs({ groundItems: 2, carried: 0 }));
-    expect(b.observe(obs({ groundItems: 2, carried: 3 }))).toEqual([]);
+  it("持ち物が増えなければ pickup なし（減った・同じ）", () => {
+    const t = tracker(obs({ carried: 5 }));
+    expect(t.observe(obs({ carried: 5 }))).toEqual([]);
+    expect(t.observe(obs({ carried: 2 }))).toEqual([]);
+  });
+
+  it("画面を開いている間（売る・分解・クラフト・装備を外す・ロードアウトの切り替え）は pickup なし", () => {
+    for (const panel of ["merchant", "smith", "inventory", "character", "stash", "altar"]) {
+      const t = tracker(obs({ carried: 0, panel }));
+      expect(t.observe(obs({ carried: 100, panel }))).toEqual([]);
+    }
+  });
+
+  it("画面を閉じたのと同じフレームに持ち物が増えても pickup なし（前のフレームに開いていた）", () => {
+    const t = tracker(obs({ carried: 0, panel: "merchant" }));
+    expect(t.observe(obs({ carried: 50, panel: undefined }))).toEqual([]);
+    // 閉じた次のフレームからは、また拾える
+    expect(t.observe(obs({ carried: 51, panel: undefined }))).toEqual(["pickup"]);
+  });
+
+  it("画面を開いたのと同じフレームに持ち物が増えても pickup なし（開いた音の ui だけ）", () => {
+    const t = tracker(obs({ carried: 0 }));
+    expect(t.observe(obs({ carried: 3, panel: "merchant" }))).toEqual(["ui"]);
+  });
+
+  it("宝箱を開けただけ（持ち物は増えない。地面に落ちる）では pickup なし", () => {
+    const t = tracker(obs({ carried: 2 }));
+    expect(t.observe(obs({ carried: 2, chestsOpened: 1 }))).toEqual(["chest"]);
   });
 
   it("level が上がったら levelUp", () => {
@@ -360,9 +422,38 @@ describe("SfxEventTracker", () => {
     expect(t.observe(obs({ panel: undefined }))).toEqual([]);
   });
 
-  it("装備の文字が変わったら ui", () => {
+  it("装備の uid が変わったら ui（外した・付けた・替えた）", () => {
     const t = tracker();
-    expect(t.observe(obs({ equipment: "sword:2" }))).toEqual(["ui"]);
+    expect(t.observe(obs({ equipment: ["sword:2", undefined] }))).toEqual(["ui"]);
+    expect(t.observe(obs({ equipment: ["sword:2", "shield:1"] }))).toEqual(["ui"]);
+    expect(t.observe(obs({ equipment: [undefined, "shield:1"] }))).toEqual(["ui"]);
+    expect(t.observe(obs({ equipment: [undefined, "shield:1"] }))).toEqual([]);
+  });
+
+  it("同じ配列を使い回して中身を書き換えても、装備の変化が分かる（1回だけ）", () => {
+    const eq: (string | undefined)[] = ["sword:1", undefined];
+    const t = new SfxEventTracker(skillKey);
+    t.observe(obs({ equipment: eq }));
+    expect(t.observe(obs({ equipment: eq }))).toEqual([]);
+    eq[1] = "shield:1";
+    expect(t.observe(obs({ equipment: eq }))).toEqual(["ui"]);
+    expect(t.observe(obs({ equipment: eq }))).toEqual([]);
+  });
+
+  it("技の音が undefined なら鳴らさない（通常攻撃の近接）", () => {
+    const t = new SfxEventTracker((id) => (id === "BASIC" ? undefined : "skillSpell"));
+    t.observe(obs());
+    expect(t.observe(obs({ skillUses: new Map([["BASIC", 1]]) }))).toEqual([]);
+    expect(
+      t.observe(
+        obs({
+          skillUses: new Map([
+            ["BASIC", 2],
+            ["SPELL", 1],
+          ]),
+        }),
+      ),
+    ).toEqual(["skillSpell"]);
   });
 
   it("取ったノードが増えたら ui。減ったら鳴らさない", () => {

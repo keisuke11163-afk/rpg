@@ -40,7 +40,8 @@ export interface SfxRule {
 
 /**
  * 音ごとの規則（仮値: 仕様書に無い。docs/progress D-SFX-3）。
- * 範囲攻撃で20体に当たっても、ヒットの音は45ミリ秒に1回まで・1フレームに1回まで。
+ * 範囲攻撃で20体に当たっても、ヒットの音は70ミリ秒に1回まで・1フレームに1回まで
+ * （旋風などの連続ヒットが機関銃のように鳴らないよう、45 から広げた。耳での確認はまだ。D-SFX-7）。
  */
 export const SFX_RULES: Readonly<Record<SfxKey, SfxRule>> = {
   death: { minIntervalMs: 500, priority: 100 },
@@ -59,7 +60,7 @@ export const SFX_RULES: Readonly<Record<SfxKey, SfxRule>> = {
   skillProjectile: { minIntervalMs: 50, priority: 30 },
   skillBuff: { minIntervalMs: 60, priority: 30 },
   dodge: { minIntervalMs: 100, priority: 25 },
-  hit: { minIntervalMs: 45, priority: 20 },
+  hit: { minIntervalMs: 70, priority: 20 },
   ui: { minIntervalMs: 50, priority: 10 },
 };
 
@@ -144,6 +145,23 @@ export function skillSfx(tags: readonly string[], actionType?: string): SfxKey {
   return "skillMelee";
 }
 
+/** 通常攻撃の技のID（content の skills）。 */
+export const BASIC_ATTACK_SKILL = "SKL-BASIC-ATTACK";
+
+/**
+ * 技を使ったときに鳴らす音。通常攻撃の近接は鳴らさない（undefined。当たったときの hit だけにして、
+ * 振るたびの音と二重にならないようにする。空振りは無音。仮の判断。docs/progress D-SFX-8）。
+ * 弓・杖の通常攻撃は、タグが投射・魔法になるので、その音を鳴らす。
+ */
+export function skillUseSfx(
+  skillId: string,
+  tags: readonly string[],
+  actionType?: string,
+): SfxKey | undefined {
+  const key = skillSfx(tags, actionType);
+  return skillId === BASIC_ATTACK_SKILL && key === "skillMelee" ? undefined : key;
+}
+
 /** フレームごとに見る、シミュレーションの読み取り用の値（表示の側で集める）。 */
 export interface SfxObservation {
   /** 被弾の回数（敵の攻撃と危険地帯の合計）。 */
@@ -155,12 +173,13 @@ export interface SfxObservation {
   readonly guards: number;
   /** 回避の動作中か。 */
   readonly dodging: boolean;
-  /** 技ごとの使った回数（技のID → 回数）。 */
+  /**
+   * 技ごとの使った回数（技のID → 回数）。トラッカーは自分の写しを持ち、毎回これと比べて増えた技を見つける
+   * ので、呼ぶ側は同じ Map を渡し続けてよい（中身が増えていく Map でも見つけられる）。
+   */
   readonly skillUses: ReadonlyMap<string, number>;
   /** 薬瓶の残り（HP・MP の合計）。 */
   readonly flaskCharges: number;
-  /** 地面の物の数。 */
-  readonly groundItems: number;
   /** 持ち物の量（装備の数＋金貨＋素材の数）。 */
   readonly carried: number;
   readonly level: number;
@@ -172,8 +191,11 @@ export interface SfxObservation {
   readonly chestsOpened: number;
   /** 開いている画面（無ければ undefined）。 */
   readonly panel: string | undefined;
-  /** 装備の並び（部位と装備の uid を連ねた文字。変わったら装備を替えた）。 */
-  readonly equipment: string;
+  /**
+   * 部位ごとの装備の uid（部位の順。空の部位は undefined）。前の値と1つでも違えば装備を替えた。
+   * トラッカーは自分の写しを持つので、呼ぶ側は同じ配列を使い回して書き換えてよい（毎フレームの文字列を作らない）。
+   */
+  readonly equipment: readonly (string | undefined)[];
   /** 取ったノードの数（星辰盤・職紋盤・副職紋の合計）。 */
   readonly nodes: number;
 }
@@ -181,42 +203,66 @@ export interface SfxObservation {
 /**
  * 値の変化から、鳴らす音の一覧を決める。最初の observe は比べる相手が無いので何も返さない
  * （地域に入った直後に音を鳴らさない）。
+ * 技の回数・装備は、受け取った Map・配列を覚えずに、トラッカーの中の写しと比べて書き換える
+ * （同じものを使い回して中身だけ変わっても、変化を見つけられる）。それ以外の値は、observe に渡す
+ * 入れ物（SfxObservation）ごと覚えるので、入れ物は毎回新しく作って渡す。
  */
 export class SfxEventTracker {
   private last: SfxObservation | undefined;
-  private readonly skillKey: (skillId: string) => SfxKey;
+  /** 技ごとの使った回数の写し。 */
+  private readonly uses = new Map<string, number>();
+  /** 部位ごとの装備の uid の写し。 */
+  private equipment: (string | undefined)[] = [];
+  private readonly skillKey: (skillId: string) => SfxKey | undefined;
 
-  /** @param skillKey 技のIDから技の音を決める（ArenaScene が技の定義から skillSfx で決める）。 */
-  constructor(skillKey: (skillId: string) => SfxKey) {
+  /**
+   * @param skillKey 技のIDから技の音を決める（ArenaScene が技の定義から skillUseSfx で決める）。
+   * undefined なら鳴らさない。
+   */
+  constructor(skillKey: (skillId: string) => SfxKey | undefined) {
     this.skillKey = skillKey;
   }
 
   observe(now: SfxObservation): SfxKey[] {
     const prev = this.last;
+    const first = prev === undefined;
+    const out: SfxKey[] = [];
+    const add = (k: SfxKey | undefined): void => {
+      if (k !== undefined && !out.includes(k)) out.push(k);
+    };
+    // 技の回数：増えた技を見つけ、その場で写しを書き換える（最初の observe は音を鳴らさない）
+    for (const [id, n] of now.skillUses) {
+      if (n > (this.uses.get(id) ?? 0) && !first) add(this.skillKey(id));
+      this.uses.set(id, n);
+    }
+    // 装備：1つでも違えば替えた（長さが変わっても替えた）
+    let equipmentChanged = now.equipment.length !== this.equipment.length;
+    if (!equipmentChanged)
+      for (let i = 0; i < now.equipment.length; i++)
+        if (now.equipment[i] !== this.equipment[i]) equipmentChanged = true;
+    if (equipmentChanged) this.equipment = [...now.equipment];
     this.last = now;
     if (prev === undefined) return [];
-    const out: SfxKey[] = [];
-    const add = (k: SfxKey): void => {
-      if (!out.includes(k)) out.push(k);
-    };
     if (now.deaths > prev.deaths) add("death");
     // 被弾：回数が増え、かつHPが減ったとき（盾で防いだ・吸収したときは鳴らさない。HUD の hurt と同じ）
     else if (now.hitsTaken > prev.hitsTaken && now.hp < prev.hp) add("hurt");
     if (now.guards > prev.guards) add("guard");
     if (now.kills > prev.kills) add("kill");
     if (now.dodging && !prev.dodging) add("dodge");
-    for (const [id, n] of now.skillUses)
-      if (n > (prev.skillUses.get(id) ?? 0)) add(this.skillKey(id));
     if (now.flaskCharges < prev.flaskCharges) add("flask");
-    // 拾った：地面の物が減り、持ち物が増えた（店で買った・装備を外したときは地面の物が減らないので鳴らさない）
-    if (now.groundItems < prev.groundItems && now.carried > prev.carried) add("pickup");
+    // 拾った：持ち物（装備の数・金貨・素材）が増え、かつ画面（商人・鍛冶屋・インベントリなど）を開いていない。
+    // 売る・分解・クラフト・装備を外す・ロードアウトの切り替えは、全て画面の操作なので鳴らさない。
+    // 宝箱は地面に物を落とすだけなので、持ち物は増えない。前のフレームに画面を開いていた場合も除く
+    // （画面を閉じるのと同じフレームの操作）。地面の物の数は見ない（同じフレームに減って増えても拾ったと分かる。D-SFX-9）
+    if (now.carried > prev.carried && now.panel === undefined && prev.panel === undefined)
+      add("pickup");
     if (now.level > prev.level || (now.jobId === prev.jobId && now.jobLevel > prev.jobLevel))
       add("levelUp");
     if (now.chestsOpened > prev.chestsOpened) add("chest");
     // UI：画面を開いた・切り替えた・装備を替えた・ノードを取った
     if (
       (now.panel !== undefined && now.panel !== prev.panel) ||
-      now.equipment !== prev.equipment ||
+      equipmentChanged ||
       now.nodes > prev.nodes
     )
       add("ui");

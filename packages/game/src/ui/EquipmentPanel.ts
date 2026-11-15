@@ -94,6 +94,8 @@ import {
 } from "./panel-layout.ts";
 
 const DEPTH = 1000;
+/** 設定の画面の音量の行の見出し（行の文言。自動の確認が探す）。 */
+export const SETTINGS_VOLUME_LABEL = "音量";
 /** インベントリの画面のロードアウトの切り替えの列（画面のピクセル）。 */
 const LOADOUT_ROW = {
   x: PANEL.grid.x,
@@ -196,6 +198,8 @@ export class EquipmentPanel {
     x1: number;
     y0: number;
     y1: number;
+    /** 行の見出し（自動の確認が行の文言で探す）。音量の行は SETTINGS_VOLUME_LABEL で始まる。 */
+    label: string;
     run: (button: "left" | "right") => void;
   }[] = [];
   /** キーの割り当てを変える行動（次に押したキー・ボタンにする）。 */
@@ -459,8 +463,12 @@ export class EquipmentPanel {
   }
 
   /** 設定の画面の行の位置（自動の確認用。行動の行・音量・拡大率・初期に戻す、の順）。 */
-  settingsRowBoxes(): readonly { x: number; y: number }[] {
-    return this.settingsRows.map((r) => ({ x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 }));
+  settingsRowBoxes(): readonly { label: string; x: number; y: number }[] {
+    return this.settingsRows.map((r) => ({
+      label: r.label,
+      x: (r.x0 + r.x1) / 2,
+      y: (r.y0 + r.y1) / 2,
+    }));
   }
 
   /** 設定の行動の割り当てを変える（入れ替えを含む）。 */
@@ -1787,6 +1795,7 @@ export class EquipmentPanel {
         x1: x + colW,
         y0: y,
         y1: y + rowH,
+        label: ACTION_NAME[a],
         run: () => {
           this.capturing = a;
         },
@@ -1813,6 +1822,7 @@ export class EquipmentPanel {
       x1: x0 + colW * 2,
       y0: dy,
       y1: y,
+      label: text("settings.debugHud"),
       run: () => {
         host.set({ ...s, debugHud: !s.debugHud });
       },
@@ -1823,7 +1833,7 @@ export class EquipmentPanel {
       y,
       [
         {
-          text: `音量：${String(Math.round(s.volume * 100))}%（左クリックで上げる・右クリックで下げる）`,
+          text: `${SETTINGS_VOLUME_LABEL}：${String(Math.round(s.volume * 100))}%（左クリックで上げる・右クリックで下げる）`,
           color: TEXT_COLOR.normal,
         },
       ],
@@ -1834,6 +1844,7 @@ export class EquipmentPanel {
       x1: x0 + colW * 2,
       y0: vy,
       y1: y,
+      label: SETTINGS_VOLUME_LABEL,
       run: (button) => {
         const v = Math.round((s.volume + (button === "left" ? 0.1 : -0.1)) * 10) / 10;
         host.set({ ...s, volume: Math.min(1, Math.max(0, v)) });
@@ -1856,6 +1867,7 @@ export class EquipmentPanel {
       x1: x0 + colW * 2,
       y0: sy,
       y1: y,
+      label: "画面の拡大率",
       run: () => {
         host.set({
           ...s,
@@ -1870,6 +1882,7 @@ export class EquipmentPanel {
       x1: x0 + colW * 2,
       y0: ry,
       y1: y,
+      label: "初期の割り当てに戻す",
       run: () => {
         host.set({ ...s, bindings: {} });
       },

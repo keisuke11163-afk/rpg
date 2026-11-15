@@ -78,7 +78,8 @@ const noise = (
 
 /**
  * 仮素材の効果音の表（キーは本素材と共通。docs/progress D-SFX-2 に、どの出来事で鳴るかの表）。
- * 短く（多くは 0.2 秒以下）、高すぎない音域（主に 100〜2000Hz）、小さめの音量にしている。
+ * 短く（多くは 0.2 秒以下）、小さめの音量にしている。音の高さは、トーンが 55〜1650Hz、
+ * ノイズのフィルターの中心・しきい値が 150〜3000Hz（ハイパスは 2200Hz・2400Hz から上を通す）。
  */
 export const SFX_DEFS: Readonly<Record<SfxKey, SfxDef>> = {
   // 通常のヒット：短い打撃（帯域のノイズ＋低い音）
@@ -279,6 +280,8 @@ export class SfxPlayer {
     if (this.master !== undefined) return this.master;
     const compressor = ctx.createDynamicsCompressor();
     compressor.threshold.value = -12;
+    // 圧縮が効き始める幅（dB）。既定は 30。急に効かせるため狭めに明示する
+    compressor.knee.value = 6;
     compressor.ratio.value = 6;
     compressor.connect(ctx.destination);
     const master = ctx.createGain();
@@ -313,6 +316,8 @@ export class SfxPlayer {
       env.gain.exponentialRampToValueAtTime(0.0001, end);
       env.connect(out);
       let source: AudioScheduledSourceNode;
+      // ノイズの声部だけフィルターを持つ。鳴り終わったら、つなぎと一緒に外す
+      let filterNode: BiquadFilterNode | undefined;
       if (v.kind === "tone") {
         const osc = ctx.createOscillator();
         osc.type = v.wave;
@@ -331,6 +336,7 @@ export class SfxPlayer {
         if (v.freqEnd !== undefined) filter.frequency.exponentialRampToValueAtTime(v.freqEnd, end);
         src.connect(filter);
         filter.connect(env);
+        filterNode = filter;
         source = src;
       }
       source.start(start);
@@ -338,6 +344,7 @@ export class SfxPlayer {
       // 鳴り終わったらつなぎを外す（ノードを残さない）
       source.onended = () => {
         source.disconnect();
+        filterNode?.disconnect();
         env.disconnect();
       };
     }

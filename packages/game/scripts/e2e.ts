@@ -182,7 +182,7 @@ type DebugWindow = {
       volume: number;
       scale: string | number;
       keybinds: Record<string, string>;
-      rows: { x: number; y: number }[];
+      rows: { label: string; x: number; y: number }[];
     };
     saves: () => SavesInfo;
     region: () => RegionInfo;
@@ -200,6 +200,8 @@ type DebugWindow = {
       phaserY: number;
       shakeX: number;
       shakeY: number;
+      viewX: number;
+      viewY: number;
     };
     shake: (strength: number, ms: number) => boolean;
     sfx: () => SfxInfo;
@@ -1287,8 +1289,8 @@ try {
   // 音量を変えると確認の音（ui）を鳴らす。音量を戻すと合成する
   const clickVolume = async (button: "left" | "right", times: number): Promise<void> => {
     for (let i = 0; i < times; i++) {
-      const rows = (await settings()).rows;
-      const r = rows[rows.length - 3];
+      // 音量の行は、行の文言（「音量：…」）で探す（行の並びが変わっても動くように）
+      const r = (await settings()).rows.find((row) => row.label.startsWith("音量"));
       const c = await canvasRect();
       if (r === undefined || c === null) return;
       const k = c.width / 640;
@@ -1644,6 +1646,37 @@ try {
   );
   await ready();
   const room = await regionInfo();
+  // 揺れ（D-HUD-4）：ボスの間（512×448px）は画面の幅（640px）より狭い。横にも揺れが出て（描画に使うカメラの左上
+  // が実際に動く）、揺れている最中も照準の世界座標は変わらない。プレイヤーは入口で動かさない
+  await page.mouse.move(380, 200);
+  await page.waitForTimeout(900);
+  const bossAim0 = await page.evaluate(() =>
+    (window as unknown as DebugWindow).__STELLA_DEBUG__.aim(),
+  );
+  await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.shake(6, 1500));
+  let bossDrift = 0;
+  let bossMaxShakeX = 0;
+  let bossMaxShakeY = 0;
+  let bossViewMinX = Infinity;
+  let bossViewMaxX = -Infinity;
+  for (let i = 0; i < 12; i++) {
+    await page.waitForTimeout(40);
+    const a = await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.aim());
+    bossDrift = Math.max(bossDrift, Math.abs(a.x - bossAim0.x), Math.abs(a.y - bossAim0.y));
+    bossMaxShakeX = Math.max(bossMaxShakeX, Math.abs(a.shakeX));
+    bossMaxShakeY = Math.max(bossMaxShakeY, Math.abs(a.shakeY));
+    bossViewMinX = Math.min(bossViewMinX, a.viewX);
+    bossViewMaxX = Math.max(bossViewMaxX, a.viewX);
+  }
+  check(
+    "ボスの間（画面の幅より狭い地図）でも、画面は横に揺れ（カメラの左上が動く）、その間も照準は変わらない（D-HUD-4）",
+    bossMaxShakeX >= 1 &&
+      bossViewMaxX - bossViewMinX >= 1 &&
+      bossMaxShakeY >= 1 &&
+      bossDrift < 0.01,
+    `横のずれの最大 ${bossMaxShakeX.toFixed(1)}px・縦 ${bossMaxShakeY.toFixed(1)}px・カメラ左上の横の幅 ${(bossViewMaxX - bossViewMinX).toFixed(1)}px・照準のずれ ${bossDrift.toFixed(3)}`,
+  );
+  await page.waitForTimeout(1500);
   const bossOf = async (): Promise<EnemyInfo | undefined> =>
     (await page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.enemies())).find(
       (e) => e.def === "ENM-MOTHER-TREE",

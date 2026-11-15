@@ -1,6 +1,12 @@
 /** 画面の揺れ（ui/screen-shake.ts。Phaser に依存しない純粋な関数・クラス）。 */
 import { describe, expect, it } from "vitest";
-import { NO_SHAKE, ScreenShake, shakeWithinBounds } from "../src/ui/screen-shake.ts";
+import {
+  NO_SHAKE,
+  roundShake,
+  ScreenShake,
+  shakeOffsetWithinBounds,
+  shakeWithinBounds,
+} from "../src/ui/screen-shake.ts";
 
 /** 乱数の固定値（0 → −大きさ側、0.999 → ＋大きさ側）。 */
 const low = (): number => 0;
@@ -199,13 +205,43 @@ describe("shakeWithinBounds", () => {
     expect(shakeWithinBounds(1, -3, 0, 10)).toBe(4);
   });
 
-  it("min=max（動けない）なら base を返す。max<min でも base を返す", () => {
-    expect(shakeWithinBounds(5, 3, 5, 5)).toBe(5);
-    expect(shakeWithinBounds(5, 3, 10, 0)).toBe(5);
-    expect(shakeWithinBounds(5, -3, 10, 0)).toBe(5);
+  // 仕様変更（HUD-8）：前は「動けない向きは揺らさない（base を返す）」だったが、ボスの間（512×448）では
+  // 画面の幅 640 より地図が狭く、横の揺れが常に 0 になった。動けない向きは切り詰めず、ずれをそのまま足す。
+  it("min=max（動けない向き）は切り詰めず、base + offset を返す（max<min・NaN も同じ）", () => {
+    expect(shakeWithinBounds(5, 3, 5, 5)).toBe(8);
+    expect(shakeWithinBounds(5, -3, 5, 5)).toBe(2);
+    expect(shakeWithinBounds(5, 3, 10, 0)).toBe(8);
+    expect(shakeWithinBounds(5, -3, 10, 0)).toBe(2);
+    expect(shakeWithinBounds(5, 3, Number.NaN, Number.NaN)).toBe(8);
   });
 
-  it("有限の入力では NaN を返さず、結果は（base が範囲内なら）範囲の中に入る", () => {
+  it("min=max で base が範囲の外でも、base はそのままで offset を足す", () => {
+    expect(shakeWithinBounds(100, 2, 5, 5)).toBe(102);
+    expect(shakeWithinBounds(-100, -2, 5, 5)).toBe(-102);
+  });
+
+  it("動ける幅があり base が範囲の外なら、範囲の中に収めた位置から揺らす", () => {
+    expect(shakeWithinBounds(20, 0, 0, 10)).toBe(20); // offset 0 は何もしない
+    expect(shakeWithinBounds(20, 2, 0, 10)).toBe(8); // 10 に収め、反対向きの 8
+    expect(shakeWithinBounds(-5, -2, 0, 10)).toBe(2);
+  });
+
+  it("offset が NaN・Infinity なら base をそのまま返す（NaN を返さない）", () => {
+    for (const offset of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(shakeWithinBounds(5, offset, 0, 10)).toBe(5);
+      expect(shakeWithinBounds(5, offset, 5, 5)).toBe(5);
+      expect(shakeOffsetWithinBounds(5, offset, 0, 10)).toBe(0);
+    }
+  });
+
+  it("shakeOffsetWithinBounds は、実際に足したずれを返す（base + ずれ = shakeWithinBounds）", () => {
+    expect(shakeOffsetWithinBounds(5, 2, 0, 10)).toBe(2);
+    expect(shakeOffsetWithinBounds(9, 3, 0, 10)).toBe(-3);
+    expect(shakeOffsetWithinBounds(5, 3, 5, 5)).toBe(3);
+    expect(shakeOffsetWithinBounds(5.25, 3, 5.25, 5.25)).toBe(3); // 小数の base でも、ずれは誤差なしで返る
+  });
+
+  it("有限の入力では NaN を返さず、動ける幅があり base が範囲内なら結果は範囲の中に入る", () => {
     const values = [-20, -5, -1, 0, 0.5, 3, 9.5, 10, 14];
     for (const base of [0, 4, 10])
       for (const offset of values)
@@ -216,10 +252,61 @@ describe("shakeWithinBounds", () => {
         ] as const) {
           const r = shakeWithinBounds(base, offset, min, max);
           expect(Number.isNaN(r)).toBe(false);
-          if (base >= min && base <= max) {
+          if (max > min && base >= min && base <= max) {
             expect(r).toBeGreaterThanOrEqual(min);
             expect(r).toBeLessThanOrEqual(max);
           }
         }
+  });
+});
+
+describe("roundShake と小さな揺れの整数への丸め", () => {
+  it("0 から離れる向きに整数にする（0・有限でない値は 0）", () => {
+    expect(roundShake(0.2)).toBe(1);
+    expect(roundShake(-0.2)).toBe(-1);
+    expect(roundShake(1)).toBe(1);
+    expect(roundShake(1.01)).toBe(2);
+    expect(roundShake(-1.5)).toBe(-2);
+    expect(roundShake(0)).toBe(0);
+    expect(roundShake(Number.NaN)).toBe(0);
+    expect(roundShake(Number.POSITIVE_INFINITY)).toBe(0);
+  });
+
+  it("1.5px・90ms の揺れは、丸めた後に 0 ばかりにならず、±1 を中心に ±2 まで散る", () => {
+    const counts = new Map<number, number>();
+    for (let seed = 1; seed <= 200; seed++) {
+      const shake = new ScreenShake(seeded(seed));
+      shake.trigger(1.5, 90);
+      // 60fps（約 16.7ms）で進める
+      for (let f = 0; f < 5; f++) {
+        const off = shake.update(1000 / 60);
+        for (const v of [roundShake(off.x), roundShake(off.y)])
+          counts.set(v, (counts.get(v) ?? 0) + 1);
+      }
+    }
+    const total = [...counts.values()].reduce((a, b) => a + b, 0);
+    const unit = (counts.get(1) ?? 0) + (counts.get(-1) ?? 0);
+    const two = (counts.get(2) ?? 0) + (counts.get(-2) ?? 0);
+    expect((counts.get(0) ?? 0) / total).toBeLessThan(0.01);
+    expect(unit / total).toBeGreaterThan(0.6);
+    expect(two).toBeGreaterThan(0);
+    for (const v of counts.keys()) expect(Math.abs(v)).toBeLessThanOrEqual(2);
+  });
+
+  it("四捨五入だと、同じ揺れの 0 の割合は半分を超える（丸め方を変えた理由）", () => {
+    let zero = 0;
+    let total = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const shake = new ScreenShake(seeded(seed));
+      shake.trigger(1.5, 90);
+      for (let f = 0; f < 5; f++) {
+        const off = shake.update(1000 / 60);
+        for (const v of [Math.round(off.x), Math.round(off.y)]) {
+          total += 1;
+          if (v === 0) zero += 1;
+        }
+      }
+    }
+    expect(zero / total).toBeGreaterThan(0.5);
   });
 });

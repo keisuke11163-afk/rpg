@@ -14,7 +14,7 @@ export class InputSystem {
   /** 前回の read() の後に押されたキー・ボタン（同じフレームの間に押して離した入力も取りこぼさない）。 */
   private readonly latched = new Set<string>();
   /** カメラのスクロールに足している揺れのずれ（表示だけ。照準の計算では差し引く。D-HUD-12）。 */
-  private viewOffset = { x: 0, y: 0 };
+  private readonly viewOffset = { x: 0, y: 0 };
 
   constructor(
     scene: Phaser.Scene,
@@ -104,7 +104,9 @@ export class InputSystem {
    * 照準の計算では差し引く（揺れは Math.random で決まる表示だけの値で、シミュレーションへの入力に入れないため）。
    */
   setViewOffset(x: number, y: number): void {
-    this.viewOffset = { x, y };
+    // 毎フレーム呼ぶので、入れ物は作り直さず書き換える
+    this.viewOffset.x = x;
+    this.viewOffset.y = y;
   }
 
   /**

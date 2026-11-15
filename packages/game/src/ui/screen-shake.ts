@@ -78,17 +78,50 @@ export class ScreenShake {
 }
 
 /**
- * 揺れのずれを、カメラの動ける範囲（スクロールの最小〜最大）に収めて足す。
- * 端に当たってずれが削られるときは、反対の向きに揺らす（端でも揺れが見えるように）。
- * 反対にも動けない（地図が画面より小さいなど）ときは、その向きは揺らさない。
- * @returns 実際に足したずれを足した後のスクロールの値
+ * 揺れのずれを整数のピクセルにする（0 から離れる向きに丸める。0 は 0）。
+ * 四捨五入にすると、1.5ピクセルほどの小さな揺れは、減っていく途中で 0.5 を下回って 0 になるフレームが
+ * 多く（約3/4）、ほとんど見えなくなる。0 でないずれは、必ず 1 ピクセル以上にする。
+ * 有限でなければ 0。
+ */
+export function roundShake(v: number): number {
+  if (!Number.isFinite(v) || v === 0) return 0;
+  return v > 0 ? Math.ceil(v) : Math.floor(v);
+}
+
+/**
+ * 揺れのずれを、カメラの動ける範囲（スクロールの最小〜最大）に合わせて、実際に足すずれを返す。
+ * - 動ける幅がある向き：base を範囲に収め、範囲の中に収まるずれにする。端に当たってずれが削られるときは、
+ *   反対の向きに揺らす（端でも揺れが見えるように）。
+ * - 動ける幅が無い向き（min=max・max<min・NaN。地図が画面より小さい向きなど）：範囲で切り詰めず、
+ *   ずれをそのまま足す。見た目は、地図の外の空白が少し動くだけ。ボスの間（512×448 は幅 640 より狭い）で
+ *   横の揺れが 0 になるのを防ぐ。このとき Phaser のカメラの bounds によるスクロールの切り詰め
+ *   （preRender）が揺れを消さないよう、呼ぶ側は camera.useBounds を false にしておく。
+ * ずれが有限の数でなければ 0 を返す（NaN を出さない）。
+ * @returns 実際に足すずれ（照準の計算から差し引く値。この値をそのまま渡す）
+ */
+export function shakeOffsetWithinBounds(
+  base: number,
+  offset: number,
+  min: number,
+  max: number,
+): number {
+  if (!Number.isFinite(offset) || offset === 0) return 0;
+  // 動ける幅が無い向き：切り詰めずにそのまま足す
+  if (!(max > min)) return offset;
+  const clamp = (v: number): number => Math.min(max, Math.max(min, v));
+  // base が範囲の外なら、範囲の中に収めた位置から揺らす
+  const origin = clamp(base);
+  const forward = clamp(origin + offset);
+  if (forward === origin + offset) return forward - base;
+  const backward = clamp(origin - offset);
+  // 動ける量の多い方を使う
+  return (Math.abs(backward - origin) > Math.abs(forward - origin) ? backward : forward) - base;
+}
+
+/**
+ * 揺れのずれを足した後のスクロールの値（shakeOffsetWithinBounds を base に足したもの）。
+ * base が NaN のときは NaN を返す（呼ぶ側が有限の値を渡す）。
  */
 export function shakeWithinBounds(base: number, offset: number, min: number, max: number): number {
-  const clamp = (v: number): number => Math.min(max, Math.max(min, v));
-  if (offset === 0 || max < min) return base;
-  const forward = clamp(base + offset);
-  if (forward === base + offset) return forward;
-  const backward = clamp(base - offset);
-  // 動ける量の多い方を使う
-  return Math.abs(backward - base) > Math.abs(forward - base) ? backward : forward;
+  return base + shakeOffsetWithinBounds(base, offset, min, max);
 }
