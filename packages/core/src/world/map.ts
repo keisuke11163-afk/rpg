@@ -46,6 +46,12 @@ export interface MapDef {
   eliteSpawns: readonly Vec2[];
   crateSpots: readonly Vec2[];
   chestSpots: readonly Vec2[];
+  /** 中ボス・章ボス（地域の終点）。毎回その場所に出る（抽選しない） */
+  boss?: { enemyId: string; pos: Vec2; level: number };
+  /** 隠し部屋：壁の「怪しい茂み」を調べる（F）と、扉の壁が消えて中の宝箱を取れる。隠し星も得る（補助仕様書 9.5） */
+  secret?: { bush: Vec2; door: Rect; chest: Vec2 };
+  /** この地域に入る条件：この初回討伐を済ませていること（A5は母樹の初回撃破の後） */
+  requires?: string;
   /** 魔法の敵になる確率（群れごと。A5は15%） */
   magicChance: number;
   /** 精鋭の出現数の範囲（出現地点のうち有効になる数ではなく、出現地点の数。A5は4〜6） */

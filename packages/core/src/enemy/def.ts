@@ -40,6 +40,16 @@ export interface EnemyAttackDef {
   projectile?: { speed: number; range: number; radius: number };
   /** 地面に残る雲（腐根の苗の胞子）。半径と持続 */
   cloud?: { radius: number; seconds: number };
+  /** 多段の攻撃（噛みつき3連など）。当たり判定の時間を等分して、段ごとにヒットが出る */
+  hitCount?: number;
+  /** 仲間を呼び、周囲の同種の攻撃速度を上げる（遠吠え） */
+  summon?: {
+    enemyId: string;
+    count: number;
+    attackSpeedBonus: number;
+    buffSeconds: number;
+    radius: number;
+  };
   /** 周囲に仲間を呼ぶ・強化するなど、ルールフックの参照 */
   hooks?: readonly string[];
   element?: Element;
@@ -70,6 +80,8 @@ export interface EnemyDef {
   armorPerLevel?: number;
   resistance?: Partial<Record<Element, number>>;
   radius?: number;
+  /** ボス：中ボス・章ボス（ドロップ・経験値・討伐の記録の区分。ボスは予兆の間も向きを変えられる） */
+  boss?: "midBoss" | "chapterBoss";
   /** 素材などのドロップ（U-11 で使う）。獣系は「獣牙」を3% */
   provisional: true;
 }

@@ -13,6 +13,8 @@ import {
 } from "../combat/combatant.ts";
 import type { AilmentKind } from "../combat/ailments.ts";
 import { armorReduction } from "../combat/damage.ts";
+import { baseSkillLevel, weaponSkillMultiplier } from "../combat/skill-level.ts";
+import { basePlayerHp } from "../enemy/stats.ts";
 import type { HitShape } from "../combat/geometry.ts";
 import type { GroundEffects } from "../combat/zones.ts";
 import type { WeaponDef } from "../combat/weapons.ts";
@@ -133,11 +135,28 @@ export class Fighter {
   damageMult = 1;
   attackSpeedBonus = 0;
 
+  /** キャラLv（技レベル・基礎HPが決まる。本仕様書 5.1.1）。既定は1 */
+  private charLevelValue = 1;
+  private baseMaxHp: number;
+
+  get charLevel(): number {
+    return this.charLevelValue;
+  }
+
+  /** キャラLvを設定する。基礎HP ＝ 48＋12×Lv（本仕様書 2.3）。HPは増えた分だけ回復する */
+  setCharLevel(level: number): void {
+    const before = this.maxHp;
+    this.charLevelValue = Math.max(1, Math.floor(level));
+    this.baseMaxHp = basePlayerHp(this.charLevelValue);
+    this.hp = Math.min(this.maxHp, this.hp + Math.max(0, this.maxHp - before));
+  }
+
   /** 装備から決まる能力値。装備が変わるたびに差し替える（保存しない） */
   private gearStats: GearStats | undefined;
 
   constructor(init: FighterInit) {
     this.init = init;
+    this.baseMaxHp = init.maxHp;
     this.hp = init.maxHp;
     this.mp = init.maxMp;
     this.gauge = new JobGauge(init.gauge);
@@ -281,7 +300,7 @@ export class Fighter {
 
   get maxHp(): number {
     return Math.round(
-      (this.init.maxHp + this.gearTotal("最大HP") + this.fx("最大HP").flat) *
+      (this.baseMaxHp + this.gearTotal("最大HP") + this.fx("最大HP").flat) *
         (1 + this.gearTotal("最大HP増加%")),
     );
   }
@@ -361,6 +380,10 @@ export class Fighter {
       if (p.breaksAll) eff.breaksAll = true;
       if (p.dashDistanceAdd) eff.dashDistance += p.dashDistanceAdd;
     };
+    // 武器の技は、基本の技レベルが1上がるごとに技倍率+1%（加算。本仕様書 5.1.1）
+    if (skill.multiplier > 0) {
+      eff.multiplier = weaponSkillMultiplier(skill.multiplier, baseSkillLevel(this.charLevelValue));
+    }
     if (!skill.release && this.gauge.intensified) {
       eff.intensified = true;
       apply(skill.intensified);

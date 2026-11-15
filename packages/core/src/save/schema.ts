@@ -84,8 +84,11 @@ export const saveSchema = z.strictObject({
       firstKills: z.array(z.string()),
       deaths: z.number().int().min(0),
       lastDeathCause: z.string().nullable(),
+      foundSecrets: z.array(z.string()).default([]),
     })
     .optional(),
+  /** クエストの進行：クエストID → 達成した段階のID */
+  quests: z.record(z.string(), z.array(z.string())).optional(),
   questPoints: z.number().int().min(0),
   explorationPoints: z.number().int().min(0),
   settings: z.strictObject({ keybinds: z.record(z.string(), z.array(z.string())) }),

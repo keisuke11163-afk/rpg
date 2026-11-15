@@ -5,6 +5,10 @@ import {
   AutoSaver,
   ConditionRegistry,
   FACILITIES,
+  QuestLog,
+  performSummon,
+  starPointTotal,
+  type Rect,
   sellPrice,
   FILL_VALUE,
   Flask,
@@ -89,6 +93,7 @@ import {
 } from "@stella/core";
 import {
   ALL_MAPS,
+  QUESTS,
   BOARD_DATA,
   TOWN_FACILITY_POS,
   CRAFT_DATA,
@@ -165,6 +170,13 @@ export class PlayScene extends Phaser.Scene {
   private readonly enemies: Enemy[] = [];
   private readonly world = new World(ALL_MAPS, enemyDef, "MAP-A1");
   private mapDef: MapDef = ALL_MAPS[0] as MapDef;
+  /** 今の地域の壁（隠し部屋の扉は、茂みを調べると消える） */
+  private walls: Rect[] = [];
+  private doorObj: Phaser.GameObjects.Rectangle | undefined;
+  private readonly quests = new QuestLog(QUESTS);
+  private explorationPoints = 0;
+  /** 開発用に足したポイント（P キー） */
+  private devPoints = 0;
   /** 今の場所の背景・壁・施設などの表示物。場所を移るたびに作り直す */
   private locationObjs: Phaser.GameObjects.GameObject[] = [];
   private readonly hpFlask = new Flask("hp");
@@ -296,6 +308,14 @@ export class PlayScene extends Phaser.Scene {
     this.purse.gold = state.purse.gold;
     for (const [id, n] of state.purse.materials) this.purse.addMaterial(id, n);
     this.progression = state.progression;
+    this.world.restore(state.world);
+    for (const [id, stages] of Object.entries(state.quests)) {
+      for (const st of stages) this.quests.restoreStage(id, st);
+    }
+    this.explorationPoints = state.explorationPoints;
+    for (const item of state.stash.items()) this.stash.add(item);
+    this.fighter.setCharLevel(this.progression.character.level);
+    this.refreshPoints();
     this.applyGear();
     this.savedNote = res.recoveredFromBackup ? "（1つ前のセーブから復元）" : "（セーブを読み込み）";
   }
@@ -309,6 +329,11 @@ export class PlayScene extends Phaser.Scene {
     for (const item of this.bag.items()) state.bag.add(item);
     state.purse.gold = this.purse.gold;
     for (const [id, n] of this.purse.materials) state.purse.addMaterial(id, n);
+    state.world = this.world.snapshot();
+    state.quests = this.quests.snapshot();
+    state.questPoints = this.quests.questPoints;
+    state.explorationPoints = this.explorationPoints;
+    for (const item of this.stash.items()) state.stash.add(item);
     try {
       await this.saves.save(this.slot, toSave(state));
       this.savedNote = "（自動セーブ）";
@@ -540,6 +565,13 @@ export class PlayScene extends Phaser.Scene {
         this.projectileGfx.set(p, this.add.circle(0, 0, 3, 0xb0e07a).setDepth(3));
         break;
       }
+      case "summon": {
+        for (const c of performSummon(e.enemy, e.attack, enemyDef, this.rng, this.enemies)) {
+          this.addEnemy(c);
+        }
+        this.showText(e.enemy.body.pos.x, e.enemy.body.pos.y - 1.2, "遠吠え！", "#ff9b6b", 12);
+        break;
+      }
       case "cloud": {
         const radius = e.attack.cloud?.radius ?? 2.5;
         this.clouds.push({
@@ -683,8 +715,8 @@ export class PlayScene extends Phaser.Scene {
       }
     }
     if (jp.has("KeyP")) {
-      this.starPoints += 5;
-      this.jobPoints += 5;
+      this.devPoints += 5;
+      this.refreshPoints();
       this.applyBoard();
     }
     if (jp.has("Escape")) this.panel = "none";
@@ -932,6 +964,43 @@ export class PlayScene extends Phaser.Scene {
     return true;
   }
 
+  /** 星辰盤・職紋盤のポイントを計算し直す（キャラLv＋星図の欠片＋隠し星／ジョブLv） */
+  private refreshPoints(): void {
+    this.starPoints =
+      starPointTotal(
+        this.progression.character.level,
+        this.quests.questPoints,
+        this.explorationPoints,
+      ) + this.devPoints;
+    this.jobPoints = this.progression.jobPoints(this.job.id) + this.devPoints;
+    this.applyBoard();
+  }
+
+  /** 敵を倒した：経験値・クエスト・討伐の記録 */
+  private onEnemyDefeated(enemy: Enemy): void {
+    const kind = enemy.def.boss ?? enemy.rank;
+    const gained = this.progression.gainFromKill(enemy.level, kind);
+    if (gained.char > 0) {
+      this.fighter.setCharLevel(this.progression.character.level);
+      this.notice = `キャラLv ${String(this.progression.character.level)} になった`;
+      this.noticeLeft = 4;
+      this.refreshPoints();
+    }
+    if (enemy.def.boss) this.world.firstKills.add(enemy.def.id);
+    this.questProgress(this.quests.notify({ type: "kill", target: enemy.def.id }));
+  }
+
+  private questProgress(events: ReturnType<QuestLog["notify"]>): void {
+    for (const e of events) {
+      this.notice = `クエスト「${e.questId === "QST-FOREST" ? "森の異変" : e.questId}」：${e.stage.description}（星図の欠片+${String(e.stage.rewardQuestPoints)}）`;
+      this.noticeLeft = 6;
+    }
+    if (events.length > 0) {
+      this.refreshPoints();
+      if (this.autoSaver.onEvent("changeArea")) void this.autoSave();
+    }
+  }
+
   /** 戦う対象（敵と、町の人形） */
   private targetBodies(): Combatant[] {
     return [...this.enemies.map((e) => e.body), ...(this.townDummy ? [this.townDummy] : [])];
@@ -966,6 +1035,8 @@ export class PlayScene extends Phaser.Scene {
 
     const map = ALL_MAPS.find((m) => m.id === id) ?? this.mapDef;
     this.mapDef = map;
+    this.walls = [...map.walls];
+    this.doorObj = undefined;
     this.world.location = id;
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
       this.locationObjs.push(o);
@@ -1070,6 +1141,7 @@ export class PlayScene extends Phaser.Scene {
       const region =
         this.world.region?.map.id === id ? this.world.region : this.world.enter(id, this.rng);
       for (const e of region.enemies) this.addEnemy(e);
+      this.questProgress(this.quests.notify({ type: "reach", region: id }));
       for (const c of region.containers) {
         this.containerViews.set(
           c.id,
@@ -1127,7 +1199,7 @@ export class PlayScene extends Phaser.Scene {
   private updateWorld(): void {
     const map = this.mapDef;
     // 壁との衝突
-    const fixed = resolveWalls(this.player.pos, 0.4, map.walls, {
+    const fixed = resolveWalls(this.player.pos, 0.4, this.walls, {
       width: map.width,
       height: map.height,
     });
@@ -1215,6 +1287,39 @@ export class PlayScene extends Phaser.Scene {
       }
     }
     const region = this.world.region;
+    const secret = this.mapDef.secret;
+    if (
+      region &&
+      secret &&
+      !region.secretOpen &&
+      Math.hypot(secret.bush.x - p.x, secret.bush.y - p.y) <= 2.5
+    ) {
+      region.secretOpen = true;
+      this.walls = this.walls.filter((w) => w !== secret.door);
+      this.doorObj?.destroy();
+      const chest = {
+        id: `${this.mapDef.id}-SECRET`,
+        kind: "chest" as const,
+        pos: secret.chest,
+        opened: false,
+      };
+      region.containers.push(chest);
+      this.containerViews.set(
+        chest.id,
+        this.add.rectangle(chest.pos.x * M, chest.pos.y * M, 14, 10, 0xd8a24a).setDepth(-2),
+      );
+      if (!this.world.foundSecrets.has(this.mapDef.id)) {
+        this.world.foundSecrets.add(this.mapDef.id);
+        this.explorationPoints += 1;
+        this.notice = "隠し部屋を見つけた（隠し星+1）";
+        this.noticeLeft = 5;
+        this.refreshPoints();
+      } else {
+        this.notice = "隠し部屋が開いた";
+        this.noticeLeft = 3;
+      }
+      return true;
+    }
     if (region) {
       for (const c of region.containers) {
         if (c.opened || Math.hypot(c.pos.x - p.x, c.pos.y - p.y) > 2) continue;
@@ -1437,7 +1542,8 @@ export class PlayScene extends Phaser.Scene {
         enemy.body,
         this.enemies.map((e) => e.body),
       );
-      const source: DropSource = enemy.rank === "normal" ? "normal" : enemy.rank;
+      this.onEnemyDefeated(enemy);
+      const source: DropSource = enemy.def.boss ?? enemy.rank;
       const classes = Object.entries(this.job.aptitude)
         .filter(([, apt]) => apt === "S" || apt === "A")
         .map(([k]) => k);
@@ -1649,6 +1755,16 @@ export class PlayScene extends Phaser.Scene {
     this.body.setFillStyle(isDodging(this.player) && !canBeHit(this.player) ? 0xffffff : 0x6fb1d8);
     this.body.setAlpha(isDodging(this.player) ? 0.6 : 1);
 
+    // 動作確認（pnpm smoke など）のための状態の公開
+    document.body.dataset["stellaState"] = JSON.stringify({
+      location: this.world.location,
+      level: this.progression.character.level,
+      exp: this.progression.character.exp,
+      questPoints: this.quests.questPoints,
+      starPoints: this.starPoints,
+      deaths: this.world.deaths,
+      bag: this.bag.count,
+    });
     this.warn.clear();
     for (const v of this.views) {
       const e = v.enemy;

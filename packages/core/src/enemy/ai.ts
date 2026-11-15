@@ -42,6 +42,7 @@ export type EnemyEvent =
       damage: number;
     }
   | { type: "cloud"; enemy: Enemy; attack: EnemyAttackDef; pos: Vec2; damage: number }
+  | { type: "summon"; enemy: Enemy; attack: EnemyAttackDef }
   | { type: "alert"; enemy: Enemy }
   | { type: "returned"; enemy: Enemy };
 
@@ -62,6 +63,10 @@ export interface Enemy {
   flankSide: 1 | -1;
   /** 標準HPと格の倍率から決まる、攻撃の強さの基準 */
   attackPower: number;
+  /** 攻撃速度の強化（遠吠え：+20%を8秒）。動作の時間が短くなる */
+  buff: { bonus: number; left: number };
+  /** 今回の攻撃で、すでに出したヒットの数（多段の攻撃） */
+  hitsDone: number;
 }
 
 export function createEnemy(init: {
@@ -103,6 +108,8 @@ export function createEnemy(init: {
     cooldowns: new Map(),
     flankSide: init.rng?.chance(0.5) === false ? -1 : 1,
     attackPower: std * mult.damage,
+    buff: { bonus: 0, left: 0 },
+    hitsDone: 0,
   };
 }
 
@@ -208,7 +215,8 @@ export function stepEnemy(enemy: Enemy, target: Target, dt: number, rng: Rng): E
   });
   body.hp = Math.max(0, body.hp - dots.reduce((s, d) => s + d.damage, 0));
   if (body.hp <= 0) return events;
-  enemy.stateTime += dt;
+  enemy.buff.left = Math.max(0, enemy.buff.left - dt);
+  enemy.stateTime += dt * (1 + (enemy.buff.left > 0 ? enemy.buff.bonus : 0));
 
   // 崩しでダウン（行動中でも中断される）
   if (body.breakGauge.broken && enemy.state !== "down") {
@@ -293,6 +301,7 @@ export function stepEnemy(enemy: Enemy, target: Target, dt: number, rng: Rng): E
         enemy.state = "windup";
         enemy.stateTime = 0;
         enemy.attackHitDone = false;
+        enemy.hitsDone = 0;
         events.push({ type: "windup", enemy, attack: chosen, angle: body.facing });
       }
       break;
@@ -300,6 +309,7 @@ export function stepEnemy(enemy: Enemy, target: Target, dt: number, rng: Rng): E
     case "windup": {
       const a = enemy.attack as EnemyAttackDef;
       // 予兆の間は向きを変えない（ボスを除く）
+      if (enemy.def.boss !== undefined) turnToward(enemy, toPlayer, dt * 0.5);
       if (enemy.stateTime >= a.telegraphSeconds) {
         enemy.state = "attack";
         enemy.stateTime = 0;
@@ -312,7 +322,12 @@ export function stepEnemy(enemy: Enemy, target: Target, dt: number, rng: Rng): E
       const accuracy =
         enemyAccuracy(enemy.level) *
         (1 - (body.accuracyPenalty.left > 0 ? body.accuracyPenalty.value : 0));
-      if (a.dashSpeed !== undefined) {
+      if (a.summon) {
+        if (!enemy.attackHitDone) {
+          enemy.attackHitDone = true;
+          events.push({ type: "summon", enemy, attack: a });
+        }
+      } else if (a.dashSpeed !== undefined) {
         // 突進の間は曲がれない
         body.pos.x += Math.cos(body.facing) * a.dashSpeed * dt;
         body.pos.y += Math.sin(body.facing) * a.dashSpeed * dt;
@@ -320,6 +335,21 @@ export function stepEnemy(enemy: Enemy, target: Target, dt: number, rng: Rng): E
         if (!enemy.attackHitDone && touching && !target.invulnerable) {
           enemy.attackHitDone = true;
           events.push({ type: "hit", enemy, attack: a, damage, accuracy });
+        }
+      } else if (a.hitCount !== undefined && a.hitCount > 1) {
+        // 多段：当たり判定の時間を等分して、段ごとに判定する
+        const due = Math.min(
+          a.hitCount,
+          Math.floor((enemy.stateTime / a.activeSeconds) * a.hitCount) + 1,
+        );
+        while (enemy.hitsDone < due) {
+          enemy.hitsDone++;
+          if (
+            !target.invulnerable &&
+            shapeHits(a.shape, body.pos, body.facing, { pos: target.pos, radius: target.radius })
+          ) {
+            events.push({ type: "hit", enemy, attack: a, damage, accuracy });
+          }
         }
       } else if (!enemy.attackHitDone) {
         enemy.attackHitDone = true;
@@ -389,4 +419,47 @@ export function spawnPack(init: {
     );
   }
   return out;
+}
+
+/**
+ * 遠吠え：仲間を呼び、周囲の同種の敵の攻撃速度を上げる（補助仕様書 10.5）。
+ * 呼んだ敵は、呼んだ側と同じ群れとして加わる。
+ */
+export function performSummon(
+  summoner: Enemy,
+  attack: EnemyAttackDef,
+  lookup: (id: string) => EnemyDef,
+  rng: Rng,
+  all: readonly Enemy[],
+): Enemy[] {
+  const s = attack.summon;
+  if (!s) return [];
+  const def = lookup(s.enemyId);
+  const created: Enemy[] = [];
+  for (let i = 0; i < s.count; i++) {
+    const a = rng.next() * Math.PI * 2;
+    created.push(
+      createEnemy({
+        def,
+        level: summoner.level,
+        pos: {
+          x: summoner.body.pos.x + Math.cos(a) * 2.5,
+          y: summoner.body.pos.y + Math.sin(a) * 2.5,
+        },
+        ...(summoner.packId ? { packId: summoner.packId } : {}),
+        id: `${summoner.body.id}-call-${String(rng.int(0, 1e9))}`,
+        rng,
+      }),
+    );
+  }
+  // 周囲の同種の敵（呼ばれた敵を含む）の攻撃速度を上げる
+  for (const e of [...all, ...created]) {
+    if (e.def.id !== def.id || e.body.hp <= 0) continue;
+    if (dist(e.body.pos, summoner.body.pos) <= s.radius) {
+      e.buff = { bonus: s.attackSpeedBonus, left: s.buffSeconds };
+      // 呼ばれた敵はすでに気づいている
+      if (e.state === "idle") e.state = "chase";
+    }
+  }
+  return created;
 }

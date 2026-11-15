@@ -27,6 +27,8 @@ export interface RegionInstance {
   containers: Container[];
   /** 何回目の生成か（作り直しのたびに増える） */
   generation: number;
+  /** 隠し部屋を開けたか（地域が作り直されると閉じる。隠し星は一度だけ） */
+  secretOpen: boolean;
 }
 
 export type EnemyLookup = (id: string) => EnemyDef;
@@ -116,7 +118,21 @@ export function generateRegion(
       opened: false,
     });
   }
-  return { map, enemies, containers, generation };
+  // 中ボス・章ボス：地域の終点に、毎回出る
+  if (map.boss) {
+    enemies.push(
+      createEnemy({
+        def: lookup(map.boss.enemyId),
+        level: map.boss.level,
+        pos: map.boss.pos,
+        id: `${map.id}-G${String(generation)}-BOSS`,
+        facing: Math.PI,
+        rng,
+      }),
+    );
+  }
+  // 隠し部屋の宝箱（茂みを調べるまで現れない）は、ゲーム側が secretOpen で扱う
+  return { map, enemies, containers, generation, secretOpen: false };
 }
 
 /** 配置を、位置と種類の一覧にする（配置が変わったかの比較・確認用） */

@@ -72,9 +72,17 @@ export class World {
   /** 町から転移の石で地域の入口へ移動する。解放していない地域へは行けない */
   teleportTo(regionId: string, rng: Rng): { ok: boolean; reason?: "locked" | "notInTown" } {
     if (!this.inTown) return { ok: false, reason: "notInTown" };
-    if (!this.unlockedTeleports.has(regionId)) return { ok: false, reason: "locked" };
+    if (!this.unlockedTeleports.has(regionId) || !this.canEnter(regionId)) {
+      return { ok: false, reason: "locked" };
+    }
     this.enter(regionId, rng);
     return { ok: true };
+  }
+
+  /** 入る条件を満たしているか（A5：母樹の初回撃破の後） */
+  canEnter(regionId: string): boolean {
+    const req = this.map(regionId).requires;
+    return req === undefined || this.firstKills.has(req);
   }
 
   /** 地域に入る（作り直す）。入るたびに配置が変わる */
@@ -85,10 +93,14 @@ export class World {
     return this.region;
   }
 
-  /** 別の地域へ移る：今の地域は捨てられ、行き先が作られる */
-  move(regionId: string, rng: Rng): RegionInstance {
+  /** 別の地域へ移る：今の地域は捨てられ、行き先が作られる。入る条件を満たさなければ移れない */
+  move(regionId: string, rng: Rng): RegionInstance | undefined {
+    if (!this.canEnter(regionId)) return undefined;
     return this.enter(regionId, rng);
   }
+
+  /** 見つけた隠し部屋（隠し星は一度だけ得る） */
+  readonly foundSecrets = new Set<string>();
 
   /** 入口の転移の石に触れて解放する */
   touchTeleportStone(regionId: string): boolean {
@@ -118,12 +130,14 @@ export class World {
     firstKills: string[];
     deaths: number;
     lastDeathCause: string | null;
+    foundSecrets: string[];
   } {
     return {
       unlockedRegions: [...this.unlockedTeleports].sort(),
       firstKills: [...this.firstKills].sort(),
       deaths: this.deaths,
       lastDeathCause: this.deathLog[this.deathLog.length - 1]?.cause ?? null,
+      foundSecrets: [...this.foundSecrets].sort(),
     };
   }
 
@@ -131,7 +145,9 @@ export class World {
     unlockedRegions: readonly string[];
     firstKills: readonly string[];
     deaths: number;
+    foundSecrets?: readonly string[];
   }): void {
+    for (const id of data.foundSecrets ?? []) this.foundSecrets.add(id);
     for (const id of data.unlockedRegions) this.unlockedTeleports.add(id);
     for (const id of data.firstKills) this.firstKills.add(id);
     this.deaths = data.deaths;

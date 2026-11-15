@@ -9,6 +9,7 @@ import {
   insideWall,
   type FacilityId,
   type MapDef,
+  type QuestDef,
   type Rect,
   type Section,
 } from "@stella/core";
@@ -25,12 +26,20 @@ interface RegionSpec {
   packSpots: number;
   eliteSpots: readonly [number, number];
   magicChance: number;
+  /** 中ボス・章ボス（地域の終点） */
+  boss?: { enemyId: string; level: number };
+  /** 隠し部屋を持つ */
+  secret?: boolean;
+  /** 入る条件（初回討伐） */
+  requires?: string;
   /** 行き先（東端の出口）。最後の地域は undefined */
   next: string | undefined;
   /** 入口にある戻り先 */
   prev: string;
 }
 
+/** 通常の敵（ボスを除く）。A5の「全ての種類」 */
+const REGULAR_ENEMIES = ENEMIES.filter((e) => e.boss === undefined).map((e) => e.id);
 const WOLF = "ENM-FOREST-WOLF";
 const RAT = "ENM-THORN-RAT";
 const LIZARD = "ENM-SPIT-LIZARD";
@@ -87,6 +96,8 @@ const SPECS: readonly RegionSpec[] = [
     packSpots: 26,
     eliteSpots: [2, 3],
     magicChance: 0.1,
+    boss: { enemyId: "ENM-PACK-LEADER", level: 11 },
+    secret: true,
     next: "MAP-A4",
     prev: "MAP-A2",
   },
@@ -113,13 +124,14 @@ const SPECS: readonly RegionSpec[] = [
     width: 170,
     height: 56,
     sections: [
-      { levels: [16, 17], enemies: ENEMIES.map((e) => e.id) },
-      { levels: [17, 18], enemies: ENEMIES.map((e) => e.id) },
-      { levels: [18, 19], enemies: ENEMIES.map((e) => e.id) },
+      { levels: [16, 17], enemies: REGULAR_ENEMIES },
+      { levels: [17, 18], enemies: REGULAR_ENEMIES },
+      { levels: [18, 19], enemies: REGULAR_ENEMIES },
     ],
     packSpots: 30,
     eliteSpots: [4, 6],
     magicChance: 0.15,
+    requires: "BOSS-CH1",
     next: undefined,
     prev: "MAP-A4",
   },
@@ -161,6 +173,20 @@ function buildRegion(spec: RegionSpec): MapDef {
     enemies: s.enemies,
   }));
   for (const s of sections) for (const id of s.enemies) enemyDef(id); // 敵の定義の存在を確かめる
+  // 隠し部屋：上辺に壁で囲った小部屋。入口は壁（扉）でふさがれ、手前の茂みを調べると開く
+  let secret: MapDef["secret"];
+  if (spec.secret) {
+    const cx = Math.round(width / 2);
+    const door: Rect = { x: cx - 2, y: 9, w: 4, h: 1 };
+    walls.push(
+      { x: cx - 6, y: 2, w: 1, h: 8 },
+      { x: cx + 5, y: 2, w: 1, h: 8 },
+      { x: cx - 6, y: 9, w: 4, h: 1 },
+      { x: cx + 2, y: 9, w: 4, h: 1 },
+      door,
+    );
+    secret = { bush: { x: cx, y: 13 }, door, chest: { x: cx, y: 5 } };
+  }
   return {
     id: spec.id,
     name: spec.name,
@@ -180,6 +206,17 @@ function buildRegion(spec: RegionSpec): MapDef {
     chestSpots: Array.from({ length: 3 }, () => free(2, 40)),
     magicChance: spec.magicChance,
     eliteSpotCount: spec.eliteSpots,
+    ...(spec.boss
+      ? {
+          boss: {
+            enemyId: spec.boss.enemyId,
+            pos: { x: width - 14, y: height / 2 },
+            level: spec.boss.level,
+          },
+        }
+      : {}),
+    ...(secret ? { secret } : {}),
+    ...(spec.requires ? { requires: spec.requires } : {}),
   };
 }
 
@@ -226,3 +263,36 @@ export function mapDef(id: string): MapDef {
   if (!m) throw new Error(`地図がない: ${id}`);
   return m;
 }
+
+/** クエスト「森の異変」（補助仕様書 9.6）：4段階、各段階で星図の欠片（星辰盤のポイント）1 */
+export const QUEST_FOREST: QuestDef = {
+  id: "QST-FOREST",
+  name: "森の異変",
+  stages: [
+    {
+      id: "S1",
+      description: "A2に到達する",
+      condition: { type: "reach", region: "MAP-A2" },
+      rewardQuestPoints: 1,
+    },
+    {
+      id: "S2",
+      description: "群れ長の大牙を倒す",
+      condition: { type: "kill", target: "ENM-PACK-LEADER" },
+      rewardQuestPoints: 1,
+    },
+    {
+      id: "S3",
+      description: "A4に到達する",
+      condition: { type: "reach", region: "MAP-A4" },
+      rewardQuestPoints: 1,
+    },
+    {
+      id: "S4",
+      description: "腐根の母樹を倒す",
+      condition: { type: "kill", target: "BOSS-CH1" },
+      rewardQuestPoints: 1,
+    },
+  ],
+};
+export const QUESTS: readonly QuestDef[] = [QUEST_FOREST];

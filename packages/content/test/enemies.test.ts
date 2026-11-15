@@ -33,7 +33,8 @@ const make = (id: string, x: number, facing = 0, level = 5) =>
 
 describe("第1章の敵のデータ", () => {
   it("6種類。定義の規則（大きい攻撃の予兆は0.6秒以上）を満たす", () => {
-    expect(ENEMIES).toHaveLength(6);
+    expect(ENEMIES.filter((e) => e.boss === undefined)).toHaveLength(6);
+    expect(ENEMIES.filter((e) => e.boss === "midBoss")).toHaveLength(1);
     expect(ENEMIES.flatMap(checkEnemyDef)).toEqual([]);
   });
   it("系統のタグが存在する", () => {
