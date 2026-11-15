@@ -35,19 +35,34 @@
       "provisional": true
     },
     {
+      "id": "CONST-WINDVANE",
+      "name": "風見座",
+      "region": "TAG-REGION-GOUJIN",
+      "nodes": [
+        "STAR-GOUJIN-0100",
+        "STAR-GOUJIN-0101",
+        "STAR-GOUJIN-0102",
+        "STAR-GOUJIN-0103",
+        "STAR-GOUJIN-0104",
+        "STAR-GOUJIN-0105"
+      ],
+      "completionEffect": "EFF-CONST-WINDVANE",
+      "provisional": true
+    },
+    {
       "id": "CONST-VIPER",
       "name": "毒蛇座",
       "region": "TAG-REGION-JIN",
       "nodes": [
-        "STAR-JIN-0110",
-        "STAR-JIN-0111",
-        "STAR-JIN-0112",
-        "STAR-JIN-0113",
-        "STAR-JIN-0114",
-        "STAR-JIN-0115",
         "STAR-JIN-0116",
         "STAR-JIN-0117",
-        "STAR-JIN-0118"
+        "STAR-JIN-0118",
+        "STAR-JIN-0119",
+        "STAR-JIN-0120",
+        "STAR-JIN-0121",
+        "STAR-JIN-0122",
+        "STAR-JIN-0123",
+        "STAR-JIN-0124"
       ],
       "completionEffect": "EFF-CONST-VIPER",
       "provisional": true

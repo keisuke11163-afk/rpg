@@ -104,7 +104,8 @@ export class StarBoard {
   canAllocate(id: string, pointsTotal: number): { ok: boolean; reason?: AllocateDenied } {
     const node = this.data.nodes.get(id);
     if (!node) return { ok: false, reason: "unknown" };
-    if (node.type === "始点") return { ok: false, reason: "start" };
+    // 予約枠の始点（job が null）は、通過も取得もできる（本仕様書 4.2）。ほかのジョブの始点は、入口として開く
+    if (node.type === "始点" && node.start?.job !== null) return { ok: false, reason: "start" };
     if (this.has(id)) return { ok: false, reason: "already" };
     const adjacent = node.links.some((l) => this.entrances.includes(l) || this.has(l));
     if (!adjacent) return { ok: false, reason: "notAdjacent" };

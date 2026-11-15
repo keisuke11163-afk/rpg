@@ -30,7 +30,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.016
+          "value": 0.024
         },
         {
           "kind": "加算％",
@@ -40,7 +40,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -90,7 +90,7 @@
               "all_of": ["TAG-FORM-PROJECTILE"]
             }
           },
-          "value": 0.05
+          "value": 0.075
         },
         {
           "kind": "固定の追加",
@@ -134,7 +134,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.017
+          "value": 0.026
         },
         {
           "kind": "加算％",
@@ -144,7 +144,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -194,7 +194,7 @@
               "all_of": ["TAG-FORM-PROJECTILE"]
             }
           },
-          "value": 0.052000000000000005
+          "value": 0.078
         },
         {
           "kind": "固定の追加",
@@ -238,7 +238,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.015
+          "value": 0.023
         },
         {
           "kind": "加算％",
@@ -248,7 +248,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -298,7 +298,7 @@
               "all_of": ["TAG-FORM-PROJECTILE"]
             }
           },
-          "value": 0.054000000000000006
+          "value": 0.081
         },
         {
           "kind": "固定の追加",
@@ -342,7 +342,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.016
+          "value": 0.024
         },
         {
           "kind": "加算％",
@@ -352,7 +352,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -402,7 +402,7 @@
               "all_of": ["TAG-FORM-PROJECTILE"]
             }
           },
-          "value": 0.05
+          "value": 0.075
         },
         {
           "kind": "固定の追加",
@@ -446,7 +446,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.017
+          "value": 0.026
         },
         {
           "kind": "加算％",
@@ -456,7 +456,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -478,7 +478,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -495,7 +495,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.032
+          "value": 0.048
         },
         {
           "kind": "固定の追加",
@@ -522,7 +522,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.044
+          "value": 0.066
         },
         {
           "kind": "加算％",
@@ -532,7 +532,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -554,7 +554,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.06
+          "value": 0.09
         },
         {
           "kind": "加算％",
@@ -564,7 +564,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -581,7 +581,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.042
+          "value": 0.063
         },
         {
           "kind": "固定の追加",
@@ -608,7 +608,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -625,7 +625,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.03
+          "value": 0.045
         },
         {
           "kind": "固定の追加",
@@ -652,7 +652,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.042
+          "value": 0.063
         },
         {
           "kind": "加算％",
@@ -662,7 +662,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -684,7 +684,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.064
+          "value": 0.096
         },
         {
           "kind": "加算％",
@@ -694,7 +694,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -711,7 +711,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.04
+          "value": 0.06
         },
         {
           "kind": "固定の追加",
@@ -792,7 +792,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         },
         {
           "kind": "加算％",
@@ -802,7 +802,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -824,7 +824,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.062
+          "value": 0.093
         },
         {
           "kind": "加算％",
@@ -834,7 +834,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -851,7 +851,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.044
+          "value": 0.066
         },
         {
           "kind": "固定の追加",
@@ -878,7 +878,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -895,7 +895,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.032
+          "value": 0.048
         },
         {
           "kind": "固定の追加",
@@ -922,7 +922,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.044
+          "value": 0.066
         },
         {
           "kind": "加算％",
@@ -932,7 +932,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -1014,7 +1014,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.06
+          "value": 0.09
         },
         {
           "kind": "加算％",
@@ -1024,7 +1024,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -1041,7 +1041,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.042
+          "value": 0.063
         },
         {
           "kind": "固定の追加",
@@ -1068,7 +1068,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -1085,7 +1085,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.03
+          "value": 0.045
         },
         {
           "kind": "固定の追加",
@@ -1147,7 +1147,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.042
+          "value": 0.063
         },
         {
           "kind": "加算％",
@@ -1157,7 +1157,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -1179,7 +1179,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.064
+          "value": 0.096
         },
         {
           "kind": "加算％",
@@ -1189,7 +1189,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -1206,7 +1206,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.04
+          "value": 0.06
         },
         {
           "kind": "固定の追加",
@@ -1233,7 +1233,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -1271,7 +1271,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.034
+          "value": 0.051
         },
         {
           "kind": "固定の追加",
@@ -1298,7 +1298,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         },
         {
           "kind": "加算％",
@@ -1308,7 +1308,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -1330,7 +1330,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.062
+          "value": 0.093
         },
         {
           "kind": "加算％",
@@ -1340,7 +1340,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -1378,7 +1378,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.044
+          "value": 0.066
         },
         {
           "kind": "固定の追加",
@@ -1405,7 +1405,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -1422,7 +1422,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.032
+          "value": 0.048
         },
         {
           "kind": "固定の追加",
@@ -1449,7 +1449,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.044
+          "value": 0.066
         },
         {
           "kind": "加算％",
@@ -1459,7 +1459,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -1539,7 +1539,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.06
+          "value": 0.09
         },
         {
           "kind": "加算％",
@@ -1549,7 +1549,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -1566,7 +1566,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.042
+          "value": 0.063
         },
         {
           "kind": "固定の追加",
@@ -1593,7 +1593,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -1610,7 +1610,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.03
+          "value": 0.045
         },
         {
           "kind": "固定の追加",
@@ -1637,7 +1637,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.042
+          "value": 0.063
         },
         {
           "kind": "加算％",
@@ -1647,7 +1647,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -1708,7 +1708,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.064
+          "value": 0.096
         },
         {
           "kind": "加算％",
@@ -1718,7 +1718,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -1735,7 +1735,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.04
+          "value": 0.06
         },
         {
           "kind": "固定の追加",
@@ -1762,7 +1762,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -1798,7 +1798,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.034
+          "value": 0.051
         },
         {
           "kind": "固定の追加",
@@ -1825,7 +1825,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         },
         {
           "kind": "加算％",
@@ -1835,7 +1835,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.06
         }
       ],
       "affects": {
@@ -1857,7 +1857,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.062
+          "value": 0.093
         },
         {
           "kind": "加算％",
@@ -1867,7 +1867,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.03
+          "value": 0.045
         }
       ],
       "affects": {
@@ -1884,7 +1884,7 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.044
+          "value": 0.066
         },
         {
           "kind": "固定の追加",
@@ -1911,7 +1911,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -2148,7 +2148,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.016
+          "value": 0.024
         },
         {
           "kind": "加算％",
@@ -2158,7 +2158,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -2208,7 +2208,7 @@
               "all_of": ["TAG-FORM-PROJECTILE"]
             }
           },
-          "value": 0.05
+          "value": 0.075
         },
         {
           "kind": "固定の追加",
@@ -2320,7 +2320,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.017
+          "value": 0.026
         },
         {
           "kind": "加算％",
@@ -2330,7 +2330,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -2380,7 +2380,7 @@
               "all_of": ["TAG-FORM-PROJECTILE"]
             }
           },
-          "value": 0.052000000000000005
+          "value": 0.078
         },
         {
           "kind": "固定の追加",
@@ -2452,7 +2452,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.015
+          "value": 0.023
         },
         {
           "kind": "加算％",
@@ -2462,7 +2462,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -2512,7 +2512,7 @@
               "all_of": ["TAG-FORM-PROJECTILE"]
             }
           },
-          "value": 0.054000000000000006
+          "value": 0.081
         },
         {
           "kind": "固定の追加",
@@ -2575,7 +2575,7 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.016
+          "value": 0.024
         },
         {
           "kind": "加算％",
@@ -2585,7 +2585,7 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -2635,7 +2635,7 @@
               "all_of": ["TAG-FORM-PROJECTILE"]
             }
           },
-          "value": 0.05
+          "value": 0.075
         },
         {
           "kind": "固定の追加",
@@ -2673,123 +2673,23 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0100",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "固定の追加",
-          "stat": "迅",
-          "value": 10
-        },
-        {
-          "kind": "加算％",
-          "stat": "回避値",
-          "value": 0.01
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0101",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "会心率増加%",
-          "value": 0.032
-        },
-        {
-          "kind": "加算％",
-          "stat": "ダメージ",
-          "filter": {
-            "tags": {
-              "all_of": ["TAG-ELEM-PHYSICAL"]
-            }
-          },
-          "value": 0.02
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0102",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-BLEED"
-          },
-          "value": 0.06
-        },
-        {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-BLEED"
-          },
-          "value": 0.3
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0103",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.05
-        },
-        {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.2
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0104",
+      "id": "EFF-GOUJIN-0100",
       "source": "基本ノード",
       "modifiers": [
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.016
+          "value": 0.02
         },
         {
           "kind": "加算％",
-          "stat": "回避値",
-          "value": 0.02
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
         }
       ],
       "affects": {
@@ -2800,18 +2700,23 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0105",
+      "id": "EFF-GOUJIN-0101",
       "source": "基本ノード",
       "modifiers": [
         {
-          "kind": "固定の追加",
-          "stat": "迅",
-          "value": 10
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.02
         },
         {
           "kind": "加算％",
-          "stat": "回避値",
-          "value": 0.01
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
         }
       ],
       "affects": {
@@ -2820,25 +2725,163 @@
       },
       "scope": "自分",
       "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0102",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.02
+        },
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0103",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.02
+        },
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0104",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.02
+        },
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-GOUJIN-0105",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.02
+        },
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-PROJECTILE"]
+            }
+          },
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-CONST-WINDVANE",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "投射物速度",
+          "value": 0.2,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "移動中"
+            }
+          ]
+        },
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.05,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "移動中"
+            }
+          ]
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "風見座の完成ボーナス：移動中は投射物速度+20%・移動速度+5%"
     },
     {
       "id": "EFF-JIN-0106",
       "source": "基本ノード",
       "modifiers": [
         {
-          "kind": "加算％",
-          "stat": "会心率増加%",
-          "value": 0.03
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
         },
         {
           "kind": "加算％",
-          "stat": "ダメージ",
-          "filter": {
-            "tags": {
-              "all_of": ["TAG-ELEM-PHYSICAL"]
-            }
-          },
-          "value": 0.02
+          "stat": "回避値",
+          "value": 0.015
         }
       ],
       "affects": {
@@ -2854,19 +2897,18 @@
       "modifiers": [
         {
           "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-BLEED"
-          },
-          "value": 0.06
+          "stat": "会心率増加%",
+          "value": 0.048
         },
         {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
+          "kind": "加算％",
+          "stat": "ダメージ",
           "filter": {
-            "ailment": "TAG-AIL-BLEED"
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
           },
-          "value": 0.3
+          "value": 0.03
         }
       ],
       "affects": {
@@ -2884,17 +2926,17 @@
           "kind": "加算％",
           "stat": "状態異常ダメージ",
           "filter": {
-            "ailment": "TAG-AIL-POISON"
+            "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.054000000000000006
+          "value": 0.09
         },
         {
           "kind": "固定の追加",
           "stat": "状態異常の持続秒数",
           "filter": {
-            "ailment": "TAG-AIL-POISON"
+            "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.2
+          "value": 0.3
         }
       ],
       "affects": {
@@ -2910,13 +2952,19 @@
       "modifiers": [
         {
           "kind": "加算％",
-          "stat": "移動速度",
-          "value": 0.015
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.075
         },
         {
-          "kind": "加算％",
-          "stat": "回避値",
-          "value": 0.02
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
         }
       ],
       "affects": {
@@ -2932,19 +2980,13 @@
       "modifiers": [
         {
           "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.08
+          "stat": "移動速度",
+          "value": 0.024
         },
         {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.2
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.03
         }
       ],
       "affects": {
@@ -2959,20 +3001,14 @@
       "source": "基本ノード",
       "modifiers": [
         {
-          "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.08
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
         },
         {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.2
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.015
         }
       ],
       "affects": {
@@ -2988,19 +3024,18 @@
       "modifiers": [
         {
           "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.08
+          "stat": "会心率増加%",
+          "value": 0.045
         },
         {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
+          "kind": "加算％",
+          "stat": "ダメージ",
           "filter": {
-            "ailment": "TAG-AIL-POISON"
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
           },
-          "value": 0.2
+          "value": 0.03
         }
       ],
       "affects": {
@@ -3018,17 +3053,17 @@
           "kind": "加算％",
           "stat": "状態異常ダメージ",
           "filter": {
-            "ailment": "TAG-AIL-POISON"
+            "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.08
+          "value": 0.09
         },
         {
           "kind": "固定の追加",
           "stat": "状態異常の持続秒数",
           "filter": {
-            "ailment": "TAG-AIL-POISON"
+            "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.2
+          "value": 0.3
         }
       ],
       "affects": {
@@ -3048,7 +3083,7 @@
           "filter": {
             "ailment": "TAG-AIL-POISON"
           },
-          "value": 0.08
+          "value": 0.081
         },
         {
           "kind": "固定の追加",
@@ -3072,19 +3107,13 @@
       "modifiers": [
         {
           "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.08
+          "stat": "移動速度",
+          "value": 0.023
         },
         {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.2
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.03
         }
       ],
       "affects": {
@@ -3179,6 +3208,174 @@
       "provisional": true
     },
     {
+      "id": "EFF-JIN-0119",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0120",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0121",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0122",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0123",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0124",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.08
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
       "id": "EFF-CONST-VIPER",
       "source": "基本ノード",
       "modifiers": [
@@ -3243,145 +3440,18 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0119",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "移動速度",
-          "value": 0.016
-        },
-        {
-          "kind": "加算％",
-          "stat": "回避値",
-          "value": 0.02
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0120",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "固定の追加",
-          "stat": "迅",
-          "value": 10
-        },
-        {
-          "kind": "加算％",
-          "stat": "回避値",
-          "value": 0.01
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0121",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "会心率増加%",
-          "value": 0.03
-        },
-        {
-          "kind": "加算％",
-          "stat": "ダメージ",
-          "filter": {
-            "tags": {
-              "all_of": ["TAG-ELEM-PHYSICAL"]
-            }
-          },
-          "value": 0.02
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0123",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-BLEED"
-          },
-          "value": 0.06
-        },
-        {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-BLEED"
-          },
-          "value": 0.3
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0124",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.054000000000000006
-        },
-        {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.2
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
       "id": "EFF-JIN-0125",
       "source": "基本ノード",
       "modifiers": [
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.015
+          "value": 0.024
         },
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -3403,7 +3473,134 @@
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.01
+          "value": 0.015
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0127",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.045
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0129",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.09
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0130",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.081
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0131",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.023
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0132",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.015
         }
       ],
       "affects": {
@@ -3442,13 +3639,13 @@
       "note": "血の刃：出血を1スタック消費して残りダメージを即座に与える"
     },
     {
-      "id": "EFF-JIN-0129",
+      "id": "EFF-JIN-0135",
       "source": "基本ノード",
       "modifiers": [
         {
           "kind": "加算％",
           "stat": "会心率増加%",
-          "value": 0.034
+          "value": 0.051
         },
         {
           "kind": "加算％",
@@ -3458,7 +3655,7 @@
               "all_of": ["TAG-ELEM-PHYSICAL"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -3469,7 +3666,7 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0130",
+      "id": "EFF-JIN-0136",
       "source": "基本ノード",
       "modifiers": [
         {
@@ -3478,7 +3675,7 @@
           "filter": {
             "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.06
+          "value": 0.09
         },
         {
           "kind": "固定の追加",
@@ -3497,7 +3694,7 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0131",
+      "id": "EFF-JIN-0137",
       "source": "基本ノード",
       "modifiers": [
         {
@@ -3506,7 +3703,7 @@
           "filter": {
             "ailment": "TAG-AIL-POISON"
           },
-          "value": 0.052000000000000005
+          "value": 0.078
         },
         {
           "kind": "固定の追加",
@@ -3548,18 +3745,18 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0134",
+      "id": "EFF-JIN-0140",
       "source": "基本ノード",
       "modifiers": [
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.017
+          "value": 0.026
         },
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -3570,7 +3767,7 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0135",
+      "id": "EFF-JIN-0141",
       "source": "基本ノード",
       "modifiers": [
         {
@@ -3581,7 +3778,7 @@
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -3592,13 +3789,13 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0136",
+      "id": "EFF-JIN-0142",
       "source": "基本ノード",
       "modifiers": [
         {
           "kind": "加算％",
           "stat": "会心率増加%",
-          "value": 0.032
+          "value": 0.048
         },
         {
           "kind": "加算％",
@@ -3608,7 +3805,7 @@
               "all_of": ["TAG-ELEM-PHYSICAL"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -3645,7 +3842,7 @@
       "note": "代償：回復で遅延分を減らすことはできない"
     },
     {
-      "id": "EFF-JIN-0137",
+      "id": "EFF-JIN-0143",
       "source": "基本ノード",
       "modifiers": [
         {
@@ -3654,7 +3851,7 @@
           "filter": {
             "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.06
+          "value": 0.09
         },
         {
           "kind": "固定の追加",
@@ -3673,7 +3870,7 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0138",
+      "id": "EFF-JIN-0144",
       "source": "基本ノード",
       "modifiers": [
         {
@@ -3682,7 +3879,7 @@
           "filter": {
             "ailment": "TAG-AIL-POISON"
           },
-          "value": 0.05
+          "value": 0.075
         },
         {
           "kind": "固定の追加",
@@ -3701,18 +3898,18 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0139",
+      "id": "EFF-JIN-0145",
       "source": "基本ノード",
       "modifiers": [
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.016
+          "value": 0.024
         },
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -3723,7 +3920,7 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0140",
+      "id": "EFF-JIN-0146",
       "source": "基本ノード",
       "modifiers": [
         {
@@ -3734,7 +3931,7 @@
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -3767,150 +3964,23 @@
       "note": "代償：状態異常が消えるので、付け直しが必要になる"
     },
     {
-      "id": "EFF-JIN-0142",
+      "id": "EFF-JIN-0148",
       "source": "基本ノード",
       "modifiers": [
         {
           "kind": "加算％",
           "stat": "会心率増加%",
+          "value": 0.045
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
           "value": 0.03
-        },
-        {
-          "kind": "加算％",
-          "stat": "ダメージ",
-          "filter": {
-            "tags": {
-              "all_of": ["TAG-ELEM-PHYSICAL"]
-            }
-          },
-          "value": 0.02
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0143",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-BLEED"
-          },
-          "value": 0.06
-        },
-        {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-BLEED"
-          },
-          "value": 0.3
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0144",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "状態異常ダメージ",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.054000000000000006
-        },
-        {
-          "kind": "固定の追加",
-          "stat": "状態異常の持続秒数",
-          "filter": {
-            "ailment": "TAG-AIL-POISON"
-          },
-          "value": 0.2
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0145",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "移動速度",
-          "value": 0.015
-        },
-        {
-          "kind": "加算％",
-          "stat": "回避値",
-          "value": 0.02
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0146",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "固定の追加",
-          "stat": "迅",
-          "value": 10
-        },
-        {
-          "kind": "加算％",
-          "stat": "回避値",
-          "value": 0.01
-        }
-      ],
-      "affects": {
-        "打撃値": false,
-        "基準値": false
-      },
-      "scope": "自分",
-      "provisional": true
-    },
-    {
-      "id": "EFF-JIN-0147",
-      "source": "基本ノード",
-      "modifiers": [
-        {
-          "kind": "加算％",
-          "stat": "会心率増加%",
-          "value": 0.034
-        },
-        {
-          "kind": "加算％",
-          "stat": "ダメージ",
-          "filter": {
-            "tags": {
-              "all_of": ["TAG-ELEM-PHYSICAL"]
-            }
-          },
-          "value": 0.02
         }
       ],
       "affects": {
@@ -3930,7 +4000,7 @@
           "filter": {
             "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.06
+          "value": 0.09
         },
         {
           "kind": "固定の追加",
@@ -3958,7 +4028,7 @@
           "filter": {
             "ailment": "TAG-AIL-POISON"
           },
-          "value": 0.052000000000000005
+          "value": 0.081
         },
         {
           "kind": "固定の追加",
@@ -3983,12 +4053,139 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.017
+          "value": 0.023
         },
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.02
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0152",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 10
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.015
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0153",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.051
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-ELEM-PHYSICAL"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0155",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.09
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0156",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.078
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-JIN-0157",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.026
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.03
         }
       ],
       "affects": {
@@ -4018,7 +4215,7 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0153",
+      "id": "EFF-JIN-0159",
       "source": "基本ノード",
       "modifiers": [
         {
@@ -4029,7 +4226,7 @@
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.01
+          "value": 0.015
         }
       ],
       "affects": {
@@ -4040,13 +4237,13 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0154",
+      "id": "EFF-JIN-0160",
       "source": "基本ノード",
       "modifiers": [
         {
           "kind": "加算％",
           "stat": "会心率増加%",
-          "value": 0.032
+          "value": 0.048
         },
         {
           "kind": "加算％",
@@ -4056,7 +4253,7 @@
               "all_of": ["TAG-ELEM-PHYSICAL"]
             }
           },
-          "value": 0.02
+          "value": 0.03
         }
       ],
       "affects": {
@@ -4067,7 +4264,7 @@
       "provisional": true
     },
     {
-      "id": "EFF-JIN-0155",
+      "id": "EFF-JIN-0161",
       "source": "基本ノード",
       "modifiers": [
         {
@@ -4076,7 +4273,7 @@
           "filter": {
             "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.06
+          "value": 0.09
         },
         {
           "kind": "固定の追加",
@@ -4125,12 +4322,12 @@
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.01
+          "value": 0.04
         }
       ],
       "affects": {
@@ -4147,7 +4344,7 @@
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.04
+          "value": 0.16
         },
         {
           "kind": "固定の追加",
@@ -4176,7 +4373,7 @@
         {
           "kind": "加算％",
           "stat": "最大HP",
-          "value": 0.02
+          "value": 0.08
         }
       ],
       "affects": {
@@ -4198,12 +4395,12 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.04
+          "value": 0.16
         },
         {
           "kind": "加算％",
           "stat": "攻撃速度",
-          "value": 0.02
+          "value": 0.08
         }
       ],
       "affects": {
@@ -4225,7 +4422,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "加算％",
@@ -4235,7 +4432,7 @@
               "all_of": ["TAG-FORM-HEAVY"]
             }
           },
-          "value": 0.05
+          "value": 0.2
         }
       ],
       "affects": {
@@ -4285,12 +4482,12 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "加算％",
           "stat": "防具値",
-          "value": 0.03
+          "value": 0.12
         }
       ],
       "affects": {
@@ -4318,7 +4515,7 @@
         {
           "kind": "加算％",
           "stat": "崩し値",
-          "value": 0.05
+          "value": 0.2
         }
       ],
       "affects": {
@@ -4335,7 +4532,7 @@
         {
           "kind": "加算％",
           "stat": "効果時間",
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "固定の追加",
@@ -4362,12 +4559,12 @@
               "all_of": ["TAG-FORM-MOVE"]
             }
           },
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.01
+          "value": 0.04
         }
       ],
       "affects": {
@@ -4389,7 +4586,7 @@
               "all_of": ["TAG-FORM-AREA"]
             }
           },
-          "value": 0.04
+          "value": 0.16
         },
         {
           "kind": "固定の追加",
@@ -4416,12 +4613,12 @@
               "all_of": ["TAG-FORM-MELEE", "TAG-FORM-AREA"]
             }
           },
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "加算％",
           "stat": "崩し値",
-          "value": 0.03
+          "value": 0.12
         }
       ],
       "affects": {
@@ -4443,12 +4640,12 @@
               "all_of": ["TAG-FORM-RELEASE"]
             }
           },
-          "value": 0.06
+          "value": 0.24
         },
         {
           "kind": "加算％",
           "stat": "闘志の獲得量+%",
-          "value": 0.03
+          "value": 0.12
         }
       ],
       "affects": {
@@ -4603,7 +4800,7 @@
           "filter": {
             "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.04
+          "value": 0.16
         }
       ],
       "affects": {
@@ -4623,7 +4820,7 @@
           "filter": {
             "ailment": "TAG-AIL-POISON"
           },
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "固定の追加",
@@ -4648,7 +4845,7 @@
           "filter": {
             "ailment": "TAG-AIL-BLEED"
           },
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "固定の追加",
@@ -4678,7 +4875,7 @@
               "all_of": ["TAG-FORM-FINISHER"]
             }
           },
-          "value": 0.3
+          "value": 1.2
         },
         {
           "kind": "固定の追加",
@@ -4700,7 +4897,7 @@
         {
           "kind": "加算％",
           "stat": "会心率増加%",
-          "value": 0.03
+          "value": 0.12
         },
         {
           "kind": "加算％",
@@ -4710,7 +4907,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.03
+          "value": 0.12
         }
       ],
       "affects": {
@@ -4732,12 +4929,12 @@
               "all_of": ["TAG-FORM-FINISHER"]
             }
           },
-          "value": 0.06
+          "value": 0.24
         },
         {
           "kind": "加算％",
           "stat": "崩し値",
-          "value": 0.04
+          "value": 0.16
         }
       ],
       "affects": {
@@ -4787,12 +4984,12 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.05
+          "value": 0.2
         },
         {
           "kind": "加算％",
           "stat": "攻撃速度",
-          "value": 0.02
+          "value": 0.08
         }
       ],
       "affects": {
@@ -4809,12 +5006,12 @@
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.04
+          "value": 0.16
         },
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.01
+          "value": 0.04
         }
       ],
       "affects": {
@@ -4853,12 +5050,12 @@
         {
           "kind": "加算％",
           "stat": "移動速度",
-          "value": 0.015
+          "value": 0.06
         },
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.03
+          "value": 0.12
         }
       ],
       "affects": {
@@ -4880,7 +5077,7 @@
               "all_of": ["TAG-FORM-TRAP"]
             }
           },
-          "value": 0.06
+          "value": 0.24
         },
         {
           "kind": "固定の追加",
@@ -4905,12 +5102,12 @@
           "filter": {
             "ailment": "TAG-AIL-WEAKEN"
           },
-          "value": 0.04
+          "value": 0.16
         },
         {
           "kind": "加算％",
           "stat": "回避値",
-          "value": 0.02
+          "value": 0.08
         }
       ],
       "affects": {
@@ -4930,7 +5127,7 @@
           "filter": {
             "ailment": "TAG-AIL-POISON"
           },
-          "value": 0.03
+          "value": 0.12
         },
         {
           "kind": "加算％",
@@ -4940,7 +5137,7 @@
               "all_of": ["TAG-FORM-MELEE"]
             }
           },
-          "value": 0.02
+          "value": 0.08
         }
       ],
       "affects": {

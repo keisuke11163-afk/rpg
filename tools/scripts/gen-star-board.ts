@@ -11,6 +11,8 @@ type Json = Record<string, unknown>;
 const outDir = fileURLToPath(new URL("../../packages/content/data/star/", import.meta.url));
 mkdirSync(outDir, { recursive: true });
 
+/** 星辰盤の小星（通常のノード）の数値の倍率（バランス調整。U-21） */
+const STAR_SMALL_SCALE = 1.5;
 const effects: Json[] = [];
 const nodes: Json[] = [];
 const constellations: Json[] = [];
@@ -183,6 +185,17 @@ const GOUJIN_SMALL: Template[] = [
   }),
 ];
 
+const scaleSmall = (mods: Mod[]): Mod[] =>
+  mods.map((m) =>
+    m["kind"] === "加算％" &&
+    typeof m["value"] === "number" &&
+    m["value"] > 0 &&
+    !m["conditions"] &&
+    !m["per"]
+      ? { ...m, value: Math.round(m["value"] * STAR_SMALL_SCALE * 1000) / 1000 }
+      : m,
+  );
+
 function small(
   region: string,
   regionTag: string,
@@ -196,7 +209,7 @@ function small(
   const tpl = (templates[index % templates.length] as Template)(index);
   const f = fixed ?? tpl;
   const id = nextId(region);
-  const eff = effect(`EFF-${id.slice(5)}`, "基本ノード", f.mods);
+  const eff = effect(`EFF-${id.slice(5)}`, "基本ノード", fixed ? f.mods : scaleSmall(f.mods));
   return node(id, {
     region,
     regionTag,
@@ -532,6 +545,33 @@ special(
   PI / 2 - 0.4,
 );
 chain(J, bridge1[2] as string, -PI / 2 + 0.4, 4, 12);
+// 風見座（6）：MVPの代わりの置き場（本仕様書の風見座は迅理域だが、MVPの星辰盤に迅理域がないため剛迅域に置く）
+const windId = "CONST-WINDVANE";
+const windChain = chain(J, bridge2[6] as string, PI / 2 + 0.2, 6, 11, {
+  constellation: windId,
+  bend: 0.15,
+  fixed: Array.from({ length: 6 }, () => ({
+    name: "風見の小星",
+    mods: [add("移動速度", 0.02), add("投射物速度", 0.05, tags(T.proj))],
+  })),
+});
+const windBonus = effect(
+  "EFF-CONST-WINDVANE",
+  "基本ノード",
+  [
+    add("投射物速度", 0.2, undefined, { conditions: [{ type: "旗", name: "移動中" }] }),
+    add("移動速度", 0.05, undefined, { conditions: [{ type: "旗", name: "移動中" }] }),
+  ],
+  { note: "風見座の完成ボーナス：移動中は投射物速度+20%・移動速度+5%" },
+);
+constellations.push({
+  id: windId,
+  name: "風見座",
+  region: T.goujin,
+  nodes: windChain,
+  completionEffect: windBonus,
+  provisional: true,
+});
 
 // ================= 迅域 =================
 const I = ctxs["JIN"] as Ctx;
@@ -638,6 +678,15 @@ chain(I, kk, -0.5, 3, 12);
 const JOBTAG = { WARRIOR: "TAG-JOB-WARRIOR", ROGUE: "TAG-JOB-ROGUE" } as const;
 const flagCond = (name: string): Json => ({ type: "旗", name });
 
+/** 職紋盤の小星の数値の倍率（バランス調整：装備・星辰盤・職紋盤の寄与の配分を、40/35/25に近づける。U-21） */
+const JOB_BOARD_SCALE = 4;
+const scaleMods = (mods: Mod[]): Mod[] =>
+  mods.map((m) =>
+    m["kind"] === "加算％" && typeof m["value"] === "number" && m["value"] > 0 && !m["conditions"]
+      ? { ...m, value: Math.round(m["value"] * JOB_BOARD_SCALE * 1000) / 1000 }
+      : m,
+  );
+
 function jobBoard(
   job: "WARRIOR" | "ROGUE",
   jobId: string,
@@ -677,7 +726,7 @@ function jobBoard(
     const eff = effect(
       `EFF-${id.slice(6)}`,
       sp.type === "輝星" ? "輝星" : "基本ノード",
-      sp.mods,
+      scaleMods(sp.mods),
       sp.extra ?? {},
     );
     node(id, {

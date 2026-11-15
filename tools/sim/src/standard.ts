@@ -36,17 +36,17 @@ export const WARRIOR_LV15: BuildSpec = {
   job: "warrior",
   charLevel: 15,
   jobLevel: 14,
-  gear: [greatsword(6, 5), ...heavy(3)],
+  gear: [greatsword(6, 3), ...heavy(2)],
   star: ["断ち切る刃"],
-  job_: ["両手の誇り", "崩しの達人", "闘志の炉"],
+  job_: ["怒りの呼吸", "両手の誇り"],
 };
 export const ROGUE_LV15: BuildSpec = {
   name: "盗賊Lv15（短剣・標準）",
   job: "rogue",
   charLevel: 15,
   jobLevel: 14,
-  gear: [dagger(6, 5), ...light(3)],
-  star: ["狙い澄まし"],
+  gear: [dagger(6, 3), ...light(2)],
+  star: ["鋭い目", "毒の滴"],
   job_: ["急所の知識", "狙いの目", "素早い手"],
 };
 export const WARRIOR_LV20: BuildSpec = {
@@ -54,17 +54,25 @@ export const WARRIOR_LV20: BuildSpec = {
   name: "戦士Lv20（大剣・標準）",
   charLevel: 20,
   jobLevel: 20,
-  gear: [greatsword(5, 8), ...heavy(6)],
-  star: ["断ち切る刃", "重荷の誇り", "重撃化"],
-  job_: ["両手の誇り", "崩しの達人", "闘志の炉", "血を燃やす", "怒りの呼吸", "鬼気", "不屈の闘志"],
+  gear: [greatsword(5, 3), ...heavy(4)],
+  star: ["断ち切る刃", "重撃化"],
+  job_: [
+    "怒りの呼吸",
+    "鬼気",
+    "薙ぎの鍛錬",
+    "重みの理解",
+    "両手の誇り",
+    "崩しの達人",
+    "旋風の呼吸",
+  ],
 };
 export const ROGUE_LV20: BuildSpec = {
   ...ROGUE_LV15,
   name: "盗賊Lv20（短剣・標準）",
   charLevel: 20,
   jobLevel: 20,
-  gear: [dagger(5, 8), ...light(6)],
-  star: ["狙い澄まし", "傷口を抉る", "血の刃"],
+  gear: [dagger(5, 6), ...light(5)],
+  star: ["鋭い目", "毒の滴", "軽い足", "傷口を抉る", "血の刃"],
   job_: ["急所の知識", "狙いの目", "素早い手", "終結の構え", "連刃の冴え", "毒血同源", "無限連撃"],
 };
 

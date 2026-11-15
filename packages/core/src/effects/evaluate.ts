@@ -62,7 +62,8 @@ export interface Evaluation {
   dormant: readonly ActiveEffect[];
   stat(query: StatQuery, base?: number, baseCap?: number): StatResult;
   /** 有効な挙動（ルールフック）の呼び出し */
-  hooks(): HookCall[];
+  /** 有効な挙動。tags を渡すと、対象の技のタグに合わない効果（target_skill_tags）を除く */
+  hooks(tags?: ReadonlySet<string>): HookCall[];
 }
 
 export interface HookCall {
@@ -175,9 +176,15 @@ export function evaluate(
     return { base, flat, addPct, mult, capped, value, breakdown };
   };
 
-  const hooks = (): HookCall[] => {
+  const hooks = (tags?: ReadonlySet<string>): HookCall[] => {
     const calls: HookCall[] = [];
     for (const entry of active) {
+      if (
+        tags &&
+        entry.effect.target_skill_tags &&
+        !matchesFilter(entry.effect.target_skill_tags, tags)
+      )
+        continue;
       for (const m of entry.effect.modifiers) {
         if (m.kind !== "挙動") continue;
         if (m.conditions && !conditions.all(m.conditions, ctx)) continue;

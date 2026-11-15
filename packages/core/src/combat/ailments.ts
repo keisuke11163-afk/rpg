@@ -199,6 +199,44 @@ export class AilmentSet {
     for (const s of stacks) this.push(kind, { total: s.total, element: s.element });
   }
 
+  /** 1スタックを消費し、その残りのダメージ（総量×残り時間の割合）を返す（血の刃） */
+  consumeOne(kind: AilmentKind): number {
+    const list = this.stacks.get(kind);
+    if (!list || list.length === 0) return 0;
+    let idx = 0;
+    list.forEach((s, i) => {
+      if (
+        s.total * (s.remaining / s.duration) >
+        (list[idx] as Stack).total *
+          ((list[idx] as Stack).remaining / (list[idx] as Stack).duration)
+      )
+        idx = i;
+    });
+    const [s] = list.splice(idx, 1) as [Stack];
+    return s.total * (s.remaining / s.duration);
+  }
+
+  /** 残っている持続ダメージの総量（全スタック） */
+  remainingDamage(kind: AilmentKind): number {
+    return (this.stacks.get(kind) ?? []).reduce(
+      (a, s) => a + s.total * (s.remaining / s.duration),
+      0,
+    );
+  }
+
+  /** 持続を延ばす（傷口を抉る：1秒延ばす。最大で元の持続の maxRatio 倍まで） */
+  extend(kind: AilmentKind, seconds: number, maxRatio: number): void {
+    for (const s of this.stacks.get(kind) ?? []) {
+      // 1秒あたりのダメージは変えずに、延ばした分だけ総量が増える
+      const rate = s.total / s.duration;
+      const cap = AILMENT_DEFS[kind].durationSeconds * maxRatio;
+      const added = Math.max(0, Math.min(seconds, cap - s.remaining));
+      s.remaining += added;
+      s.duration += added;
+      s.total = rate * s.duration;
+    }
+  }
+
   /** 全ての掛かっているスタックを消す（移転元など） */
   clear(kind: AilmentKind): void {
     this.stacks.delete(kind);

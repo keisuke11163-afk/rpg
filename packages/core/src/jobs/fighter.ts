@@ -225,11 +225,22 @@ export class Fighter {
   }
 
   /** 効果が呼んでいるルールフック（ユニーク・職紋盤など）。同じ名前が複数あれば、後のもの（潜在効果）が優先 */
-  private rule(name: string): HookCall | undefined {
-    const hooks = this.evalWith(this.useFlags)?.hooks() ?? [];
+  private rule(
+    name: string,
+    skill?: SkillDef,
+    extraTags: readonly string[] = [],
+  ): HookCall | undefined {
+    const src = this.source?.tagsFor ?? this.effects?.tagsFor;
+    const tags = skill && src ? new Set([...src(skill), ...extraTags]) : undefined;
+    const hooks = this.evalWith(this.useFlags)?.hooks(tags) ?? [];
     let found: HookCall | undefined;
     for (const h of hooks) if (h.hook === name) found = h;
     return found;
+  }
+
+  /** ルールフックのパラメータ（外から読む用：毒だまりなど） */
+  ruleParams(name: string): Readonly<Record<string, unknown>> | undefined {
+    return this.rule(name)?.params;
   }
 
   private ruleNum(name: string, key: string, fallback: number): number {
@@ -245,6 +256,12 @@ export class Fighter {
   /** 移動の技の後、全てのヒットを背面扱いにする残り時間（背向けの外套） */
   private forceBackLeft = 0;
   private backGainCooldown = 0;
+  /** 血の盟約の返還（残り時間つき）、影写しで遅れて受けるダメージ、臨界の敵ごとの間隔、時計 */
+  private hpRefunds: { amount: number; left: number }[] = [];
+  private delayedPool = 0;
+  private clock = 0;
+  private criticalAt = new WeakMap<Combatant, number>();
+  private hitCounter = 0;
 
   /** 毎刻、プレイヤーが動いたか・動いた距離を伝える（静止の判定・旅人の古靴の短縮） */
   noteMovement(moving: boolean, distance: number, dt: number): void {
@@ -309,9 +326,25 @@ export class Fighter {
   /** 実際に使う武器の値（装備があれば装備の値） */
   get weapon(): WeaponDef {
     const w = this.gearStats?.weapon;
-    return w
-      ? { name: this.init.weapon.name, min: w.min, max: w.max, speed: w.speed, crit: w.crit }
-      : this.init.weapon;
+    if (w)
+      return { name: this.init.weapon.name, min: w.min, max: w.max, speed: w.speed, crit: w.crit };
+    if (this.gearStats) {
+      // 主手が空：素手（1–3・速度1.6・会心率6%）。天極「徒手の極意」では、基礎ダメージがキャラLv×1.0〜×1.8
+      const k = this.rule("素手の基礎ダメージ");
+      if (k) {
+        const lo = typeof k.params["perLevelMin"] === "number" ? k.params["perLevelMin"] : 1;
+        const hi = typeof k.params["perLevelMax"] === "number" ? k.params["perLevelMax"] : 1.8;
+        return {
+          name: "素手",
+          min: this.charLevelValue * lo,
+          max: this.charLevelValue * hi,
+          speed: 1.6,
+          crit: 0.06,
+        };
+      }
+      return { name: "素手", min: 1, max: 3, speed: 1.6, crit: 0.06 };
+    }
+    return this.init.weapon;
   }
 
   /** 武器のダメージの幅（局所の追加ダメージを含む）。ヒットの抽選と、能力値の表示の両方が使う */
@@ -336,7 +369,8 @@ export class Fighter {
         APTITUDE_SPEED[this.init.aptitude] +
         this.attackSpeedBonus +
         this.gearTotal("攻撃速度") +
-        this.fx("攻撃速度").addPct)
+        // 通常攻撃（近接）の速さ：重撃化など、近接の技を対象にした攻撃速度の補正が乗る
+        this.fx("攻撃速度", BASIC_ATTACK).addPct)
     );
   }
 
@@ -411,7 +445,13 @@ export class Fighter {
     if (this.cooldownLeft(id) > 0) return { ok: false, reason: "cooldown" };
     if (skill.release && !this.gauge.canRelease) return { ok: false, reason: "gauge" };
     if (skill.finisher && this.gauge.value < 1) return { ok: false, reason: "gauge" };
-    if (this.mp < skill.mpCost) return { ok: false, reason: "mp" };
+    if (this.rule("スキルコストをHPで支払う")) {
+      // 血の盟約：スキルのコストをHPで支払う（MPコスト×1.5）。HPが足りなければ使えない
+      const cost = skill.mpCost * this.ruleNum("スキルコストをHPで支払う", "mpMultiplier", 1.5);
+      if (this.hp <= cost && cost > 0) return { ok: false, reason: "mp" };
+    } else if (this.mp < skill.mpCost) {
+      return { ok: false, reason: "mp" };
+    }
     return { ok: true };
   }
 
@@ -544,7 +584,20 @@ export class Fighter {
       if (!teleportTarget) return { ok: false, reason: "noTarget", hits: [] };
     }
 
-    this.mp -= skill.mpCost;
+    if (this.rule("スキルコストをHPで支払う")) {
+      const cost = skill.mpCost * this.ruleNum("スキルコストをHPで支払う", "mpMultiplier", 1.5);
+      this.hp -= cost;
+      // 共鳴変化：支払ったHPの一部が、2秒後に戻ってくる
+      const back = this.rule("支払ったHPの返還");
+      if (back && cost > 0) {
+        this.hpRefunds.push({
+          amount: cost * this.ruleNum("支払ったHPの返還", "ratio", 0.2),
+          left: this.ruleNum("支払ったHPの返還", "delaySeconds", 2),
+        });
+      }
+    } else {
+      this.mp -= skill.mpCost;
+    }
     this.cooldowns.set(id, skill.cooldownSeconds);
     if (skill.release) this.gauge.consume();
     if (skill.gaugeGain) this.gauge.add(skill.gaugeGain);
@@ -649,14 +702,33 @@ export class Fighter {
       this.gauge.consume();
     }
 
-    const heavy = skill.tags.includes("重撃");
+    // 重撃化（転変）：受けた技は「重撃」のタグを得る
+    const heavy = skill.tags.includes("重撃") || this.rule("タグ付与:重撃", skill) !== undefined;
     const hitCount = Math.max(1, eff.hits);
+    const bleedTags =
+      Boolean(eff.ailments["bleed"]) ||
+      this.rule("強制付与:出血") !== undefined ||
+      this.gearTotal("出血付与率") > 0
+        ? ["TAG-AIL-BLEED"]
+        : [];
+    const bloodBlade = this.rule("出血スタックの即時ダメージ", skill, bleedTags);
+    const wound = this.rule("出血の持続延長");
+    const critical = this.rule("臨界");
+    const shock = this.rule("衝撃波");
     let landed = false;
     const furyHit = this.rule("崩れた敵へのヒットで闘志");
     const spread = this.rule("崩しの拡散");
     const fork = this.rule("分岐ヒット");
     const backCombo = this.rule("背面ヒットでコンボ点");
     for (let i = 0; i < hitCount; i++) {
+      // 二刀流は左右交互に攻撃する。2撃目の旗（双刃座の完成ボーナス）
+      if (this.init.dualWield === true) {
+        this.hitCounter++;
+        const f = new Set(this.useFlags);
+        if (this.hitCounter % 2 === 0) f.add("二刀流の2撃目");
+        else f.delete("二刀流の2撃目");
+        this.useFlags = f;
+      }
       const spec = {
         ...this.hitSpec({ ...eff, shape }, rng),
         ...(forceCrit ? { forceCrit: true } : {}),
@@ -669,6 +741,50 @@ export class Fighter {
         if (r.result.hit) {
           landed = true;
           this.gauge.onHit(heavy);
+          const t = r.target;
+          // 血の刃（転変）：出血を1スタック消費して、その残りダメージを即座に与える
+          if (bloodBlade && t.ailments.stackCount("bleed") > 0) {
+            t.hp = Math.max(0, t.hp - t.ailments.consumeOne("bleed"));
+          }
+          // 傷口を抉る（輝星）：出血している敵へのヒットは、出血の持続を延ばす
+          if (wound && t.ailments.stackCount("bleed") > 0) {
+            t.ailments.extend(
+              "bleed",
+              this.ruleNum("出血の持続延長", "seconds", 1),
+              this.ruleNum("出血の持続延長", "maxRatio", 2),
+            );
+          }
+          // 千変（天極）：3種類以上の状態異常を受けた敵は「臨界」。次のヒットで、持続ダメージの残りの60%を即座に与えて消す
+          if (critical && t.ailments.countedKinds() >= this.ruleNum("臨界", "kinds", 3)) {
+            const gap = this.ruleNum("臨界", "intervalSeconds", 2);
+            if (this.clock - (this.criticalAt.get(t) ?? -Infinity) >= gap) {
+              this.criticalAt.set(t, this.clock);
+              const ratio = this.ruleNum("臨界", "ratio", 0.6);
+              let burst = 0;
+              for (const k of ["burn", "bleed", "poison"] as const) {
+                burst += t.ailments.remainingDamage(k) * ratio;
+                t.ailments.clear(k);
+              }
+              t.hp = Math.max(0, t.hp - burst);
+            }
+          }
+          // 剣気（輝星）：剣での攻撃は、10%の確率で斬撃の衝撃波（武器ダメージの50%）を飛ばす
+          if (shock && rng.chance(this.ruleNum("衝撃波", "chance", 0.1))) {
+            const waveSpec: HitSpec = {
+              ...spec,
+              shape: { kind: "line", length: 6, width: 1.2 },
+              damage: {
+                ...spec.damage,
+                skillMultiplier: 1,
+                generic: {
+                  addPct: spec.damage.generic?.addPct ?? 0,
+                  mult:
+                    (spec.damage.generic?.mult ?? 1) * this.ruleNum("衝撃波", "damageRatio", 0.5),
+                },
+              },
+            };
+            out.hits.push(...strike(origin, angle, targets, waveSpec, rng));
+          }
           if (furyHit && this.gauge.def.id === "GAUGE-FURY" && brokenBefore.has(r.target)) {
             const g = this.ruleNum("崩れた敵へのヒットで闘志", "gain", 0);
             const h = this.ruleNum("崩れた敵へのヒットで闘志", "heavyGain", g);
@@ -737,6 +853,10 @@ export class Fighter {
 
   /** 敵を倒した。出血が残っていれば、最も近い敵1体に移す（狼牙の首飾り） */
   onEnemyKilled(dead: Combatant, others: readonly Combatant[]): void {
+    // 影写し：敵を倒すと、溜まっている分の一部が消える
+    if (this.rule("遅延ダメージ")) {
+      this.delayedPool *= 1 - this.ruleNum("遅延ダメージ", "cancelOnKill", 0.2);
+    }
     const rule = this.rule("出血の移転");
     if (!rule) return;
     const stacks = dead.ailments.exportStacks("bleed");
@@ -787,6 +907,13 @@ export class Fighter {
     if (ctx.playerBehindAttacker === true) {
       dmg *= 1 - this.ruleNum("背後にいる間の被ダメージ軽減", "ratio", 0);
     }
+    // 影写し：受けるダメージの一部を、数秒かけてゆっくり受ける
+    const delay = this.rule("遅延ダメージ");
+    if (delay) {
+      const ratio = this.ruleNum("遅延ダメージ", "ratio", 0.35);
+      this.delayedPool += dmg * ratio;
+      dmg *= 1 - ratio;
+    }
     this.hp = Math.max(0, this.hp - dmg);
     this.gauge.onDamaged(dmg, this.maxHp);
     return dmg;
@@ -802,6 +929,19 @@ export class Fighter {
     this.buffs.damageTaken.left = Math.max(0, this.buffs.damageTaken.left - dt);
     this.buffs.ailmentBonus.left = Math.max(0, this.buffs.ailmentBonus.left - dt);
     this.stunLeft = Math.max(0, this.stunLeft - dt);
+    this.clock += dt;
+    // 影写し：遅れたダメージを、秒数で割って受ける
+    if (this.delayedPool > 0) {
+      const seconds = this.ruleNum("遅延ダメージ", "seconds", 4);
+      const part = Math.min(this.delayedPool, this.delayedPool * (dt / seconds) * 2);
+      this.delayedPool -= part;
+      this.hp = Math.max(0, this.hp - part);
+    }
+    // 血の盟約の返還
+    for (const r of this.hpRefunds) r.left -= dt;
+    for (const r of this.hpRefunds.filter((x) => x.left <= 0))
+      this.hp = Math.min(this.maxHp, this.hp + r.amount);
+    this.hpRefunds = this.hpRefunds.filter((x) => x.left > 0);
     this.forceBackLeft = Math.max(0, this.forceBackLeft - dt);
     this.backGainCooldown = Math.max(0, this.backGainCooldown - dt);
     this.cdWindow += dt;

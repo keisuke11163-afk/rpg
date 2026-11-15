@@ -78,14 +78,14 @@ describe("星辰盤のデータ", () => {
     const all = [...BOARD_DATA.nodes.values()];
     expect(loadContent().issues).toEqual([]);
     expect(all.length).toBeGreaterThanOrEqual(140);
-    expect(all.length).toBeLessThanOrEqual(170);
+    expect(all.length).toBeLessThanOrEqual(215);
     const count = (t: string): number => all.filter((x) => x.type === t).length;
     expect(count("始点")).toBe(3);
     expect(count("天極")).toBe(5);
     expect(count("星門")).toBe(2);
     expect(count("共鳴座")).toBe(3);
     expect(count("転変")).toBeGreaterThanOrEqual(3);
-    expect(BOARD_DATA.constellations.size).toBe(3);
+    expect(BOARD_DATA.constellations.size).toBe(4); // 鍛冶座・双刃座・毒蛇座＋風見座（MVPの代わりの置き場）
     expect(all.filter((x) => x.type === "小星").length).toBeGreaterThan(100);
   });
   it("天極K01・K09・K10・K12・K15。いずれも代償を持つ", () => {

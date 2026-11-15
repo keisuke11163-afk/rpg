@@ -65,3 +65,4 @@ export * from "./world/quest.ts";
 export * from "./enemy/mothertree.ts";
 export * from "./items/boss.ts";
 export * from "./loadout/loadout.ts";
+export * from "./combat/trail.ts";
