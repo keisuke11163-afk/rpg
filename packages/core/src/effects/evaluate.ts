@@ -29,6 +29,8 @@ export interface StatQuery {
   tags?: ReadonlySet<string>;
   ailment?: string;
   element?: string;
+  /** true なら、絞り込み（filter）を持つ修正値だけを数える（属性ごとの補正を、汎用の補正と分けて取り出す用途） */
+  onlyFiltered?: boolean;
 }
 
 export interface BreakdownEntry {
@@ -88,7 +90,7 @@ function modifierApplies(effect: EffectDef, m: Modifier, q: StatQuery): boolean 
     return false;
   if (m.kind === "変換" || m.kind === "付け替え") return false;
   const f = m.filter;
-  if (!f) return true;
+  if (!f) return q.onlyFiltered !== true;
   if (f.ailment !== undefined && f.ailment !== q.ailment) return false;
   if (f.element !== undefined && f.element !== q.element) return false;
   if (f.tags && !matchesFilter(f.tags, q.tags ?? new Set())) return false;

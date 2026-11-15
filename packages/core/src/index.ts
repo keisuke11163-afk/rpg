@@ -17,3 +17,5 @@ export * from "./effects/conditions.ts";
 export * from "./effects/hooks.ts";
 export * from "./effects/evaluate.ts";
 export * from "./effects/priority.ts";
+export * from "./combat/skill-level.ts";
+export * from "./combat/damage.ts";
