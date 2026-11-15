@@ -5,5 +5,5 @@
     "lib": ["ES2023"],
     "types": ["node"]
   },
-  "include": ["scripts", "checks", "sim/src"]
+  "include": ["scripts", "checks", "sim/src", "sim/test"]
 }

@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "DPSシミュレーター（U-05 で実装する）",
+  "description": "DPSシミュレーター",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "start": "node src/index.ts"
   },
