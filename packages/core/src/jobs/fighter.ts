@@ -29,6 +29,7 @@ import type { EvalContext } from "../effects/conditions.ts";
 import { JobGauge, type GaugeDef } from "./gauge.ts";
 import {
   APTITUDE_SPEED,
+  BASIC_ATTACK,
   type Aptitude,
   type SkillDef,
   type SkillPatch,
@@ -384,20 +385,26 @@ export class Fighter {
     if (skill.multiplier > 0) {
       eff.multiplier = weaponSkillMultiplier(skill.multiplier, baseSkillLevel(this.charLevelValue));
     }
-    if (!skill.release && this.gauge.intensified) {
+    const isBasic = skill.id === BASIC_ATTACK.id;
+    if (!isBasic && !skill.release && this.gauge.intensified) {
       eff.intensified = true;
       apply(skill.intensified);
     }
     const key: WeaponClass = this.init.weaponClass;
-    apply(skill.weaponVariants?.[key]);
+    if (!isBasic) apply(skill.weaponVariants?.[key]);
     if (this.init.dualWield === true) apply(skill.weaponVariants?.dualWield);
     // 適性Sは「強化版」：変化の効果が1段強まる（数値は仮。強化の内容は仕様の疑問として報告）
     if (this.init.aptitude === "S" && skill.weaponVariants?.[key]) eff.hooks.push("enhanced");
     return eff;
   }
 
+  /** 技のIDから技を探す。通常攻撃は全ジョブ共通 */
+  private skillById(id: string): SkillDef | undefined {
+    return id === BASIC_ATTACK.id ? BASIC_ATTACK : this.init.skills.find((s) => s.id === id);
+  }
+
   canUse(id: string): { ok: boolean; reason?: UseDenied } {
-    const skill = this.init.skills.find((s) => s.id === id);
+    const skill = this.skillById(id);
     if (!skill) return { ok: false, reason: "unknown" };
     if (skill.learnLevel > this.init.jobLevel) return { ok: false, reason: "notLearned" };
     if (this.stunLeft > 0) return { ok: false, reason: "stunned" };
@@ -513,7 +520,7 @@ export class Fighter {
     const check = this.canUse(id);
     if (!check.ok)
       return { ok: false, ...(check.reason ? { reason: check.reason } : {}), hits: [] };
-    const skill = this.init.skills.find((s) => s.id === id) as SkillDef;
+    const skill = this.skillById(id) as SkillDef;
     const eff = this.effective(skill);
 
     // 対象が必要な技は、対象がいなければ使えない（コストも払わない）

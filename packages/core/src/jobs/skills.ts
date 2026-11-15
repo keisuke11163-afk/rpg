@@ -119,3 +119,23 @@ export const WARRIOR_APTITUDE: Readonly<Partial<Record<WeaponClass | "dualWield"
   staff: "C",
   dualWield: "B",
 };
+
+/**
+ * 通常攻撃（本仕様書 2.1）：全ジョブ共通の技。MP0・CDなし・技倍率100%。近接：扇形90°・1.6m、崩し係数0.3。
+ * 激化・武器による変化などの職技の強化は受けない。動作の時間は「1÷攻撃速度」秒（呼び出し側が決める）。
+ */
+export const BASIC_ATTACK: SkillDef = {
+  id: "SKL-BASIC",
+  name: "通常攻撃",
+  tags: ["近接"],
+  kind: "attack",
+  mpCost: 0,
+  cooldownSeconds: 0,
+  shape: { kind: "cone", range: 1.6, arcDegrees: 90 },
+  multiplier: 1,
+  breakCoefficient: 0.3,
+  totalSeconds: 0.6,
+  hitTimes: [0.25],
+  learnLevel: 1,
+  provisional: true,
+};

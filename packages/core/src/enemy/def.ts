@@ -28,6 +28,8 @@ export interface EnemyAttackDef {
   /** 標準HPに対する攻撃の割合 */
   damageRatio: number;
   breakCoefficient: number;
+  /** 地面を狙う攻撃：予兆のあいだに範囲が地面に出る（プレイヤーの位置など） */
+  ground?: { radius: number };
   /** 範囲（敵の位置から向きに向けて） */
   shape: HitShape;
   /** この距離以内で使う（m） */
@@ -61,6 +63,8 @@ export interface EnemyDef {
   /** 系統の分類のタグID（獣・不死・…）。母樹の眷属は空 */
   familyTag?: string;
   hpMultiplier: number;
+  /** HPを直接決める（章ボス：標準DPS×90秒。本仕様書 2.8）。指定すると倍率・格の倍率は使わない */
+  fixedHp?: number;
   /** 移動の速さ（m/秒）。0なら動かない */
   speed: number;
   /** 旋回（度/秒） */
@@ -80,6 +84,17 @@ export interface EnemyDef {
   armorPerLevel?: number;
   resistance?: Partial<Record<Element, number>>;
   radius?: number;
+  /** 専用の行動（章ボス）。母樹：段階・根渡り・触手・暴走を持つ（補助仕様書 11章） */
+  script?: {
+    kind: "mothertree";
+    /** 深淵の母樹：毒の胞子が2回連続・根渡りが10秒ごと */
+    abyss: boolean;
+    tentacleEnemyId: string;
+    /** 根渡りで現れる地点（広場の中心からの相対位置）。3か所 */
+    rootPoints: readonly { x: number; y: number }[];
+    /** 戦う広場の半径（m） */
+    arenaRadius: number;
+  };
   /** ボス：中ボス・章ボス（ドロップ・経験値・討伐の記録の区分。ボスは予兆の間も向きを変えられる） */
   boss?: "midBoss" | "chapterBoss";
   /** 素材などのドロップ（U-11 で使う）。獣系は「獣牙」を3% */

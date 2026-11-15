@@ -5,6 +5,11 @@ import {
   AutoSaver,
   ConditionRegistry,
   FACILITIES,
+  ABYSS_TREE_DROP,
+  MOTHER_TREE_DROP,
+  TOKEN_EXCHANGE_COST,
+  exchangeTokens,
+  rollBossDrops,
   QuestLog,
   performSummon,
   starPointTotal,
@@ -192,7 +197,13 @@ export class PlayScene extends Phaser.Scene {
   private readonly clouds: Cloud[] = [];
   private readonly projectiles = new ProjectilePool();
   private readonly projectileGfx = new Map<object, Phaser.GameObjects.Arc>();
-  private readonly telegraphs = new Map<Enemy, { shape: HitShape; angle: number }>();
+  private readonly telegraphs = new Map<
+    Enemy,
+    { shape: HitShape; angle: number; at?: { pos: { x: number; y: number }; radius: number }[] }
+  >();
+  private bossTokens: Record<string, number> = {};
+  private bossBar!: Phaser.GameObjects.Graphics;
+  private bossLabel!: Phaser.GameObjects.Text;
   /** 今のジョブ。K キーで戦士と盗賊を切り替える（開発用。本番の転職は U-18a の転職神殿） */
   private job: JobDef = WARRIOR_JOB;
   private fighter: Fighter = PlayScene.makeFighter(WARRIOR_JOB);
@@ -250,7 +261,8 @@ export class PlayScene extends Phaser.Scene {
     | "merchant"
     | "stash"
     | "teleport"
-    | "temple" = "none";
+    | "temple"
+    | "altar" = "none";
   private panelCursor = 0;
   private panelText!: Phaser.GameObjects.Text;
   private panelTip!: Phaser.GameObjects.Text;
@@ -313,6 +325,7 @@ export class PlayScene extends Phaser.Scene {
       for (const st of stages) this.quests.restoreStage(id, st);
     }
     this.explorationPoints = state.explorationPoints;
+    this.bossTokens = { ...state.bossTokens };
     for (const item of state.stash.items()) this.stash.add(item);
     this.fighter.setCharLevel(this.progression.character.level);
     this.refreshPoints();
@@ -333,6 +346,7 @@ export class PlayScene extends Phaser.Scene {
     state.quests = this.quests.snapshot();
     state.questPoints = this.quests.questPoints;
     state.explorationPoints = this.explorationPoints;
+    state.bossTokens = { ...this.bossTokens };
     for (const item of this.stash.items()) state.stash.add(item);
     try {
       await this.saves.save(this.slot, toSave(state));
@@ -425,6 +439,12 @@ export class PlayScene extends Phaser.Scene {
       .setDepth(10);
     this.cameras.main.startFollow(this.body, true, 0.15, 0.15);
     this.boardGfx = this.add.graphics().setScrollFactor(0).setDepth(22);
+    this.bossBar = this.add.graphics().setScrollFactor(0).setDepth(12);
+    this.bossLabel = this.add
+      .text(320, 14, "", { fontFamily: "sans-serif", fontSize: "10px", color: "#ffd2d2" })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(12);
     this.panelBg = this.add
       .rectangle(320, 180, 600, 330, 0x0d0c14, 0.92)
       .setScrollFactor(0)
@@ -541,14 +561,23 @@ export class PlayScene extends Phaser.Scene {
     const events = stepEnemies(this.enemies, target, TICK_SECONDS, this.rng);
     for (const e of events) this.handleEnemyEvent(e);
     for (const enemy of this.enemies) {
-      if (enemy.state !== "windup" || !enemy.attack) this.telegraphs.delete(enemy);
+      if (enemy.def.script) {
+        const st = enemy.script;
+        if (!st?.action || st.action.stage !== "windup") this.telegraphs.delete(enemy);
+      } else if (enemy.state !== "windup" || !enemy.attack) {
+        this.telegraphs.delete(enemy);
+      }
     }
   }
 
   private handleEnemyEvent(e: EnemyEvent): void {
     switch (e.type) {
       case "windup":
-        this.telegraphs.set(e.enemy, { shape: e.attack.shape, angle: e.angle });
+        this.telegraphs.set(e.enemy, {
+          shape: e.attack.shape,
+          angle: e.angle,
+          ...(e.at ? { at: e.at } : {}),
+        });
         break;
       case "hit":
         this.hurtPlayer(e.damage, e.enemy);
@@ -964,6 +993,28 @@ export class PlayScene extends Phaser.Scene {
     return true;
   }
 
+  /** 章ボスのドロップ・討伐証・初回撃破の隠し星 */
+  private bossDrops(enemy: Enemy, firstKill: boolean): void {
+    const cfg = enemy.def.id === "BOSS-CH1" ? MOTHER_TREE_DROP : ABYSS_TREE_DROP;
+    const drop = rollBossDrops(GENERATION_DATA, cfg, {
+      firstKill,
+      uid: () => `itm_${String(this.itemSerial++).padStart(6, "0")}`,
+      rng: this.rng,
+    });
+    this.loot.spawn(enemy.body.pos, { items: drop.items, gold: 0, materials: drop.materials });
+    for (const [id, n] of Object.entries(drop.tokens)) {
+      this.bossTokens[id] = (this.bossTokens[id] ?? 0) + n;
+    }
+    this.notice = `${enemy.def.name}を倒した！ 討伐証 ${String(this.bossTokens["BOSS-CH1"] ?? 0)}個${drop.uniqueDropped ? "・専用ユニークが落ちた" : ""}`;
+    this.noticeLeft = 8;
+    // 腐根の母樹の初回撃破：隠し星を自動で得る（補助仕様書 9.5）
+    if (firstKill && enemy.def.id === "BOSS-CH1") {
+      this.explorationPoints += 1;
+      this.refreshPoints();
+    }
+    if (this.autoSaver.onEvent("changeArea")) void this.autoSave();
+  }
+
   /** 星辰盤・職紋盤のポイントを計算し直す（キャラLv＋星図の欠片＋隠し星／ジョブLv） */
   private refreshPoints(): void {
     this.starPoints =
@@ -1241,6 +1292,23 @@ export class PlayScene extends Phaser.Scene {
       this.die();
       return;
     }
+    // 開発用：Nで次の地域へ移り、ボスがいればその手前に出る
+    if (this.justPressed.has("KeyN")) {
+      const order = ["MAP-A1", "MAP-A2", "MAP-A3", "MAP-A4", "MAP-A5"];
+      const next = order[(order.indexOf(this.world.location) + 1) % order.length] ?? "MAP-A1";
+      this.world.firstKills.add("BOSS-CH1");
+      this.world.returnToTown();
+      this.world.enter(next, this.rng);
+      this.enterLocation(next);
+      const boss = this.mapDef.boss;
+      if (boss) {
+        this.player.pos.x = boss.pos.x - 9;
+        this.player.pos.y = boss.pos.y;
+        this.lastPos = { ...this.player.pos };
+        this.cameras.main.centerOn(this.player.pos.x * M, this.player.pos.y * M);
+      }
+      return;
+    }
     // 薬瓶（Q：HP瓶、E：MP瓶）
     if (this.justPressed.has("KeyQ")) {
       this.hpFlask.use(this.fighter.maxHp, this.gearFlaskBonus());
@@ -1364,8 +1432,7 @@ export class PlayScene extends Phaser.Scene {
         this.panel = "temple";
         break;
       case "ALTAR":
-        this.notice = "討伐証の交換（母樹の討伐証は U-19 で実装）";
-        this.noticeLeft = 3;
+        this.panel = "altar";
         break;
       case "DUMMY":
         this.notice = "訓練用の人形：叩くとダメージが出る";
@@ -1380,6 +1447,35 @@ export class PlayScene extends Phaser.Scene {
     this.panelText.setPosition(30, 30);
     this.panelTip.setPosition(330, 30);
     const move = (jp.has("ArrowDown") ? 1 : 0) - (jp.has("ArrowUp") ? 1 : 0);
+    if (this.panel === "altar") {
+      const pool = MOTHER_TREE_DROP.uniquePool;
+      this.panelCursor = Math.max(0, Math.min(pool.length - 1, this.panelCursor + move));
+      const pick = pool[this.panelCursor];
+      if (jp.has("Enter") && pick) {
+        const r = exchangeTokens(
+          this.bossTokens,
+          "BOSS-CH1",
+          pick,
+          pool,
+          GENERATION_DATA,
+          18,
+          () => `itm_${String(this.itemSerial++).padStart(6, "0")}`,
+        );
+        if (r.ok && r.item) {
+          this.bag.add(r.item);
+          this.notice = `討伐証を交換した：${UNIQUE_DATA.uniques.get(pick)?.name ?? pick}`;
+          if (this.autoSaver.onEvent("trade")) void this.autoSave();
+        } else {
+          this.notice = `討伐証が足りない（${String(TOKEN_EXCHANGE_COST)}個必要）`;
+        }
+        this.noticeLeft = 4;
+      }
+      this.panelText.setText(
+        `【討伐の祭壇】討伐証 ${String(this.bossTokens["BOSS-CH1"] ?? 0)}個（${String(TOKEN_EXCHANGE_COST)}個で専用ユニークと交換）\n↑↓ 選ぶ / Enter 交換 / Esc 閉じる\n\n${pool.map((id, i) => `${i === this.panelCursor ? "▶" : " "}${UNIQUE_DATA.uniques.get(id)?.name ?? id}`).join("\n")}`,
+      );
+      this.panelTip.setText(pick ? (GEAR_DATA.uniques.get(pick)?.fixed ?? []).join("\n") : "");
+      return true;
+    }
     if (this.panel === "teleport") {
       const regions = ALL_MAPS.filter((m) => m.id !== TOWN_ID);
       this.panelCursor = Math.max(0, Math.min(regions.length - 1, this.panelCursor + move));
@@ -1535,15 +1631,20 @@ export class PlayScene extends Phaser.Scene {
     for (const enemy of this.enemies) {
       if (enemy.body.hp > 0 || this.dropped.has(enemy)) continue;
       this.dropped.add(enemy);
-      const fill = FILL_VALUE[enemy.rank];
+      const fill = FILL_VALUE[enemy.def.boss ?? enemy.rank];
       this.hpFlask.addFill(fill);
       this.mpFlask.addFill(fill);
       this.fighter.onEnemyKilled(
         enemy.body,
         this.enemies.map((e) => e.body),
       );
+      const firstKill = !this.world.firstKills.has(enemy.def.id);
       this.onEnemyDefeated(enemy);
       const source: DropSource = enemy.def.boss ?? enemy.rank;
+      if (enemy.def.id === "BOSS-CH1" || enemy.def.id === "BOSS-ABYSS") {
+        this.bossDrops(enemy, firstKill);
+        continue;
+      }
       const classes = Object.entries(this.job.aptitude)
         .filter(([, apt]) => apt === "S" || apt === "A")
         .map(([k]) => k);
@@ -1765,6 +1866,28 @@ export class PlayScene extends Phaser.Scene {
       deaths: this.world.deaths,
       bag: this.bag.count,
     });
+    // ボスのHPバー
+    this.bossBar.clear();
+    const bossEnemy = this.enemies.find((e) => e.def.boss !== undefined && e.body.hp > 0);
+    const engaged = bossEnemy?.script
+      ? bossEnemy.script.engaged
+      : bossEnemy !== undefined && bossEnemy.state !== "idle";
+    if (bossEnemy && engaged) {
+      this.bossBar.fillStyle(0x2a1a1a, 0.9);
+      this.bossBar.fillRect(120, 22, 400, 8);
+      this.bossBar.fillStyle(bossEnemy.body.invulnerable ? 0xaaaaaa : 0xd85a5a, 1);
+      this.bossBar.fillRect(
+        120,
+        22,
+        400 * Math.max(0, bossEnemy.body.hp / bossEnemy.body.maxHp),
+        8,
+      );
+      this.bossLabel.setText(
+        `${bossEnemy.def.name}${bossEnemy.body.invulnerable ? "（無敵）" : ""}`,
+      );
+    } else {
+      this.bossLabel.setText("");
+    }
     this.warn.clear();
     for (const v of this.views) {
       const e = v.enemy;
@@ -1785,7 +1908,11 @@ export class PlayScene extends Phaser.Scene {
     // 予兆：地面の範囲表示
     for (const [enemy, t] of this.telegraphs) {
       this.warn.fillStyle(0xff4a4a, 0.3);
-      this.drawShape(this.warn, t.shape, enemy.body.pos.x * M, enemy.body.pos.y * M, t.angle);
+      if (t.at) {
+        for (const z of t.at) this.warn.fillCircle(z.pos.x * M, z.pos.y * M, z.radius * M);
+      } else {
+        this.drawShape(this.warn, t.shape, enemy.body.pos.x * M, enemy.body.pos.y * M, t.angle);
+      }
     }
 
     this.hud.setText(

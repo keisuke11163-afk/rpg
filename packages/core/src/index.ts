@@ -62,3 +62,5 @@ export * from "./world/region.ts";
 export * from "./world/flow.ts";
 export * from "./combat/potion.ts";
 export * from "./world/quest.ts";
+export * from "./enemy/mothertree.ts";
+export * from "./items/boss.ts";

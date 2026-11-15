@@ -39,7 +39,9 @@ interface RegionSpec {
 }
 
 /** 通常の敵（ボスを除く）。A5の「全ての種類」 */
-const REGULAR_ENEMIES = ENEMIES.filter((e) => e.boss === undefined).map((e) => e.id);
+const REGULAR_ENEMIES = ENEMIES.filter(
+  (e) => e.boss === undefined && e.id !== "ENM-ROOT-TENTACLE",
+).map((e) => e.id);
 const WOLF = "ENM-FOREST-WOLF";
 const RAT = "ENM-THORN-RAT";
 const LIZARD = "ENM-SPIT-LIZARD";
@@ -114,6 +116,7 @@ const SPECS: readonly RegionSpec[] = [
     packSpots: 22,
     eliteSpots: [2, 3],
     magicChance: 0.1,
+    boss: { enemyId: "BOSS-CH1", level: 14 },
     next: "MAP-A5",
     prev: "MAP-A3",
   },
@@ -132,6 +135,7 @@ const SPECS: readonly RegionSpec[] = [
     eliteSpots: [4, 6],
     magicChance: 0.15,
     requires: "BOSS-CH1",
+    boss: { enemyId: "BOSS-ABYSS", level: 21 },
     next: undefined,
     prev: "MAP-A4",
   },

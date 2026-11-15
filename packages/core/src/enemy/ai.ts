@@ -18,6 +18,7 @@ import {
   type EnemyRank,
 } from "./def.ts";
 import { standardEnemyHp } from "./stats.ts";
+import { createMotherTreeState, stepMotherTree, type MotherTreeState } from "./mothertree.ts";
 
 export type EnemyState = "idle" | "chase" | "windup" | "attack" | "recovery" | "down" | "return";
 
@@ -31,7 +32,14 @@ export interface Target {
 
 /** 敵のこの刻みの出来事。表示と、プレイヤーへのダメージの適用は呼び出し側が行う */
 export type EnemyEvent =
-  | { type: "windup"; enemy: Enemy; attack: EnemyAttackDef; angle: number }
+  | {
+      type: "windup";
+      enemy: Enemy;
+      attack: EnemyAttackDef;
+      angle: number;
+      /** 地面を狙う攻撃の範囲（予兆として地面に出す） */
+      at?: { pos: Vec2; radius: number }[];
+    }
   | { type: "hit"; enemy: Enemy; attack: EnemyAttackDef; damage: number; accuracy: number }
   | {
       type: "projectile";
@@ -67,6 +75,8 @@ export interface Enemy {
   buff: { bonus: number; left: number };
   /** 今回の攻撃で、すでに出したヒットの数（多段の攻撃） */
   hitsDone: number;
+  /** 章ボスの専用の状態（母樹） */
+  script?: MotherTreeState;
 }
 
 export function createEnemy(init: {
@@ -82,7 +92,7 @@ export function createEnemy(init: {
   const rank = init.rank ?? "normal";
   const mult = RANK_MULTIPLIERS[rank];
   const std = standardEnemyHp(init.level);
-  const maxHp = std * init.def.hpMultiplier * mult.hp;
+  const maxHp = init.def.fixedHp ?? std * init.def.hpMultiplier * mult.hp;
   const body = createCombatant({
     id: init.id,
     pos: init.pos,
@@ -92,6 +102,7 @@ export function createEnemy(init: {
     armor: (init.def.armorPerLevel ?? 0) * init.level,
     evasion: (init.def.evasionPerLevel ?? 0) * init.level,
     resistance: init.def.resistance ?? {},
+    isBoss: init.def.boss !== undefined,
   });
   if (init.def.noFacing === true) body.noFacing = true;
   return {
@@ -110,6 +121,7 @@ export function createEnemy(init: {
     attackPower: std * mult.damage,
     buff: { bonus: 0, left: 0 },
     hitsDone: 0,
+    ...(init.def.script ? { script: createMotherTreeState() } : {}),
   };
 }
 
@@ -197,6 +209,7 @@ export function stepEnemies(
 
 /** 敵1体を進める */
 export function stepEnemy(enemy: Enemy, target: Target, dt: number, rng: Rng): EnemyEvent[] {
+  if (enemy.def.script) return stepMotherTree(enemy, target, dt, rng);
   const events: EnemyEvent[] = [];
   const body = enemy.body;
   for (const [id, left] of enemy.cooldowns) {

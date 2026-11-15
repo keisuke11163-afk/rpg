@@ -37,6 +37,8 @@ export interface Combatant {
   resistance: Partial<Record<Element, number>>;
   ailments: AilmentSet;
   breakGauge: BreakGauge;
+  /** 無敵（ボスの段階切替・根渡りの地中）。ダメージも状態異常も受けない */
+  invulnerable: boolean;
   /** 崩されやすさ（戦吼の+20%）。残り時間つき */
   breakTaken: { bonus: number; left: number };
   /** 煙玉：敵の命中の低下（0.3＝-30%）と残り時間 */
@@ -70,6 +72,7 @@ export function createCombatant(init: {
     resistance: init.resistance ?? {},
     ailments: new AilmentSet({ maxHp: init.maxHp, isBoss }),
     breakGauge: new BreakGauge(enemyBreakParams(init.maxHp, isBoss)),
+    invulnerable: false,
     breakTaken: { bonus: 0, left: 0 },
     accuracyPenalty: { value: 0, left: 0 },
   };
@@ -142,6 +145,7 @@ const MISS: HitResult = {
 
 /** 1体へのヒットを解決する。HP・崩し・状態異常を更新する */
 export function resolveHit(attacker: Vec2, target: Combatant, spec: HitSpec, rng: Rng): HitResult {
+  if (target.invulnerable) return MISS;
   if (spec.bleedMaxStacks !== undefined) target.ailments.setMaxStacks("bleed", spec.bleedMaxStacks);
   for (const [from, to] of spec.ailmentAliases ?? []) target.ailments.setAlias(from, to);
   if (
