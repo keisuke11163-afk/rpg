@@ -88,3 +88,34 @@ describe("画面の拡大率", () => {
     expect(nextScale(2, { width: 1920, height: 1080 })).toBe(3);
   });
 });
+
+describe("詳しい情報の HUD（debugHud。端末ごと・初期は出さない。D-HUD-1）", () => {
+  it("初期値は false（出さない）", () => {
+    expect(DEFAULT_SETTINGS.debugHud).toBe(false);
+    expect(parseSettings(null).debugHud).toBe(false);
+  });
+
+  it("true を保存して、読み直すと true", () => {
+    const s = parseSettings(JSON.stringify({ ...DEFAULT_SETTINGS, debugHud: true }));
+    expect(s.debugHud).toBe(true);
+  });
+
+  it('真偽値でない値（"true"・1・null）は false（出さない）', () => {
+    for (const v of ["true", 1, null, "yes", {}, []]) {
+      expect(parseSettings(JSON.stringify({ debugHud: v })).debugHud).toBe(false);
+    }
+  });
+
+  it("古い保存（項目が無い）は false", () => {
+    const old = JSON.stringify({ version: 1, bindings: {}, volume: 0.5, scale: 2 });
+    expect(parseSettings(old).debugHud).toBe(false);
+  });
+
+  it("シリアライズの往復で同じ（true のとき）。割り当てを変えても保たれる", () => {
+    const on = { ...DEFAULT_SETTINGS, debugHud: true };
+    expect(parseSettings(JSON.stringify(on))).toEqual(on);
+    const rebound = rebind(on, "dodge", { key: "SHIFT" });
+    expect(rebound.debugHud).toBe(true);
+    expect(parseSettings(JSON.stringify(rebound)).debugHud).toBe(true);
+  });
+});
