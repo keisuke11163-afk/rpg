@@ -1,0 +1,848 @@
+[
+  {
+    "id": "JBN-WARRIOR-START",
+    "kind": "start",
+    "links": ["JBN-WARRIOR-T1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-WARRIOR-T1",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T2"],
+    "effects": ["EFF-JBN-WAR-STAGGER"]
+  },
+  {
+    "id": "JBN-WARRIOR-T2",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T3"],
+    "effects": ["EFF-JBN-WAR-MELEE"]
+  },
+  {
+    "id": "JBN-WARRIOR-T3",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T4"],
+    "effects": ["EFF-JBN-WAR-HP"]
+  },
+  {
+    "id": "JBN-WARRIOR-T4",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T5"],
+    "effects": ["EFF-JBN-WAR-GAIN"]
+  },
+  {
+    "id": "JBN-WARRIOR-T5",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T6"],
+    "effects": ["EFF-JBN-WAR-STAGGER"]
+  },
+  {
+    "id": "JBN-WARRIOR-T6",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T7"],
+    "effects": ["EFF-JBN-WAR-MELEE"]
+  },
+  {
+    "id": "JBN-WARRIOR-T7",
+    "kind": "minor",
+    "links": [],
+    "effects": ["EFF-JBN-WAR-HP"]
+  },
+  {
+    "id": "JBN-WARRIOR-B1A",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T1"],
+    "effects": ["EFF-JBN-WAR-MELEE"]
+  },
+  {
+    "id": "JBN-WARRIOR-B1B",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-B1A"],
+    "effects": ["EFF-JBN-WAR-HP"]
+  },
+  {
+    "id": "JBN-WARRIOR-FORGE",
+    "kind": "notable",
+    "links": ["JBN-WARRIOR-B1B"],
+    "effects": ["EFF-JBN-WAR-FORGE"]
+  },
+  {
+    "id": "JBN-WARRIOR-B2A",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T2"],
+    "effects": ["EFF-JBN-WAR-HP"]
+  },
+  {
+    "id": "JBN-WARRIOR-B2B",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-B2A"],
+    "effects": ["EFF-JBN-WAR-GAIN"]
+  },
+  {
+    "id": "JBN-WARRIOR-BLOOD",
+    "kind": "notable",
+    "links": ["JBN-WARRIOR-B2B"],
+    "effects": ["EFF-JBN-WAR-BLOOD"]
+  },
+  {
+    "id": "JBN-WARRIOR-B3A",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T3"],
+    "effects": ["EFF-JBN-WAR-GAIN"]
+  },
+  {
+    "id": "JBN-WARRIOR-B3B",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-B3A"],
+    "effects": ["EFF-JBN-WAR-STAGGER"]
+  },
+  {
+    "id": "JBN-WARRIOR-TWOHAND",
+    "kind": "notable",
+    "links": ["JBN-WARRIOR-B3B"],
+    "effects": ["EFF-JBN-WAR-TWOHAND"]
+  },
+  {
+    "id": "JBN-WARRIOR-B4A",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-T4"],
+    "effects": ["EFF-JBN-WAR-STAGGER"]
+  },
+  {
+    "id": "JBN-WARRIOR-B4B",
+    "kind": "minor",
+    "links": ["JBN-WARRIOR-B4A"],
+    "effects": ["EFF-JBN-WAR-MELEE"]
+  },
+  {
+    "id": "JBN-WARRIOR-BREAKER",
+    "kind": "notable",
+    "links": ["JBN-WARRIOR-B4B"],
+    "effects": ["EFF-JBN-WAR-BREAKER"]
+  },
+  {
+    "id": "JBN-WARRIOR-C1",
+    "kind": "connector",
+    "links": ["JBN-WARRIOR-T5"],
+    "effects": []
+  },
+  {
+    "id": "JBN-WARRIOR-C2",
+    "kind": "connector",
+    "links": ["JBN-WARRIOR-C1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-WARRIOR-C3",
+    "kind": "connector",
+    "links": ["JBN-WARRIOR-C2"],
+    "effects": []
+  },
+  {
+    "id": "JBN-WARRIOR-M-UNYIELDING",
+    "kind": "mastery",
+    "links": ["JBN-WARRIOR-T7"],
+    "effects": ["EFF-JBM-WAR-UNYIELDING"]
+  },
+  {
+    "id": "JBN-WARRIOR-M-SURGE",
+    "kind": "mastery",
+    "links": ["JBN-WARRIOR-T7"],
+    "effects": ["EFF-JBM-WAR-SURGE"]
+  },
+  {
+    "id": "JBN-WARRIOR-M-DEMON",
+    "kind": "mastery",
+    "links": ["JBN-WARRIOR-T7"],
+    "effects": ["EFF-JBM-WAR-DEMON"]
+  },
+  {
+    "id": "JBN-ROGUE-START",
+    "kind": "start",
+    "links": ["JBN-ROGUE-T1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-ROGUE-T1",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T2"],
+    "effects": ["EFF-JBN-ROG-CRIT"]
+  },
+  {
+    "id": "JBN-ROGUE-T2",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T3"],
+    "effects": ["EFF-JBN-ROG-AILMENT"]
+  },
+  {
+    "id": "JBN-ROGUE-T3",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T4"],
+    "effects": ["EFF-JBN-ROG-SPEED"]
+  },
+  {
+    "id": "JBN-ROGUE-T4",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T5"],
+    "effects": ["EFF-JBN-ROG-BACKSTAB"]
+  },
+  {
+    "id": "JBN-ROGUE-T5",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T6"],
+    "effects": ["EFF-JBN-ROG-CRIT"]
+  },
+  {
+    "id": "JBN-ROGUE-T6",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T7"],
+    "effects": ["EFF-JBN-ROG-AILMENT"]
+  },
+  {
+    "id": "JBN-ROGUE-T7",
+    "kind": "minor",
+    "links": [],
+    "effects": ["EFF-JBN-ROG-SPEED"]
+  },
+  {
+    "id": "JBN-ROGUE-B1A",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T1"],
+    "effects": ["EFF-JBN-ROG-AILMENT"]
+  },
+  {
+    "id": "JBN-ROGUE-B1B",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-B1A"],
+    "effects": ["EFF-JBN-ROG-SPEED"]
+  },
+  {
+    "id": "JBN-ROGUE-POISON-BLOOD",
+    "kind": "notable",
+    "links": ["JBN-ROGUE-B1B"],
+    "effects": ["EFF-JBN-ROG-POISON-BLOOD"]
+  },
+  {
+    "id": "JBN-ROGUE-B2A",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T2"],
+    "effects": ["EFF-JBN-ROG-SPEED"]
+  },
+  {
+    "id": "JBN-ROGUE-B2B",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-B2A"],
+    "effects": ["EFF-JBN-ROG-BACKSTAB"]
+  },
+  {
+    "id": "JBN-ROGUE-VITALS",
+    "kind": "notable",
+    "links": ["JBN-ROGUE-B2B"],
+    "effects": ["EFF-JBN-ROG-VITALS"]
+  },
+  {
+    "id": "JBN-ROGUE-B3A",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-T3"],
+    "effects": ["EFF-JBN-ROG-BACKSTAB"]
+  },
+  {
+    "id": "JBN-ROGUE-B3B",
+    "kind": "minor",
+    "links": ["JBN-ROGUE-B3A"],
+    "effects": ["EFF-JBN-ROG-CRIT"]
+  },
+  {
+    "id": "JBN-ROGUE-QUICK",
+    "kind": "notable",
+    "links": ["JBN-ROGUE-B3B"],
+    "effects": ["EFF-JBN-ROG-QUICK"]
+  },
+  {
+    "id": "JBN-ROGUE-C1",
+    "kind": "connector",
+    "links": ["JBN-ROGUE-T5"],
+    "effects": []
+  },
+  {
+    "id": "JBN-ROGUE-C2",
+    "kind": "connector",
+    "links": ["JBN-ROGUE-C1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-ROGUE-C3",
+    "kind": "connector",
+    "links": ["JBN-ROGUE-C2"],
+    "effects": []
+  },
+  {
+    "id": "JBN-ROGUE-M-ENDLESS",
+    "kind": "mastery",
+    "links": ["JBN-ROGUE-T7"],
+    "effects": ["EFF-JBM-ROG-ENDLESS"]
+  },
+  {
+    "id": "JBN-ROGUE-M-SILENT",
+    "kind": "mastery",
+    "links": ["JBN-ROGUE-T7"],
+    "effects": ["EFF-JBM-ROG-SILENT"]
+  },
+  {
+    "id": "JBN-ROGUE-M-SHADOW",
+    "kind": "mastery",
+    "links": ["JBN-ROGUE-T7"],
+    "effects": ["EFF-JBM-ROG-SHADOW"]
+  },
+  {
+    "id": "JBN-ARCHER-START",
+    "kind": "start",
+    "links": ["JBN-ARCHER-T1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-ARCHER-T1",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T2"],
+    "effects": ["EFF-JBN-ARC-CRIT"]
+  },
+  {
+    "id": "JBN-ARCHER-T2",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T3"],
+    "effects": ["EFF-JBN-ARC-PROJ"]
+  },
+  {
+    "id": "JBN-ARCHER-T3",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T4"],
+    "effects": ["EFF-JBN-ARC-SPEED"]
+  },
+  {
+    "id": "JBN-ARCHER-T4",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T5"],
+    "effects": ["EFF-JBN-ARC-FOCUS"]
+  },
+  {
+    "id": "JBN-ARCHER-T5",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T6"],
+    "effects": ["EFF-JBN-ARC-CRIT"]
+  },
+  {
+    "id": "JBN-ARCHER-T6",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T7"],
+    "effects": ["EFF-JBN-ARC-PROJ"]
+  },
+  {
+    "id": "JBN-ARCHER-T7",
+    "kind": "minor",
+    "links": [],
+    "effects": ["EFF-JBN-ARC-SPEED"]
+  },
+  {
+    "id": "JBN-ARCHER-B1A",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T1"],
+    "effects": ["EFF-JBN-ARC-PROJ"]
+  },
+  {
+    "id": "JBN-ARCHER-B1B",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-B1A"],
+    "effects": ["EFF-JBN-ARC-SPEED"]
+  },
+  {
+    "id": "JBN-ARCHER-MIND-EYE",
+    "kind": "notable",
+    "links": ["JBN-ARCHER-B1B"],
+    "effects": ["EFF-JBN-ARC-MIND-EYE"]
+  },
+  {
+    "id": "JBN-ARCHER-B2A",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T2"],
+    "effects": ["EFF-JBN-ARC-SPEED"]
+  },
+  {
+    "id": "JBN-ARCHER-B2B",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-B2A"],
+    "effects": ["EFF-JBN-ARC-FOCUS"]
+  },
+  {
+    "id": "JBN-ARCHER-RANGE",
+    "kind": "notable",
+    "links": ["JBN-ARCHER-B2B"],
+    "effects": ["EFF-JBN-ARC-RANGE"]
+  },
+  {
+    "id": "JBN-ARCHER-B3A",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-T3"],
+    "effects": ["EFF-JBN-ARC-FOCUS"]
+  },
+  {
+    "id": "JBN-ARCHER-B3B",
+    "kind": "minor",
+    "links": ["JBN-ARCHER-B3A"],
+    "effects": ["EFF-JBN-ARC-CRIT"]
+  },
+  {
+    "id": "JBN-ARCHER-QUICK",
+    "kind": "notable",
+    "links": ["JBN-ARCHER-B3B"],
+    "effects": ["EFF-JBN-ARC-QUICK"]
+  },
+  {
+    "id": "JBN-ARCHER-C1",
+    "kind": "connector",
+    "links": ["JBN-ARCHER-T5"],
+    "effects": []
+  },
+  {
+    "id": "JBN-ARCHER-C2",
+    "kind": "connector",
+    "links": ["JBN-ARCHER-C1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-ARCHER-C3",
+    "kind": "connector",
+    "links": ["JBN-ARCHER-C2"],
+    "effects": []
+  },
+  {
+    "id": "JBN-ARCHER-M-HAWK",
+    "kind": "mastery",
+    "links": ["JBN-ARCHER-T7"],
+    "effects": ["EFF-JBM-ARC-HAWK"]
+  },
+  {
+    "id": "JBN-ARCHER-M-GALE",
+    "kind": "mastery",
+    "links": ["JBN-ARCHER-T7"],
+    "effects": ["EFF-JBM-ARC-GALE"]
+  },
+  {
+    "id": "JBN-ARCHER-M-REPEATER",
+    "kind": "mastery",
+    "links": ["JBN-ARCHER-T7"],
+    "effects": ["EFF-JBM-ARC-REPEATER"]
+  },
+  {
+    "id": "JBN-MAGE-START",
+    "kind": "start",
+    "links": ["JBN-MAGE-T1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-MAGE-T1",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T2"],
+    "effects": ["EFF-JBN-MAG-CRIT"]
+  },
+  {
+    "id": "JBN-MAGE-T2",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T3"],
+    "effects": ["EFF-JBN-MAG-SPELL"]
+  },
+  {
+    "id": "JBN-MAGE-T3",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T4"],
+    "effects": ["EFF-JBN-MAG-SPEED"]
+  },
+  {
+    "id": "JBN-MAGE-T4",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T5"],
+    "effects": ["EFF-JBN-MAG-MP"]
+  },
+  {
+    "id": "JBN-MAGE-T5",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T6"],
+    "effects": ["EFF-JBN-MAG-CRIT"]
+  },
+  {
+    "id": "JBN-MAGE-T6",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T7"],
+    "effects": ["EFF-JBN-MAG-SPELL"]
+  },
+  {
+    "id": "JBN-MAGE-T7",
+    "kind": "minor",
+    "links": [],
+    "effects": ["EFF-JBN-MAG-SPEED"]
+  },
+  {
+    "id": "JBN-MAGE-B1A",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T1"],
+    "effects": ["EFF-JBN-MAG-SPELL"]
+  },
+  {
+    "id": "JBN-MAGE-B1B",
+    "kind": "minor",
+    "links": ["JBN-MAGE-B1A"],
+    "effects": ["EFF-JBN-MAG-SPEED"]
+  },
+  {
+    "id": "JBN-MAGE-SPELLWORK",
+    "kind": "notable",
+    "links": ["JBN-MAGE-B1B"],
+    "effects": ["EFF-JBN-MAG-SPELLWORK"]
+  },
+  {
+    "id": "JBN-MAGE-B2A",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T2"],
+    "effects": ["EFF-JBN-MAG-SPEED"]
+  },
+  {
+    "id": "JBN-MAGE-B2B",
+    "kind": "minor",
+    "links": ["JBN-MAGE-B2A"],
+    "effects": ["EFF-JBN-MAG-MP"]
+  },
+  {
+    "id": "JBN-MAGE-WELL",
+    "kind": "notable",
+    "links": ["JBN-MAGE-B2B"],
+    "effects": ["EFF-JBN-MAG-WELL"]
+  },
+  {
+    "id": "JBN-MAGE-B3A",
+    "kind": "minor",
+    "links": ["JBN-MAGE-T3"],
+    "effects": ["EFF-JBN-MAG-MP"]
+  },
+  {
+    "id": "JBN-MAGE-B3B",
+    "kind": "minor",
+    "links": ["JBN-MAGE-B3A"],
+    "effects": ["EFF-JBN-MAG-CRIT"]
+  },
+  {
+    "id": "JBN-MAGE-SWIFT",
+    "kind": "notable",
+    "links": ["JBN-MAGE-B3B"],
+    "effects": ["EFF-JBN-MAG-SWIFT"]
+  },
+  {
+    "id": "JBN-MAGE-C1",
+    "kind": "connector",
+    "links": ["JBN-MAGE-T5"],
+    "effects": []
+  },
+  {
+    "id": "JBN-MAGE-C2",
+    "kind": "connector",
+    "links": ["JBN-MAGE-C1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-MAGE-C3",
+    "kind": "connector",
+    "links": ["JBN-MAGE-C2"],
+    "effects": []
+  },
+  {
+    "id": "JBN-MAGE-M-TRIPHASE",
+    "kind": "mastery",
+    "links": ["JBN-MAGE-T7"],
+    "effects": []
+  },
+  {
+    "id": "JBN-MAGE-M-SINGLE",
+    "kind": "mastery",
+    "links": ["JBN-MAGE-T7"],
+    "effects": []
+  },
+  {
+    "id": "JBN-MAGE-M-SILENT",
+    "kind": "mastery",
+    "links": ["JBN-MAGE-T7"],
+    "effects": []
+  },
+  {
+    "id": "JBN-KNIGHT-START",
+    "kind": "start",
+    "links": ["JBN-KNIGHT-T1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-KNIGHT-T1",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T2"],
+    "effects": ["EFF-JBN-KNT-ARMOR"]
+  },
+  {
+    "id": "JBN-KNIGHT-T2",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T3"],
+    "effects": ["EFF-JBN-KNT-MELEE"]
+  },
+  {
+    "id": "JBN-KNIGHT-T3",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T4"],
+    "effects": ["EFF-JBN-KNT-SPEED"]
+  },
+  {
+    "id": "JBN-KNIGHT-T4",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T5"],
+    "effects": ["EFF-JBN-KNT-HP"]
+  },
+  {
+    "id": "JBN-KNIGHT-T5",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T6"],
+    "effects": ["EFF-JBN-KNT-ARMOR"]
+  },
+  {
+    "id": "JBN-KNIGHT-T6",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T7"],
+    "effects": ["EFF-JBN-KNT-MELEE"]
+  },
+  {
+    "id": "JBN-KNIGHT-T7",
+    "kind": "minor",
+    "links": [],
+    "effects": ["EFF-JBN-KNT-SPEED"]
+  },
+  {
+    "id": "JBN-KNIGHT-B1A",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T1"],
+    "effects": ["EFF-JBN-KNT-MELEE"]
+  },
+  {
+    "id": "JBN-KNIGHT-B1B",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-B1A"],
+    "effects": ["EFF-JBN-KNT-SPEED"]
+  },
+  {
+    "id": "JBN-KNIGHT-SHIELDWORK",
+    "kind": "notable",
+    "links": ["JBN-KNIGHT-B1B"],
+    "effects": ["EFF-JBN-KNT-SHIELDWORK"]
+  },
+  {
+    "id": "JBN-KNIGHT-B2A",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T2"],
+    "effects": ["EFF-JBN-KNT-SPEED"]
+  },
+  {
+    "id": "JBN-KNIGHT-B2B",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-B2A"],
+    "effects": ["EFF-JBN-KNT-HP"]
+  },
+  {
+    "id": "JBN-KNIGHT-BULWARK",
+    "kind": "notable",
+    "links": ["JBN-KNIGHT-B2B"],
+    "effects": ["EFF-JBN-KNT-BULWARK"]
+  },
+  {
+    "id": "JBN-KNIGHT-B3A",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-T3"],
+    "effects": ["EFF-JBN-KNT-HP"]
+  },
+  {
+    "id": "JBN-KNIGHT-B3B",
+    "kind": "minor",
+    "links": ["JBN-KNIGHT-B3A"],
+    "effects": ["EFF-JBN-KNT-ARMOR"]
+  },
+  {
+    "id": "JBN-KNIGHT-VIGOR",
+    "kind": "notable",
+    "links": ["JBN-KNIGHT-B3B"],
+    "effects": ["EFF-JBN-KNT-VIGOR"]
+  },
+  {
+    "id": "JBN-KNIGHT-C1",
+    "kind": "connector",
+    "links": ["JBN-KNIGHT-T5"],
+    "effects": []
+  },
+  {
+    "id": "JBN-KNIGHT-C2",
+    "kind": "connector",
+    "links": ["JBN-KNIGHT-C1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-KNIGHT-C3",
+    "kind": "connector",
+    "links": ["JBN-KNIGHT-C2"],
+    "effects": []
+  },
+  {
+    "id": "JBN-KNIGHT-M-IRON",
+    "kind": "mastery",
+    "links": ["JBN-KNIGHT-T7"],
+    "effects": []
+  },
+  {
+    "id": "JBN-KNIGHT-M-CONDEMN",
+    "kind": "mastery",
+    "links": ["JBN-KNIGHT-T7"],
+    "effects": []
+  },
+  {
+    "id": "JBN-KNIGHT-M-MARTYR",
+    "kind": "mastery",
+    "links": ["JBN-KNIGHT-T7"],
+    "effects": []
+  },
+  {
+    "id": "JBN-SUMMONER-START",
+    "kind": "start",
+    "links": ["JBN-SUMMONER-T1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-SUMMONER-T1",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T2"],
+    "effects": ["EFF-JBN-SUM-MINION-HP"]
+  },
+  {
+    "id": "JBN-SUMMONER-T2",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T3"],
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"]
+  },
+  {
+    "id": "JBN-SUMMONER-T3",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T4"],
+    "effects": ["EFF-JBN-SUM-MP"]
+  },
+  {
+    "id": "JBN-SUMMONER-T4",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T5"],
+    "effects": ["EFF-JBN-SUM-HP"]
+  },
+  {
+    "id": "JBN-SUMMONER-T5",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T6"],
+    "effects": ["EFF-JBN-SUM-MINION-HP"]
+  },
+  {
+    "id": "JBN-SUMMONER-T6",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T7"],
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"]
+  },
+  {
+    "id": "JBN-SUMMONER-T7",
+    "kind": "minor",
+    "links": [],
+    "effects": ["EFF-JBN-SUM-MP"]
+  },
+  {
+    "id": "JBN-SUMMONER-B1A",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T1"],
+    "effects": ["EFF-JBN-SUM-MINION-DAMAGE"]
+  },
+  {
+    "id": "JBN-SUMMONER-B1B",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-B1A"],
+    "effects": ["EFF-JBN-SUM-MP"]
+  },
+  {
+    "id": "JBN-SUMMONER-WARLORD",
+    "kind": "notable",
+    "links": ["JBN-SUMMONER-B1B"],
+    "effects": ["EFF-JBN-SUM-WARLORD"]
+  },
+  {
+    "id": "JBN-SUMMONER-B2A",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T2"],
+    "effects": ["EFF-JBN-SUM-MP"]
+  },
+  {
+    "id": "JBN-SUMMONER-B2B",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-B2A"],
+    "effects": ["EFF-JBN-SUM-HP"]
+  },
+  {
+    "id": "JBN-SUMMONER-BONEBIND",
+    "kind": "notable",
+    "links": ["JBN-SUMMONER-B2B"],
+    "effects": ["EFF-JBN-SUM-BONEBIND"]
+  },
+  {
+    "id": "JBN-SUMMONER-B3A",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-T3"],
+    "effects": ["EFF-JBN-SUM-HP"]
+  },
+  {
+    "id": "JBN-SUMMONER-B3B",
+    "kind": "minor",
+    "links": ["JBN-SUMMONER-B3A"],
+    "effects": ["EFF-JBN-SUM-MINION-HP"]
+  },
+  {
+    "id": "JBN-SUMMONER-VIGOR",
+    "kind": "notable",
+    "links": ["JBN-SUMMONER-B3B"],
+    "effects": ["EFF-JBN-SUM-VIGOR"]
+  },
+  {
+    "id": "JBN-SUMMONER-C1",
+    "kind": "connector",
+    "links": ["JBN-SUMMONER-T5"],
+    "effects": []
+  },
+  {
+    "id": "JBN-SUMMONER-C2",
+    "kind": "connector",
+    "links": ["JBN-SUMMONER-C1"],
+    "effects": []
+  },
+  {
+    "id": "JBN-SUMMONER-C3",
+    "kind": "connector",
+    "links": ["JBN-SUMMONER-C2"],
+    "effects": []
+  },
+  {
+    "id": "JBN-SUMMONER-M-LEGION",
+    "kind": "mastery",
+    "links": ["JBN-SUMMONER-T7"],
+    "effects": ["EFF-JBM-SUM-LEGION"]
+  },
+  {
+    "id": "JBN-SUMMONER-M-SINGLE",
+    "kind": "mastery",
+    "links": ["JBN-SUMMONER-T7"],
+    "effects": []
+  },
+  {
+    "id": "JBN-SUMMONER-M-CYCLE",
+    "kind": "mastery",
+    "links": ["JBN-SUMMONER-T7"],
+    "effects": []
+  }
+]

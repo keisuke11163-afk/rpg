@@ -409,14 +409,12 @@ describe("魔法使い：データの整合", () => {
     });
   });
 
-  it("魔法使いの職紋盤：始点1つ・職奥義3つ・星辰盤への接続ノード3つ（弓使いと同じ形）", () => {
+  it("魔法使いの職紋盤：始点1つ・職奥義3つ・星辰盤への接続ノード3つ（形は三角の陣。D-JBS-1）", () => {
     const nodes = [...db.jobNodes.values()].filter((n) => n.job === "JOB-MAGE");
     expect(nodes.filter((n) => n.kind === "start")).toHaveLength(1);
     expect(nodes.filter((n) => n.kind === "mastery")).toHaveLength(3);
     expect(nodes.filter((n) => n.kind === "connector")).toHaveLength(3);
-    expect(nodes).toHaveLength(
-      [...db.jobNodes.values()].filter((n) => n.job === "JOB-ARCHER").length,
-    );
+    expect(nodes.filter((n) => n.kind === "notable")).toHaveLength(3);
   });
 
   it("出自を魔法使いにすると、星辰盤の始点は理域", () => {

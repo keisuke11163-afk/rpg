@@ -41,9 +41,16 @@ const job = (id: string): JobDef => {
 };
 const WARRIOR = "JOB-WARRIOR";
 /** 戦士の盤の、副職紋で取れるノード（小ノードと輝星）を、データの順（どれも前のノードの隣）に。 */
+/**
+ * 戦士の副職紋で取れる、もとからある19ノード（小ノード・輝星。データの順＝始点からつながる順）。
+ * 盤の形を作るために足した小ノード（-X01 など。docs/progress/sessions/jobboard-shapes.md D-JBS-2）は除く。
+ */
 const warriorSubNodes = (): string[] =>
   [...db.jobNodes.values()]
-    .filter((n) => n.job === WARRIOR && (n.kind === "minor" || n.kind === "notable"))
+    .filter(
+      (n) =>
+        n.job === WARRIOR && (n.kind === "minor" || n.kind === "notable") && !/-X\d+$/.test(n.id),
+    )
     .map((n) => n.id);
 
 describe("ジョブのサブジョブの技（D-SUB-4）", () => {
@@ -152,6 +159,9 @@ describe("副職紋（D-SUB-2・D-SUB-3）", () => {
     expect(b.allocate("JBN-WARRIOR-M-DEMON", 20)).toBe(false);
     expect(b.mastery).toBeUndefined();
     expect(b.connectors(20)).toBe(0);
+    // 形を作るために足した小ノードも、副職紋で取れる（D-JBS-2）
+    const added = new JobBoardAllocation(db, WARRIOR, ["JBN-WARRIOR-X13"], "sub");
+    expect(added.allocate("JBN-WARRIOR-X14", 20)).toBe(true);
     // セーブデータの取得に職奥義・接続ノードがあれば RangeError
     for (const bad of ["JBN-WARRIOR-M-DEMON", "JBN-WARRIOR-C1"])
       expect(() => new JobBoardAllocation(db, WARRIOR, [...nodes.slice(0, 7), bad], "sub")).toThrow(
