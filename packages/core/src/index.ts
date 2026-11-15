@@ -44,3 +44,6 @@ export * from "./items/rarity.ts";
 export * from "./items/generate.ts";
 export * from "./items/drops.ts";
 export * from "./items/loot.ts";
+export * from "./items/gear.ts";
+export * from "./items/describe.ts";
+export * from "./items/merchant.ts";

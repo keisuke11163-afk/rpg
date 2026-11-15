@@ -420,3 +420,24 @@ export function itemBase(id: string): ItemBase {
   if (!base) throw new Error(`ベースがない: ${id}`);
   return base;
 }
+
+/** 基本刻印の数値（ベースID → 能力値の名前 → 値）。百分率は比で持つ（本仕様書 3.2・3.4） */
+export const IMPLICIT_STATS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
+  "BASE-WPN-GREATSWORD-T1": { 崩し値: 0.15 },
+  "BASE-WPN-GREATAXE-T1": { 出血ダメージ: 0.15 },
+  "BASE-WPN-AXE-T1": { 出血付与率: 0.1 },
+  "BASE-WPN-GREATHAMMER-T1": { 崩し値: 0.3 },
+  "BASE-WPN-LONGSWORD-T1": { 命中: 40 },
+  "BASE-WPN-DAGGER-T1": { 背面会心率: 0.05 },
+  "BASE-WPN-CLAW-T1": { HP吸収: 0.005 },
+  "BASE-SHD-SMALL-T1": { ガード率: 0.5 },
+  "BASE-SHD-LARGE-T1": { ガード率: 0.7, 移動速度: -0.05 },
+  "BASE-ACC-RING-SILVER-T1": { 全属性耐性: 0.05 },
+  "BASE-ACC-RING-RUBY-T1": { 火ダメージ増加: 0.1 },
+  "BASE-ACC-NECK-AMBER-T1": { 全能力値: 8 },
+  "BASE-ACC-BELT-LEATHER-T1": { 薬瓶の回復量: 0.15 },
+  "BASE-ACC-BELT-CHAIN-T1": { 防具値増加: 0.15, 移動速度: -0.02 },
+};
+
+import { makeGearData } from "@stella/core";
+export const GEAR_DATA = makeGearData(ITEM_BASES, AFFIXES, IMPLICIT_STATS);

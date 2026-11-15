@@ -8,6 +8,7 @@ import { strike, type Combatant, type HitResult, type HitSpec } from "../combat/
 import type { HitShape } from "../combat/geometry.ts";
 import type { GroundEffects } from "../combat/zones.ts";
 import type { WeaponDef } from "../combat/weapons.ts";
+import type { GearStats } from "../items/gear.ts";
 import { JobGauge, type GaugeDef } from "./gauge.ts";
 import {
   APTITUDE_SPEED,
@@ -101,6 +102,9 @@ export class Fighter {
   damageMult = 1;
   attackSpeedBonus = 0;
 
+  /** 装備から決まる能力値。装備が変わるたびに差し替える（保存しない） */
+  private gearStats: GearStats | undefined;
+
   constructor(init: FighterInit) {
     this.init = init;
     this.hp = init.maxHp;
@@ -108,9 +112,47 @@ export class Fighter {
     this.gauge = new JobGauge(init.gauge);
   }
 
+  /** 装備の能力値を反映する。最大HPが変わったら、HPは範囲内に収める */
+  setGear(gear: GearStats | undefined): void {
+    this.gearStats = gear;
+    this.hp = Math.min(this.hp, this.maxHp);
+  }
+
+  private gearTotal(stat: string): number {
+    return this.gearStats?.totals[stat] ?? 0;
+  }
+
+  get maxHp(): number {
+    return this.init.maxHp + this.gearTotal("最大HP");
+  }
+
+  /** 実際に使う武器の値（装備があれば装備の値） */
+  get weapon(): WeaponDef {
+    const w = this.gearStats?.weapon;
+    return w
+      ? { name: this.init.weapon.name, min: w.min, max: w.max, speed: w.speed, crit: w.crit }
+      : this.init.weapon;
+  }
+
+  /** 武器のダメージの幅（局所の追加ダメージを含む）。ヒットの抽選と、能力値の表示の両方が使う */
+  weaponDamageRange(): {
+    physical: { min: number; max: number };
+    fire: { min: number; max: number };
+  } {
+    const w = this.weapon;
+    const ap = this.gearStats?.weapon?.addedPhysical ?? { min: 0, max: 0 };
+    const af = this.gearStats?.weapon?.addedFire ?? { min: 0, max: 0 };
+    return { physical: { min: w.min + ap.min, max: w.max + ap.max }, fire: af };
+  }
+
+  get critIncrease(): number {
+    return this.gearTotal("会心率増加%");
+  }
+
   get attackSpeed(): number {
     return (
-      this.init.weapon.speed * (1 + APTITUDE_SPEED[this.init.aptitude] + this.attackSpeedBonus)
+      this.weapon.speed *
+      (1 + APTITUDE_SPEED[this.init.aptitude] + this.attackSpeedBonus + this.gearTotal("攻撃速度"))
     );
   }
 
@@ -181,13 +223,16 @@ export class Fighter {
 
   /** ヒットの内容を作る（武器のダメージを振り、補正を載せる） */
   hitSpec(eff: EffectiveSkill, rng: Rng): HitSpec {
-    const { weapon } = this.init;
+    const weapon = this.weapon;
+    const range = this.weaponDamageRange();
     const strength = this.init.stats?.["剛"] ?? 0;
     const addPct =
       this.damageAddPct +
       strength * 0.002 +
       (this.buffs.attackBonus.left > 0 ? this.buffs.attackBonus.value : 0);
     const ailmentBase: Partial<Record<string, number>> = { ...eff.ailments };
+    const bleedAdd = this.gearTotal("出血付与率");
+    if (bleedAdd > 0) ailmentBase["bleed"] = (ailmentBase["bleed"] ?? 0) + bleedAdd;
     if (this.buffs.ailmentBonus.left > 0) {
       for (const [k, v] of Object.entries(this.buffs.ailmentBonus.value)) {
         ailmentBase[k] = (ailmentBase[k] ?? 0) + (v ?? 0);
@@ -197,16 +242,32 @@ export class Fighter {
     return {
       shape: eff.shape,
       damage: {
-        base: { physical: rng.int(weapon.min * 100, weapon.max * 100) / 100 },
+        base: {
+          physical: rng.int(range.physical.min * 100, range.physical.max * 100) / 100,
+          ...(range.fire.max > 0
+            ? { fire: rng.int(range.fire.min * 100, range.fire.max * 100) / 100 }
+            : {}),
+        },
         skillMultiplier: eff.multiplier,
         generic: { addPct, mult: this.damageMult },
+        byElement: {
+          physical: { addPct: this.gearTotal("物理ダメージ増加%") },
+          fire: { addPct: this.gearTotal("火ダメージ増加") },
+        },
       },
       weaponCrit: weapon.crit,
-      accuracy: this.init.accuracy ?? 2,
+      critIncrease: this.critIncrease,
+      accuracy: (this.init.accuracy ?? 2) + this.gearTotal("命中"),
       breakCoefficient: eff.skill.breakCoefficient,
-      breakBonus: eff.breakBonus,
+      breakBonus: eff.breakBonus + this.gearTotal("崩し値"),
       ailmentBase: ailmentBase,
-      ...(bs ? { backCritAdd: bs.critAdd, backAilmentBonus: bs.ailmentAdd } : {}),
+      ailmentBonus: this.gearTotal("状態異常付与率"),
+      ...(bs || this.gearTotal("背面会心率") > 0
+        ? {
+            backCritAdd: (bs?.critAdd ?? 0) + this.gearTotal("背面会心率"),
+            backAilmentBonus: bs?.ailmentAdd ?? 0,
+          }
+        : {}),
     };
   }
 
@@ -365,7 +426,7 @@ export class Fighter {
   takeDamage(raw: number): number {
     const dmg = raw * (this.buffs.damageTaken.left > 0 ? this.buffs.damageTaken.value : 1);
     this.hp = Math.max(0, this.hp - dmg);
-    this.gauge.onDamaged(dmg, this.init.maxHp);
+    this.gauge.onDamaged(dmg, this.maxHp);
     return dmg;
   }
 

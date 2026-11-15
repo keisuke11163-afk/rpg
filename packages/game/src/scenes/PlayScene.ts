@@ -1,7 +1,10 @@
 import Phaser from "phaser";
 import {
   AttackRunner,
+  Equipment,
   GroundEffects,
+  computeGear,
+  type ItemInstance,
   GroundLoot,
   ItemBag,
   Purse,
@@ -37,7 +40,8 @@ import {
   type HitShape,
   type HitSpec,
 } from "@stella/core";
-import { GENERATION_DATA, enemyDef, itemBase } from "@stella/content";
+import { GEAR_DATA, GENERATION_DATA, enemyDef, itemBase } from "@stella/content";
+import { characterText, entryLabel, inventoryEntries, tooltipText } from "../ui/panels.ts";
 import { SCREEN } from "../config.ts";
 
 /** 1m = 16ピクセル */
@@ -104,6 +108,13 @@ export class PlayScene extends Phaser.Scene {
   private readonly loot = new GroundLoot();
   private readonly bag = new ItemBag();
   private readonly purse = new Purse();
+  private readonly equipment = new Equipment();
+  /** 開いている画面（I：持ち物、C：キャラクター） */
+  private panel: "none" | "inventory" | "character" = "none";
+  private panelCursor = 0;
+  private panelText!: Phaser.GameObjects.Text;
+  private panelTip!: Phaser.GameObjects.Text;
+  private panelBg!: Phaser.GameObjects.Rectangle;
   private itemSerial = 0;
   private readonly dropped = new Set<Enemy>();
   private readonly lootLabels = new Map<GroundEntry, Phaser.GameObjects.Text>();
@@ -122,6 +133,33 @@ export class PlayScene extends Phaser.Scene {
     });
   }
 
+  /** 初期装備（補助仕様書 3.4：戦士は大剣と重装の胴、盗賊は短剣と軽装の胴。通常・下級） */
+  private equipStarting(): void {
+    for (const slot of this.equipment.all()) this.equipment.unequip(slot[0]);
+    const ids =
+      this.job === WARRIOR_JOB
+        ? ["BASE-WPN-GREATSWORD-T1", "BASE-ARM-HEAVY-BODY-T1"]
+        : ["BASE-WPN-DAGGER-T1", "BASE-ARM-LIGHT-BODY-T1"];
+    for (const baseId of ids) {
+      const item: ItemInstance = {
+        uid: `itm_${String(this.itemSerial++).padStart(6, "0")}`,
+        baseId,
+        rarity: "normal",
+        ilvl: 1,
+        affixes: [],
+        enhance: 0,
+      };
+      this.equipment.equip(item, GEAR_DATA, { canDualWield: false });
+    }
+    this.applyGear();
+  }
+
+  /** 装備が変わるたびに、能力値を計算し直す */
+  private applyGear(): void {
+    const stats = this.job.startingStats;
+    this.fighter.setGear(computeGear(this.equipment, GEAR_DATA, stats));
+  }
+
   constructor() {
     super("play");
   }
@@ -138,6 +176,25 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(10);
     this.cameras.main.startFollow(this.body, true, 0.15, 0.15);
+    this.panelBg = this.add
+      .rectangle(320, 180, 600, 330, 0x0d0c14, 0.92)
+      .setScrollFactor(0)
+      .setDepth(20)
+      .setVisible(false);
+    this.panelText = this.add
+      .text(30, 30, "", { fontFamily: "monospace", fontSize: "9px", color: "#e0def0" })
+      .setScrollFactor(0)
+      .setDepth(21);
+    this.panelTip = this.add
+      .text(330, 30, "", {
+        fontFamily: "monospace",
+        fontSize: "9px",
+        color: "#cfd8ff",
+        wordWrap: { width: 290 },
+      })
+      .setScrollFactor(0)
+      .setDepth(21);
+    this.equipStarting();
 
     // 試験用の配置：森狼の群れ・牙猪・棘吐き蜥蜴・樹皮熊・腐根の苗
     const place = (id: string, x: number, y: number, packId: string, level = 3): void => {
@@ -193,6 +250,10 @@ export class PlayScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
+    if (this.updatePanel()) {
+      this.justPressed.clear();
+      return;
+    }
     const ticks = this.stepper.advance(delta);
     const actions = pressedActions(new Set([...this.pressed, ...this.justPressed]));
     const pointer = this.input.activePointer;
@@ -329,6 +390,7 @@ export class PlayScene extends Phaser.Scene {
     if (this.justPressed.has("KeyK")) {
       this.job = this.job === WARRIOR_JOB ? ROGUE_JOB : WARRIOR_JOB;
       this.fighter = PlayScene.makeFighter(this.job);
+      this.equipStarting();
       this.attack = undefined;
     }
     if (this.time.now < this.busyUntil || this.attack || isDodging(this.player)) return;
@@ -363,6 +425,62 @@ export class PlayScene extends Phaser.Scene {
       this.flashArea(out.effective.shape, this.player.aimAngle);
       break;
     }
+  }
+
+  /** 持ち物・キャラクターの画面。開いている間は、戦闘の時間を止める。止めたら true */
+  private updatePanel(): boolean {
+    const jp = this.justPressed;
+    if (jp.has("KeyI")) this.panel = this.panel === "inventory" ? "none" : "inventory";
+    if (jp.has("KeyC")) this.panel = this.panel === "character" ? "none" : "character";
+    if (jp.has("Escape")) this.panel = "none";
+    const open = this.panel !== "none";
+    this.panelBg.setVisible(open);
+    this.panelText.setVisible(open);
+    this.panelTip.setVisible(open);
+    if (!open) return false;
+
+    const stats = this.job.startingStats;
+    const dual = this.job.aptitude.dualWield !== undefined;
+    if (this.panel === "character") {
+      const gear = computeGear(this.equipment, GEAR_DATA, stats);
+      this.panelText.setText(
+        `【キャラクター】${this.job.name}\n` + characterText(this.fighter, gear, stats),
+      );
+      this.panelTip.setText("");
+      return true;
+    }
+    const entries = inventoryEntries(this.equipment, this.bag);
+    const move = (jp.has("ArrowDown") ? 1 : 0) - (jp.has("ArrowUp") ? 1 : 0);
+    this.panelCursor = Math.max(0, Math.min(entries.length - 1, this.panelCursor + move));
+    const current = entries[this.panelCursor];
+    if (jp.has("Enter") && current) {
+      if (current.equipped) {
+        const slot = this.equipment.all().find(([, i]) => i.uid === current.item.uid)?.[0];
+        if (slot) {
+          const removed = this.equipment.unequip(slot);
+          if (removed && !this.bag.add(removed)) this.equipment.equip(removed, GEAR_DATA, { slot });
+        }
+      } else {
+        this.bag.remove(current.item.uid);
+        const r = this.equipment.equip(current.item, GEAR_DATA, { canDualWield: dual });
+        if (r.ok) for (const old of r.replaced) this.bag.add(old);
+        else this.bag.add(current.item);
+      }
+      this.applyGear();
+    }
+    const list = inventoryEntries(this.equipment, this.bag);
+    this.panelCursor = Math.max(0, Math.min(list.length - 1, this.panelCursor));
+    const start = Math.max(0, this.panelCursor - 14);
+    const rows = list
+      .slice(start, start + 22)
+      .map((e, i) => `${start + i === this.panelCursor ? "▶" : " "}${entryLabel(e, GEAR_DATA)}`);
+    this.panelText.setText(
+      `【持ち物】${String(this.bag.count)}/${String(this.bag.capacity)}  金貨 ${String(this.purse.gold)}\n↑↓ 選ぶ / Enter 装備・外す / I 閉じる\n\n${rows.join("\n")}`,
+    );
+    this.panelTip.setText(
+      tooltipText(list[this.panelCursor], GEAR_DATA, this.equipment, stats, this.job.id, dual),
+    );
+    return true;
   }
 
   /** 倒した敵のドロップを出し、金貨・素材を自動で拾い、Fで装備を拾う */
