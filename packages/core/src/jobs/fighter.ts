@@ -9,7 +9,8 @@ import type { HitShape } from "../combat/geometry.ts";
 import type { GroundEffects } from "../combat/zones.ts";
 import type { WeaponDef } from "../combat/weapons.ts";
 import type { GearStats } from "../items/gear.ts";
-import type { Evaluation } from "../effects/evaluate.ts";
+import { evaluate, type ActiveEffect, type Evaluation } from "../effects/evaluate.ts";
+import type { EvalContext } from "../effects/conditions.ts";
 import { JobGauge, type GaugeDef } from "./gauge.ts";
 import {
   APTITUDE_SPEED,
@@ -117,6 +118,42 @@ export class Fighter {
   private effects:
     { ev: Evaluation; tagsFor: (skill: SkillDef) => ReadonlySet<string> } | undefined;
 
+  /**
+   * ツリーなどの効果の元（効果の一覧と、第1段階の文脈）。ヒットの瞬間の状態（崩れた敵・HP50%以下の敵など）で
+   * 条件が変わる効果は、ヒットごとに評価し直す。
+   */
+  private source:
+    | {
+        entries: readonly ActiveEffect[];
+        ctx: EvalContext;
+        tagsFor: (skill: SkillDef) => ReadonlySet<string>;
+        cache: Map<string, Evaluation>;
+      }
+    | undefined;
+  /** 技を使っている間だけ有効な旗（戦闘外からの最初の一撃・連刃を使用中など） */
+  private useFlags: ReadonlySet<string> = new Set();
+
+  setEffectSource(
+    entries: readonly ActiveEffect[] | undefined,
+    ctx: EvalContext,
+    tagsFor: (skill: SkillDef) => ReadonlySet<string> = () => new Set(),
+  ): void {
+    this.source = entries ? { entries, ctx, tagsFor, cache: new Map() } : undefined;
+    this.effects = undefined;
+  }
+
+  private evalWith(dyn: ReadonlySet<string>): Evaluation | undefined {
+    const src = this.source;
+    if (!src) return this.effects?.ev;
+    const key = [...dyn].sort().join("|");
+    let ev = src.cache.get(key);
+    if (!ev) {
+      ev = evaluate(src.entries, { ...src.ctx, flags: new Set([...src.ctx.flags, ...dyn]) });
+      src.cache.set(key, ev);
+    }
+    return ev;
+  }
+
   /** ツリーなどの効果を反映する。tagsFor は、技が持つタグ（親タグ展開済みのID）を返す */
   setEffects(
     ev: Evaluation | undefined,
@@ -126,13 +163,27 @@ export class Fighter {
   }
 
   /** ツリーの効果の合計（加算％）。stat は能力値の名前 */
-  private fx(stat: string, skill?: SkillDef): { addPct: number; mult: number; flat: number } {
-    if (!this.effects) return { addPct: 0, mult: 1, flat: 0 };
-    const r = this.effects.ev.stat({
-      stat,
-      ...(skill ? { tags: this.effects.tagsFor(skill) } : {}),
-    });
+  private fx(
+    stat: string,
+    skill?: SkillDef,
+    dyn: ReadonlySet<string> = this.useFlags,
+  ): { addPct: number; mult: number; flat: number } {
+    const ev = this.evalWith(dyn);
+    if (!ev) return { addPct: 0, mult: 1, flat: 0 };
+    const tagsFor = this.source?.tagsFor ?? this.effects?.tagsFor;
+    const r = ev.stat({ stat, ...(skill && tagsFor ? { tags: tagsFor(skill) } : {}) });
     return { addPct: r.addPct, mult: r.mult, flat: r.flat };
+  }
+
+  /** 対象の状態から決まる旗 */
+  private targetFlags(t: Combatant): Set<string> {
+    const f = new Set(this.useFlags);
+    if (t.breakGauge.broken) f.add("崩れた敵");
+    if (t.hp <= t.maxHp * 0.5) f.add("HPが50%以下の敵");
+    if (t.ailments.slow > 0) f.add("冷却状態の敵");
+    if (t.ailments.stackCount("bleed") > 0) f.add("出血している敵");
+    if (t.ailments.stackCount("poison") > 0) f.add("毒を受けている敵");
+    return f;
   }
 
   /** 装備の能力値を反映する。最大HPが変わったら、HPは範囲内に収める */
@@ -290,6 +341,18 @@ export class Fighter {
       accuracy: (this.init.accuracy ?? 2) + this.gearTotal("命中"),
       breakCoefficient: eff.skill.breakCoefficient,
       breakBonus: eff.breakBonus + this.gearTotal("崩し値") + treeBreak.addPct,
+      ...(this.evalWith(new Set())
+        ? {
+            targetBonus: (t: Combatant) => {
+              const dyn = this.fx("ダメージ", eff.skill, this.targetFlags(t));
+              const base = this.fx("ダメージ", eff.skill);
+              return {
+                addPct: dyn.addPct - base.addPct,
+                mult: base.mult === 0 ? 1 : dyn.mult / base.mult,
+              };
+            },
+          }
+        : {}),
       ailmentBase: ailmentBase,
       ailmentBonus: this.gearTotal("状態異常付与率"),
       ...(bs || this.gearTotal("背面会心率") > 0
@@ -360,6 +423,10 @@ export class Fighter {
     }
 
     const out: UseOutcome = { ok: true, effective: eff, hits: [] };
+    const flags = new Set<string>();
+    if (this.gauge.outOfCombat) flags.add("戦闘外からの最初の一撃");
+    if (skill.id === "SKL-ROG-FLURRY") flags.add("連刃を使用中");
+    this.useFlags = flags;
 
     // 敵の背後へ瞬間移動する（背面は、向きの反対側）
     if (teleportTarget) {

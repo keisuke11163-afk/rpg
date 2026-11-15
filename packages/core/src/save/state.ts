@@ -19,6 +19,8 @@ export interface GameState {
   bossTokens: Record<string, number>;
   questPoints: number;
   explorationPoints: number;
+  /** 職紋盤の配置（ジョブごと）。ジョブを切り替えても残る */
+  jobBoards: Record<string, { allocation: string[]; mastery: string | null }>;
   /** 経由した状態（職紋盤の配置・職奥義・ロードアウトなど、他の単位が足す部分）を保つための元のデータ */
   base: SaveData;
 }
@@ -34,6 +36,7 @@ export function newGameState(registry: JobRegistry, name: string, originJob: str
     bossTokens: {},
     questPoints: 0,
     explorationPoints: 0,
+    jobBoards: {},
     base: newSave({ name, originJob }),
   };
 }
@@ -58,11 +61,12 @@ export function toSave(state: GameState): SaveData {
   const jobs: SaveData["jobs"] = {};
   for (const [id, st] of p.jobEntries()) {
     const prev = state.base.jobs[id];
+    const board = state.jobBoards[id];
     jobs[id] = {
       level: st.level,
       exp: st.exp,
-      boardAllocation: prev?.boardAllocation ?? [],
-      masteryChoice: prev?.masteryChoice ?? null,
+      boardAllocation: board?.allocation ?? prev?.boardAllocation ?? [],
+      masteryChoice: board ? board.mastery : (prev?.masteryChoice ?? null),
     };
   }
   const active = state.base.activeLoadout;
@@ -122,6 +126,12 @@ export function fromSave(save: SaveData, registry: JobRegistry, gear: GearData):
   state.purse.gold = save.gold;
   for (const [id, n] of Object.entries(save.materials)) state.purse.addMaterial(id, n);
   state.bossTokens = { ...save.bossTokens };
+  state.jobBoards = Object.fromEntries(
+    Object.entries(save.jobs).map(([id, j]) => [
+      id,
+      { allocation: [...j.boardAllocation], mastery: j.masteryChoice },
+    ]),
+  );
   state.questPoints = save.questPoints;
   state.explorationPoints = save.explorationPoints;
   return state;

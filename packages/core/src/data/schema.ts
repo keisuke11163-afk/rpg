@@ -160,7 +160,19 @@ export const effectSchema = z.strictObject({
 });
 export type EffectDef = z.infer<typeof effectSchema>;
 
-export const NODE_TYPES = ["始点", "小星", "輝星", "転変", "天極", "星門", "共鳴座"] as const;
+export const NODE_TYPES = [
+  "始点",
+  "小星",
+  "輝星",
+  "転変",
+  "天極",
+  "星門",
+  "共鳴座",
+  /** 職紋盤：職奥義（3つから1つだけ選べる） */
+  "職奥義",
+  /** 職紋盤：星辰盤への接続ノード */
+  "接続",
+] as const;
 
 /** 星辰盤のノード（開発計画書 6.8）。つながりは双方向で、両側に書く */
 export const starNodeSchema = z.strictObject({

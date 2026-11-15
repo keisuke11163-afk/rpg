@@ -68,6 +68,7 @@ export function buildBoardContext(
   }
   const flags = new Set<string>(opts.flags ?? []);
   if (!main) flags.add("主手が空");
+  if (mainBase?.hands === 2) flags.add("両手武器");
   if (opts.subJob === true) flags.add("サブジョブ設定");
   if (opts.dualWield === true) flags.add("二刀流");
   const ctx: EvalContext = { tags, stats, counts, flags };

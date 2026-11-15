@@ -1789,6 +1789,486 @@
       "x": 640,
       "y": 163,
       "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-START",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "始点",
+      "name": "戦士の職紋",
+      "links": [
+        "JNODE-WARRIOR-0001",
+        "JNODE-WARRIOR-0004",
+        "JNODE-WARRIOR-0007",
+        "JNODE-WARRIOR-0010",
+        "JNODE-WARRIOR-0012"
+      ],
+      "effects": [],
+      "x": 320,
+      "y": 180,
+      "provisional": true,
+      "start": {
+        "job": "JOB-WARRIOR"
+      }
+    },
+    {
+      "id": "JNODE-WARRIOR-0001",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "闘志の炉",
+      "links": ["JNODE-WARRIOR-START", "JNODE-WARRIOR-0002"],
+      "effects": ["EFF-WARRIOR-0001"],
+      "x": 300,
+      "y": 167,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0002",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "炉の熱",
+      "links": ["JNODE-WARRIOR-0001", "JNODE-WARRIOR-0003"],
+      "effects": ["EFF-WARRIOR-0002"],
+      "x": 285,
+      "y": 148,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0003",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "不屈の下地",
+      "links": ["JNODE-WARRIOR-0002", "JNODE-WARRIOR-M1"],
+      "effects": ["EFF-WARRIOR-0003"],
+      "x": 265,
+      "y": 135,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0004",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "血を燃やす",
+      "links": ["JNODE-WARRIOR-START", "JNODE-WARRIOR-0005"],
+      "effects": ["EFF-WARRIOR-0004"],
+      "x": 325,
+      "y": 157,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0005",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "怒りの呼吸",
+      "links": ["JNODE-WARRIOR-0004", "JNODE-WARRIOR-0006"],
+      "effects": ["EFF-WARRIOR-0005"],
+      "x": 337,
+      "y": 136,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0006",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "鬼気",
+      "links": ["JNODE-WARRIOR-0005", "JNODE-WARRIOR-M2"],
+      "effects": ["EFF-WARRIOR-0006"],
+      "x": 342,
+      "y": 113,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0007",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "輝星",
+      "name": "両手の誇り",
+      "links": ["JNODE-WARRIOR-START", "JNODE-WARRIOR-0008"],
+      "effects": ["EFF-WARRIOR-0007"],
+      "x": 344,
+      "y": 176,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0008",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "重みの理解",
+      "links": ["JNODE-WARRIOR-0007", "JNODE-WARRIOR-0009"],
+      "effects": ["EFF-WARRIOR-0008"],
+      "x": 368,
+      "y": 180,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0009",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "輝星",
+      "name": "崩しの達人",
+      "links": ["JNODE-WARRIOR-0008", "JNODE-WARRIOR-M3"],
+      "effects": ["EFF-WARRIOR-0009"],
+      "x": 392,
+      "y": 176,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0010",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "戦吼の響き",
+      "links": ["JNODE-WARRIOR-START", "JNODE-WARRIOR-0011"],
+      "effects": ["EFF-WARRIOR-0010"],
+      "x": 332,
+      "y": 201,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0011",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "突進の勢い",
+      "links": ["JNODE-WARRIOR-0010", "JNODE-WARRIOR-C1", "JNODE-WARRIOR-C3"],
+      "effects": ["EFF-WARRIOR-0011"],
+      "x": 337,
+      "y": 224,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0012",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "旋風の呼吸",
+      "links": ["JNODE-WARRIOR-START", "JNODE-WARRIOR-0013"],
+      "effects": ["EFF-WARRIOR-0012"],
+      "x": 305,
+      "y": 199,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0013",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "薙ぎの鍛錬",
+      "links": ["JNODE-WARRIOR-0012", "JNODE-WARRIOR-0014"],
+      "effects": ["EFF-WARRIOR-0013"],
+      "x": 285,
+      "y": 212,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-0014",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "小星",
+      "name": "解放の溜め",
+      "links": ["JNODE-WARRIOR-0013", "JNODE-WARRIOR-C2"],
+      "effects": ["EFF-WARRIOR-0014"],
+      "x": 270,
+      "y": 231,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-M1",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "職奥義",
+      "name": "不屈の闘志",
+      "links": ["JNODE-WARRIOR-0003"],
+      "effects": ["EFF-WARRIOR-M1"],
+      "x": 248,
+      "y": 116,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-M2",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "職奥義",
+      "name": "怒涛",
+      "links": ["JNODE-WARRIOR-0006"],
+      "effects": ["EFF-WARRIOR-M2"],
+      "x": 354,
+      "y": 90,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-M3",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "職奥義",
+      "name": "鬼神化",
+      "links": ["JNODE-WARRIOR-0009"],
+      "effects": ["EFF-WARRIOR-M3"],
+      "x": 418,
+      "y": 179,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-C1",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "接続",
+      "name": "星辰盤への接続 1",
+      "links": ["JNODE-WARRIOR-0011"],
+      "effects": ["EFF-JCONN-WARRIOR"],
+      "x": 338,
+      "y": 250,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-C2",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "接続",
+      "name": "星辰盤への接続 2",
+      "links": ["JNODE-WARRIOR-0014"],
+      "effects": ["EFF-JCONN-WARRIOR-2"],
+      "x": 246,
+      "y": 241,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-WARRIOR-C3",
+      "region": "TAG-JOB-WARRIOR",
+      "type": "接続",
+      "name": "星辰盤への接続 3",
+      "links": ["JNODE-WARRIOR-0011"],
+      "effects": ["EFF-JCONN-WARRIOR-3"],
+      "x": 354,
+      "y": 244,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-START",
+      "region": "TAG-JOB-ROGUE",
+      "type": "始点",
+      "name": "盗賊の職紋",
+      "links": [
+        "JNODE-ROGUE-0001",
+        "JNODE-ROGUE-0004",
+        "JNODE-ROGUE-0007",
+        "JNODE-ROGUE-0010",
+        "JNODE-ROGUE-0012"
+      ],
+      "effects": [],
+      "x": 320,
+      "y": 180,
+      "provisional": true,
+      "start": {
+        "job": "JOB-ROGUE"
+      }
+    },
+    {
+      "id": "JNODE-ROGUE-0001",
+      "region": "TAG-JOB-ROGUE",
+      "type": "輝星",
+      "name": "毒血同源",
+      "links": ["JNODE-ROGUE-START", "JNODE-ROGUE-0002"],
+      "effects": ["EFF-ROGUE-0001"],
+      "x": 300,
+      "y": 167,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0002",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "毒の巡り",
+      "links": ["JNODE-ROGUE-0001", "JNODE-ROGUE-0003"],
+      "effects": ["EFF-ROGUE-0002"],
+      "x": 285,
+      "y": 148,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0003",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "血の滲み",
+      "links": ["JNODE-ROGUE-0002", "JNODE-ROGUE-M1"],
+      "effects": ["EFF-ROGUE-0003"],
+      "x": 265,
+      "y": 135,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0004",
+      "region": "TAG-JOB-ROGUE",
+      "type": "輝星",
+      "name": "急所の知識",
+      "links": ["JNODE-ROGUE-START", "JNODE-ROGUE-0005"],
+      "effects": ["EFF-ROGUE-0004"],
+      "x": 325,
+      "y": 157,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0005",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "狙いの目",
+      "links": ["JNODE-ROGUE-0004", "JNODE-ROGUE-0006"],
+      "effects": ["EFF-ROGUE-0005"],
+      "x": 337,
+      "y": 136,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0006",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "終結の構え",
+      "links": ["JNODE-ROGUE-0005", "JNODE-ROGUE-M2"],
+      "effects": ["EFF-ROGUE-0006"],
+      "x": 342,
+      "y": 113,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0007",
+      "region": "TAG-JOB-ROGUE",
+      "type": "輝星",
+      "name": "素早い手",
+      "links": ["JNODE-ROGUE-START", "JNODE-ROGUE-0008"],
+      "effects": ["EFF-ROGUE-0007"],
+      "x": 344,
+      "y": 176,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0008",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "連刃の冴え",
+      "links": ["JNODE-ROGUE-0007", "JNODE-ROGUE-0009"],
+      "effects": ["EFF-ROGUE-0008"],
+      "x": 368,
+      "y": 180,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0009",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "指先の軽さ",
+      "links": ["JNODE-ROGUE-0008", "JNODE-ROGUE-M3"],
+      "effects": ["EFF-ROGUE-0009"],
+      "x": 392,
+      "y": 176,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0010",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "背後の目",
+      "links": ["JNODE-ROGUE-START", "JNODE-ROGUE-0011"],
+      "effects": ["EFF-ROGUE-0010"],
+      "x": 332,
+      "y": 201,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0011",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "影の足",
+      "links": ["JNODE-ROGUE-0010", "JNODE-ROGUE-C1", "JNODE-ROGUE-C3"],
+      "effects": ["EFF-ROGUE-0011"],
+      "x": 337,
+      "y": 224,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0012",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "罠の心得",
+      "links": ["JNODE-ROGUE-START", "JNODE-ROGUE-0013"],
+      "effects": ["EFF-ROGUE-0012"],
+      "x": 305,
+      "y": 199,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0013",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "煙の目くらまし",
+      "links": ["JNODE-ROGUE-0012", "JNODE-ROGUE-0014"],
+      "effects": ["EFF-ROGUE-0013"],
+      "x": 285,
+      "y": 212,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-0014",
+      "region": "TAG-JOB-ROGUE",
+      "type": "小星",
+      "name": "仕込み針",
+      "links": ["JNODE-ROGUE-0013", "JNODE-ROGUE-C2"],
+      "effects": ["EFF-ROGUE-0014"],
+      "x": 270,
+      "y": 231,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-M1",
+      "region": "TAG-JOB-ROGUE",
+      "type": "職奥義",
+      "name": "無限連撃",
+      "links": ["JNODE-ROGUE-0003"],
+      "effects": ["EFF-ROGUE-M1"],
+      "x": 248,
+      "y": 116,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-M2",
+      "region": "TAG-JOB-ROGUE",
+      "type": "職奥義",
+      "name": "静かなる刃",
+      "links": ["JNODE-ROGUE-0006"],
+      "effects": ["EFF-ROGUE-M2"],
+      "x": 354,
+      "y": 90,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-M3",
+      "region": "TAG-JOB-ROGUE",
+      "type": "職奥義",
+      "name": "影法師",
+      "links": ["JNODE-ROGUE-0009"],
+      "effects": ["EFF-ROGUE-M3"],
+      "x": 418,
+      "y": 179,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-C1",
+      "region": "TAG-JOB-ROGUE",
+      "type": "接続",
+      "name": "星辰盤への接続 1",
+      "links": ["JNODE-ROGUE-0011"],
+      "effects": ["EFF-JCONN-ROGUE"],
+      "x": 338,
+      "y": 250,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-C2",
+      "region": "TAG-JOB-ROGUE",
+      "type": "接続",
+      "name": "星辰盤への接続 2",
+      "links": ["JNODE-ROGUE-0014"],
+      "effects": ["EFF-JCONN-ROGUE-2"],
+      "x": 246,
+      "y": 241,
+      "provisional": true
+    },
+    {
+      "id": "JNODE-ROGUE-C3",
+      "region": "TAG-JOB-ROGUE",
+      "type": "接続",
+      "name": "星辰盤への接続 3",
+      "links": ["JNODE-ROGUE-0011"],
+      "effects": ["EFF-JCONN-ROGUE-3"],
+      "x": 354,
+      "y": 244,
+      "provisional": true
     }
   ]
 }

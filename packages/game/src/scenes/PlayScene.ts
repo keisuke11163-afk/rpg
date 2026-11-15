@@ -4,6 +4,9 @@ import {
   AttackRunner,
   AutoSaver,
   ConditionRegistry,
+  JobBoard,
+  applyGaugeHooks,
+  doubleNearStart,
   StarBoard,
   TagRegistry,
   buildBoardContext,
@@ -56,6 +59,8 @@ import {
 } from "@stella/core";
 import {
   BOARD_DATA,
+  JOB_BOARDS,
+  STAR_START_OF_JOB,
   GEAR_DATA,
   GENERATION_DATA,
   TAG_DATA,
@@ -137,6 +142,16 @@ export class PlayScene extends Phaser.Scene {
   private readonly purse = new Purse();
   private readonly equipment = new Equipment();
   private board = new StarBoard(BOARD_DATA, "STAR-GOU-START");
+  /** 職紋盤（ジョブごとに別。配置はジョブごとに残る） */
+  private jobBoards = new Map<string, JobBoard>();
+  private jobPoints = 0;
+  private jobBoardEval: BoardEvaluation = {
+    active: [],
+    dormant: [],
+    effects: [],
+    completedConstellations: [],
+    regionCount: 0,
+  };
   /** 星辰盤のポイント（キャラLv 2〜20で19。開発用に P キーで+5） */
   private starPoints = 0;
   private boardEval: BoardEvaluation = {
@@ -157,7 +172,7 @@ export class PlayScene extends Phaser.Scene {
   private progression = new Progression(createStandardJobs(), "JOB-WARRIOR");
   private slot = 1;
   /** 開いている画面（I：持ち物、C：キャラクター） */
-  private panel: "none" | "inventory" | "character" | "star" = "none";
+  private panel: "none" | "inventory" | "character" | "star" | "job" = "none";
   private panelCursor = 0;
   private panelText!: Phaser.GameObjects.Text;
   private panelTip!: Phaser.GameObjects.Text;
@@ -253,12 +268,38 @@ export class PlayScene extends Phaser.Scene {
         : {}),
     });
     this.boardEval = this.board.evaluate(this.starPoints, bc);
-    const ev = evaluate(this.boardEval.effects, bc.ctx, new ConditionRegistry());
-    this.fighter.setEffects(ev, (skill) =>
+    const jb = this.currentJobBoard();
+    this.jobBoardEval = jb.evaluate(this.jobPoints, bc);
+    // 職紋盤の接続ノード：星辰盤の始点の周りの小星の効果が×2
+    const starEffects = jb.connectionActive(this.jobBoardEval)
+      ? doubleNearStart(
+          BOARD_DATA,
+          this.boardEval,
+          STAR_START_OF_JOB[this.job.id] ?? "STAR-GOU-START",
+          3,
+          2,
+        )
+      : this.boardEval.effects;
+    const all = [...starEffects, ...this.jobBoardEval.effects];
+    this.fighter.setEffectSource(all, bc.ctx, (skill) =>
       this.tagRegistry.expand(
         skill.tags.map((t) => this.tagIdByName.get(t)).filter((x): x is string => x !== undefined),
       ),
     );
+    // 職能ゲージに作用する効果（闘志の炉・不屈の闘志・無限連撃など）
+    const hooks = evaluate(all, bc.ctx, new ConditionRegistry()).hooks();
+    applyGaugeHooks(this.fighter.gauge, hooks);
+  }
+
+  private currentJobBoard(): JobBoard {
+    let jb = this.jobBoards.get(this.job.id);
+    if (!jb) {
+      const def = JOB_BOARDS[this.job.id];
+      if (!def) throw new Error(`職紋盤がない: ${this.job.id}`);
+      jb = new JobBoard(def.data, def.start, this.job.id);
+      this.jobBoards.set(this.job.id, jb);
+    }
+    return jb;
   }
 
   constructor() {
@@ -494,6 +535,7 @@ export class PlayScene extends Phaser.Scene {
     if (this.justPressed.has("KeyK")) {
       this.job = this.job === WARRIOR_JOB ? ROGUE_JOB : WARRIOR_JOB;
       this.fighter = PlayScene.makeFighter(this.job);
+      this.board = new StarBoard(BOARD_DATA, STAR_START_OF_JOB[this.job.id] ?? "STAR-GOU-START");
       this.equipStarting();
       this.attack = undefined;
     }
@@ -537,20 +579,22 @@ export class PlayScene extends Phaser.Scene {
     if (jp.has("KeyI")) this.panel = this.panel === "inventory" ? "none" : "inventory";
     if (jp.has("KeyC")) this.panel = this.panel === "character" ? "none" : "character";
     if (jp.has("KeyT")) this.panel = this.panel === "star" ? "none" : "star";
+    if (jp.has("KeyJ")) this.panel = this.panel === "job" ? "none" : "job";
     if (jp.has("KeyP")) {
       this.starPoints += 5;
+      this.jobPoints += 5;
       this.applyBoard();
     }
     if (jp.has("Escape")) this.panel = "none";
     const open = this.panel !== "none";
     this.panelBg.setVisible(open);
     this.hud.setVisible(!open);
-    if (this.panel !== "star") this.boardGfx.clear();
+    if (this.panel !== "star" && this.panel !== "job") this.boardGfx.clear();
     this.panelText.setVisible(open);
     this.panelTip.setVisible(open);
     if (!open) return false;
 
-    if (this.panel === "star") return this.updateStarPanel();
+    if (this.panel === "star" || this.panel === "job") return this.updateStarPanel();
     this.panelText.setPosition(30, 30);
     this.panelTip.setPosition(330, 30);
     const stats = this.job.startingStats;
@@ -598,12 +642,18 @@ export class PlayScene extends Phaser.Scene {
     return true;
   }
 
-  /** 星辰盤の画面：ノードの上にマウスを置くと説明、左クリックで取得、右クリックで返却 */
+  /** 星辰盤・職紋盤の画面：ノードの上にマウスを置くと説明、左クリックで取得、右クリックで返却 */
   private updateStarPanel(): boolean {
+    const isJob = this.panel === "job";
+    const jb = this.currentJobBoard();
+    const data = isJob ? (JOB_BOARDS[this.job.id]?.data ?? BOARD_DATA) : BOARD_DATA;
+    const board = isJob ? jb.board : this.board;
+    const points = isJob ? this.jobPoints : this.starPoints;
+    const evaluation = isJob ? this.jobBoardEval : this.boardEval;
     const p = this.input.activePointer;
     let hover: string | undefined;
-    let best = 7;
-    for (const n of BOARD_DATA.nodes.values()) {
+    let best = isJob ? 12 : 7;
+    for (const n of data.nodes.values()) {
       const d = Math.hypot(n.x - p.x, n.y - p.y);
       if (d < best) {
         best = d;
@@ -612,38 +662,40 @@ export class PlayScene extends Phaser.Scene {
     }
     const jp = this.justPressed;
     if (hover) {
-      if (jp.has("Mouse0")) this.board.allocate(hover, this.starPoints);
-      if (jp.has("Mouse2")) this.board.refund(hover);
+      if (jp.has("Mouse0")) {
+        if (isJob) jb.allocate(hover, points);
+        else this.board.allocate(hover, points);
+      }
+      if (jp.has("Mouse2")) {
+        if (isJob) jb.refund(hover);
+        else this.board.refund(hover);
+      }
       if (jp.has("Mouse0") || jp.has("Mouse2")) this.applyBoard();
     }
     const g = this.boardGfx;
     g.clear();
-    const active = new Set(this.boardEval.active);
-    const dormant = new Set(this.boardEval.dormant.map((d) => d.id));
+    const dormant = new Set(evaluation.dormant.map((d) => d.id));
     g.lineStyle(1, 0x3a3855, 1);
-    for (const n of BOARD_DATA.nodes.values()) {
+    for (const n of data.nodes.values()) {
       for (const l of n.links) {
-        const o = BOARD_DATA.nodes.get(l);
+        const o = data.nodes.get(l);
         if (o && n.id < l) g.lineBetween(n.x, n.y, o.x, o.y);
       }
     }
-    for (const n of BOARD_DATA.nodes.values()) {
-      const taken = this.board.has(n.id) || this.board.entrances.includes(n.id);
+    for (const n of data.nodes.values()) {
+      const taken = board.has(n.id) || board.entrances.includes(n.id);
       const color = !taken
         ? 0x5c5a78
         : dormant.has(n.id)
           ? 0x8a8a8a
-          : n.type === "天極"
+          : n.type === "天極" || n.type === "職奥義"
             ? 0xffd86b
-            : 0x6fb1d8;
-      const r =
-        n.type === "天極"
-          ? 6
-          : n.type === "輝星" || n.type === "星門" || n.type === "転変"
-            ? 4
-            : n.type === "始点"
-              ? 5
-              : 2.5;
+            : n.type === "接続"
+              ? 0x7bd35a
+              : 0x6fb1d8;
+      const big = n.type === "天極" || n.type === "職奥義";
+      const mid = n.type === "輝星" || n.type === "星門" || n.type === "転変" || n.type === "接続";
+      const r = (big ? 6 : mid ? 4 : n.type === "始点" ? 5 : 2.5) * (isJob ? 1.4 : 1);
       g.fillStyle(color, taken ? 1 : 0.8);
       g.fillCircle(n.x, n.y, r);
       if (n.id === hover) {
@@ -655,22 +707,21 @@ export class PlayScene extends Phaser.Scene {
         g.strokeCircle(n.x, n.y, r + 1);
       }
     }
-    const names = BOARD_DATA.nodes;
     this.panelText
       .setPosition(6, 6)
       .setText(
-        `【星辰盤】ポイント ${String(this.board.pointsUsed)}/${String(this.starPoints)}（Pで+5・開発用）  有効 ${String(active.size)}  休眠 ${String(dormant.size)}  星座 ${String(this.boardEval.completedConstellations.length)}完成\n左クリック 取得 / 右クリック 返却 / T 閉じる`,
+        `【${isJob ? `職紋盤：${this.job.name}` : "星辰盤"}】ポイント ${String(board.pointsUsed)}/${String(points)}（Pで+5・開発用）  有効 ${String(evaluation.active.length)}  休眠 ${String(dormant.size)}${isJob ? `  職奥義 ${jb.mastery ? "選択済み" : "未選択"}` : `  星座 ${String(evaluation.completedConstellations.length)}完成`}\n左クリック 取得 / 右クリック 返却 / ${isJob ? "J" : "T"} 閉じる`,
       );
-    const node = hover ? names.get(hover) : undefined;
+    const node = hover ? data.nodes.get(hover) : undefined;
     this.panelTip
-      .setPosition(6, 300 - 0)
+      .setPosition(6, 290)
       .setText(
         node
           ? describeStarNode(
               node,
-              BOARD_DATA,
-              this.board.has(node.id),
-              this.boardEval,
+              data,
+              board.has(node.id),
+              evaluation,
               (id) => this.tagName.get(id) ?? id,
             )
           : "",

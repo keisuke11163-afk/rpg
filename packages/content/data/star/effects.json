@@ -4093,6 +4093,988 @@
       },
       "scope": "自分",
       "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0001",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "闘志の自然減少",
+          "params": {
+            "multiplier": 0.5
+          }
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0002",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.05
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0003",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.04
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "最大HP",
+          "value": 10
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0004",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "闘志:被弾獲得倍率",
+          "params": {
+            "multiplier": 2
+          }
+        },
+        {
+          "kind": "加算％",
+          "stat": "最大HP",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0005",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.04
+        },
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0006",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-HEAVY"]
+            }
+          },
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0007",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "value": 0.25,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "両手武器"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0008",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "加算％",
+          "stat": "防具値",
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0009",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "value": 0.25,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "崩れた敵"
+            }
+          ]
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "value": 0.05
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0010",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "効果時間",
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "剛",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0011",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MOVE"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0012",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-AREA"]
+            }
+          },
+          "value": 0.04
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0013",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE", "TAG-FORM-AREA"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-0014",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-RELEASE"]
+            }
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "加算％",
+          "stat": "闘志の獲得量+%",
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-WARRIOR-M1",
+      "source": "職奥義",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "闘志の下限",
+          "params": {
+            "floor": 30,
+            "keepAfterRelease": 30
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "職奥義：3つから1つだけ選べる"
+    },
+    {
+      "id": "EFF-WARRIOR-M2",
+      "source": "職奥義",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "解放後のCD短縮",
+          "params": {
+            "seconds": 10,
+            "ratio": 0.5
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "職奥義：3つから1つだけ選べる"
+    },
+    {
+      "id": "EFF-WARRIOR-M3",
+      "source": "職奥義",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "鬼神化",
+          "params": {
+            "seconds": 6,
+            "attackSpeed": 0.2,
+            "releaseDisabled": true
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "職奥義：3つから1つだけ選べる"
+    },
+    {
+      "id": "EFF-JCONN-WARRIOR",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "星辰盤接続",
+          "params": {
+            "radius": 3,
+            "multiplier": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "接続：星辰盤のこのジョブの始点の周り（半径3ノード）にある小星の効果が×2"
+    },
+    {
+      "id": "EFF-JCONN-WARRIOR-2",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "星辰盤接続",
+          "params": {
+            "radius": 3,
+            "multiplier": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "接続：星辰盤の始点周辺の小星の効果が×2（重ならない）"
+    },
+    {
+      "id": "EFF-JCONN-WARRIOR-3",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "星辰盤接続",
+          "params": {
+            "radius": 3,
+            "multiplier": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "接続：星辰盤の始点周辺の小星の効果が×2（重ならない）"
+    },
+    {
+      "id": "EFF-ROGUE-0001",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "別の異常として数える",
+          "params": {
+            "from": "TAG-AIL-BLEED",
+            "to": "TAG-AIL-POISON"
+          }
+        },
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0002",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0003",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常ダメージ",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "状態異常の持続秒数",
+          "filter": {
+            "ailment": "TAG-AIL-BLEED"
+          },
+          "value": 0.2
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0004",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心倍率",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-FINISHER"]
+            }
+          },
+          "value": 0.3
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 5
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0005",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "会心率増加%",
+          "value": 0.03
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0006",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-FINISHER"]
+            }
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "加算％",
+          "stat": "崩し値",
+          "value": 0.04
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0007",
+      "source": "輝星",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.15,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "連刃を使用中"
+            }
+          ]
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0008",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.05
+        },
+        {
+          "kind": "加算％",
+          "stat": "攻撃速度",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0009",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.04
+        },
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.01
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0010",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "固定の追加",
+          "stat": "背面会心率",
+          "value": 0.02
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 4
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0011",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "移動速度",
+          "value": 0.015
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.03
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0012",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-TRAP"]
+            }
+          },
+          "value": 0.06
+        },
+        {
+          "kind": "固定の追加",
+          "stat": "迅",
+          "value": 3
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0013",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常付与率",
+          "filter": {
+            "ailment": "TAG-AIL-WEAKEN"
+          },
+          "value": 0.04
+        },
+        {
+          "kind": "加算％",
+          "stat": "回避値",
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-0014",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "加算％",
+          "stat": "状態異常付与率",
+          "filter": {
+            "ailment": "TAG-AIL-POISON"
+          },
+          "value": 0.03
+        },
+        {
+          "kind": "加算％",
+          "stat": "ダメージ",
+          "filter": {
+            "tags": {
+              "all_of": ["TAG-FORM-MELEE"]
+            }
+          },
+          "value": 0.02
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true
+    },
+    {
+      "id": "EFF-ROGUE-M1",
+      "source": "職奥義",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "コンボ点の最大値",
+          "params": {
+            "add": 3,
+            "finisherKeepsGauge": true,
+            "finisherCooldown": 3
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "職奥義：3つから1つだけ選べる"
+    },
+    {
+      "id": "EFF-ROGUE-M2",
+      "source": "職奥義",
+      "modifiers": [
+        {
+          "kind": "乗算",
+          "stat": "ダメージ",
+          "value": 3,
+          "conditions": [
+            {
+              "type": "旗",
+              "name": "戦闘外からの最初の一撃"
+            }
+          ]
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "職奥義：3つから1つだけ選べる"
+    },
+    {
+      "id": "EFF-ROGUE-M3",
+      "source": "職奥義",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "背面判定が全方向"
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "職奥義：3つから1つだけ選べる"
+    },
+    {
+      "id": "EFF-JCONN-ROGUE",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "星辰盤接続",
+          "params": {
+            "radius": 3,
+            "multiplier": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "接続：星辰盤のこのジョブの始点の周り（半径3ノード）にある小星の効果が×2"
+    },
+    {
+      "id": "EFF-JCONN-ROGUE-2",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "星辰盤接続",
+          "params": {
+            "radius": 3,
+            "multiplier": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "接続：星辰盤の始点周辺の小星の効果が×2（重ならない）"
+    },
+    {
+      "id": "EFF-JCONN-ROGUE-3",
+      "source": "基本ノード",
+      "modifiers": [
+        {
+          "kind": "挙動",
+          "hook": "星辰盤接続",
+          "params": {
+            "radius": 3,
+            "multiplier": 2
+          }
+        }
+      ],
+      "affects": {
+        "打撃値": false,
+        "基準値": false
+      },
+      "scope": "自分",
+      "provisional": true,
+      "note": "接続：星辰盤の始点周辺の小星の効果が×2（重ならない）"
     }
   ]
 }

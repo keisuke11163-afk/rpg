@@ -54,13 +54,38 @@ export function loadContent(files: readonly RawFile[] = RAW_FILES): LoadResult {
 export * from "./enemies.ts";
 export * from "./items.ts";
 
-import { makeBoardData } from "@stella/core";
+import { makeBoardData, type BoardData } from "@stella/core";
 const loaded = loadContent();
 /** 星辰盤のデータ（ノード・効果・星座）。読み込みの検証を通ったものだけ使う */
+const isJobNode = (id: string): boolean => id.startsWith("JNODE-");
 export const BOARD_DATA = makeBoardData(
-  loaded.data.starNodes,
+  loaded.data.starNodes.filter((n) => !isJobNode(n.id)),
   loaded.data.effects,
   loaded.data.constellations,
 );
+/** 職紋盤のデータ（ジョブのID → 盤）と、その始点 */
+const JOB_CODES: readonly (readonly [string, string])[] = [
+  ["JOB-WARRIOR", "WARRIOR"],
+  ["JOB-ROGUE", "ROGUE"],
+];
+export const JOB_BOARDS: Readonly<Record<string, { data: BoardData; start: string }>> =
+  Object.fromEntries(
+    JOB_CODES.map(([jobId, code]): [string, { data: BoardData; start: string }] => [
+      jobId,
+      {
+        data: makeBoardData(
+          loaded.data.starNodes.filter((n) => n.id.startsWith(`JNODE-${code}-`)),
+          loaded.data.effects,
+          [],
+        ),
+        start: `JNODE-${code}-START`,
+      },
+    ]),
+  );
+/** ジョブの始点に対応する、星辰盤の始点 */
+export const STAR_START_OF_JOB: Readonly<Record<string, string>> = {
+  "JOB-WARRIOR": "STAR-GOU-START",
+  "JOB-ROGUE": "STAR-JIN-START",
+};
 /** 全タグの親子関係。装備・技のタグの展開に使う */
 export const TAG_DATA = loaded.data.tags;

@@ -634,6 +634,326 @@ special(
 // 輪の補強
 chain(I, kk, -0.5, 3, 12);
 
+// ================= 職紋盤（戦士・盗賊。基本職の部分：小星15＋職奥義3＋接続3） =================
+const JOBTAG = { WARRIOR: "TAG-JOB-WARRIOR", ROGUE: "TAG-JOB-ROGUE" } as const;
+const flagCond = (name: string): Json => ({ type: "旗", name });
+
+function jobBoard(
+  job: "WARRIOR" | "ROGUE",
+  jobId: string,
+  startName: string,
+  specs: {
+    name: string;
+    type?: string;
+    mods: Mod[];
+    extra?: Json;
+    branch: number;
+    depth: number;
+  }[],
+  mastery: { name: string; mods: Mod[]; extra?: Json }[],
+): void {
+  const regionTag = JOBTAG[job];
+  const startId = `JNODE-${job}-START`;
+  node(startId, {
+    region: job,
+    regionTag,
+    type: "始点",
+    name: startName,
+    effects: [],
+    x: 320,
+    y: 180,
+    start: { job: jobId },
+  });
+  // 枝ごとに鎖にする（branch 0..4 の向き）。depth 1 が始点の隣
+  const angles = [-2.4, -1.2, 0, 1.2, 2.4];
+  const last = new Map<number, string>();
+  const tips = new Map<number, string>();
+  let counter = 0;
+  for (const sp of specs) {
+    const id = `JNODE-${job}-${String(++counter).padStart(4, "0")}`;
+    const parent = last.get(sp.branch) ?? startId;
+    const f = byId.get(parent) as { x: number; y: number };
+    const a = (angles[sp.branch] as number) + (sp.depth % 2 === 0 ? 0.15 : -0.15);
+    const eff = effect(
+      `EFF-${id.slice(6)}`,
+      sp.type === "輝星" ? "輝星" : "基本ノード",
+      sp.mods,
+      sp.extra ?? {},
+    );
+    node(id, {
+      region: job,
+      regionTag,
+      type: sp.type ?? "小星",
+      name: sp.name,
+      effects: [eff],
+      x: f.x + Math.cos(a) * 24,
+      y: f.y + Math.sin(a) * 24,
+    });
+    link(parent, id);
+    last.set(sp.branch, id);
+    tips.set(sp.branch, id);
+  }
+  // 職奥義：3つ。枝の先端（枝0・1・2）の先に置く
+  mastery.forEach((m, i) => {
+    const parent = tips.get(i) ?? startId;
+    const f = byId.get(parent) as { x: number; y: number };
+    const a = (angles[i] as number) + 0.1;
+    const id = `JNODE-${job}-M${String(i + 1)}`;
+    const eff = effect(`EFF-${id.slice(6)}`, "職奥義", m.mods, {
+      note: "職奥義：3つから1つだけ選べる",
+      ...(m.extra ?? {}),
+    });
+    node(id, {
+      region: job,
+      regionTag,
+      type: "職奥義",
+      name: m.name,
+      effects: [eff],
+      x: f.x + Math.cos(a) * 26,
+      y: f.y + Math.sin(a) * 26,
+    });
+    link(parent, id);
+  });
+  // 星辰盤への接続ノード：3つ（枝3・4 と 2 の途中）
+  const conn = effect(
+    `EFF-JCONN-${job}`,
+    "基本ノード",
+    [hook("星辰盤接続", { radius: 3, multiplier: 2 })],
+    { note: "接続：星辰盤のこのジョブの始点の周り（半径3ノード）にある小星の効果が×2" },
+  );
+  [3, 4, 3].forEach((b, i) => {
+    const parent = (
+      i === 2 ? (byId.get(tips.get(3) as string) ? tips.get(3) : undefined) : tips.get(b)
+    ) as string;
+    const f = byId.get(parent) as { x: number; y: number };
+    const a = (angles[b] as number) + 0.35 * (i === 2 ? -1 : 1);
+    const id = `JNODE-${job}-C${String(i + 1)}`;
+    const eff2 =
+      i === 0
+        ? conn
+        : effect(
+            `EFF-JCONN-${job}-${String(i + 1)}`,
+            "基本ノード",
+            [hook("星辰盤接続", { radius: 3, multiplier: 2 })],
+            { note: "接続：星辰盤の始点周辺の小星の効果が×2（重ならない）" },
+          );
+    node(id, {
+      region: job,
+      regionTag,
+      type: "接続",
+      name: `星辰盤への接続 ${String(i + 1)}`,
+      effects: [eff2],
+      x: f.x + Math.cos(a) * 26,
+      y: f.y + Math.sin(a) * 26,
+    });
+    link(parent, id);
+  });
+}
+
+jobBoard(
+  "WARRIOR",
+  "JOB-WARRIOR",
+  "戦士の職紋",
+  [
+    {
+      branch: 0,
+      depth: 1,
+      name: "闘志の炉",
+      mods: [hook("闘志の自然減少", { multiplier: 0.5 }), flat("剛", 5)],
+    },
+    {
+      branch: 0,
+      depth: 2,
+      name: "炉の熱",
+      mods: [add("闘志の獲得量+%", 0.05), add("最大HP", 0.01)],
+    },
+    { branch: 0, depth: 3, name: "不屈の下地", mods: [add("防具値", 0.04), flat("最大HP", 10)] },
+    {
+      branch: 1,
+      depth: 1,
+      name: "血を燃やす",
+      mods: [hook("闘志:被弾獲得倍率", { multiplier: 2 }), add("最大HP", 0.02)],
+    },
+    {
+      branch: 1,
+      depth: 2,
+      name: "怒りの呼吸",
+      mods: [add("ダメージ", 0.04, tags(T.melee)), add("攻撃速度", 0.02)],
+    },
+    {
+      branch: 1,
+      depth: 3,
+      name: "鬼気",
+      mods: [add("ダメージ", 0.05, tags(T.heavy)), add("崩し値", 0.05, tags(T.heavy))],
+    },
+    {
+      branch: 2,
+      depth: 1,
+      name: "両手の誇り",
+      type: "輝星",
+      mods: [add("崩し値", 0.25, undefined, { conditions: [flagCond("両手武器")] }), flat("剛", 5)],
+    },
+    {
+      branch: 2,
+      depth: 2,
+      name: "重みの理解",
+      mods: [add("崩し値", 0.05, tags(T.melee)), add("防具値", 0.03)],
+    },
+    {
+      branch: 2,
+      depth: 3,
+      name: "崩しの達人",
+      type: "輝星",
+      mods: [
+        add("ダメージ", 0.25, undefined, { conditions: [flagCond("崩れた敵")] }),
+        add("崩し値", 0.05),
+      ],
+    },
+    { branch: 3, depth: 1, name: "戦吼の響き", mods: [add("効果時間", 0.05), flat("剛", 4)] },
+    {
+      branch: 3,
+      depth: 2,
+      name: "突進の勢い",
+      mods: [add("ダメージ", 0.05, tags(T.move)), add("移動速度", 0.01)],
+    },
+    {
+      branch: 4,
+      depth: 1,
+      name: "旋風の呼吸",
+      mods: [add("ダメージ", 0.04, tags(T.area)), flat("迅", 4)],
+    },
+    {
+      branch: 4,
+      depth: 2,
+      name: "薙ぎの鍛錬",
+      mods: [add("ダメージ", 0.05, tags(T.melee, T.area)), add("崩し値", 0.03)],
+    },
+    {
+      branch: 4,
+      depth: 3,
+      name: "解放の溜め",
+      mods: [add("ダメージ", 0.06, tags("TAG-FORM-RELEASE")), add("闘志の獲得量+%", 0.03)],
+    },
+  ],
+  [
+    { name: "不屈の闘志", mods: [hook("闘志の下限", { floor: 30, keepAfterRelease: 30 })] },
+    { name: "怒涛", mods: [hook("解放後のCD短縮", { seconds: 10, ratio: 0.5 })] },
+    {
+      name: "鬼神化",
+      mods: [hook("鬼神化", { seconds: 6, attackSpeed: 0.2, releaseDisabled: true })],
+    },
+  ],
+);
+jobBoard(
+  "ROGUE",
+  "JOB-ROGUE",
+  "盗賊の職紋",
+  [
+    {
+      branch: 0,
+      depth: 1,
+      name: "毒血同源",
+      type: "輝星",
+      mods: [
+        hook("別の異常として数える", { from: T.bleed, to: T.poison }),
+        add("状態異常ダメージ", 0.04, { ailment: T.bleed }),
+      ],
+    },
+    {
+      branch: 0,
+      depth: 2,
+      name: "毒の巡り",
+      mods: [add("状態異常ダメージ", 0.05, { ailment: T.poison }), flat("迅", 4)],
+    },
+    {
+      branch: 0,
+      depth: 3,
+      name: "血の滲み",
+      mods: [
+        add("状態異常ダメージ", 0.05, { ailment: T.bleed }),
+        flat("状態異常の持続秒数", 0.2, { ailment: T.bleed }),
+      ],
+    },
+    {
+      branch: 1,
+      depth: 1,
+      name: "急所の知識",
+      type: "輝星",
+      mods: [add("会心倍率", 0.3, tags("TAG-FORM-FINISHER")), flat("迅", 5)],
+    },
+    {
+      branch: 1,
+      depth: 2,
+      name: "狙いの目",
+      mods: [add("会心率増加%", 0.03), add("ダメージ", 0.03, tags(T.melee))],
+    },
+    {
+      branch: 1,
+      depth: 3,
+      name: "終結の構え",
+      mods: [add("ダメージ", 0.06, tags("TAG-FORM-FINISHER")), add("崩し値", 0.04)],
+    },
+    {
+      branch: 2,
+      depth: 1,
+      name: "素早い手",
+      type: "輝星",
+      mods: [
+        add("攻撃速度", 0.15, undefined, { conditions: [flagCond("連刃を使用中")] }),
+        flat("迅", 4),
+      ],
+    },
+    {
+      branch: 2,
+      depth: 2,
+      name: "連刃の冴え",
+      mods: [add("ダメージ", 0.05, tags(T.melee)), add("攻撃速度", 0.02)],
+    },
+    { branch: 2, depth: 3, name: "指先の軽さ", mods: [add("回避値", 0.04), add("移動速度", 0.01)] },
+    { branch: 3, depth: 1, name: "背後の目", mods: [flat("背面会心率", 0.02), flat("迅", 4)] },
+    { branch: 3, depth: 2, name: "影の足", mods: [add("移動速度", 0.015), add("回避値", 0.03)] },
+    {
+      branch: 4,
+      depth: 1,
+      name: "罠の心得",
+      mods: [add("ダメージ", 0.06, tags("TAG-FORM-TRAP")), flat("迅", 3)],
+    },
+    {
+      branch: 4,
+      depth: 2,
+      name: "煙の目くらまし",
+      mods: [add("状態異常付与率", 0.04, { ailment: T.weaken }), add("回避値", 0.02)],
+    },
+    {
+      branch: 4,
+      depth: 3,
+      name: "仕込み針",
+      mods: [
+        add("状態異常付与率", 0.03, { ailment: T.poison }),
+        add("ダメージ", 0.02, tags(T.melee)),
+      ],
+    },
+  ],
+  [
+    {
+      name: "無限連撃",
+      mods: [hook("コンボ点の最大値", { add: 3, finisherKeepsGauge: true, finisherCooldown: 3 })],
+    },
+    {
+      name: "静かなる刃",
+      mods: [
+        {
+          kind: "乗算",
+          stat: "ダメージ",
+          value: 3,
+          conditions: [flagCond("戦闘外からの最初の一撃")],
+        },
+      ],
+    },
+    { name: "影法師", mods: [hook("背面判定が全方向")] },
+  ],
+);
+
 const write = (name: string, items: Json[]): void => {
   writeFileSync(`${outDir}${name}`, JSON.stringify({ dataVersion: 1, items }, null, 2) + "\n");
 };

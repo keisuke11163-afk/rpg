@@ -65,6 +65,11 @@ export class JobGauge {
     return this.def.intensifyAt !== undefined && this.value >= this.def.intensifyAt;
   }
 
+  /** 戦闘していない（攻撃も被弾もない状態が続いている） */
+  get outOfCombat(): boolean {
+    return this.sinceCombat > this.def.idleAfterSeconds;
+  }
+
   get canRelease(): boolean {
     return (
       !this.releaseDisabled && this.def.releaseAt !== undefined && this.value >= this.def.releaseAt

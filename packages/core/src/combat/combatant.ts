@@ -100,6 +100,8 @@ export interface HitSpec {
   backAilmentBonus?: number;
   /** 必ず会心する（急所穿ちの5点） */
   forceCrit?: boolean;
+  /** 対象の状態によって変わるダメージの補正（崩れた敵への+25%など）。ヒットごとに対象を見て求める */
+  targetBonus?: (target: Combatant) => { addPct: number; mult: number };
   forcedAilments?: readonly AilmentKind[];
   /** 状態異常の持続ダメージの補正 */
   ailmentAddPct?: number;
@@ -138,8 +140,18 @@ export function resolveHit(attacker: Vec2, target: Combatant, spec: HitSpec, rng
     spec.critIncrease ?? 0,
   );
   const crit = spec.forceCrit === true || rng.chance(chance);
+  const tb = spec.targetBonus?.(target);
+  const damageInput = tb
+    ? {
+        ...spec.damage,
+        generic: {
+          addPct: (spec.damage.generic?.addPct ?? 0) + tb.addPct,
+          mult: (spec.damage.generic?.mult ?? 1) * tb.mult,
+        },
+      }
+    : spec.damage;
   const result = computeDamage({
-    ...spec.damage,
+    ...damageInput,
     crit,
     critMultiplier: critMultiplier(spec.critMultiplierAdd ?? 0),
     enemyDamageTaken:
@@ -152,7 +164,7 @@ export function resolveHit(attacker: Vec2, target: Combatant, spec: HitSpec, rng
   target.hp = Math.max(0, target.hp - result.total);
 
   // 崩し：打撃値（防御の前）× 技の崩し係数
-  const preDefense = computeDamage({ ...spec.damage, crit }).total;
+  const preDefense = computeDamage({ ...damageInput, crit }).total;
   const broke = target.breakGauge.add(
     breakValue(preDefense, spec.breakCoefficient ?? 0.3, spec.breakBonus ?? 0) *
       (1 + (target.breakTaken.left > 0 ? target.breakTaken.bonus : 0)),
