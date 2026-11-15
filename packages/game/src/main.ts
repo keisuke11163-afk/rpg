@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { SCREEN } from "./config.ts";
 import { BootScene } from "./scenes/BootScene.ts";
+import { PlayScene } from "./scenes/PlayScene.ts";
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -18,5 +19,5 @@ new Phaser.Game({
     // 将来のゲームパッド対応のために有効にしておく（補助仕様書 1.2）
     gamepad: true,
   },
-  scene: [BootScene],
+  scene: [BootScene, PlayScene],
 });

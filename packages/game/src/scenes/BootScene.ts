@@ -36,6 +36,12 @@ export class BootScene extends Phaser.Scene {
       },
     );
 
+    // URL に ?scene=play を付けると、試験用の場面を直接開く（開発・動作確認用）
+    if (new URLSearchParams(window.location.search).get("scene") === "play") {
+      this.scene.start("play");
+      return;
+    }
+
     // 起動の確認（pnpm smoke）が、描画まで終わったことを知るための印
     document.body.dataset["stellaReady"] = "true";
   }
