@@ -84,6 +84,25 @@ export class Progression {
     return s;
   }
 
+  /** セーブ用：ジョブごとのLvと経験値 */
+  jobEntries(): [string, LevelState][] {
+    return [...this.jobLevels.entries()].map(([id, st]) => [id, { ...st }]);
+  }
+
+  /** セーブの復元用 */
+  restore(data: {
+    character: LevelState;
+    mainJob: string;
+    jobs: readonly (readonly [string, LevelState])[];
+  }): void {
+    this.character.level = data.character.level;
+    this.character.exp = data.character.exp;
+    this.mainJob = data.mainJob;
+    this.jobLevels.clear();
+    for (const [id, st] of data.jobs) this.jobLevels.set(id, { level: st.level, exp: st.exp });
+    this.jobState(this.mainJob);
+  }
+
   get jobLevel(): number {
     return this.jobState(this.mainJob).level;
   }

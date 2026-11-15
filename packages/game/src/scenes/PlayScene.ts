@@ -1,7 +1,15 @@
 import Phaser from "phaser";
+import { BrowserStorage } from "../save/browserStorage.ts";
 import {
   AttackRunner,
+  AutoSaver,
   Equipment,
+  Progression,
+  SaveManager,
+  createStandardJobs,
+  fromSave,
+  newGameState,
+  toSave,
   GroundEffects,
   computeGear,
   type ItemInstance,
@@ -109,6 +117,12 @@ export class PlayScene extends Phaser.Scene {
   private readonly bag = new ItemBag();
   private readonly purse = new Purse();
   private readonly equipment = new Equipment();
+  private readonly saves = new SaveManager(new BrowserStorage());
+  private readonly autoSaver = new AutoSaver();
+  private readonly jobRegistry = createStandardJobs();
+  private savedNote = "";
+  private progression = new Progression(createStandardJobs(), "JOB-WARRIOR");
+  private slot = 1;
   /** 開いている画面（I：持ち物、C：キャラクター） */
   private panel: "none" | "inventory" | "character" = "none";
   private panelCursor = 0;
@@ -154,6 +168,41 @@ export class PlayScene extends Phaser.Scene {
     this.applyGear();
   }
 
+  /** 保存した状態を読み込む（あれば）。持ち物・装備・金貨・素材・Lvが戻る */
+  private async restoreFromSave(): Promise<void> {
+    const res = await this.saves.load(this.slot);
+    if (!res.ok) return;
+    const state = fromSave(res.data, this.jobRegistry, GEAR_DATA);
+    for (const [slot] of this.equipment.all()) this.equipment.unequip(slot);
+    for (const [slot, item] of state.equipment.all()) {
+      this.equipment.equip(item, GEAR_DATA, { slot, canDualWield: true });
+    }
+    for (const item of this.bag.items()) this.bag.remove(item.uid);
+    for (const item of state.bag.items()) this.bag.add(item);
+    this.purse.gold = state.purse.gold;
+    for (const [id, n] of state.purse.materials) this.purse.addMaterial(id, n);
+    this.progression = state.progression;
+    this.applyGear();
+    this.savedNote = res.recoveredFromBackup ? "（1つ前のセーブから復元）" : "（セーブを読み込み）";
+  }
+
+  /** 今の状態を保存する（自動セーブだけ。手動セーブはない） */
+  private async autoSave(): Promise<void> {
+    const state = newGameState(this.jobRegistry, "試験", this.job.id);
+    state.progression = this.progression;
+    for (const [slot, item] of this.equipment.all())
+      state.equipment.equip(item, GEAR_DATA, { slot, canDualWield: true });
+    for (const item of this.bag.items()) state.bag.add(item);
+    state.purse.gold = this.purse.gold;
+    for (const [id, n] of this.purse.materials) state.purse.addMaterial(id, n);
+    try {
+      await this.saves.save(this.slot, toSave(state));
+      this.savedNote = "（自動セーブ）";
+    } catch {
+      this.savedNote = "（セーブに失敗）";
+    }
+  }
+
   /** 装備が変わるたびに、能力値を計算し直す */
   private applyGear(): void {
     const stats = this.job.startingStats;
@@ -195,6 +244,7 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(21);
     this.equipStarting();
+    void this.restoreFromSave();
 
     // 試験用の配置：森狼の群れ・牙猪・棘吐き蜥蜴・樹皮熊・腐根の苗
     const place = (id: string, x: number, y: number, packId: string, level = 3): void => {
@@ -281,6 +331,7 @@ export class PlayScene extends Phaser.Scene {
       this.updateEnemies();
       this.updateGround();
       this.updateLoot();
+      if (this.autoSaver.tick(TICK_SECONDS, true)) void this.autoSave();
       this.updateClouds();
       this.updateProjectiles();
     }
@@ -467,6 +518,7 @@ export class PlayScene extends Phaser.Scene {
         else this.bag.add(current.item);
       }
       this.applyGear();
+      if (this.autoSaver.onEvent("trade")) void this.autoSave();
     }
     const list = inventoryEntries(this.equipment, this.bag);
     this.panelCursor = Math.max(0, Math.min(list.length - 1, this.panelCursor));
@@ -724,7 +776,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.hud.setText(
-      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避\n金貨 ${String(this.purse.gold)}  持ち物 ${String(this.bag.count)}/${String(this.bag.capacity)}（F で拾う）  敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
+      `HP ${String(Math.ceil(this.fighter.hp))}/${String(this.fighter.init.maxHp)}  MP ${String(Math.floor(this.fighter.mp))}/${String(this.fighter.init.maxMp)}  ${this.fighter.gauge.def.name} ${String(Math.floor(this.fighter.gauge.value))}${this.fighter.gauge.intensified ? "（激化）" : ""}  [${this.job.name} / Kで切替]  気力 ${String(Math.floor(this.player.stamina))}/${String(PLAYER.staminaMax)}\nWASD 移動 / マウス 照準 / 左 通常攻撃・右/1/2/3/4/R で各ジョブの技 6つ / Space 回避\n金貨 ${String(this.purse.gold)}${this.savedNote}  持ち物 ${String(this.bag.count)}/${String(this.bag.capacity)}（F で拾う）  敵の命中 ${String(enemyAccuracy(3))}（Lv3）`,
     );
   }
 }
