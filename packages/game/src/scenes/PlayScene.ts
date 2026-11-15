@@ -85,6 +85,7 @@ import {
   PLAYER,
   ProjectilePool,
   TICK_SECONDS,
+  PoisonTrail,
   alertPack,
   basicAttackTiming,
   canBeHit,
@@ -180,6 +181,8 @@ export class PlayScene extends Phaser.Scene {
   /** 技の使用の動作が終わる時刻（ミリ秒）。動作中は次の技を出せない */
   private busyUntil = 0;
   private readonly enemies: Enemy[] = [];
+  private readonly poisonTrail = new PoisonTrail();
+  private trailGfx?: Phaser.GameObjects.Graphics;
   private readonly world = new World(ALL_MAPS, enemyDef, "MAP-A1");
   private mapDef: MapDef = ALL_MAPS[0] as MapDef;
   /** 今の地域の壁（隠し部屋の扉は、茂みを調べると消える） */
@@ -461,6 +464,7 @@ export class PlayScene extends Phaser.Scene {
   create(): void {
     this.swing = this.add.graphics().setDepth(4);
     this.warn = this.add.graphics().setDepth(0);
+    this.trailGfx = this.add.graphics().setDepth(0);
     this.groundLayer = this.add.graphics().setDepth(0);
     this.body = this.add.rectangle(0, 0, 12, 18, 0x6fb1d8).setDepth(2);
     this.arrow = this.add.triangle(0, 0, 0, -3, 0, 3, 7, 0, 0xffffff).setDepth(3);
@@ -578,9 +582,21 @@ export class PlayScene extends Phaser.Scene {
       if (this.autoSaver.tick(TICK_SECONDS, true)) void this.autoSave();
       this.updateClouds();
       this.updateProjectiles();
+      this.updatePoisonTrail();
     }
     if (ticks > 0) this.justPressed.clear();
     this.updateView();
+  }
+
+  /** 毒だまり（毒蛇座の完成ボーナス） */
+  private updatePoisonTrail(): void {
+    this.poisonTrail.step(TICK_SECONDS, this.targetBodies(), this.fighter.ruleParams("毒だまり"));
+    const g = this.trailGfx;
+    if (!g) return;
+    g.clear();
+    for (const pool of this.poisonTrail.pools) {
+      g.fillStyle(0x7bd35a, 0.25).fillCircle(pool.pos.x * M, pool.pos.y * M, pool.radius * M);
+    }
   }
 
   private updateEnemies(): void {
