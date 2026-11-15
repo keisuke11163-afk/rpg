@@ -15,6 +15,15 @@ import { loadGameContent } from "@stella/content";
 import { text, type TextKey } from "@stella/content";
 import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
 import { EquipmentPanel } from "../ui/EquipmentPanel.ts";
+import { Hud } from "../ui/Hud.ts";
+import {
+  CooldownTracker,
+  FACILITY_TEXT,
+  HudEventTracker,
+  type HudModel,
+  buildHudModel,
+  fill,
+} from "../ui/hud-model.ts";
 import { itemName } from "../ui/item-text.ts";
 import { BIG_MAP, MINIMAP, type MinimapMarkKind, minimapMarks } from "../ui/minimap.ts";
 import {
@@ -27,7 +36,6 @@ import {
   scaleFits,
 } from "../settings/settings.ts";
 import { loadSettings, saveSettings } from "../settings/storage.ts";
-import { SCREEN } from "../config.ts";
 import { BOARD_AREA } from "../ui/star-board-view.ts";
 import { exposeDebug } from "../debug.ts";
 import type { Action } from "../input/actions.ts";
@@ -58,16 +66,7 @@ export interface ArenaSceneData {
 }
 
 /** 施設の名前。 */
-const FACILITY_NAME: Readonly<Record<Facility, string>> = {
-  temple: "転職神殿",
-  starReader: "星読み師",
-  altar: "討伐の祭壇",
-  smith: "鍛冶屋",
-  merchant: "商人",
-  stash: "倉庫",
-  teleport: "転移の石",
-  dummy: "訓練用の人形",
-};
+const facilityName = (kind: Facility): string => text(FACILITY_TEXT[kind]);
 
 let dbCache: ContentDb | undefined;
 let entryCount = 0;
@@ -125,7 +124,14 @@ export class ArenaScene extends Phaser.Scene {
   private dummyImage: Phaser.GameObjects.Image | undefined;
   private dummyFacing: Phaser.GameObjects.Image | undefined;
   private fx!: Phaser.GameObjects.Graphics;
-  private hud!: Phaser.GameObjects.Text;
+  /** 詳しい情報（開発用の文字。設定で切り替える。初期は出さない。D-HUD-1）。 */
+  private debugText!: Phaser.GameObjects.Text;
+  /** 戦闘画面の HUD（補助仕様書16章）。 */
+  private hudView!: Hud;
+  private readonly cooldownTracker = new CooldownTracker();
+  private readonly hudEvents = new HudEventTracker();
+  /** 最後に作った HUD のビューモデル（開発用の確認 hud() が返す）。 */
+  private hudModel: HudModel | undefined;
   private bars!: Phaser.GameObjects.Graphics;
   /** インベントリ・装備（I）とキャラクター（C）の画面。 */
   private panel!: EquipmentPanel;
@@ -163,7 +169,9 @@ export class ArenaScene extends Phaser.Scene {
       ...(data.carry === undefined ? {} : { carry: data.carry }),
       layoutSeed: `${regionId}-${String(entryCount)}-${String(Date.now())}`,
       onHit: (report, at) => {
-        if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.004);
+        // 会心・崩し：カメラを小さく揺らす（約2ピクセル）。当てた敵は短く白く光らせる（表示だけ）
+        if (report.hit.crit || report.staggerBroke) this.cameras.main.shake(80, 0.003);
+        this.enemyView?.flash(report.targetId);
         this.popDamage(report, at);
       },
       onText: (label, at, color) => {
@@ -176,7 +184,7 @@ export class ArenaScene extends Phaser.Scene {
       },
       onDeath: () => {
         this.time.delayedCall(0, () => {
-          this.travel(TOWN_REGION, "倒れて、町に戻った（アイテムは失わない）");
+          this.travel(TOWN_REGION, text("hud.save.died"));
         });
       },
       onFacility: (kind) => {
@@ -226,14 +234,22 @@ export class ArenaScene extends Phaser.Scene {
 
     // 棒・地図は世界の絵（敵・プレイヤー）より上、画面（深さ1000）より下
     this.bars = this.add.graphics().setScrollFactor(0).setDepth(900);
-    this.hud = this.add
-      .text(8, 8, "", {
+    this.hudView = new Hud(this);
+    // 詳しい情報は、左上の HUD（地域・Lv・ジョブ）の下に、下敷き付きで出す
+    this.debugText = this.add
+      .text(8, 50, "", {
         fontFamily: "sans-serif",
         fontSize: "10px",
         color: "#e8e6f0",
         lineSpacing: 2,
+        backgroundColor: "#16151cb3",
+        padding: { x: 3, y: 2 },
+        // 長い行（操作の説明）は画面の幅で折り返す（日本語は空白が無いので、文字の単位で）
+        wordWrap: { width: 616, useAdvancedWrap: true },
       })
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setDepth(902)
+      .setVisible(false);
     this.panel = new EquipmentPanel(this, this.sim, {
       onTravel: (to) => {
         this.travel(to);
@@ -504,6 +520,12 @@ export class ArenaScene extends Phaser.Scene {
           sheet: { hp: sim.sheet.maxHp, mp: sim.sheet.maxMp, attackSpeed: sim.sheet.attackSpeed },
         };
       },
+      // HUD（D-HUD-1）：今のビューモデルと、詳しい情報（開発用の文字）を出しているか
+      hud: () => ({
+        model: this.hudModel ?? null,
+        debugVisible: this.debugText.visible,
+        debugHud: this.settings.debugHud,
+      }),
       // 刻みが0のフレームを再現するため（pnpm e2e）。null で元に戻す
       setFrameDeltaMs: (ms: number | null) => {
         this.debugFrameDeltaMs = ms;
@@ -520,13 +542,13 @@ export class ArenaScene extends Phaser.Scene {
   private loadProfile(): PlayerProfile | undefined {
     const r = this.store.load(this.slot);
     if (r.ok) {
-      this.saveStatus = `スロット${String(this.slot)}から読み込んだ`;
+      this.saveStatus = fill(text("hud.save.loaded"), { n: this.slot });
       return r.profile;
     }
     this.saveStatus =
       r.error === undefined
-        ? "セーブデータなし（新しく始めた）"
-        : `セーブデータが壊れている（${r.error.kind}）。元のデータは残し、新しく始めた`;
+        ? text("hud.save.none")
+        : fill(text("hud.save.corrupt"), { kind: r.error.kind });
     return undefined;
   }
 
@@ -594,11 +616,16 @@ export class ArenaScene extends Phaser.Scene {
     for (const f of r.facilities ?? [])
       if (f.kind !== "dummy")
         this.add
-          .text(toPixels(f.at.x), toPixels(f.at.y) - 10, FACILITY_NAME[f.kind], style)
+          .text(toPixels(f.at.x), toPixels(f.at.y) - 10, facilityName(f.kind), style)
           .setOrigin(0.5, 1);
     if (r.teleportStone !== undefined && r.kind === "dungeon")
       this.add
-        .text(toPixels(r.teleportStone.x), toPixels(r.teleportStone.y) - 10, "転移の石", style)
+        .text(
+          toPixels(r.teleportStone.x),
+          toPixels(r.teleportStone.y) - 10,
+          text("facility.teleport"),
+          style,
+        )
         .setOrigin(0.5, 1);
     for (const x of r.exits ?? []) {
       const to = this.sim.db.regions.get(x.to);
@@ -617,10 +644,12 @@ export class ArenaScene extends Phaser.Scene {
   private saveNow(): boolean {
     try {
       this.store.save(this.slot, this.sim.saveData());
-      this.saveStatus = `自動セーブ（${new Date().toLocaleTimeString()}）`;
+      this.saveStatus = fill(text("hud.save.auto"), { time: new Date().toLocaleTimeString() });
       return true;
     } catch (e) {
-      this.saveStatus = `セーブできなかった：${e instanceof SaveDataError ? e.message : String(e)}`;
+      this.saveStatus = fill(text("hud.save.failed"), {
+        error: e instanceof SaveDataError ? e.message : String(e),
+      });
       return false;
     }
   }
@@ -842,6 +871,41 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
+  /** HUD を描き、手応えの表示（被弾の赤い縁と揺れ・Lv UP）のきっかけを見る。 */
+  private renderHud(): void {
+    const sim = this.sim;
+    const now = this.time.now;
+    const model = buildHudModel(sim, {
+      bindings: effectiveBindings(this.settings),
+      saveStatus: this.saveStatus,
+      cooldowns: this.cooldownTracker,
+    });
+    this.hudModel = model;
+    const ev = this.hudEvents.observe({
+      hitsTaken: sim.hitsTaken + sim.hazardHits,
+      level: sim.character.level,
+      jobId: sim.job.id,
+      jobLevel: sim.character.jobLevel(sim.job.id),
+    });
+    if (ev.hurt) {
+      // 被弾：画面の縁を短く赤く・カメラを小さく揺らす（約2ピクセル・100ミリ秒）
+      this.hudView.hurt(now);
+      this.cameras.main.shake(100, 0.003);
+    }
+    if (ev.levelUp !== undefined)
+      this.hudView.levelUp(fill(text("hud.levelUp"), { n: ev.levelUp }));
+    else if (ev.jobLevelUp !== undefined)
+      this.hudView.levelUp(
+        fill(text("hud.jobLevelUp"), { job: model.level.jobName, n: ev.jobLevelUp }),
+        "#e2d4ff",
+      );
+    this.hudView.render(model, {
+      panelOpen: this.panel.open !== undefined,
+      bigMap: this.bigMap,
+      now,
+    });
+  }
+
   private render(): void {
     const sim = this.sim;
     const motion = sim.motion;
@@ -1010,21 +1074,14 @@ export class ArenaScene extends Phaser.Scene {
         );
     }
 
-    const bar = (row: number, ratio: number, color: number): void => {
-      const by = SCREEN.height - 38 + row * 8;
-      this.bars
-        .fillStyle(0x2a2934, 1)
-        .fillRect(8, by, 100, 5)
-        .fillStyle(color, 1)
-        .fillRect(8, by, Math.round(100 * Math.max(0, Math.min(1, ratio))), 5);
-    };
     this.bars.clear();
-    bar(0, sim.playerHealth.hp / sim.playerHealth.maxHp, 0xff6b6b);
-    bar(1, sim.mp / sim.maxMp, 0x6fa8ff);
-    bar(2, motion.currentStamina / motion.config.maxStamina, 0x7bd389);
-    const gauge = sim.jobGauge;
-    bar(3, gauge.value / gauge.max, gauge.hasStage("empowered") ? 0xff9f43 : 0xb5651d);
     this.drawMinimap();
+    this.renderHud();
+    // 詳しい情報（開発用の文字）：設定で出すときだけ作る（大きな地図・画面を開いている間は出さない）
+    const showDebug = this.settings.debugHud && !this.bigMap && this.panel.open === undefined;
+    this.debugText.setVisible(showDebug);
+    if (!showDebug) return;
+    const gauge = sim.jobGauge;
 
     const last = sim.lastHit;
     const stageText = gauge.def.stages
@@ -1056,13 +1113,13 @@ export class ArenaScene extends Phaser.Scene {
       })
       .join(" ");
     const lastSkill = sim.lastSkill;
-    this.hud.setText(
+    this.debugText.setText(
       [
         `${region === undefined ? "試験用の場（開発用。B 鍛冶屋・G 転職）" : text(region.text as TextKey)}　${this.controlsHint()}${(() => {
           const n = sim.nearbyInteractable();
           if (n === undefined) return "";
           return n.kind === "facility"
-            ? `　【F：${FACILITY_NAME[n.facility]}】`
+            ? `　【F：${facilityName(n.facility)}】`
             : n.kind === "chest"
               ? "　【F：宝箱を開ける】"
               : n.kind === "secret"

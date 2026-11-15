@@ -16,6 +16,8 @@ export interface Settings {
   /** 音量（0〜1）。 */
   readonly volume: number;
   readonly scale: ScaleSetting;
+  /** 詳しい情報（開発用の文字の HUD）を出すか（端末ごと。初期は出さない。docs/progress D-HUD-1）。 */
+  readonly debugHud: boolean;
 }
 
 /** 整数倍の拡大率が、その大きさの窓に収まるか（収まらない倍率は選べない・効かせない）。 */
@@ -36,7 +38,13 @@ export function nextScale(
   return "fit";
 }
 
-export const DEFAULT_SETTINGS: Settings = { version: 1, bindings: {}, volume: 0.8, scale: "fit" };
+export const DEFAULT_SETTINGS: Settings = {
+  version: 1,
+  bindings: {},
+  volume: 0.8,
+  scale: "fit",
+  debugHud: false,
+};
 
 /** 設定の画面で変えられない行動（Esc：画面を閉じる・設定を開く。変えると戻せなくなるため）。 */
 export const FIXED_ACTIONS: readonly Action[] = ["menu"];
@@ -72,7 +80,9 @@ export function parseSettings(raw: string | null | undefined): Settings {
   const volume = typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8;
   const s = r["scale"];
   const scale = SCALES.find((x) => x === s) ?? "fit";
-  return { version: 1, bindings, volume, scale };
+  // 真偽値でなければ初期値（出さない）
+  const debugHud = r["debugHud"] === true;
+  return { version: 1, bindings, volume, scale, debugHud };
 }
 
 /** 実際に使う割り当て（初期の割り当てに、変えた分を重ねる）。 */

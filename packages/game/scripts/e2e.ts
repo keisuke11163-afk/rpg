@@ -191,8 +191,37 @@ type DebugWindow = {
     title: () => { slots: { slot: number; state: string }[]; selected: number | null };
     startSlot: (slot: number, how: string) => boolean;
     subJob: () => SubJobInfo;
+    hud: () => HudInfo;
   };
 };
+/**
+ * HUD のビューモデル（src/ui/hud-model.ts の HudModel のうち、確認に使う所だけ）。
+ * ページから JSON で渡るので、undefined の項目は消える（省略できる項目にしておく）。
+ */
+interface HudInfo {
+  model: {
+    regionName: string;
+    vitals: { hp: { ratio: number; text: string }; gauge: { stages: { min: number }[] } };
+    skills: {
+      keyLabel: string;
+      skill?: string;
+      state: string;
+      cooldownRemaining: number;
+      cooldownRatio?: number;
+    }[];
+    flasks: { keyLabel: string; charges: number }[];
+    boss?: {
+      name: string;
+      maxHp: number;
+      hpRatio: number;
+      phases: number;
+      stageLabel: string;
+    };
+    prompt?: string;
+  } | null;
+  debugVisible: boolean;
+  debugHud: boolean;
+}
 interface JobBoardInfo {
   job: string;
   points: number;
@@ -321,6 +350,21 @@ try {
   });
   const player = (): Promise<PlayerState> =>
     page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.player());
+  const hud = (): Promise<HudInfo> =>
+    page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.hud());
+  // HUD（D-HUD-1）：技の枠6つ（左・右・1〜4）・薬瓶 Q/E・職能ゲージの段階の刻み。詳しい情報は初期は出さない
+  const hud0 = await hud();
+  check(
+    "HUD：技の枠は6つ（キーは左・右・1〜4）、薬瓶は Q・E、闘志の段階の刻みがあり、詳しい情報は初期は出さない（D-HUD-1）",
+    hud0.model !== null &&
+      hud0.model.skills.map((x) => x.keyLabel).join() === "左,右,1,2,3,4" &&
+      hud0.model.flasks.map((x) => x.keyLabel).join() === "Q,E" &&
+      hud0.model.vitals.gauge.stages.length >= 2 &&
+      hud0.model.vitals.hp.ratio === 1 &&
+      !hud0.debugVisible &&
+      !hud0.debugHud,
+    `キー ${hud0.model?.skills.map((x) => x.keyLabel).join() ?? "なし"}・薬瓶 ${hud0.model?.flasks.map((x) => x.keyLabel).join() ?? "なし"}・詳しい情報 ${String(hud0.debugVisible)}`,
+  );
   const hazard = (): Promise<HazardState> =>
     page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.hazard());
 
@@ -660,6 +704,17 @@ try {
   const afterCharge = await player();
   const charged = afterCharge.x - beforeCharge.x;
   check("1キーで突進（右へ約8m）", charged > 7 && charged < 8.6, `右へ ${charged.toFixed(2)}m`);
+  // HUD：使った技の枠（1）は CD 中になり、覆いの割合（0〜1）と残り秒が出る
+  const cdSlot = (await hud()).model?.skills[2];
+  check(
+    "HUD：突進を使うと、技の枠1が CD 中になり、残りの割合（0〜1）と残り秒が出る（D-HUD-1）",
+    cdSlot?.state === "cooldown" &&
+      cdSlot.cooldownRemaining > 0 &&
+      cdSlot.cooldownRatio !== undefined &&
+      cdSlot.cooldownRatio > 0 &&
+      cdSlot.cooldownRatio < 1,
+    `状態 ${String(cdSlot?.state)}・残り ${String(cdSlot?.cooldownRemaining.toFixed(2))}・割合 ${String(cdSlot?.cooldownRatio?.toFixed(2))}`,
+  );
 
   // 転職と盗賊（仕様書5.1・5.6）
   await waitIdle();
@@ -1070,6 +1125,24 @@ try {
       afterPanel.open === null,
     `画面 ${String(setPanel.open)}・回避 ${se0.dodge.join()} → ${se1.dodge.join()}・音量 ${String(se0.volume)} → ${String(se2.volume)}`,
   );
+  // 設定の「詳しい情報」の行（音量の1つ前）をクリックすると、開発用の文字の表示が切り替わる（D-HUD-1）
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await clickRow((await settings()).rows.length - 4);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  const hudOn = await hud();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await clickRow((await settings()).rows.length - 4);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  const hudOff = await hud();
+  check(
+    "設定の「詳しい情報」をクリックすると開発用の文字が出て、もう一度で消える（D-HUD-1）",
+    hudOn.debugHud && hudOn.debugVisible && !hudOff.debugHud && !hudOff.debugVisible,
+    `1回目 ${String(hudOn.debugVisible)}・2回目 ${String(hudOff.debugVisible)}`,
+  );
   await page.keyboard.press("KeyT");
   await page.waitForTimeout(100);
 
@@ -1312,6 +1385,14 @@ try {
   const merchant = townNow.facilities.find((f) => f.kind === "merchant");
   if (merchant !== undefined) await tp(merchant.x, merchant.y + 1.2);
   await page.waitForTimeout(100);
+  const townHud = (await hud()).model;
+  check(
+    "HUD：町の商人の前では「F：商人」の案内が出て、ボスの棒は出ない（D-HUD-1）",
+    townHud?.prompt === "F：商人" &&
+      townHud.boss === undefined &&
+      townHud.regionName === "星見の村",
+    `案内 ${String(townHud?.prompt)}・地域 ${String(townHud?.regionName)}`,
+  );
   await page.keyboard.press("KeyF");
   await page.waitForTimeout(150);
   const merchantPanel = await panel();
@@ -1377,6 +1458,16 @@ try {
   await page.waitForTimeout(2500);
   const mother = await bossOf();
   await page.screenshot({ path: `${outDir}mother-tree.png` });
+  const bossHud = (await hud()).model?.boss ?? null;
+  check(
+    "HUD：母樹の間では、上中央にボスの棒（名前・HP 5,400・3段階）が出る。町では出ない（D-HUD-1）",
+    bossHud !== null &&
+      bossHud.name === "腐根の母樹" &&
+      bossHud.maxHp === 5400 &&
+      bossHud.phases === 3 &&
+      bossHud.stageLabel.startsWith("第1段階"),
+    `ボス ${bossHud === null ? "なし" : `${bossHud.name}・${String(bossHud.maxHp)}・${bossHud.stageLabel}`}`,
+  );
   check(
     "母樹の間に腐根の母樹（HP 5,400）がいて、近づくと気づいて攻撃してくる。A5 への出口は閉じている（U-19）",
     room.id === "REGION-A4-BOSS" &&

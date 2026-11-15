@@ -20,7 +20,16 @@ interface EnemySprites {
   readonly body: Phaser.GameObjects.Image;
   readonly facing: Phaser.GameObjects.Image | undefined;
   readonly label: Phaser.GameObjects.Text;
+  /** 倒れたのを見た時刻（ミリ秒。散る図形・消えていく表示に使う）。 */
+  deadAt: number | undefined;
 }
+
+/** 当てたときに白く光らせる時間（ミリ秒）。 */
+const HIT_FLASH_MS = 70;
+/** 倒れてから消えていく時間（ミリ秒。sim から消えるまでは、薄く残す）。 */
+const DEATH_FADE_MS = 450;
+/** 倒れた後に残す薄さ。 */
+const DEAD_ALPHA = 0.15;
 
 /**
  * 試験用の場の敵の表示（EnemyField の状態を描く）。
@@ -30,6 +39,8 @@ export class EnemyFieldView {
   private readonly scene: Phaser.Scene;
   private readonly sprites = new Map<Enemy, EnemySprites>();
   private readonly projectileImages: Phaser.GameObjects.Image[] = [];
+  /** 当てた敵（ID）と、白く光らせる終わりの時刻（ミリ秒）。 */
+  private readonly flashes = new Map<string, number>();
 
   constructor(scene: Phaser.Scene, field: EnemyField) {
     this.scene = scene;
@@ -56,7 +67,34 @@ export class EnemyFieldView {
         color: RANK_COLOR[e.rank.rank],
       })
       .setOrigin(0.5, 1);
-    return { body, facing, label };
+    return { body, facing, label, deadAt: undefined };
+  }
+
+  /** 敵に当てた（表示だけ。短く白く光らせる）。id は Enemy.id（ヒットの targetId）。 */
+  flash(id: string): void {
+    this.flashes.set(id, this.scene.time.now + HIT_FLASH_MS);
+  }
+
+  /** 倒れた敵から、小さな四角を散らす（表示だけ。ボスは多く・遠くへ）。 */
+  private burst(x: number, y: number, boss: boolean, color: number): void {
+    const n = boss ? 18 : 8;
+    const reach = boss ? 34 : 16;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + (i % 2) * 0.3;
+      const size = boss ? 4 : 3;
+      const r = this.scene.add.rectangle(x, y, size, size, color, 1);
+      this.scene.tweens.add({
+        targets: r,
+        x: x + Math.cos(a) * reach,
+        y: y + Math.sin(a) * reach,
+        alpha: 0,
+        duration: boss ? 700 : 380,
+        ease: "Cubic.Out",
+        onComplete: () => {
+          r.destroy();
+        },
+      });
+    }
   }
 
   /** 場の敵と画像を合わせる（新しい敵の画像を作り、消えた敵の画像を消す）。 */
@@ -73,6 +111,8 @@ export class EnemyFieldView {
       s.label.destroy();
       this.sprites.delete(e);
     }
+    for (const [id, until] of this.flashes)
+      if (until <= this.scene.time.now) this.flashes.delete(id);
   }
 
   /** 予兆（地面の範囲）・雲・投射物・体・HPを描く。 */
@@ -140,11 +180,31 @@ export class EnemyFieldView {
       if (v === undefined) continue;
       const x = Math.round(toPixels(e.position.x));
       const y = Math.round(toPixels(e.position.y));
-      v.body.setPosition(x, y).setAlpha(e.state === "dead" || e.underground ? 0.3 : 1);
-      if (e.combatant.stagger.broken) v.body.setTint(0xffd166);
-      else if (e.shielded) v.body.setTint(0xc8a2ff);
-      else if (e.state === "windup") v.body.setTint(0xff9f9f);
-      else v.body.clearTint();
+      const now = this.scene.time.now;
+      // 倒れた：最初に見たときに散らし、だんだん消す（sim から消えるまで薄く残す）
+      if (e.state !== "dead") v.deadAt = undefined;
+      else if (v.deadAt === undefined) {
+        v.deadAt = now;
+        this.burst(x, y, e.def.boss !== undefined, e.def.boss !== undefined ? 0xffb07a : 0xe8e6f0);
+      }
+      const alpha =
+        v.deadAt !== undefined
+          ? Math.max(DEAD_ALPHA, 1 - (now - v.deadAt) / DEATH_FADE_MS)
+          : e.underground
+            ? 0.3
+            : 1;
+      v.body.setPosition(x, y).setAlpha(alpha);
+      v.label.setAlpha(v.deadAt === undefined ? 1 : alpha);
+      // 当てた直後は白く光らせる（Phaser 4 では setTintFill の代わりに setTint ＋ FILL）
+      const flashing = (this.flashes.get(e.id) ?? 0) > now && e.state !== "dead";
+      if (flashing) v.body.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+      else {
+        v.body.setTintMode(Phaser.TintModes.MULTIPLY);
+        if (e.combatant.stagger.broken) v.body.setTint(0xffd166);
+        else if (e.shielded) v.body.setTint(0xc8a2ff);
+        else if (e.state === "windup") v.body.setTint(0xff9f9f);
+        else v.body.clearTint();
+      }
       v.facing
         ?.setPosition(x, y)
         .setRotation(e.facing)

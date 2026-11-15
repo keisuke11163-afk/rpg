@@ -61,6 +61,7 @@ import {
   toScreen,
 } from "./star-board-view.ts";
 import { type Point, insideArea, panCamera, zoomCamera } from "./board-view.ts";
+import { fill } from "./hud-model.ts";
 import {
   JOB_KIND_ACCENT,
   JOB_NODE_LOOK,
@@ -1790,6 +1791,30 @@ export class EquipmentPanel {
       });
     }
     let y = y0 + perCol * rowH + 10;
+    // 詳しい情報（開発用の文字の HUD）の表示（D-HUD-1）。e2e は後ろから数えて音量・拡大率・初期に戻すを押すので、その前に置く
+    const dy = y;
+    y = this.lines(
+      x0,
+      y,
+      [
+        {
+          text: fill(text("settings.debugHud"), {
+            state: text(s.debugHud ? "settings.debugHud.on" : "settings.debugHud.off"),
+          }),
+          color: TEXT_COLOR.normal,
+        },
+      ],
+      colW * 2,
+    );
+    this.settingsRows.push({
+      x0,
+      x1: x0 + colW * 2,
+      y0: dy,
+      y1: y,
+      run: () => {
+        host.set({ ...s, debugHud: !s.debugHud });
+      },
+    });
     const vy = y;
     y = this.lines(
       x0,

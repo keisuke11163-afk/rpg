@@ -28,7 +28,8 @@ export type SlotStart = "continue" | "backup" | `new-${string}` | "dev";
 export class TitleScene extends Phaser.Scene {
   private db!: ContentDb;
   private store!: SaveStore;
-  private texts: Phaser.GameObjects.Text[] = [];
+  /** 描き直すときに消すもの（文字・ホバーの下敷き）。 */
+  private texts: Phaser.GameObjects.GameObject[] = [];
   private selected: number | undefined;
 
   constructor() {
@@ -39,6 +40,7 @@ export class TitleScene extends Phaser.Scene {
     this.db = loadGameContent();
     this.store = new SaveStore(this.db, new LocalStorageBackend());
     this.selected = undefined;
+    this.decorate();
     this.draw();
     exposeDebug({
       title: () => ({
@@ -53,11 +55,61 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private button(x: number, y: number, label: string, color: string, run: () => void): void {
-    const t = this.add
-      .text(x, y, label, { fontFamily: "sans-serif", fontSize: "11px", color })
+    const t = this.add.text(x, y, label, { fontFamily: "sans-serif", fontSize: "11px", color });
+    // ホバー：行の下に薄い帯を出し、文字を明るくする（クリックする位置・行の並びは変えない）
+    const glow = this.add
+      .rectangle(x - 6, y - 2, Math.max(260, t.width + 16), t.height + 4, 0xc3a6ff, 0.12)
+      .setOrigin(0, 0)
+      .setVisible(false);
+    const edge = this.add
+      .rectangle(x - 6, y - 2, 2, t.height + 4, 0xc3a6ff, 0.9)
+      .setOrigin(0, 0)
+      .setVisible(false);
+    t.setDepth(1)
       .setInteractive({ useHandCursor: true })
-      .on("pointerdown", run);
-    this.texts.push(t);
+      .on("pointerdown", run)
+      .on("pointerover", () => {
+        glow.setVisible(true);
+        edge.setVisible(true);
+        t.setColor("#ffffff");
+      })
+      .on("pointerout", () => {
+        glow.setVisible(false);
+        edge.setVisible(false);
+        t.setColor(color);
+      });
+    this.texts.push(glow, edge, t);
+  }
+
+  /** 背景の飾り（題字の下の線と星・薄い星空・下端の一言）。作ったときに1回だけ。 */
+  private decorate(): void {
+    const cx = SCREEN.width / 2;
+    const g = this.add.graphics();
+    // 薄い星空（決まった並び。毎回同じ）
+    let seed = 7;
+    const rand = (): number => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+    for (let i = 0; i < 40; i++) {
+      const x = Math.floor(rand() * SCREEN.width);
+      const y = Math.floor(rand() * SCREEN.height);
+      g.fillStyle(0xc3a6ff, 0.08 + rand() * 0.18).fillRect(x, y, 1, 1);
+    }
+    // 題字の下の飾りの線（中央に小さな星）
+    const ly = 58;
+    g.fillStyle(0x4a4858, 1)
+      .fillRect(cx - 120, ly, 104, 1)
+      .fillRect(cx + 16, ly, 104, 1);
+    g.fillStyle(0xc3a6ff, 0.5)
+      .fillRect(cx - 40, ly, 24, 1)
+      .fillRect(cx + 16, ly, 24, 1);
+    g.fillStyle(0xffd166, 1).fillTriangle(cx, ly - 4, cx - 4, ly, cx + 4, ly);
+    g.fillStyle(0xffd166, 1).fillTriangle(cx, ly + 5, cx - 4, ly + 1, cx + 4, ly + 1);
+    // 下端：版と、操作の一言
+    const dim = { fontFamily: "sans-serif", fontSize: "8px", color: "#6a6878" } as const;
+    this.add.text(8, SCREEN.height - 14, text("game.subtitle"), dim);
+    this.add.text(SCREEN.width - 8, SCREEN.height - 14, text("title.hint"), dim).setOrigin(1, 0);
   }
 
   private label(x: number, y: number, label: string, color = "#9a96a8", size = "11px"): void {
