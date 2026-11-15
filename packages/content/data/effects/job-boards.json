@@ -918,5 +918,128 @@
     "scope": "self",
     "provisional": true,
     "provisionalNote": "職奥義「軍勢」：契約枠+4（仕様書v0.2 5.5）。最大値の加算で表す（職詞の+1と同じ）"
+  },
+  {
+    "id": "EFF-JBM-KNT-IRON",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-IRON-GUARD",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "職奥義「鉄の守り」：ガード中も移動速度が落ちない（仕様書v0.2 5.3）。ガード中の移動×0.6（D-KNT-1）を掛けない。docs/progress/sessions/job-ultimates.md D-ULT-1"
+  },
+  {
+    "id": "EFF-JBM-KNT-CONDEMN",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-GAUGE-MAX-BONUS",
+        "value": 10
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-JUDGMENT-PER-POINT",
+        "value": 0.1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "職奥義「断罪者」：信念の最大値+10、断罪の刃は信念1点につき+30%（仕様書v0.2 5.3）。+30%は技の+20%に+10%を足して表す。docs/progress/sessions/job-ultimates.md D-ULT-2"
+  },
+  {
+    "id": "EFF-JBM-MAG-SINGLE",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-SINGLE-PHASE",
+        "value": 0.08
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-SINGLE-PHASE-MAX",
+        "value": 5
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "職奥義「単相の極み」：位相がなくなる代わりに、同じ属性を続けて使うたびに+8%（最大5回まで。仕様書v0.2 5.4）。+8%は加算（その呪文のヒットのダメージの増加）として扱う（仮。Q-MAG-3）。docs/progress/sessions/job-ultimates.md D-ULT-3"
+  },
+  {
+    "id": "EFF-JBM-MAG-SILENT",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "increased",
+        "stat": "STAT-CAST-SPEED",
+        "value": 0.25
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "職奥義「無詠唱」：詠唱速度+25%（仕様書v0.2 5.4）。呪文の動作の速さに掛ける。過充填は仕組みが無いので「できなくなる」は何もしない（Q-MAG-4）。docs/progress/sessions/job-ultimates.md D-ULT-4"
+  },
+  {
+    "id": "EFF-JBM-SUM-SINGLE",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-SOLO-MINION",
+        "value": 0.25
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "職奥義「一体入魂」：召喚物は1体だけ。その1体は契約枠の1枠につきHP・ダメージ+25%（仕様書v0.2 5.5）。枠は今の契約枠の数・加算で扱う（仮）。docs/progress/sessions/job-ultimates.md D-ULT-5・D-ULT-6"
+  },
+  {
+    "id": "EFF-JBM-SUM-CYCLE",
+    "origin": "jobMastery",
+    "modifiers": [
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-DEATH-CYCLE",
+        "value": 5
+      },
+      {
+        "kind": "added",
+        "stat": "STAT-JOB-DEATH-CYCLE-SLOTS",
+        "value": 1
+      }
+    ],
+    "affects": {
+      "hit": false,
+      "ailmentBase": false
+    },
+    "scope": "self",
+    "provisional": true,
+    "provisionalNote": "職奥義「死の循環」：召喚物が死ぬと、5秒間だけ契約枠が1つ増える（仕様書v0.2 5.5）。1体ごとに重ねる・犠牲も数える（仮）。docs/progress/sessions/job-ultimates.md D-ULT-7"
   }
 ]

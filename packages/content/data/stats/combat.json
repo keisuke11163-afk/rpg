@@ -551,6 +551,48 @@
     "min": 0
   },
   {
+    "id": "STAT-JOB-IRON-GUARD",
+    "text": "stat.job-iron-guard",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-JUDGMENT-PER-POINT",
+    "text": "stat.job-judgment-per-point",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-SINGLE-PHASE",
+    "text": "stat.job-single-phase",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-SINGLE-PHASE-MAX",
+    "text": "stat.job-single-phase-max",
+    "unit": "flat",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-SOLO-MINION",
+    "text": "stat.job-solo-minion",
+    "unit": "ratio",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-DEATH-CYCLE",
+    "text": "stat.job-death-cycle",
+    "unit": "seconds",
+    "min": 0
+  },
+  {
+    "id": "STAT-JOB-DEATH-CYCLE-SLOTS",
+    "text": "stat.job-death-cycle-slots",
+    "unit": "flat",
+    "min": 0
+  },
+  {
     "id": "STAT-MOVING-SHOT-SLOW",
     "text": "stat.moving-shot-slow",
     "unit": "ratio",

@@ -121,8 +121,10 @@ export class Minion {
   }
 }
 
-/** 召喚の結果（呼べなかった理由）。 */
-export type SummonBlock = "slots" | "forbidden";
+/**
+ * 召喚の結果（呼べなかった理由）。count は同時に呼べる数の上限（職奥義「一体入魂」の1体。docs/progress/sessions/job-ultimates.md D-ULT-5）。
+ */
+export type SummonBlock = "slots" | "forbidden" | "count";
 
 /**
  * 契約枠と、呼び出している召喚物の一覧。
@@ -133,6 +135,8 @@ export class MinionSquad {
   private list: Minion[] = [];
   private serial = 0;
   capacity: number;
+  /** 同時に呼べる数（既定は無制限。職奥義「一体入魂」で1）。減っても、すでにいる召喚物は消さない。 */
+  maxCount = Infinity;
 
   constructor(capacity: number) {
     this.capacity = capacity;
@@ -157,6 +161,7 @@ export class MinionSquad {
    */
   blockOf(def: MinionDef, forbidden = false): SummonBlock | undefined {
     if (forbidden) return "forbidden";
+    if (this.list.length >= this.maxCount) return "count";
     if (this.used + def.slots > this.capacity) return "slots";
     return undefined;
   }

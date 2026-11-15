@@ -2042,6 +2042,7 @@ export class ArenaSimulation {
     this.sanitizeSubSkillSlots();
     if (before === "sub" && (changed || this.contractAs() !== "sub")) {
       this.minionField.clear();
+      this.clearDeathCycle();
       this.minionCommand = undefined;
     }
     this.jobBoardVersion += 1;
@@ -2578,6 +2579,7 @@ export class ArenaSimulation {
     this.demonLeft = 0;
     // 召喚物は転職で消える（契約枠はメインジョブのゲージ。D-SUM-8）
     this.minionField.clear();
+    this.clearDeathCycle();
     this.minionCommand = undefined;
     // 転職した先のジョブの技の枠に残った、使えないサブジョブの技を戻す（D-SUBG-3）
     this.sanitizeSubSkillSlots();
@@ -2795,12 +2797,13 @@ export class ArenaSimulation {
     g.maxBonus = jv.stat("STAT-GAUGE-MAX-BONUS").value;
     // 契約枠（召喚士）：メインジョブのゲージの最大値＋加算（職詞「契約枠+1」）。メインに契約枠が無く、サブジョブが
     // 召喚士なら6に固定（D-SUB-6）。どちらにも無ければ0
-    this.minionField.squad.capacity = jobContractCapacity(
-      this.db,
-      this.job,
-      this.subJob,
-      g.maxBonus,
-    );
+    this.contractBase = jobContractCapacity(this.db, this.job, this.subJob, g.maxBonus);
+    // 職奥義「一体入魂」：召喚物は1体だけ（docs/progress/sessions/job-ultimates.md D-ULT-5）
+    this.minionField.squad.maxCount =
+      this.view.stat("STAT-JOB-SOLO-MINION").value > 0 ? 1 : Infinity;
+    this.applyContractCapacity();
+    // 職奥義「単相の極み」：位相がなくなり、同じ属性を続けた回数を数える（開始の量より先に反映する）
+    g.singlePhaseMax = jv.stat("STAT-JOB-SINGLE-PHASE-MAX").value;
     // 職詞「位相を1から開始する」（位相のゲージだけ。最大値の後に反映する）
     g.startValue = jv.stat("STAT-GAUGE-START").value;
     // 職奥義「疾風」：移動中も集中が半分の速さで増える
@@ -2887,6 +2890,10 @@ export class ArenaSimulation {
         def.finisher === undefined
           ? spent
           : spent + this.sheetValue.evaluated.view.stat("STAT-FINISHER-POINTS").value,
+      // 職奥義「断罪者」：断罪の刃の1点につき+20%を+30%に（サブジョブの技では働かない）
+      ...(def.finisher?.pctPerPointStat === undefined || sub
+        ? {}
+        : { finisherPctPerPointBonus: this.view.stat(def.finisher.pctPerPointStat).value }),
     });
     // 背向けの外套（U16）：移動の技を使った後の一定時間、全てのヒットを背面からのヒットとして扱う
     const moveBackstab = this.sheetValue.evaluated.view.stat("STAT-UNQ-MOVE-BACKSTAB").value;
@@ -2944,6 +2951,11 @@ export class ArenaSimulation {
     this.noteInteractions(skillInteractions(resolved.variants));
     // 技ごとの動作の速さの能力値（例：職紋盤「素早い手」の連刃の速度+15%）
     const flurry = def.speedStat === undefined ? 1 : 1 + this.view.stat(def.speedStat).value;
+    // 詠唱速度の増加（職奥義「無詠唱」+25%）：呪文の動作の速さに掛ける。呪文の基本の速さは武器の攻撃速度のまま
+    // （D-MAG-12）。詠唱速度の増加を持つものは、今は無詠唱だけ（D-ULT-4）
+    const cast = def.tags.includes("TAG-FORM-SPELL")
+      ? Math.max(0.1, 1 + this.view.stat("STAT-CAST-SPEED").increased)
+      : 1;
     // 長弓の特性：移動しながら撃つと速度-30%（投射物を放つ技・通常攻撃）
     const slow = this.view.stat("STAT-MOVING-SHOT-SLOW").value;
     const movingShot =
@@ -2952,7 +2964,14 @@ export class ArenaSimulation {
         : 1;
     this.useCounts.set(def.id, (this.useCounts.get(def.id) ?? 0) + 1);
     // 反撃権（騎士：パリィの後の次の攻撃のダメージ+100%）：ダメージを与える技の使用で使い切る。戦吼などは使わない
-    const counter = def.pct > 0 ? (this.guard?.consumeCounter(this.elapsed) ?? 0) : 0;
+    const parryCounter = def.pct > 0 ? (this.guard?.consumeCounter(this.elapsed) ?? 0) : 0;
+    // 職奥義「単相の極み」：同じ属性を続けて使うたびに+8%（最大5回）。この呪文のヒットに足す加算（D-ULT-3）
+    const single =
+      !sub && def.tags.includes("TAG-FORM-SPELL") && this.jobGaugeValue.singlePhase
+        ? this.jobGaugeValue.sameElementStreak * this.view.stat("STAT-JOB-SINGLE-PHASE").value
+        : 0;
+    // 反撃権と単相の極みは、どちらも「この技のヒットのダメージの加算」として渡す
+    const counter = parryCounter + single;
     // 光輪の盾は、戻ってくるまでガードできない（仮：決まった秒数）
     if (def.guardEffect?.mode === "lock")
       this.guardLockedUntil = this.elapsed + def.guardEffect.seconds;
@@ -2962,7 +2981,7 @@ export class ArenaSimulation {
         exec: new SkillExecution(
           resolved,
           this.motion.facing,
-          this.attackSpeed * flurry * movingShot,
+          this.attackSpeed * flurry * movingShot * cast,
           {
             aimPoint: this.aimPoint,
             ...(teleportTo === undefined ? {} : { teleportTo }),
@@ -3124,8 +3143,9 @@ export class ArenaSimulation {
       moveMultiplier = tick.moveMultiplier;
       if (tick.finished) this.current = undefined;
     }
-    // ガードしている間は、移動が遅くなる（規則の倍率。鉄の守りで外せる予定）
-    if (guard?.raised === true) moveMultiplier *= guard.rule.moveSpeedMultiplier;
+    // ガードしている間は、移動が遅くなる（規則の倍率）。職奥義「鉄の守り」なら落ちない
+    if (guard?.raised === true && !(this.view.stat("STAT-JOB-IRON-GUARD").value > 0))
+      moveMultiplier *= guard.rule.moveSpeedMultiplier;
     for (const z of this.zoneRuns) this.resolveStrikes(z, (z.exec as LingeringZone).update(dt));
     this.updateArrows(dt);
     this.updateSmokes(dt);
@@ -3333,6 +3353,7 @@ export class ArenaSimulation {
     if (this.playerValue.health.dead && !this.exited) {
       // 倒れると召喚物も消える（D-SUM-8）
       this.minionField.clear();
+      this.clearDeathCycle();
       this.minionCommand = undefined;
       this.jobGaugeValue.setContractUsed(0);
       this.deathCount += 1;
@@ -3840,7 +3861,7 @@ export class ArenaSimulation {
       // 試し打ちの木人も標的にする（指揮・集中で木人を狙ったとき、召喚物が実際に攻撃するように）
       enemies: this.targets(),
       // 笏の基本刻印「召喚物のダメージ+12%」など（持ち主の能力値。召喚物はこれだけを受ける。V-05）
-      minionDamage: this.view.stat("STAT-MINION-DAMAGE").increased,
+      minionDamage: this.view.stat("STAT-MINION-DAMAGE").increased + this.soloMinionBonus(),
       command: this.minionCommand,
       bounds: this.minionBounds,
       onHit: (report, target) => {
@@ -3855,12 +3876,64 @@ export class ArenaSimulation {
     };
   }
 
+  /** 契約枠の数（メイン・サブのゲージと職詞・職奥義の加算。死の循環の一時的な枠は含めない）。 */
+  private contractBase = 0;
+  /** 職奥義「死の循環」で増えた一時的な契約枠の期限（1つにつき1枠）。 */
+  private deathCycleUntil: number[] = [];
+
+  /** 契約枠の数を、基本の数＋死の循環の一時的な枠にする。 */
+  private applyContractCapacity(): void {
+    const temp =
+      this.contractBase > 0
+        ? this.deathCycleUntil.length * this.view.stat("STAT-JOB-DEATH-CYCLE-SLOTS").value
+        : 0;
+    this.minionField.squad.capacity = this.contractBase + temp;
+  }
+
+  /**
+   * 召喚物が死んだ（倒された・犠牲にした）。職奥義「死の循環」：1体につき、決まった秒数だけ契約枠が増える
+   * （仕様書v0.2 5.5：5秒間・1つ。重ねがけは1体ごとに別に数える。D-ULT-7）。
+   */
+  private onMinionsDied(count: number): void {
+    const seconds = this.view.stat("STAT-JOB-DEATH-CYCLE").value;
+    if (!(count > 0) || !(seconds > 0)) return;
+    for (let i = 0; i < count; i++) this.deathCycleUntil.push(this.elapsed + seconds);
+    this.applyContractCapacity();
+  }
+
+  /** 死の循環の一時的な枠を全て外す（召喚物を全て消したとき）。 */
+  private clearDeathCycle(): void {
+    if (this.deathCycleUntil.length === 0) return;
+    this.deathCycleUntil = [];
+    this.applyContractCapacity();
+  }
+
+  /** 一時的に増えている契約枠の数（死の循環。表示・確認用）。 */
+  get deathCycleSlots(): number {
+    return this.minionField.squad.capacity - this.contractBase;
+  }
+
+  /**
+   * 職奥義「一体入魂」：召喚物のHP・ダメージの加算（契約枠の1枠につき+25%。仕様書v0.2 5.5）。
+   * 枠は今の契約枠の数（D-ULT-6）。選んでいなければ0。
+   */
+  private soloMinionBonus(): number {
+    const per = this.view.stat("STAT-JOB-SOLO-MINION").value;
+    return per > 0 ? per * this.minionField.squad.capacity : 0;
+  }
+
   /**
    * 召喚物を1刻み動かす（追従・索敵・攻撃）。持続ダメージ・崩しを進め、倒された召喚物を取り除く（枠が戻る）。
    * 契約枠（使っている枠）をゲージの量に写す（表示用）。
    */
   private updateMinions(dt: number): void {
     const f = this.minionField;
+    // 職奥義「死の循環」：期限の切れた一時的な契約枠を外す
+    if (this.deathCycleUntil.length > 0) {
+      const before = this.deathCycleUntil.length;
+      this.deathCycleUntil = this.deathCycleUntil.filter((t) => t > this.elapsed);
+      if (this.deathCycleUntil.length !== before) this.applyContractCapacity();
+    }
     if (f.minions.length === 0 && f.bolts.active === 0) {
       this.jobGaugeValue.setContractUsed(0);
       return;
@@ -3872,6 +3945,7 @@ export class ArenaSimulation {
     const gone = f.update(dt, this.minionContext());
     for (const m of gone)
       this.onText?.(`${text(m.def.text as TextKey)}が倒れた`, m.position, "#c9a0ff");
+    this.onMinionsDied(gone.length);
     if (this.minionCommand !== undefined && this.commandTarget === undefined)
       this.minionCommand = undefined;
     this.jobGaugeValue.setContractUsed(f.squad.used);
@@ -3896,7 +3970,7 @@ export class ArenaSimulation {
             { x: p.x + Math.cos(a) * 1.2, y: p.y + Math.sin(a) * 1.2 },
             this.minionBounds,
           ),
-          hpIncreased: this.view.stat("STAT-MINION-HP").increased,
+          hpIncreased: this.view.stat("STAT-MINION-HP").increased + this.soloMinionBonus(),
           forbidden: this.view.flag("spawnMinion", undefined).resolution === "forbid",
         });
         this.jobGaugeValue.setContractUsed(f.squad.used);
@@ -3916,6 +3990,8 @@ export class ArenaSimulation {
         const m = f.squad.nearest(this.aimPoint);
         if (m === undefined) break;
         f.squad.remove(m);
+        // 犠牲にした召喚物も「死んだ」に数える（死の循環。D-ULT-7）
+        this.onMinionsDied(1);
         const s = m.def.sacrifice;
         for (const e of s.selfEffects ?? [])
           this.buffs.add(e.effect, e.duration * this.sheetValue.effectDuration, skillId);

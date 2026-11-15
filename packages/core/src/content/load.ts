@@ -836,6 +836,15 @@ export function loadContent(raw: RawContent, options: LoadOptions = {}): LoadRes
       tagOf(tagId, ["ailment"], file, skill.id, "ailmentChance");
     if (skill.speedStat !== undefined)
       refCheck(statMap, "能力値", skill.speedStat, file, skill.id, "speedStat");
+    if (skill.finisher?.pctPerPointStat !== undefined)
+      refCheck(
+        statMap,
+        "能力値",
+        skill.finisher.pctPerPointStat,
+        file,
+        skill.id,
+        "finisher.pctPerPointStat",
+      );
     if (skill.kind === "spell" && skill.base === undefined)
       err({
         code: "schema",

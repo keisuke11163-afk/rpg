@@ -1272,6 +1272,7 @@
     },
     "text": "jobnode.mage.m-single",
     "description": "jobnode.mage.m-single.desc",
+    "effects": ["EFF-JBM-MAG-SINGLE"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）。職奥義の効果（三相同調・単相の極み・無詠唱）は、位相の増え方の差し替えと過充填が要るので、まだ働かない（docs/progress Q-MAG-3・Q-MAG-4）"
   },
@@ -1286,6 +1287,7 @@
     },
     "text": "jobnode.mage.m-silent",
     "description": "jobnode.mage.m-silent.desc",
+    "effects": ["EFF-JBM-MAG-SILENT"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-MAG-9）。職奥義の効果（三相同調・単相の極み・無詠唱）は、位相の増え方の差し替えと過充填が要るので、まだ働かない（docs/progress Q-MAG-3・Q-MAG-4）"
   },
@@ -1568,6 +1570,7 @@
     },
     "text": "jobnode.knight.m-iron",
     "description": "jobnode.knight.m-iron.desc",
+    "effects": ["EFF-JBM-KNT-IRON"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）。職奥義の効果（鉄の守り・断罪者・殉教）は、まだ働かない（docs/progress Q-KNT-5）"
   },
@@ -1582,6 +1585,7 @@
     },
     "text": "jobnode.knight.m-condemn",
     "description": "jobnode.knight.m-condemn.desc",
+    "effects": ["EFF-JBM-KNT-CONDEMN"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。docs/progress D-KNT-8）。職奥義の効果（鉄の守り・断罪者・殉教）は、まだ働かない（docs/progress Q-KNT-5）"
   },
@@ -1893,6 +1897,7 @@
     },
     "text": "jobnode.summoner.m-single",
     "description": "jobnode.summoner.m-single.desc",
+    "effects": ["EFF-JBM-SUM-SINGLE"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
   },
@@ -1907,6 +1912,7 @@
     },
     "text": "jobnode.summoner.m-cycle",
     "description": "jobnode.summoner.m-cycle.desc",
+    "effects": ["EFF-JBM-SUM-CYCLE"],
     "provisional": true,
     "provisionalNote": "職紋盤の配置と、小さなノードの内容・値は仮（仕様書v0.2 4.10 は45ノードの一覧を持たない。騎士と同じ形。docs/progress D-SUM-9）"
   }

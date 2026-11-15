@@ -36,6 +36,10 @@ export class JobGauge {
   /** 位相：直前の属性と、その前の（違う）属性。合成魔法は、この2つで決まる（仕様書v0.2 5.4）。 */
   private lastElement: Element | undefined;
   private prevElement: Element | undefined;
+  /** 職奥義「単相の極み」：同じ属性を続けた回数の上限（0なら無効。仕様書v0.2 5.4 の「最大5回」）。 */
+  private singleMax = 0;
+  /** 単相の極み：直前と同じ属性を続けて使った回数（最初の1回は0）。 */
+  private streak = 0;
 
   constructor(def: GaugeDef) {
     this.def = def;
@@ -47,8 +51,40 @@ export class JobGauge {
   }
   set startValue(n: number) {
     if (this.def.phase === undefined) return;
-    this.start = Math.max(0, Math.min(this.max, n));
+    // 単相の極み：位相が無いので、開始の量（職詞「位相を1から開始する」）も効かない
+    this.start = this.singlePhase ? 0 : Math.max(0, Math.min(this.max, n));
     if (!this.inCombat) this.v = this.start;
+  }
+
+  /**
+   * 職奥義「単相の極み」（仕様書v0.2 5.4）：位相がなくなり（量は0のまま・合成魔法に変わらない）、代わりに
+   * 同じ属性の呪文を続けた回数を数える（上限 max）。0で無効。位相の仕組みを持つゲージだけに効く。
+   * 有効・無効が変わると、位相・回数・直前の属性を忘れる。
+   */
+  get singlePhaseMax(): number {
+    return this.singleMax;
+  }
+  set singlePhaseMax(n: number) {
+    const next = this.def.phase === undefined ? 0 : Math.max(0, Math.floor(n));
+    if (next === this.singleMax) return;
+    const switched = next > 0 !== this.singleMax > 0;
+    this.singleMax = next;
+    if (switched) {
+      this.v = 0;
+      this.streak = 0;
+      this.lastElement = undefined;
+      this.prevElement = undefined;
+    } else this.streak = Math.min(this.streak, next);
+  }
+
+  /** 単相の極みが有効か。 */
+  get singlePhase(): boolean {
+    return this.singleMax > 0;
+  }
+
+  /** 単相の極み：同じ属性を続けて使った回数（0〜上限。無効なら0）。 */
+  get sameElementStreak(): number {
+    return this.streak;
   }
 
   get value(): number {
@@ -85,6 +121,8 @@ export class JobGauge {
 
   /** 量を足す（最大で止める）。足した量を返す。 */
   add(amount: number): number {
+    // 単相の極み：位相が無いので、量は増えない（輝星「循環の泉」など）
+    if (this.singlePhase) return 0;
     const before = this.value;
     this.v = Math.min(this.max, Math.max(this.floor, this.value + amount));
     return this.value - before;
@@ -132,6 +170,12 @@ export class JobGauge {
       if (phase.neutral !== "reset") return 0;
       return this.reset();
     }
+    if (this.singlePhase) {
+      // 単相の極み：同じ属性なら回数+1（上限まで）、違う属性・最初の呪文なら0から数え直す。位相は変わらない
+      this.streak = this.lastElement === element ? Math.min(this.singleMax, this.streak + 1) : 0;
+      this.lastElement = element;
+      return 0;
+    }
     const last = this.lastElement;
     const input = last === undefined ? "first" : last === element ? "same" : "different";
     if (input !== "same") {
@@ -145,6 +189,7 @@ export class JobGauge {
   /** 次の呪文を変える合成魔法（位相が足りていて、直前の2つの属性の組み合わせが表にあるとき）。 */
   get fusion(): PhaseFusion | undefined {
     const f = this.def.phase?.fusion;
+    if (this.singlePhase) return undefined;
     const a = this.prevElement;
     const b = this.lastElement;
     if (f === undefined || a === undefined || b === undefined || this.value < f.at - 1e-9)
@@ -191,6 +236,7 @@ export class JobGauge {
     this.v = Math.max(this.floor, this.start);
     this.lastElement = undefined;
     this.prevElement = undefined;
+    this.streak = 0;
     return this.value - before;
   }
 
