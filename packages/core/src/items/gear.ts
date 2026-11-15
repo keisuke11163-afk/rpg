@@ -2,7 +2,7 @@
  * 装備（部位ごとの着脱）と、装備から決まる能力値の計算（本仕様書 2.2・3.1・3.9）。
  * 能力値は保存せず、装備が変わるたびに計算し直す。
  */
-import type { AffixDef, ItemBase, ItemInstance, RolledAffix, Slot } from "./types.ts";
+import type { AffixDef, Inscription, ItemBase, ItemInstance, RolledAffix, Slot } from "./types.ts";
 
 export const EQUIP_SLOTS = [
   "主手",
@@ -20,6 +20,8 @@ export type EquipSlot = (typeof EQUIP_SLOTS)[number];
 
 /** 要求値の未達で、基礎性能が-40%（本仕様書 2.2） */
 export const REQUIREMENT_PENALTY = 0.6;
+/** 強化1段階ごとの基礎性能（本仕様書 3.9） */
+const ENHANCE_STEP = 0.05;
 
 export interface GearData {
   bases: ReadonlyMap<string, ItemBase>;
@@ -28,6 +30,10 @@ export interface GearData {
   implicit: Readonly<Record<string, Readonly<Record<string, number>>>>;
   /** ユニークの説明（ツールチップ用）。ID → 名前・固有効果の文・潜在効果の文・ヒント */
   uniques: ReadonlyMap<string, UniqueText>;
+  /** 亀裂の定義（小さなマイナスの詞） */
+  cracks: ReadonlyMap<string, AffixDef>;
+  /** 銘の定義 */
+  inscriptions: ReadonlyMap<string, Inscription>;
 }
 
 export interface UniqueText {
@@ -42,12 +48,15 @@ export function makeGearData(
   affixes: readonly AffixDef[],
   implicit: GearData["implicit"],
   uniques: ReadonlyMap<string, UniqueText> = new Map(),
+  extras: { cracks?: readonly AffixDef[]; inscriptions?: readonly Inscription[] } = {},
 ): GearData {
   return {
     bases: new Map(bases.map((b) => [b.id, b])),
     affixes: new Map(affixes.map((a) => [a.id, a])),
     implicit,
     uniques,
+    cracks: new Map((extras.cracks ?? []).map((c) => [c.id, c])),
+    inscriptions: new Map((extras.inscriptions ?? []).map((i) => [i.id, i])),
   };
 }
 
@@ -201,7 +210,9 @@ export function computeGear(
       ? (characterStats[base.requirement.stat] ?? 0) < base.requirement.value
       : false;
     if (unmet) out.penalized.push(slot);
-    const perf = unmet ? REQUIREMENT_PENALTY : 1;
+    // 基礎性能：要求値の未達で-40%、強化で1段階ごとに+5%（本仕様書 3.9）
+    const perf =
+      (unmet ? REQUIREMENT_PENALTY : 1) * (1 + ENHANCE_STEP * Math.min(10, item.enhance));
 
     // 防具・盾の基礎性能
     if (base.defense) {
@@ -237,6 +248,14 @@ export function computeGear(
       if (!def) continue;
       applyAffix(out, slot, item, a, def, add);
     }
+    // 亀裂（小さなマイナスの詞）と、銘
+    for (const f of item.fractures ?? []) {
+      const def = data.cracks.get(f.id);
+      if (def) applyAffix(out, slot, item, f, def, add);
+    }
+    const inscription = item.inscription ? data.inscriptions.get(item.inscription) : undefined;
+    if (inscription)
+      add(slot, item.uid, `銘（${inscription.name}）`, inscription.stat, inscription.value);
   }
   // 基本刻印の「防具値+15%」など、実数への影響
   out.armor *= 1 + (out.totals["防具値増加"] ?? 0);

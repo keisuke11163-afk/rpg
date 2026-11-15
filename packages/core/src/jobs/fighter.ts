@@ -280,7 +280,10 @@ export class Fighter {
   }
 
   get maxHp(): number {
-    return this.init.maxHp + this.gearTotal("最大HP") + this.fx("最大HP").flat;
+    return Math.round(
+      (this.init.maxHp + this.gearTotal("最大HP") + this.fx("最大HP").flat) *
+        (1 + this.gearTotal("最大HP増加%")),
+    );
   }
 
   /** 実際に使う武器の値（装備があれば装備の値） */

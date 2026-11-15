@@ -63,11 +63,12 @@ import {
   makeGearData,
   makeUniqueData,
   type BoardData,
+  type CraftData,
   type GenerationData,
   type UniqueEntry,
   type UniqueText,
 } from "@stella/core";
-import { AFFIXES, IMPLICIT_STATS, ITEM_BASES } from "./items.ts";
+import { AFFIXES, CRACK_AFFIXES, IMPLICIT_STATS, INSCRIPTIONS, ITEM_BASES } from "./items.ts";
 const loaded = loadContent();
 /** 星辰盤のデータ（ノード・効果・星座）。読み込みの検証を通ったものだけ使う */
 const isJobNode = (id: string): boolean => id.startsWith("JNODE-");
@@ -133,6 +134,16 @@ const uniqueTexts = new Map<string, UniqueText>(
 );
 
 /** 装備のデータ（ベース・詞・基本刻印・ユニークの説明） */
-export const GEAR_DATA = makeGearData(ITEM_BASES, AFFIXES, IMPLICIT_STATS, uniqueTexts);
+export const GEAR_DATA = makeGearData(ITEM_BASES, AFFIXES, IMPLICIT_STATS, uniqueTexts, {
+  cracks: CRACK_AFFIXES,
+  inscriptions: INSCRIPTIONS,
+});
+
+/** クラフトのデータ（生成のデータ・亀裂・銘） */
+export const CRAFT_DATA: CraftData = {
+  generation: GENERATION_DATA,
+  cracks: CRACK_AFFIXES,
+  inscriptions: INSCRIPTIONS,
+};
 /** ユニークの固有効果・潜在効果のデータ */
 export const UNIQUE_DATA = makeUniqueData(loaded.data.uniques, loaded.data.effects);

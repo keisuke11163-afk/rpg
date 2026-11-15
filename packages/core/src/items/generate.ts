@@ -121,7 +121,6 @@ function candidates(
 }
 
 export function generateItem(data: GenerationData, ctx: GenerateContext, rng: Rng): ItemInstance {
-  const tierFloor = ctx.tierFloor ?? 5;
   let rarity: Rarity =
     ctx.rarity ?? rollRarity(ctx.rarityContext ?? { rank: "normal" }, ctx.ilvl, rng);
   const biasJob = ctx.job !== undefined && rng.chance(ctx.jobBiasChance ?? DEFAULT_JOB_BIAS_CHANCE);
@@ -174,51 +173,13 @@ export function generateItem(data: GenerationData, ctx: GenerateContext, rng: Rn
   }
   const base = rng.pick(pool);
 
-  const affixes: RolledAffix[] = [];
   const target = affixCount(rarity === "astral" ? "rare" : rarity, rng);
-  if (target > 0) {
-    const cap = affixCapacity(base, rarity);
-    const count = { prefix: 0, suffix: 0, belt: 0 };
-    const used = new Set<string>();
-    // 共鳴紋が確定のベース
-    const forced =
-      base.guaranteedResonance === true
-        ? data.affixes.find((a) => a.resonance === true)
-        : undefined;
-    if (forced) {
-      affixes.push(rollResonance(forced, ctx, tierFloor, rng));
-      used.add(forced.id);
-      count.suffix++;
-    }
-    while (affixes.length < target) {
-      const list = candidates(data, base, used, cap, count, ctx, biasJob);
-      if (list.length === 0) break;
-      const chosen = list[rng.weightedIndex(list.map((c) => c.weight))] as {
-        def: AffixDef;
-        weight: number;
-      };
-      const def = chosen.def;
-      affixes.push(
-        def.resonance === true
-          ? rollResonance(def, ctx, tierFloor, rng)
-          : rollAffix(def, ctx.ilvl, tierFloor, rng),
-      );
-      used.add(def.id);
-      if (def.beltSlot === true) count.belt++;
-      else if (def.position === "prefix") count.prefix++;
-      else count.suffix++;
-    }
-  }
+  const affixes = fillAffixes(data, base, rarity, ctx.ilvl, target, ctx, rng, [], biasJob);
   return { uid: ctx.uid(), baseId: base.id, rarity, ilvl: ctx.ilvl, affixes, enhance: 0 };
 }
 
-function rollResonance(
-  def: AffixDef,
-  ctx: GenerateContext,
-  tierFloor: number,
-  rng: Rng,
-): RolledAffix {
-  const rolled = rollAffix(def, ctx.ilvl, tierFloor, rng);
+function rollResonance(def: AffixDef, ilvl: number, tierFloor: number, rng: Rng): RolledAffix {
+  const rolled = rollAffix(def, ilvl, tierFloor, rng);
   return { ...rolled, params: { region: rng.pick(RESONANCE_REGIONS) } };
 }
 
@@ -226,4 +187,65 @@ function rollResonance(
 export function meetsRequirement(base: ItemBase, stats: Readonly<Record<string, number>>): boolean {
   if (!base.requirement) return true;
   return (stats[base.requirement.stat] ?? 0) >= base.requirement.value;
+}
+
+/**
+ * 詞を、目標の数になるまで付け足す。existing は残す詞（封印した詞・すでにある詞）で、数に含める。
+ * 部位の枠の上限・重複・職詞・系統詞の規則は、アイテムの生成と同じ。
+ */
+export function fillAffixes(
+  data: GenerationData,
+  base: ItemBase,
+  rarity: Rarity,
+  ilvl: number,
+  target: number,
+  ctx: Pick<GenerateContext, "tierFloor" | "job" | "enemyFamily">,
+  rng: Rng,
+  existing: readonly RolledAffix[],
+  biasJob = false,
+): RolledAffix[] {
+  const tierFloor = ctx.tierFloor ?? 5;
+  const affixes: RolledAffix[] = [...existing];
+  if (target <= 0) return affixes;
+  const cap = affixCapacity(base, rarity);
+  const count = { prefix: 0, suffix: 0, belt: 0 };
+  const used = new Set<string>();
+  const countOf = (def: AffixDef): void => {
+    if (def.beltSlot === true) count.belt++;
+    else if (def.position === "prefix") count.prefix++;
+    else count.suffix++;
+  };
+  for (const a of affixes) {
+    used.add(a.id);
+    const def = data.affixes.find((d) => d.id === a.id);
+    if (def) countOf(def);
+  }
+  // 共鳴紋が確定のベース
+  const forced =
+    base.guaranteedResonance === true && !used.has("AFX-SUF-RESONANCE")
+      ? data.affixes.find((a) => a.resonance === true)
+      : undefined;
+  if (forced) {
+    affixes.push(rollResonance(forced, ilvl, tierFloor, rng));
+    used.add(forced.id);
+    count.suffix++;
+  }
+  const gctx = { ...ctx, ilvl, uid: () => "" } as GenerateContext;
+  while (affixes.length < target) {
+    const list = candidates(data, base, used, cap, count, gctx, biasJob);
+    if (list.length === 0) break;
+    const chosen = list[rng.weightedIndex(list.map((c) => c.weight))] as {
+      def: AffixDef;
+      weight: number;
+    };
+    const def = chosen.def;
+    affixes.push(
+      def.resonance === true
+        ? rollResonance(def, ilvl, tierFloor, rng)
+        : rollAffix(def, ilvl, tierFloor, rng),
+    );
+    used.add(def.id);
+    countOf(def);
+  }
+  return affixes;
 }

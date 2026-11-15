@@ -1,7 +1,7 @@
 /**
  * MVPのアイテムのデータ：下級のベース（補助仕様書 14章）と、詞（本仕様書 3.6）。数値は仮値。
  */
-import type { AffixDef, ArmorType, ItemBase, Slot } from "@stella/core";
+import type { AffixDef, ArmorType, Inscription, ItemBase, Slot } from "@stella/core";
 
 const w = (
   id: string,
@@ -422,3 +422,56 @@ export const IMPLICIT_STATS: Readonly<Record<string, Readonly<Record<string, num
   "BASE-ACC-BELT-LEATHER-T1": { 薬瓶の回復量: 0.15 },
   "BASE-ACC-BELT-CHAIN-T1": { 防具値増加: 0.15, 移動速度: -0.02 },
 };
+
+/** 亀裂（小さなマイナスの詞。本仕様書 3.11.1）。クラフトの負荷が60以上のときの操作で付くことがある */
+export const CRACK_AFFIXES: readonly AffixDef[] = [
+  {
+    id: "AFX-CRK-MOVE",
+    name: "亀裂：移動速度",
+    position: "suffix",
+    slots: [],
+    weight: 1,
+    t7: range(-3, -3),
+    t4: range(-3, -3),
+    stat: "移動速度",
+  },
+  {
+    id: "AFX-CRK-HP",
+    name: "亀裂：最大HP",
+    position: "prefix",
+    slots: [],
+    weight: 1,
+    t7: range(-8, -4),
+    t4: range(-8, -4),
+    stat: "最大HP",
+  },
+  {
+    id: "AFX-CRK-ATKSPD",
+    name: "亀裂：攻撃速度",
+    position: "suffix",
+    slots: [],
+    weight: 1,
+    t7: range(-2, -1),
+    t4: range(-2, -1),
+    stat: "攻撃速度",
+  },
+  {
+    id: "AFX-CRK-FIRE",
+    name: "亀裂：火耐性",
+    position: "suffix",
+    slots: [],
+    weight: 1,
+    t7: range(-5, -3),
+    t4: range(-5, -3),
+    stat: "火耐性",
+  },
+];
+
+/** 銘（+10で刻める。3つの候補から1つ選ぶ。本仕様書 3.9） */
+export const INSCRIPTIONS: readonly Inscription[] = [
+  { id: "INS-MAXHP", name: "最大HP+3%", stat: "最大HP増加%", value: 0.03 },
+  { id: "INS-DURATION", name: "状態異常の持続+8%", stat: "状態異常の持続増加%", value: 0.08 },
+  { id: "INS-BREAK", name: "崩し値+10%", stat: "崩し値", value: 0.1 },
+  { id: "INS-CRIT", name: "会心率+3%", stat: "会心率増加%", value: 0.03 },
+  { id: "INS-MOVE", name: "移動速度+2%", stat: "移動速度", value: 0.02 },
+];

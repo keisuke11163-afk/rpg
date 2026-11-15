@@ -4,6 +4,19 @@ import {
   AttackRunner,
   AutoSaver,
   ConditionRegistry,
+  MATERIAL,
+  awaken,
+  carve,
+  disassemble,
+  disassembleYield,
+  enhance,
+  eyeOpen,
+  inscribe,
+  offerInscriptions,
+  reroll,
+  seal,
+  tune,
+  type Inscription,
   DiscoveryTracker,
   activeLatents,
   boardFlags,
@@ -64,6 +77,7 @@ import {
 } from "@stella/core";
 import {
   BOARD_DATA,
+  CRAFT_DATA,
   UNIQUE_DATA,
   UNIQUES,
   JOB_BOARDS,
@@ -154,6 +168,8 @@ export class PlayScene extends Phaser.Scene {
   private jobPoints = 0;
   /** 潜在効果の発見（「？？？」の解放）。セーブの discoveries に保存する */
   private readonly discoveries = new DiscoveryTracker();
+  private smithLog = "";
+  private inscriptionOffer: Inscription[] = [];
   private notice = "";
   private noticeLeft = 0;
   private lastPos = { x: 0, y: 0 };
@@ -185,7 +201,7 @@ export class PlayScene extends Phaser.Scene {
   private progression = new Progression(createStandardJobs(), "JOB-WARRIOR");
   private slot = 1;
   /** 開いている画面（I：持ち物、C：キャラクター） */
-  private panel: "none" | "inventory" | "character" | "star" | "job" = "none";
+  private panel: "none" | "inventory" | "character" | "star" | "job" | "smith" = "none";
   private panelCursor = 0;
   private panelText!: Phaser.GameObjects.Text;
   private panelTip!: Phaser.GameObjects.Text;
@@ -628,6 +644,11 @@ export class PlayScene extends Phaser.Scene {
     if (jp.has("KeyC")) this.panel = this.panel === "character" ? "none" : "character";
     if (jp.has("KeyT")) this.panel = this.panel === "star" ? "none" : "star";
     if (jp.has("KeyJ")) this.panel = this.panel === "job" ? "none" : "job";
+    if (jp.has("KeyB")) this.panel = this.panel === "smith" ? "none" : "smith";
+    if (jp.has("KeyM")) {
+      // 開発用：クラフト素材を100ずつ入れる
+      for (const id of Object.values(MATERIAL)) this.purse.addMaterial(id, 100);
+    }
     if (jp.has("KeyU")) {
       // 開発用：ユニークを持ち物に入れる（Uキーで順番に）
       const entry = UNIQUES[this.uniqueCursor++ % UNIQUES.length];
@@ -657,7 +678,12 @@ export class PlayScene extends Phaser.Scene {
     this.panelTip.setVisible(open);
     if (!open) return false;
 
-    if (this.panel === "star" || this.panel === "job") return this.updateStarPanel();
+    if (this.panel === "star" || this.panel === "job") {
+      this.panelText.setWordWrapWidth(1200);
+      return this.updateStarPanel();
+    }
+    this.panelText.setWordWrapWidth(this.panel === "smith" ? 290 : 1200);
+    if (this.panel === "smith") return this.updateSmithPanel();
     this.panelText.setPosition(30, 30);
     this.panelTip.setPosition(330, 30);
     const stats = this.job.startingStats;
@@ -709,6 +735,86 @@ export class PlayScene extends Phaser.Scene {
         dual,
         new Set(this.discoveries.all()),
       ),
+    );
+    return true;
+  }
+
+  /** 鍛冶屋の画面：持ち物から選んだ装備を、強化・分解・素材で加工する（数字キー） */
+  private updateSmithPanel(): boolean {
+    const jp = this.justPressed;
+    this.panelText.setPosition(30, 30);
+    this.panelTip.setPosition(330, 30);
+    const items = this.bag.items();
+    const move = (jp.has("ArrowDown") ? 1 : 0) - (jp.has("ArrowUp") ? 1 : 0);
+    this.panelCursor = Math.max(0, Math.min(items.length - 1, this.panelCursor + move));
+    const it = items[this.panelCursor];
+    const base = it ? GEAR_DATA.bases.get(it.baseId) : undefined;
+    const rng = this.rng;
+    const keyOp: [string, () => { ok: boolean; reason?: string } | undefined][] = [
+      ["Digit1", () => (it ? enhance(it, this.purse) : undefined)],
+      [
+        "Digit2",
+        () => {
+          if (!it) return undefined;
+          if (this.inscriptionOffer.length === 0) {
+            this.inscriptionOffer = offerInscriptions(CRAFT_DATA, rng);
+            return { ok: false, reason: "銘の候補を出した（Q/W/Eで選ぶ）" };
+          }
+          return undefined;
+        },
+      ],
+      [
+        "Digit3",
+        () => {
+          if (!it) return undefined;
+          const gained = disassembleYield(it);
+          disassemble(it.uid, this.bag, this.purse);
+          return { ok: true, reason: `分解：${JSON.stringify(gained)}` };
+        },
+      ],
+      ["Digit4", () => (it && base ? awaken(it, base, CRAFT_DATA, this.purse, rng) : undefined)],
+      ["Digit5", () => (it && base ? eyeOpen(it, base, CRAFT_DATA, this.purse, rng) : undefined)],
+      ["Digit6", () => (it && base ? reroll(it, base, CRAFT_DATA, this.purse, rng) : undefined)],
+      ["Digit7", () => (it ? tune(it, 0, CRAFT_DATA, this.purse, rng) : undefined)],
+      ["Digit8", () => (it ? carve(it, CRAFT_DATA, this.purse, rng) : undefined)],
+      ["Digit9", () => (it ? seal(it, 0, CRAFT_DATA, this.purse, rng) : undefined)],
+    ];
+    for (const [key, run] of keyOp) {
+      if (!jp.has(key)) continue;
+      const r = run();
+      if (r) {
+        this.smithLog = r.ok
+          ? `${key.slice(5)}：成功`
+          : `${key.slice(5)}：できない（${r.reason ?? ""}）`;
+        if (r.ok) {
+          this.applyGear();
+          if (this.autoSaver.onEvent("craft")) void this.autoSave();
+        }
+      }
+    }
+    // 銘：Q/W/E で候補から選ぶ
+    const pick = ["KeyQ", "KeyW", "KeyE"].findIndex((k) => jp.has(k));
+    const choice = this.inscriptionOffer[pick];
+    if (it && pick >= 0 && choice) {
+      const r = inscribe(it, choice);
+      this.smithLog = r.ok ? `銘「${choice.name}」を刻んだ` : `銘：できない（${r.reason ?? ""}）`;
+      if (r.ok) this.inscriptionOffer = [];
+      this.applyGear();
+    }
+    const material = (id: string): number => this.purse.material(id);
+    this.panelText.setText(
+      `【鍛冶屋】魔塵${String(material(MATERIAL.magicDust))} 星砂${String(material(MATERIAL.starSand))} 目覚め${String(material(MATERIAL.awakeningDust))} 開眼${String(material(MATERIAL.eyeOpeningCrystal))} 転詞${String(material(MATERIAL.turnStone))} 音叉${String(material(MATERIAL.tuningFork))} 削詞${String(material(MATERIAL.carvingBlade))} 封詞${String(material(MATERIAL.sealWax))} 核${String(material(MATERIAL.bossCoreCh1))}\n↑↓ 装備を選ぶ / 1 強化 2 銘 3 分解 4 目覚め 5 開眼 6 転詞 7 調律(先頭) 8 削詞 9 封詞(先頭) / M 素材+100(開発用) / B 閉じる\n${this.smithLog}\n\n${items
+        .map(
+          (e, i) =>
+            `${i === this.panelCursor ? "▶" : " "}${entryLabel({ item: e, equipped: false }, GEAR_DATA)} +${String(e.enhance)} 負荷${String(e.strain ?? 0)}${(e.fractures?.length ?? 0) > 0 ? " 亀裂" : ""}`,
+        )
+        .slice(0, 18)
+        .join("\n")}`,
+    );
+    this.panelTip.setText(
+      it
+        ? `${tooltipText({ item: it, equipped: false }, GEAR_DATA, this.equipment, this.job.startingStats, this.job.id, false, new Set(this.discoveries.all()))}${this.inscriptionOffer.length > 0 ? `\n── 銘の候補 ──\n${this.inscriptionOffer.map((o, i) => `${"QWE"[i] ?? ""}: ${o.name}`).join("\n")}` : ""}`
+        : "",
     );
     return true;
   }

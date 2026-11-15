@@ -86,6 +86,8 @@ export interface AffixDef {
 export interface RolledAffix {
   id: string;
   tier: number;
+  /** 封印している（次の1回のクラフト操作から守られる。本仕様書 3.10 封詞の蝋） */
+  sealed?: boolean;
   /** 抽選の結果。追加ダメージは [最小, 最大]、他は [値] */
   rolls: number[];
   /** 共鳴紋の星域など */
@@ -102,6 +104,14 @@ export interface ItemInstance {
   enhance: number;
   /** ユニーク・セットの固有効果のID（U-16） */
   uniqueId?: string;
+  /** 鍛造負荷 0〜100（本仕様書 3.11.1）。なければ0 */
+  strain?: number;
+  /** 亀裂（小さなマイナスの詞）。繕いの糸で消せる */
+  fractures?: RolledAffix[];
+  /** 銘（+10で刻める小さな追加効果）のID */
+  inscription?: string;
+  /** これまでに封詞の蝋を使った回数（2個目以降は負荷+15） */
+  sealsUsed?: number;
 }
 
 /** 詞のtier：T7（iLv1）、T6（12）、T5（25）、T4（38）、… */
@@ -115,3 +125,12 @@ export const TIER_MIN_ILVL: Readonly<Record<number, number>> = {
   1: 80,
   0: 90,
 };
+
+/** 銘（+10で刻める、3つの候補から選ぶ小さな追加効果。本仕様書 3.9） */
+export interface Inscription {
+  id: string;
+  name: string;
+  /** 効果の対象（能力値の名前）と値（比） */
+  stat: string;
+  value: number;
+}

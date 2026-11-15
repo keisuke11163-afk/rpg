@@ -14,6 +14,7 @@ const levelState = z.strictObject({ level: z.number().int().min(1), exp: z.numbe
 const rolledAffix = z.strictObject({
   id: z.string(),
   tier: z.number().int(),
+  sealed: z.boolean().optional(),
   rolls: z.array(z.number()),
   params: z.record(z.string(), z.string()).optional(),
 });
@@ -26,6 +27,11 @@ export const savedItemSchema = z.strictObject({
   affixes: z.array(rolledAffix),
   enhance: z.number().int().min(0),
   uniqueId: z.string().optional(),
+  /** クラフト：鍛造負荷・亀裂・銘・封詞の蝋を使った回数（本仕様書 3.11.1） */
+  strain: z.number().int().min(0).max(100).optional(),
+  fractures: z.array(rolledAffix).optional(),
+  inscription: z.string().optional(),
+  sealsUsed: z.number().int().min(0).optional(),
 });
 
 const equipSlot = z.enum(["主手", "副手", "頭", "胴", "手", "足", "腰", "首", "指輪1", "指輪2"]);

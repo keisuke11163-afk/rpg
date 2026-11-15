@@ -19,6 +19,14 @@ export const MATERIAL = {
   sealWax: "MAT-SEAL-WAX",
   returnLamp: "MAT-RETURN-LAMP",
   beastFang: "MAT-BEAST-FANG",
+  /** 分解で得る素材（本仕様書 3.10） */
+  magicDust: "MAT-MAGIC-DUST",
+  starSand: "MAT-STAR-SAND",
+  radiance: "MAT-RADIANCE",
+  /** 章ボスの核（強化+10に使う。第1章の母樹から） */
+  bossCoreCh1: "MAT-BOSS-CORE-CH1",
+  /** 亀裂を消す（回廊の素材。MVPでは入手手段なし） */
+  mendingThread: "MAT-MENDING-THREAD",
 } as const;
 
 /** 素材の入手率（補助仕様書 12.2）。数値は確率、"1" は確定1個 */
