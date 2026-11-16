@@ -14,8 +14,10 @@ pnpm install
 pnpm dev          # 開発サーバー（http://localhost:5173/）
 pnpm check        # 型の検査・リント・整形・テスト・データの検証・ビルド・仮実装の一覧（ブランチを完了させる前に必ず実行）
 pnpm smoke        # ビルドしたゲームをブラウザで開いて起動を確かめ、artifacts/smoke/ に撮影する（Playwright が必要）
-pnpm e2e          # 開発サーバーで、実際のキー・マウスの入力で操作を確かめる（Playwright が必要）
+pnpm e2e          # 開発サーバーで、実際のキー・マウスの入力（と、タッチの端末を真似た指の入力）で操作を確かめる（Playwright が必要）
 ```
+
+スマホで試すには、PC とスマホを同じ LAN につなぎ、`pnpm dev --host` で開発サーバーを LAN に公開して、表示される `Network:` の URL（例 `http://192.168.x.x:5173/`）をスマホのブラウザで開く（横向き専用。操作は docs/progress/sessions/hud-and-feel.md の「スマホ操作」）。
 
 ## 構成
 

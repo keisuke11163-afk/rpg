@@ -9,6 +9,10 @@
  * - 左下：HP・MP・気力・職能ゲージの棒
  * - 下中央：技の枠6つと薬瓶。その上に効果・状態異常の札、さらに上に近くの物の案内
  * - 右下：小さな地図（ArenaScene が描く。ここでは何も置かない）
+ *
+ * スマホ（タッチ）の表示のとき（docs/progress TOUCH-2）は、左下・右下にスティックとボタンが来るので、
+ * 棒を左上（地域名・Lv の下）、効果の札をその下、小さな地図を右上、セーブの状態を地図の下、近くの物の案内を
+ * 下中央に置き、下中央の技の枠は出さない（技のボタンが代わり）。配置の表は HUD_PLACES（PC とタッチの2つ）。
  */
 import Phaser from "phaser";
 import { text } from "@stella/content";
@@ -40,6 +44,48 @@ export const HUD_LAYOUT = {
   boss: { width: 280, y: 4 },
 } as const;
 
+/** HUD の配置の種類：pc＝キーボード・マウス、touch＝スマホ（タッチの操作部が左下・右下に出る）。 */
+export type HudLayoutKind = "pc" | "touch";
+
+/**
+ * 配置の表（PC とタッチ。画面のピクセル）。PC の値は前と同じ（PC の画面は変えない）。
+ * - vitalsTop：HP などの棒の1本目の上端
+ * - chips：効果の札の位置（aboveSkills＝技の枠の上。数なら、その位置から右へ）
+ * - prompt：近くの物の案内の下端（aboveChips＝札の上）
+ * - save：セーブの状態の右上
+ * - skills：下中央の技の枠を出すか
+ */
+export const HUD_PLACES: Readonly<
+  Record<
+    HudLayoutKind,
+    {
+      readonly vitalsTop: number;
+      readonly chips:
+        "aboveSkills" | { readonly x: number; readonly y: number; readonly maxX: number };
+      readonly prompt: "aboveChips" | number;
+      readonly save: { readonly x: number; readonly y: number };
+      readonly skills: boolean;
+    }
+  >
+> = {
+  pc: {
+    vitalsTop: H - 8 - HUD_LAYOUT.vitals.rows * HUD_LAYOUT.vitals.row,
+    chips: "aboveSkills",
+    prompt: "aboveChips",
+    save: { x: W - 8, y: HUD_LAYOUT.top.y },
+    skills: true,
+  },
+  // 仮値: タッチの配置（docs/progress D-TOUCH-2）。棒は Lv・ジョブLv の下、札はその下（左スティックの範囲の上の端）、
+  // 案内は下中央（左右の操作部の間）、セーブの状態は右上の地図（MINIMAP_TOUCH）の下
+  touch: {
+    vitalsTop: 54,
+    chips: { x: 8, y: 102, maxX: 330 },
+    prompt: H - 8,
+    save: { x: W - 8, y: 76 },
+    skills: false,
+  },
+};
+
 /** 技の枠の左端（下中央に、技の枠6つと薬瓶2つを並べる）。 */
 function skillBarX(): number {
   const s = HUD_LAYOUT.skills;
@@ -66,7 +112,7 @@ const COLOR = {
   stagger: 0xffd166,
 } as const;
 
-const SLOT_BORDER: Readonly<Record<HudSkillSlot["state"], number>> = {
+export const SLOT_BORDER: Readonly<Record<HudSkillSlot["state"], number>> = {
   ready: 0x8c88a0,
   cooldown: 0x4a4858,
   mp: 0x6fa8ff,
@@ -77,7 +123,7 @@ const SLOT_BORDER: Readonly<Record<HudSkillSlot["state"], number>> = {
   empty: 0x2e2d38,
 };
 /** 使えない理由ごとの、枠に重ねる色（CD・空きは別に描く）。 */
-const SLOT_TINT: Readonly<Partial<Record<HudSkillSlot["state"], number>>> = {
+export const SLOT_TINT: Readonly<Partial<Record<HudSkillSlot["state"], number>>> = {
   mp: 0x2a4f9a,
   gauge: 0x8a4a12,
   target: 0x3a3846,
@@ -106,6 +152,8 @@ export interface HudRenderOptions {
   readonly bigMap: boolean;
   /** シーンの時刻（ミリ秒。点滅・表示の時間に使う）。 */
   readonly now: number;
+  /** 配置の種類（初期は pc）。 */
+  readonly layout?: HudLayoutKind;
 }
 
 /** 戦闘画面の HUD。 */
@@ -144,6 +192,8 @@ export class Hud {
   private lastNow = 0;
   /** 今の配置：full＝通常、strip＝画面を開いている間の下の帯（開発用の確認 snapshot が返す）。 */
   private mode: "full" | "strip" = "full";
+  /** 今の配置の種類（開発用の確認 snapshot が返す）。 */
+  private layout: HudLayoutKind = "pc";
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -244,6 +294,7 @@ export class Hud {
   /** 開発用の確認：今の配置と、主な部品の表示（pnpm e2e が見る）。 */
   snapshot(): {
     mode: "full" | "strip";
+    layout: HudLayoutKind;
     regionVisible: boolean;
     skillKeysVisible: number;
     vitalLabelY: number;
@@ -251,6 +302,7 @@ export class Hud {
   } {
     return {
       mode: this.mode,
+      layout: this.layout,
       regionVisible: this.region.visible,
       skillKeysVisible: this.slotKeys.filter((t) => t.visible).length,
       vitalLabelY: this.vitalLabels[0]?.y ?? 0,
@@ -262,23 +314,39 @@ export class Hud {
     const dt = Math.max(0, o.now - this.lastNow) / 1000;
     this.lastNow = o.now;
     const g = this.g.clear();
+    this.layout = o.layout ?? "pc";
+    const place = HUD_PLACES[this.layout];
     this.renderEdge(m, o.now);
+    this.save.setPosition(place.save.x, place.save.y);
     this.renderSave(m.saveStatus, o.now);
     const full = !o.panelOpen;
     this.mode = full ? "full" : "strip";
     // 画面を開いている間：HPなどの棒だけを、画面の下の帯（画面の外）に横に並べる
     if (o.panelOpen) this.renderVitalsStrip(g, m, o.now);
-    else this.renderVitals(g, m, o.now);
+    else this.renderVitals(g, m, o.now, place.vitalsTop);
     this.setVisible(full);
     if (!full) return;
     this.renderTop(g, m);
     this.renderBoss(g, m, dt);
-    this.renderSkills(g, m.skills, m.flasks);
-    const chipsTop = this.renderEffects(g, m.effects);
+    if (place.skills) this.renderSkills(g, m.skills, m.flasks);
+    else this.hideSkills();
+    const chipsTop = this.renderEffects(g, m.effects, place.chips);
     this.prompt
       .setText(m.prompt ?? "")
       .setVisible(m.prompt !== undefined && !o.bigMap)
-      .setY(chipsTop - 3);
+      .setY(place.prompt === "aboveChips" ? chipsTop - 3 : place.prompt);
+  }
+
+  /** 下中央の技の枠の文字を隠す（タッチの表示。技のボタンが代わり）。 */
+  private hideSkills(): void {
+    for (const list of [
+      this.slotKeys,
+      this.slotNames,
+      this.slotCds,
+      this.flaskKeys,
+      this.flaskCounts,
+    ])
+      for (const t of list) t.setVisible(false);
   }
 
   /** 全体の表示を切り替える（画面を開いている間の、下の帯の棒は別）。 */
@@ -393,10 +461,14 @@ export class Hud {
     return [m.vitals.hp, m.vitals.mp, m.vitals.stamina, m.vitals.gauge];
   }
 
-  /** 左下：HP・MP・気力・職能ゲージ。 */
-  private renderVitals(g: Phaser.GameObjects.Graphics, m: HudModel, now: number): void {
+  /** 左下（タッチの表示では左上）：HP・MP・気力・職能ゲージ。top は1本目の上端。 */
+  private renderVitals(
+    g: Phaser.GameObjects.Graphics,
+    m: HudModel,
+    now: number,
+    top: number,
+  ): void {
     const L = HUD_LAYOUT.vitals;
-    const top = H - 8 - L.rows * L.row;
     // 読みやすいように、薄い下敷き
     g.fillStyle(COLOR.panel, 0.55).fillRect(
       L.x - 4,
@@ -600,12 +672,16 @@ export class Hud {
     g.fillStyle(0xc9c6d6, 0.9).fillRect(x, y + 3, 6, 4);
   }
 
-  /** 技の枠の上：効果・状態異常の札。返り値は札の上端（その上に案内を置く）。 */
-  private renderEffects(g: Phaser.GameObjects.Graphics, effects: readonly HudEffect[]): number {
+  /** 技の枠の上（タッチの表示では左上の棒の下）：効果・状態異常の札。返り値は札の上端（その上に案内を置く）。 */
+  private renderEffects(
+    g: Phaser.GameObjects.Graphics,
+    effects: readonly HudEffect[],
+    place: (typeof HUD_PLACES)[HudLayoutKind]["chips"],
+  ): number {
     const C = HUD_LAYOUT.chips;
-    const y = SKILL_Y - 3 - C.height;
-    const xMax = MINIMAP.x - 6;
-    let x = skillBarX();
+    const y = place === "aboveSkills" ? SKILL_Y - 3 - C.height : place.y;
+    const xMax = place === "aboveSkills" ? MINIMAP.x - 6 : place.maxX;
+    let x = place === "aboveSkills" ? skillBarX() : place.x;
     let shown = 0;
     effects.forEach((e, i) => {
       const t = this.chip(i);

@@ -8,6 +8,7 @@ import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { PANEL, cellPosition } from "../src/ui/panel-layout.ts";
+import { type TouchBrowser, runPcTouchAbsentCheck, runTouchChecks } from "./e2e-touch.ts";
 
 interface Mouse {
   move(x: number, y: number, options?: { steps: number }): Promise<void>;
@@ -317,6 +318,7 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const outDir = fileURLToPath(new URL("../../../artifacts/e2e/", import.meta.url));
 const subDir = fileURLToPath(new URL("../../../artifacts/e2e-subjob/", import.meta.url));
 const jobDir = fileURLToPath(new URL("../../../artifacts/e2e-jobboard/", import.meta.url));
+const touchDir = fileURLToPath(new URL("../../../artifacts/e2e-touch/", import.meta.url));
 mkdirSync(outDir, { recursive: true });
 mkdirSync(subDir, { recursive: true });
 mkdirSync(jobDir, { recursive: true });
@@ -403,6 +405,8 @@ try {
       !hud0.debugHud,
     `キー ${hud0.model?.skills.map((x) => x.keyLabel).join() ?? "なし"}・薬瓶 ${hud0.model?.flasks.map((x) => x.keyLabel).join() ?? "なし"}・詳しい情報 ${String(hud0.debugVisible)}`,
   );
+  // スマホ（タッチ）の操作部は、タッチでない端末（この文脈）では出ない（docs/progress TOUCH-5）
+  await runPcTouchAbsentCheck(page as never, check);
   const hazard = (): Promise<HazardState> =>
     page.evaluate(() => (window as unknown as DebugWindow).__STELLA_DEBUG__.hazard());
 
@@ -2212,6 +2216,14 @@ try {
       );
     }
   }
+  // スマホ（タッチ）の操作（タッチの端末を真似た別の文脈。docs/progress TOUCH-5）
+  await runTouchChecks(
+    browser as unknown as TouchBrowser,
+    "http://localhost:5174/",
+    touchDir,
+    check,
+    errors,
+  );
 } finally {
   await browser.close();
   await server.close();

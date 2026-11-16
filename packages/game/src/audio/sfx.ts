@@ -211,6 +211,8 @@ export class SfxPlayer {
   private readonly triggeredCounts = zeroCounts();
   private readonly playedCounts = zeroCounts();
   private readonly isHidden: () => boolean;
+  /** 一時停止している（縦持ちの間など。docs/progress TOUCH-4）。止めている間は鳴らさず、動かさない。 */
+  private paused = false;
 
   /** @param isHidden タブが隠れているか（隠れている間は鳴らさない）。 */
   constructor(isHidden: () => boolean = () => typeof document !== "undefined" && document.hidden) {
@@ -241,11 +243,27 @@ export class SfxPlayer {
    */
   unlock(): void {
     const ctx = this.context;
-    if (ctx?.state !== "suspended") return;
+    if (this.paused || ctx?.state !== "suspended") return;
     try {
       ctx.resume().catch(() => undefined);
     } catch {
       // 動かせない環境では何もしない
+    }
+  }
+
+  /**
+   * 一時停止する・やめる（縦持ちの間はゲームを止めるので、音も止める）。AudioContext を suspend・resume する。
+   * 例外を投げない。
+   */
+  setPaused(paused: boolean): void {
+    if (paused === this.paused) return;
+    this.paused = paused;
+    const ctx = this.context;
+    if (ctx === undefined) return;
+    try {
+      (paused ? ctx.suspend() : ctx.resume()).catch(() => undefined);
+    } catch {
+      // 止められない環境では何もしない
     }
   }
 
@@ -265,7 +283,7 @@ export class SfxPlayer {
       this.triggeredCounts[key] += 1;
       // 音量0なら何も作らない。止まっている（自動再生の制限・タブを離れた）・隠れている間も捨てる
       const ctx = this.context;
-      if (this.volume <= 0 || ctx?.state !== "running" || this.isHidden()) continue;
+      if (this.volume <= 0 || this.paused || ctx?.state !== "running" || this.isHidden()) continue;
       try {
         this.synth(ctx, SFX_DEFS[key]);
         this.playedCounts[key] += 1;

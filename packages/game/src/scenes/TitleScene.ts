@@ -10,6 +10,7 @@ import {
 import { loadGameContent, text, type TextKey } from "@stella/content";
 import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
+import { isTouchPrimaryDevice } from "../page-shell.ts";
 import { LocalStorageBackend } from "../save/LocalStorageBackend.ts";
 import { fill } from "../ui/hud-model.ts";
 import { newCharacterProfile, testStartProfile } from "./arena-simulation.ts";
@@ -71,8 +72,15 @@ export class TitleScene extends Phaser.Scene {
       edge.setVisible(on);
       t.setColor(on ? "#ffffff" : color);
     };
+    // スマホ（タッチ）の端末では、押せる範囲をホバーの帯と同じ広さにする（指で押し分けやすく。docs/progress TOUCH-3）
+    if (isTouchPrimaryDevice())
+      t.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(-6, -3, Math.max(260, t.width + 16), t.height + 6),
+        hitAreaCallback: (area: Phaser.Geom.Rectangle, x: number, y: number) => area.contains(x, y),
+        useHandCursor: true,
+      });
+    else t.setInteractive({ useHandCursor: true });
     t.setDepth(1)
-      .setInteractive({ useHandCursor: true })
       .on("pointerdown", run)
       .on("pointerover", () => {
         hover(true);

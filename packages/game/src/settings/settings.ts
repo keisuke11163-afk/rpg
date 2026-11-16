@@ -4,6 +4,7 @@
  * （docs/progress D-UI-2）。Phaser に依存しない。
  */
 import { ACTIONS, type Action, type Binding, DEFAULT_BINDINGS } from "../input/actions.ts";
+import { TOUCH_SETTINGS, type TouchSetting } from "../input/touch-controls.ts";
 
 /** 画面の拡大率：fit＝画面に合わせる（整数倍とは限らない）・数＝その整数倍で表示する。 */
 export const SCALES = ["fit", 1, 2, 3] as const;
@@ -18,6 +19,11 @@ export interface Settings {
   readonly scale: ScaleSetting;
   /** 詳しい情報（開発用の文字の HUD）を出すか（端末ごと。初期は出さない。docs/progress D-HUD-1）。 */
   readonly debugHud: boolean;
+  /**
+   * スマホ（タッチ）の操作部の表示（端末ごと。docs/progress TOUCH-1）：auto＝触れたらタッチの表示・
+   * マウスやキーで PC の表示に戻す、on＝常にタッチ、off＝出さない。
+   */
+  readonly touch: TouchSetting;
 }
 
 /** 整数倍の拡大率が、その大きさの窓に収まるか（収まらない倍率は選べない・効かせない）。 */
@@ -44,7 +50,13 @@ export const DEFAULT_SETTINGS: Settings = {
   volume: 0.8,
   scale: "fit",
   debugHud: false,
+  touch: "auto",
 };
+
+/** タッチの表示の設定の次の値（auto → on → off → auto）。 */
+export function nextTouchSetting(s: TouchSetting): TouchSetting {
+  return TOUCH_SETTINGS[(TOUCH_SETTINGS.indexOf(s) + 1) % TOUCH_SETTINGS.length] ?? "auto";
+}
 
 /** 設定の画面で変えられない行動（Esc：画面を閉じる・設定を開く。変えると戻せなくなるため）。 */
 export const FIXED_ACTIONS: readonly Action[] = ["menu"];
@@ -82,7 +94,9 @@ export function parseSettings(raw: string | null | undefined): Settings {
   const scale = SCALES.find((x) => x === s) ?? "fit";
   // 真偽値でなければ初期値（出さない）
   const debugHud = r["debugHud"] === true;
-  return { version: 1, bindings, volume, scale, debugHud };
+  // 知らない値は初期値（auto）
+  const touch = TOUCH_SETTINGS.find((x) => x === r["touch"]) ?? "auto";
+  return { version: 1, bindings, volume, scale, debugHud, touch };
 }
 
 /** 実際に使う割り当て（初期の割り当てに、変えた分を重ねる）。 */

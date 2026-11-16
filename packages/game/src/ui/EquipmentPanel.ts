@@ -35,6 +35,7 @@ import {
   effectiveBindings,
   keyNameFromCode,
   nextScale,
+  nextTouchSetting,
   rebind,
 } from "../settings/settings.ts";
 import {
@@ -61,7 +62,7 @@ import {
   searchStarNodes,
   toScreen,
 } from "./star-board-view.ts";
-import { type Point, insideArea, panCamera, zoomCamera } from "./board-view.ts";
+import { type Point, insideArea, panCamera, pinchZoomFactor, zoomCamera } from "./board-view.ts";
 import { fill } from "./hud-model.ts";
 import {
   JOB_KIND_ACCENT,
@@ -139,6 +140,19 @@ export interface PanelSnapshot {
   readonly search: { readonly query: string; readonly hits: readonly string[] };
 }
 
+/** 長押し（右クリック）にするまでの時間（ミリ秒）。仮値: docs/progress D-TOUCH-7。 */
+export const TOUCH_LONG_PRESS_MS = 450;
+/** タップ・長押しとみなす、指の動きの上限（画面のピクセル）。仮値: D-TOUCH-7。 */
+const TOUCH_TAP_SLOP = 8;
+/** 長押しを右クリックにする画面（右クリックで別の操作をする画面だけ。商人などでは、長押しで売らない）。 */
+const LONG_PRESS_KINDS: ReadonlySet<PanelKind> = new Set<PanelKind>([
+  "inventory",
+  "character",
+  "starBoard",
+  "jobBoard",
+  "settings",
+]);
+
 /**
  * インベントリ・装備（I）とキャラクター（C）の画面（補助仕様書16章）。
  * - インベントリ：左クリックで装備（武器は主手）、右クリックで副手に装備、装備の部位を左クリックで外す。
@@ -204,6 +218,24 @@ export class EquipmentPanel {
   }[] = [];
   /** キーの割り当てを変える行動（次に押したキー・ボタンにする）。 */
   private capturing: Action | undefined;
+  /** 触れている指（id → 画面の位置。ピンチに使う）。 */
+  private readonly touches = new Map<number, Point>();
+  /** タップか長押しになるかを待っている指（長押しが成立したら long。離したときの左クリックは出さない）。 */
+  private touchTap:
+    | {
+        readonly id: number;
+        readonly x: number;
+        readonly y: number;
+        long: boolean;
+        timer?: Phaser.Time.TimerEvent;
+      }
+    | undefined;
+  /** ドラッグで盤を動かしている指。 */
+  private dragFinger: number | undefined;
+  /** 2本指のピンチ（指の id と、前の指の間の距離）。 */
+  private pinch: { readonly a: number; readonly b: number; dist: number } | undefined;
+  /** タップで選んだ物（もう一度タップすると決める。装備・売る・ノードを取る など。docs/progress D-TOUCH-8）。 */
+  private touchSelected: string | undefined;
 
   constructor(
     scene: Phaser.Scene,
@@ -243,6 +275,11 @@ export class EquipmentPanel {
     this.onTravel = options.onTravel;
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH);
     scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      // 指（タッチ）は別に扱う（タップ＝左クリック・長押し＝右クリック・ピンチで拡大。docs/progress TOUCH-3）
+      if (p.wasTouch) {
+        this.touchDown(p);
+        return;
+      }
       const button = p.button === 2 ? "right" : "left";
       // 割り当てを変える間は、押したマウスのボタンにする
       const capturing = this.capturing;
@@ -257,6 +294,10 @@ export class EquipmentPanel {
       this.click(p.x, p.y, button);
     });
     scene.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+      if (p.wasTouch) {
+        this.touchMove(p);
+        return;
+      }
       const d = this.drag;
       if (d === undefined || !p.isDown) return;
       if (Math.hypot(p.x - d.x, p.y - d.y) > 2) d.moved = true;
@@ -264,14 +305,197 @@ export class EquipmentPanel {
       if (this.kind === "jobBoard") this.jobCamera = cam;
       else this.camera = cam;
     });
-    scene.input.on("pointerup", () => {
+    scene.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      if (p.wasTouch) {
+        this.touchUp(p);
+        return;
+      }
       this.drag = undefined;
+    });
+    scene.input.on("pointerupoutside", (p: Phaser.Input.Pointer) => {
+      if (p.wasTouch) this.touchUp(p);
     });
     // ホイールで拡大・縮小（星辰盤・職紋盤）
     scene.input.on("wheel", (_p: unknown, _o: unknown, _dx: number, dy: number) => {
       if (this.kind === "starBoard" || this.kind === "jobBoard")
         this.zoomBy(dy > 0 ? 1 / 1.15 : 1.15);
     });
+  }
+
+  /** 指の操作の途中の状態を捨てる（画面を開いた・閉じた）。触れている指は覚えたまま（ピンチの数のため）。 */
+  private resetTouch(): void {
+    this.touchTap?.timer?.remove();
+    this.touchTap = undefined;
+    this.pinch = undefined;
+    this.dragFinger = undefined;
+    this.touchSelected = undefined;
+  }
+
+  /** 盤（星辰盤・職紋盤）の画面か。 */
+  private get boardOpen(): boolean {
+    return this.kind === "starBoard" || this.kind === "jobBoard";
+  }
+
+  /** 指が触れた（画面を開いているときだけ操作する）。 */
+  private touchDown(p: Phaser.Input.Pointer): void {
+    if (this.kind === undefined) return;
+    // 離れたのに知らせが来なかった指は忘れる（ピンチ・タップの数を誤らない）
+    for (const id of [...this.touches.keys()])
+      if (this.scene.input.manager.pointers.find((q) => q.id === id)?.isDown !== true)
+        this.touches.delete(id);
+    this.touches.set(p.id, { x: p.x, y: p.y });
+    // キーの割り当てを待っている間に触れたら、やめる（指はキー・マウスのボタンにできない）
+    if (this.capturing !== undefined && this.kind === "settings") {
+      this.capturing = undefined;
+      this.say(text("touch.panel.noCapture"));
+      return;
+    }
+    // 盤で2本目の指：ピンチで拡大・縮小（タップ・ドラッグはやめる）
+    if (this.touches.size === 2 && this.boardOpen) {
+      const [a, b] = [...this.touches.entries()];
+      if (a !== undefined && b !== undefined) {
+        this.touchTap?.timer?.remove();
+        this.touchTap = undefined;
+        this.drag = undefined;
+        this.dragFinger = undefined;
+        this.pinch = { a: a[0], b: b[0], dist: Math.hypot(a[1].x - b[1].x, a[1].y - b[1].y) };
+      }
+      return;
+    }
+    if (this.touches.size > 1) return;
+    // 盤の何も無い所：ドラッグで動かす（今のドラッグと同じ）
+    if (this.startDrag(p.x, p.y)) {
+      this.dragFinger = p.id;
+      return;
+    }
+    const tap: NonNullable<EquipmentPanel["touchTap"]> = { id: p.id, x: p.x, y: p.y, long: false };
+    // 長押し＝右クリック（副手に装備・ノードを返す など）。右クリックで別の操作をする画面だけ
+    if (LONG_PRESS_KINDS.has(this.kind))
+      tap.timer = this.scene.time.delayedCall(TOUCH_LONG_PRESS_MS, () => {
+        if (this.touchTap !== tap) return;
+        tap.long = true;
+        this.hover(tap.x, tap.y);
+        this.touchSelected = undefined;
+        this.click(tap.x, tap.y, "right");
+      });
+    this.touchTap = tap;
+  }
+
+  private touchMove(p: Phaser.Input.Pointer): void {
+    if (!this.touches.has(p.id)) return;
+    this.touches.set(p.id, { x: p.x, y: p.y });
+    const pinch = this.pinch;
+    if (pinch !== undefined) {
+      const a = this.touches.get(pinch.a);
+      const b = this.touches.get(pinch.b);
+      if (a === undefined || b === undefined) return;
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const k = pinchZoomFactor(pinch.dist, dist);
+      if (k !== 1) this.zoomBy(k);
+      pinch.dist = dist;
+      return;
+    }
+    const d = this.drag;
+    if (d !== undefined && this.dragFinger === p.id) {
+      if (Math.hypot(p.x - d.x, p.y - d.y) > 2) d.moved = true;
+      const cam = panCamera(d.cam, p.x - d.x, p.y - d.y);
+      if (this.kind === "jobBoard") this.jobCamera = cam;
+      else this.camera = cam;
+      return;
+    }
+    const tap = this.touchTap;
+    if (tap?.id !== p.id || tap.long) return;
+    if (Math.hypot(p.x - tap.x, p.y - tap.y) <= TOUCH_TAP_SLOP) return;
+    // 動かした：タップ・長押しにしない。盤の上なら、ノードの上から始めてもドラッグにする
+    tap.timer?.remove();
+    this.touchTap = undefined;
+    if (this.boardOpen && insideArea(BOARD_AREA, tap)) {
+      this.drag = {
+        x: tap.x,
+        y: tap.y,
+        cam: this.kind === "jobBoard" ? this.jobCamera : this.camera,
+        moved: true,
+      };
+      this.dragFinger = p.id;
+    }
+  }
+
+  private touchUp(p: Phaser.Input.Pointer): void {
+    this.touches.delete(p.id);
+    if (this.pinch !== undefined && (this.pinch.a === p.id || this.pinch.b === p.id)) {
+      this.pinch = undefined;
+      return;
+    }
+    if (this.dragFinger === p.id) {
+      this.drag = undefined;
+      this.dragFinger = undefined;
+      return;
+    }
+    const tap = this.touchTap;
+    if (tap?.id !== p.id) return;
+    tap.timer?.remove();
+    this.touchTap = undefined;
+    // 取り消された指（touchcancel）・長押しが成立した指は、左クリックを出さない
+    if (tap.long || p.wasCanceled || this.kind === undefined) return;
+    this.tap(tap.x, tap.y);
+  }
+
+  /**
+   * タップ＝左クリック。装備・売る・倉庫へ移す・ノードを取る は、1回目のタップで説明を出し（選ぶ）、
+   * 同じ物をもう一度タップしたら決める（誤操作を減らす。docs/progress D-TOUCH-8）。
+   */
+  tap(x: number, y: number): void {
+    this.hover(x, y);
+    const key = this.confirmKey(x, y);
+    if (key !== undefined && key !== this.touchSelected) {
+      this.touchSelected = key;
+      this.say(text("touch.panel.tapAgain"), TEXT_COLOR.dim);
+      return;
+    }
+    this.touchSelected = undefined;
+    this.click(x, y, "left");
+  }
+
+  /** もう一度のタップで決める物（その画面で左クリックすると取り消しにくい操作をする物）。無ければ undefined。 */
+  private confirmKey(x: number, y: number): string | undefined {
+    const sim = this.sim;
+    if (this.kind === "inventory" || this.kind === "merchant" || this.kind === "stash") {
+      if (this.kind === "stash") {
+        const si = stashCellAt(x, y);
+        if (si !== undefined) {
+          const item = sim.stash.items[si];
+          return item === undefined ? undefined : `stash:${item.uid}`;
+        }
+      }
+      if (this.kind === "merchant" && x >= PANEL.detail.x) return undefined;
+      const t = inventoryTarget(x, y);
+      if (t?.kind === "item") {
+        const item = sim.inventory.items[t.index];
+        return item === undefined ? undefined : `item:${item.uid}`;
+      }
+      if (t?.kind === "slot" && this.kind === "inventory")
+        return sim.equipment.get(t.slot) === undefined ? undefined : `slot:${t.slot}`;
+      return undefined;
+    }
+    if (this.kind === "starBoard") {
+      const r = this.respecRow;
+      if (r !== undefined && x >= BOARD_DETAIL.x && y >= r.y0 && y < r.y1) return undefined;
+      const n = nodeAt(sim.db, this.camera, x, y);
+      return n === undefined ? undefined : `star:${n.id}`;
+    }
+    if (this.kind === "jobBoard") {
+      if (this.jobRows.some((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1))
+        return undefined;
+      const job = this.jobBoardJob();
+      const n = job === undefined ? undefined : jobNodeAt(sim.db, job, this.jobCamera, x, y);
+      return n === undefined ? undefined : `job:${n.id}`;
+    }
+    return undefined;
+  }
+
+  /** 盤の拡大率（開発用の確認。今の画面が職紋盤ならその図、それ以外は星辰盤）。 */
+  get boardZoom(): number {
+    return this.kind === "jobBoard" ? this.jobCamera.zoom : this.camera.zoom;
   }
 
   /** 星辰盤の検索の語を決める（入力欄から。自動の確認でも使う）。見つかった最初のノードに視点を移す。 */
@@ -453,6 +677,7 @@ export class EquipmentPanel {
     this.kind =
       this.kind === kind || (facility && this.sim.region !== undefined) ? undefined : kind;
     this.hovered = undefined;
+    this.resetTouch();
     if (this.kind === "starBoard") this.centerOn(this.sim.starRoot);
     this.jobCameraKey = undefined;
   }
@@ -460,6 +685,7 @@ export class EquipmentPanel {
   close(): void {
     this.kind = undefined;
     this.capturing = undefined;
+    this.resetTouch();
   }
 
   /** 設定の画面の行の位置（自動の確認用。行動の行・音量・拡大率・初期に戻す、の順）。 */
@@ -490,6 +716,7 @@ export class EquipmentPanel {
     if (this.kind === kind) return;
     this.kind = kind;
     this.hovered = undefined;
+    this.resetTouch();
     if (kind === "starBoard") this.centerOn(this.sim.starRoot);
     this.jobCameraKey = undefined;
   }
@@ -1802,6 +2029,30 @@ export class EquipmentPanel {
       });
     }
     let y = y0 + perCol * rowH + 10;
+    // スマホの操作部の表示（docs/progress TOUCH-1）。e2e は後ろから数えて詳しい情報・音量・拡大率・初期に戻すを
+    // 押すので、その前に置く
+    const ty = y;
+    y = this.lines(
+      x0,
+      y,
+      [
+        {
+          text: fill(text("settings.touch"), { state: text(`settings.touch.${s.touch}`) }),
+          color: TEXT_COLOR.normal,
+        },
+      ],
+      colW * 2,
+    );
+    this.settingsRows.push({
+      x0,
+      x1: x0 + colW * 2,
+      y0: ty,
+      y1: y,
+      label: text("settings.touch"),
+      run: () => {
+        host.set({ ...s, touch: nextTouchSetting(s.touch) });
+      },
+    });
     // 詳しい情報（開発用の文字の HUD）の表示（D-HUD-1）。e2e は後ろから数えて音量・拡大率・初期に戻すを押すので、その前に置く
     const dy = y;
     y = this.lines(

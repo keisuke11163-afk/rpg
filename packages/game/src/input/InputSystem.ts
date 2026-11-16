@@ -1,10 +1,22 @@
 import Phaser from "phaser";
 import { ACTIONS, type Action, type Binding, DEFAULT_BINDINGS } from "./actions.ts";
 import type { InputFrame } from "./frame.ts";
+import { type TouchFrame, aimWorldPoint } from "./touch-controls.ts";
 
 export type { InputFrame } from "./frame.ts";
 
-/** キーボード・マウスを読み、行動に変える。 */
+/** タッチの入力を出すもの（TouchControlsView）。タッチの表示でないときは undefined を返す。 */
+export interface TouchSource {
+  frame(): TouchFrame | undefined;
+}
+
+/**
+ * タッチの直後に、ブラウザが真似て出すマウスの出来事を無視する時間（ミリ秒。指で触れたのに左クリックに
+ * ならないように）。
+ */
+const TOUCH_MOUSE_GUARD_MS = 800;
+
+/** キーボード・マウス（とタッチ）を読み、行動に変える。 */
 export class InputSystem {
   private readonly scene: Phaser.Scene;
   private readonly keys = new Map<string, Phaser.Input.Keyboard.Key>();
@@ -15,18 +27,37 @@ export class InputSystem {
   private readonly latched = new Set<string>();
   /** カメラのスクロールに足している揺れのずれ（表示だけ。照準の計算では差し引く。D-HUD-12）。 */
   private readonly viewOffset = { x: 0, y: 0 };
+  /** タッチの入力（無ければキーボード・マウスだけ）。 */
+  private touch: TouchSource | undefined;
+  /** 前の read() のタッチの入力（タッチの表示の間だけ。照準の点に使う）。 */
+  private lastTouch: TouchFrame | undefined;
+  /** 照準の点の基準（プレイヤーの位置。世界の座標・ピクセル）。 */
+  private readonly aimOrigin = { x: 0, y: 0 };
+  /** 最後に指で触れた時刻（performance.now。ミリ秒）。 */
+  private lastTouchAt = -Infinity;
+  /** 1メートルのピクセル数（タッチの照準の点の距離に使う）。 */
+  private readonly pixelsPerMeter: number;
 
   constructor(
     scene: Phaser.Scene,
     bindings: Readonly<Record<Action, readonly Binding[]>> = DEFAULT_BINDINGS,
+    pixelsPerMeter = 16,
   ) {
     this.scene = scene;
+    this.pixelsPerMeter = pixelsPerMeter;
     this.bindings = bindings;
     this.registerKeys();
     // 右クリックはスキルの枠なので、ブラウザのメニューを出さない
     scene.input.mouse?.disableContextMenu();
     // 押したボタンは pointer.button で見る（0＝左、2＝右）。押した瞬間には、ボタンの状態がまだ更新されていないことがあるため
+    // 指（タッチ）はマウスのボタンとして扱わない（触れただけで通常攻撃が出ないように。タッチの操作は
+    // TouchControlsView が行動にする）。タッチの直後にブラウザが真似て出すマウスの出来事も無視する
     scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (pointer.wasTouch) {
+        this.lastTouchAt = performance.now();
+        return;
+      }
+      if (performance.now() - this.lastTouchAt < TOUCH_MOUSE_GUARD_MS) return;
       if (pointer.button === 0) this.latched.add("mouse:left");
       if (pointer.button === 2) this.latched.add("mouse:right");
     });
@@ -77,7 +108,21 @@ export class InputSystem {
   private isDown(b: Binding): boolean {
     if ("key" in b) return this.keys.get(b.key)?.isDown === true;
     const pointer = this.scene.input.activePointer;
+    // 指で触れている間も、マウスのボタンを押したことにはしない
+    if (pointer.wasTouch) return false;
     return b.mouse === "left" ? pointer.leftButtonDown() : pointer.rightButtonDown();
+  }
+
+  /** タッチの入力を足す（undefined で外す）。 */
+  setTouch(source: TouchSource | undefined): void {
+    this.touch = source;
+    this.lastTouch = undefined;
+  }
+
+  /** 照準の点の基準（プレイヤーの位置。世界の座標・ピクセル）。タッチの表示の間、read() の前に毎フレーム呼ぶ。 */
+  setAimOrigin(x: number, y: number): void {
+    this.aimOrigin.x = x;
+    this.aimOrigin.y = y;
   }
 
   /** 今のフレームの入力を読む。1フレームに1回だけ呼ぶ。 */
@@ -92,11 +137,20 @@ export class InputSystem {
     }
     this.latched.clear();
     this.previous = held;
-    const move = {
+    const keyMove = {
       x: (held.has("moveRight") ? 1 : 0) - (held.has("moveLeft") ? 1 : 0),
       y: (held.has("moveDown") ? 1 : 0) - (held.has("moveUp") ? 1 : 0),
     };
-    return { held, pressed, move, pointerWorld: this.pointerWorld() };
+    // タッチの表示の間：タッチの行動を足し、移動はスティック（倒していなければキー）、照準はタッチの照準の点
+    const touch = this.touch?.frame();
+    this.lastTouch = touch;
+    if (touch === undefined)
+      return { held, pressed, move: keyMove, pointerWorld: this.pointerWorld() };
+    // previous（キーボード・マウスの押した瞬間の判定に使う）は変えないよう、別の入れ物に合わせる
+    const allHeld = new Set<Action>([...held, ...touch.held]);
+    for (const a of touch.pressed) pressed.add(a);
+    const move = touch.move.x !== 0 || touch.move.y !== 0 ? touch.move : keyMove;
+    return { held: allHeld, pressed, move, pointerWorld: this.pointerWorld() };
   }
 
   /**
@@ -116,6 +170,10 @@ export class InputSystem {
    * 回転は使っていない。
    */
   pointerWorld(): { x: number; y: number } {
+    // タッチの表示の間：プレイヤーの位置＋照準の向き×距離（カメラにも揺れにも関わらない）
+    const touch = this.lastTouch;
+    if (touch !== undefined)
+      return aimWorldPoint(this.aimOrigin, touch.aim, touch.aimDistance, this.pixelsPerMeter);
     const cam = this.scene.cameras.main;
     const pointer = this.scene.input.activePointer;
     return {

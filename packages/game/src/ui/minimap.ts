@@ -5,6 +5,8 @@
 
 /** 小さな地図の位置（画面のピクセル。内部解像度 640×360 の右下。左上は文字の表示、左下はHPなどの棒）。 */
 export const MINIMAP = { x: 640 - 8 - 96, y: 360 - 8 - 64, width: 96, height: 64 } as const;
+/** スマホ（タッチ）の表示のときの小さな地図の位置（右上。右下には操作部が来るため。docs/progress D-TOUCH-2）。 */
+export const MINIMAP_TOUCH = { x: 640 - 8 - 96, y: 8, width: 96, height: 64 } as const;
 
 export type MinimapMarkKind =
   "player" | "enemy" | "elite" | "boss" | "chest" | "exit" | "exitClosed" | "stone" | "facility";

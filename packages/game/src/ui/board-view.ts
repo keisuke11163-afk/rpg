@@ -118,6 +118,16 @@ export function zoomCamera(
   return { ...cam, zoom: Math.min(range.max, Math.max(range.min, cam.zoom * k)) };
 }
 
+/**
+ * 2本指のピンチで拡大率に掛ける倍率（前の指の間の距離 → 今の距離。docs/progress TOUCH-3）。
+ * 距離が正の有限の数でなければ 1（変えない）。1回に変える量は 0.5〜2 倍に収める（指が重なった・飛んだときに暴れない）。
+ */
+export function pinchZoomFactor(previous: number, current: number): number {
+  if (!(previous > 0) || !(current > 0) || !Number.isFinite(previous) || !Number.isFinite(current))
+    return 1;
+  return Math.min(2, Math.max(0.5, current / previous));
+}
+
 /** 正多角形の頂点（中心 c・外接円の半径 r・最初の頂点の角度 rotation〔ラジアン。0 は右〕）。 */
 export function polygonPoints(sides: number, c: Point, r: number, rotation = 0): Point[] {
   const out: Point[] = [];

@@ -39,7 +39,13 @@ import {
   shortBindingName,
 } from "../ui/hud-model.ts";
 import { itemName } from "../ui/item-text.ts";
-import { BIG_MAP, MINIMAP, type MinimapMarkKind, minimapMarks } from "../ui/minimap.ts";
+import {
+  BIG_MAP,
+  MINIMAP,
+  MINIMAP_TOUCH,
+  type MinimapMarkKind,
+  minimapMarks,
+} from "../ui/minimap.ts";
 import {
   DEFAULT_SETTINGS,
   type Settings,
@@ -54,6 +60,9 @@ import { BOARD_AREA } from "../ui/star-board-view.ts";
 import { exposeDebug } from "../debug.ts";
 import type { Action } from "../input/actions.ts";
 import { type InputFrame, InputSystem } from "../input/InputSystem.ts";
+import { TouchControlsView } from "../input/TouchControlsView.ts";
+import { portraitPaused } from "../page-shell.ts";
+import { ITEM_PICKUP_RADIUS } from "../world/LootField.ts";
 import { EnemyFieldView } from "../world/EnemyFieldView.ts";
 import { LootView } from "../world/LootView.ts";
 import { STONE_SIZE, TEXTURES, playerTextureIn } from "../world/placeholders.ts";
@@ -144,6 +153,8 @@ export class ArenaScene extends Phaser.Scene {
   private lootView!: LootView;
   private showLoot = false;
   private controls!: InputSystem;
+  /** スマホ（タッチ）の操作部（タッチの表示でないときは何も描かない。docs/progress TOUCH-1）。 */
+  private touchView: TouchControlsView | undefined;
   /** 設定（補助仕様書16章。端末ごと。D-UI-2）。 */
   private settings: Settings = DEFAULT_SETTINGS;
   /** M で開く大きな地図を開いているか。 */
@@ -303,7 +314,19 @@ export class ArenaScene extends Phaser.Scene {
       .setDepth(ENTITY_DEPTH.body);
     // 音量・拡大率は端末ごと（localStorage）、キーの割り当てはキャラクターのセーブ（開発計画書6.9）
     this.settings = { ...loadSettings(), bindings: keybindsToBindings(this.sim.keybinds) };
-    this.controls = new InputSystem(this, effectiveBindings(this.settings));
+    this.controls = new InputSystem(this, effectiveBindings(this.settings), PIXELS_PER_METER);
+    // スマホ（タッチ）の操作部。タッチの表示でないとき（PC）は何も描かず、入力にも何も足さない
+    this.touchView = new TouchControlsView(this, {
+      onZoom: (k) => {
+        this.panel.zoomBy(k);
+      },
+      skillRange: (slot) => this.skillRangeOf(slot),
+    });
+    this.touchView.controls.setAim({
+      x: Math.cos(this.sim.motion.facing),
+      y: Math.sin(this.sim.motion.facing),
+    });
+    this.controls.setTouch(this.touchView);
     this.applySettings();
     const keyboard = this.input.keyboard;
     if (keyboard === null) throw new Error("キーボードの入力が使えない");
@@ -342,6 +365,10 @@ export class ArenaScene extends Phaser.Scene {
     });
     this.input.on("pointerdown", () => {
       sfx.unlock();
+    });
+    // 指（タッチ）では、ブラウザが音を許すのは離したとき（touchend）なので、離したときにも動かす
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      if (p.wasTouch) sfx.unlock();
     });
 
     // 棒・地図は世界の絵（敵・プレイヤー）より上、画面（深さ1000）より下
@@ -635,6 +662,8 @@ export class ArenaScene extends Phaser.Scene {
           search: { query: p.search.query, hits: [...p.search.hits] },
           bigMap: this.bigMap,
           sheet: { hp: sim.sheet.maxHp, mp: sim.sheet.maxMp, attackSpeed: sim.sheet.attackSpeed },
+          // 盤（星辰盤・職紋盤）の拡大率（ピンチの確認）
+          zoom: this.panel.boardZoom,
         };
       },
       // HUD（D-HUD-1）：今のビューモデルと、詳しい情報（開発用の文字）を出しているか
@@ -669,6 +698,12 @@ export class ArenaScene extends Phaser.Scene {
       sfx: () => ({ ...sfx.counts(), state: sfx.state, volume: this.settings.volume }),
       // 敵の手応えの表示（ヒットの白い光・撃破で散る図形）を出した回数（このシーンを作ってからの累計）
       fx: () => this.enemyView?.counts() ?? { flashes: 0, bursts: 0 },
+      // スマホ（タッチ）の操作部：表示・配置・押している状態・最後の入力、縦持ちで止めているか
+      touch: () => ({
+        ...(this.touchView?.snapshot() ?? { active: false }),
+        paused: portraitPaused(),
+        layout: this.hudView.snapshot().layout,
+      }),
       // 刻みが0のフレームを再現するため（pnpm e2e）。null で元に戻す
       setFrameDeltaMs: (ms: number | null) => {
         this.debugFrameDeltaMs = ms;
@@ -816,7 +851,10 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   override update(_time: number, deltaMs: number): void {
-    // 入力の取得はフレームごと。保持と刻みへの受け渡しは ArenaSimulation が行う
+    // 入力の取得はフレームごと。保持と刻みへの受け渡しは ArenaSimulation が行う。
+    // タッチの照準の点は、プレイヤーの位置（世界の座標）から作る（カメラ・揺れに関わらない）
+    const at = this.sim.motion.position;
+    this.controls.setAimOrigin(toPixels(at.x), toPixels(at.y));
     const raw = this.controls.read();
     if (raw.pressed.has("inventory")) this.panel.toggle("inventory");
     if (raw.pressed.has("character")) this.panel.toggle("character");
@@ -962,8 +1000,39 @@ export class ArenaScene extends Phaser.Scene {
     return `${k("moveUp")}${k("moveLeft")}${k("moveDown")}${k("moveRight")}移動・マウス照準・${k("dodge")} 回避・${k("inventory")} インベントリ・${k("character")} キャラクター・${k("starBoard")} 星辰盤・Esc 設定`;
   }
 
+  /** 技の枠の射程（メートル。タッチの技のボタンのドラッグの距離の上限。射程の無い技は undefined）。 */
+  private skillRangeOf(slot: string): number | undefined {
+    const l = this.sim.loadout.find((x) => x.action === slot);
+    const def = l === undefined ? undefined : this.sim.db.skills.get(l.skill);
+    if (def === undefined) return undefined;
+    const a = def.action as { readonly range?: number; readonly distance?: number };
+    return a.range ?? a.distance;
+  }
+
+  /** タッチの調べるボタンの文字（近くに調べる物・拾う装備・人形が無ければ undefined）。 */
+  private touchInteractLabel(): string | undefined {
+    const sim = this.sim;
+    if (sim.nearbyInteractable() !== undefined) return text("touch.interact");
+    const p = sim.motion.position;
+    if (
+      sim.loot.drops.some(
+        (d) =>
+          d.kind === "item" &&
+          Math.hypot(d.position.x - p.x, d.position.y - p.y) <= ITEM_PICKUP_RADIUS,
+      )
+    )
+      return text("touch.pickup");
+    return sim.nearDummy ? text("touch.trial") : undefined;
+  }
+
+  /** 今の HUD の配置（タッチの表示なら touch）。 */
+  private get hudLayout(): "pc" | "touch" {
+    return this.touchView?.active === true ? "touch" : "pc";
+  }
+
   /** 音量と画面の拡大率を効かせる（割り当ては InputSystem.setBindings）。 */
   private applySettings(): void {
+    this.touchView?.setSetting(this.settings.touch);
     this.sound.volume = this.settings.volume;
     sfx.setVolume(this.settings.volume);
     const scale = this.scale;
@@ -998,7 +1067,7 @@ export class ArenaScene extends Phaser.Scene {
   private drawMinimap(): void {
     // 画面（インベントリなど）を開いている間は描かない（画面の下からはみ出さないように）
     if (this.panel.open !== undefined) return;
-    const frame = this.bigMap ? BIG_MAP : MINIMAP;
+    const frame = this.bigMap ? BIG_MAP : this.hudLayout === "touch" ? MINIMAP_TOUCH : MINIMAP;
     const zoom = this.bigMap ? 2 : 1;
     const sim = this.sim;
     const r = sim.region;
@@ -1138,11 +1207,17 @@ export class ArenaScene extends Phaser.Scene {
   private renderHud(): void {
     const sim = this.sim;
     const now = this.time.now;
-    const model = buildHudModel(sim, {
+    const layout = this.hudLayout;
+    const built = buildHudModel(sim, {
       bindings: effectiveBindings(this.settings),
       saveStatus: this.saveStatus,
       cooldowns: this.cooldownTracker,
     });
+    // タッチの表示では、近くの物の案内のキーの名前（F）の代わりに、ボタンの名前（調べる）を出す
+    const model =
+      layout === "touch" && built.prompt !== undefined
+        ? { ...built, prompt: promptOf(sim, text("touch.interact")) }
+        : built;
     this.hudModel = model;
     const ev = this.hudEvents.observe({
       hitsTaken: sim.hitsTaken + sim.hazardHits,
@@ -1176,7 +1251,22 @@ export class ArenaScene extends Phaser.Scene {
       panelOpen: this.panel.open !== undefined,
       bigMap: this.bigMap,
       now,
+      layout,
     });
+    // スマホの操作部（タッチの表示のときだけ描く）。技のボタンは HUD の技の枠と同じビューモデルを使う
+    const touch = this.touchView;
+    if (touch !== undefined) {
+      const cam = this.cameras.main;
+      const open = this.panel.open;
+      touch.setContext({
+        panelOpen: open !== undefined,
+        boardOpen: open === "starBoard" || open === "jobBoard",
+        bigMap: this.bigMap,
+        interact: layout === "touch" ? this.touchInteractLabel() : undefined,
+        player: { x: this.body.x - cam.scrollX, y: this.body.y - cam.scrollY },
+      });
+      touch.render(model);
+    }
   }
 
   /**
