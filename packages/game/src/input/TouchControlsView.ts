@@ -303,6 +303,11 @@ export class TouchControlsView implements TouchSource {
     return touchMode().active;
   }
 
+  /** 「≡」のメニューを開いているか（開いている間、タッチではゲームを止める。docs/progress D-TOUCH-15）。 */
+  get menuIsOpen(): boolean {
+    return this.menuOpen;
+  }
+
   /**
    * タッチの表示の設定が off（出さない）で、指で触れている間：操作部は出さず、「≡」「閉じる」だけ出す
    * （設定を開いて元に戻せるように。D-TOUCH-10）。

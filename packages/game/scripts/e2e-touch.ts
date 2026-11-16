@@ -60,6 +60,7 @@ interface TouchInfo {
   frame: { held: string[]; aim: Pt; aimDistance: number; move: Pt } | null;
   fingers: number;
   paused: boolean;
+  panelPaused: boolean;
   layout: string;
 }
 interface PlayerInfo {
@@ -724,6 +725,28 @@ export async function runTouchChecks(
         .join("・")}`,
     );
     await tapUi("close");
+
+    // 12b. タッチでは、「≡」のメニュー・画面を開いている間はゲームを止める（D-TOUCH-15）。閉じると再開
+    await tapUi("menu");
+    await page.waitForTimeout(200);
+    const pm0 = await player();
+    await page.waitForTimeout(500);
+    const pm1 = await player();
+    const pmt = await touch();
+    await tapUi("menu");
+    await page.waitForTimeout(200);
+    const pm2 = await player();
+    await page.waitForTimeout(400);
+    const pm3 = await player();
+    const pmt2 = await touch();
+    check(
+      "（タッチ）「≡」のメニューを開いている間は時間が進まず、閉じると再開する",
+      pmt.panelPaused &&
+        pm1.totalSteps === pm0.totalSteps &&
+        !pmt2.panelPaused &&
+        pm3.totalSteps > pm2.totalSteps,
+      `止める ${String(pmt.panelPaused)}→${String(pmt2.panelPaused)}・刻み ${String(pm1.totalSteps - pm0.totalSteps)}（開）／${String(pm3.totalSteps - pm2.totalSteps)}（閉）`,
+    );
 
     // 13. 縦持ち：「端末を横向きにしてください」が出て、シミュレーションの時間が進まない。横に戻すと再開
     await page.setViewportSize({ width: 390, height: 844 });

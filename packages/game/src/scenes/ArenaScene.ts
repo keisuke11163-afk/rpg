@@ -57,6 +57,7 @@ import {
 } from "../settings/settings.ts";
 import { loadSettings, saveSettings } from "../settings/storage.ts";
 import { BOARD_AREA } from "../ui/star-board-view.ts";
+import { SCREEN } from "../config.ts";
 import { exposeDebug } from "../debug.ts";
 import type { Action } from "../input/actions.ts";
 import { type InputFrame, InputSystem } from "../input/InputSystem.ts";
@@ -156,6 +157,10 @@ export class ArenaScene extends Phaser.Scene {
   private controls!: InputSystem;
   /** スマホ（タッチ）の操作部（タッチの表示でないときは何も描かない。docs/progress TOUCH-1）。 */
   private touchView: TouchControlsView | undefined;
+  /** タッチの表示で、画面などを開いていてゲームを止めているか（D-TOUCH-15）。 */
+  private touchPaused = false;
+  /** 「≡」のメニューを開いて止めている間の「一時停止中」の文字。 */
+  private pausedLabel: Phaser.GameObjects.Text | undefined;
   /** 設定（補助仕様書16章。端末ごと。D-UI-2）。 */
   private settings: Settings = DEFAULT_SETTINGS;
   /** M で開く大きな地図を開いているか。 */
@@ -334,6 +339,19 @@ export class ArenaScene extends Phaser.Scene {
       y: Math.sin(this.sim.motion.facing),
     });
     this.controls.setTouch(this.touchView);
+    this.touchPaused = false;
+    this.pausedLabel = this.add
+      .text(SCREEN.width / 2, SCREEN.height - 14, text("touch.paused"), {
+        fontFamily: "sans-serif",
+        fontSize: "11px",
+        color: "#e8e6f0",
+        backgroundColor: "#16151ccc",
+        padding: { x: 6, y: 2 },
+      })
+      .setOrigin(0.5, 1)
+      .setScrollFactor(0)
+      .setDepth(960)
+      .setVisible(false);
     this.applySettings();
     this.installBackgroundSave();
     const keyboard = this.input.keyboard;
@@ -721,6 +739,8 @@ export class ArenaScene extends Phaser.Scene {
       // スマホ（タッチ）の操作部：表示・配置・押している状態・最後の入力、縦持ちで止めているか
       touch: () => ({
         ...(this.touchView?.snapshot() ?? { active: false }),
+        // 画面・地図・メニューを開いていて、ゲームを止めているか（D-TOUCH-15）
+        panelPaused: this.touchPaused,
         paused: portraitPaused(),
         layout: this.hudView.snapshot().layout,
       }),
@@ -923,15 +943,28 @@ export class ArenaScene extends Phaser.Scene {
     const open = this.panel.open !== undefined;
     const frame = open ? withoutPanelBlocked(raw) : raw;
     this.showLoot = frame.held.has("showLoot");
-    this.sim.frame((this.debugFrameDeltaMs ?? deltaMs) / 1000, frame, {
-      changeJob: this.jobPressed,
-    });
-    this.jobPressed = false;
-    if (this.sim.autosave.due()) this.saveNow();
+    // タッチの表示では、画面・大きな地図・「≡」のメニューを開いている間はゲームを止める（D-TOUCH-15）。
+    // 指では開いたまま移動・回避ができないため。PC は今までどおり止めない
+    this.touchPaused = this.isTouchPaused();
+    this.pausedLabel?.setVisible(this.touchPaused && this.touchView?.menuIsOpen === true);
+    if (!this.touchPaused) {
+      this.sim.frame((this.debugFrameDeltaMs ?? deltaMs) / 1000, frame, {
+        changeJob: this.jobPressed,
+      });
+      this.jobPressed = false;
+      if (this.sim.autosave.due()) this.saveNow();
+    }
     this.render();
     this.panel.render();
     this.playSfx();
     this.followCamera(deltaMs);
+  }
+
+  /** タッチの表示で、画面・大きな地図・メニューのどれかを開いているか（開いている間はゲームを止める）。 */
+  private isTouchPaused(): boolean {
+    const touch = this.touchView;
+    if (touch?.active !== true) return false;
+    return this.panel.open !== undefined || this.bigMap || touch.menuIsOpen;
   }
 
   /** 揺れを含まないカメラのスクロール（画面の上の位置の確認用）。 */

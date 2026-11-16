@@ -616,6 +616,7 @@
   "touch.flaskHp": "HP",
   "touch.flaskMp": "MP",
   "touch.interact": "調べる",
+  "touch.paused": "一時停止中（メニューを閉じると再開）",
   "touch.pickup": "拾う",
   "touch.trial": "試し打ち",
   "touch.menu.inventory": "インベントリ",
