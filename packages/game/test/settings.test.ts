@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS,
   bindingName,
   effectiveBindings,
+  nextTouchSetting,
   parseSettings,
   rebind,
 } from "../src/settings/settings.ts";
@@ -117,5 +118,52 @@ describe("詳しい情報の HUD（debugHud。端末ごと・初期は出さな�
     const rebound = rebind(on, "dodge", { key: "SHIFT" });
     expect(rebound.debugHud).toBe(true);
     expect(parseSettings(JSON.stringify(rebound)).debugHud).toBe(true);
+  });
+});
+
+describe("タッチの表示の設定（touch。端末ごと・初期は auto。TOUCH-1）", () => {
+  it("初期値は auto", () => {
+    expect(DEFAULT_SETTINGS.touch).toBe("auto");
+    expect(parseSettings(null).touch).toBe("auto");
+  });
+
+  it("on・off を保存して、読み直すと同じ", () => {
+    for (const v of ["on", "off", "auto"] as const) {
+      const s = parseSettings(JSON.stringify({ ...DEFAULT_SETTINGS, touch: v }));
+      expect(s.touch).toBe(v);
+      expect(parseSettings(JSON.stringify(s))).toEqual(s);
+    }
+  });
+
+  it('壊れた値（"yes"・1・null・true・大文字の "ON"）は auto', () => {
+    for (const v of ["yes", 1, null, true, "ON", {}, []]) {
+      expect(parseSettings(JSON.stringify({ touch: v })).touch).toBe("auto");
+    }
+  });
+
+  it("古い保存（項目が無い）は auto", () => {
+    const old = JSON.stringify({ version: 1, bindings: {}, volume: 0.5, scale: 2, debugHud: true });
+    expect(parseSettings(old).touch).toBe("auto");
+  });
+
+  it("次の値は auto → on → off → auto と一巡する", () => {
+    expect(nextTouchSetting("auto")).toBe("on");
+    expect(nextTouchSetting("on")).toBe("off");
+    expect(nextTouchSetting("off")).toBe("auto");
+    let v = DEFAULT_SETTINGS.touch;
+    for (let i = 0; i < 3; i++) v = nextTouchSetting(v);
+    expect(v).toBe("auto");
+  });
+
+  it("他の設定（割り当て・音量・debugHud）を変えても touch が保たれる", () => {
+    const s = { ...DEFAULT_SETTINGS, touch: "off" as const };
+    expect(rebind(s, "dodge", { key: "SHIFT" }).touch).toBe("off");
+    expect({ ...s, volume: 0.2 }.touch).toBe("off");
+    expect({ ...s, debugHud: true }.touch).toBe("off");
+    const saved = parseSettings(
+      JSON.stringify({ ...rebind(s, "dodge", { key: "SHIFT" }), volume: 0.3 }),
+    );
+    expect(saved.touch).toBe("off");
+    expect(saved.volume).toBeCloseTo(0.3);
   });
 });
