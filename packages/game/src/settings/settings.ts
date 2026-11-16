@@ -53,9 +53,14 @@ export const DEFAULT_SETTINGS: Settings = {
   touch: "auto",
 };
 
-/** タッチの表示の設定の次の値（auto → on → off → auto）。 */
-export function nextTouchSetting(s: TouchSetting): TouchSetting {
-  return TOUCH_SETTINGS[(TOUCH_SETTINGS.indexOf(s) + 1) % TOUCH_SETTINGS.length] ?? "auto";
+/**
+ * タッチの表示の設定の次の値（auto → on → off → auto）。
+ * @param allowOff off を選べるか。主な入力がタッチの端末では false（auto ↔ on だけ。off にすると指で操作できなくなる。D-TOUCH-10）
+ */
+export function nextTouchSetting(s: TouchSetting, allowOff = true): TouchSetting {
+  const list = allowOff ? TOUCH_SETTINGS : TOUCH_SETTINGS.filter((x) => x !== "off");
+  const i = list.indexOf(s);
+  return list[(i + 1) % list.length] ?? "auto";
 }
 
 /** 設定の画面で変えられない行動（Esc：画面を閉じる・設定を開く。変えると戻せなくなるため）。 */

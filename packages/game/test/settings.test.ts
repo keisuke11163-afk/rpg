@@ -150,6 +150,10 @@ describe("タッチの表示の設定（touch。端末ごと・初期は auto。
     expect(nextTouchSetting("auto")).toBe("on");
     expect(nextTouchSetting("on")).toBe("off");
     expect(nextTouchSetting("off")).toBe("auto");
+    // 主な入力がタッチの端末では off を選べない（auto ↔ on だけ。D-TOUCH-10）
+    expect(nextTouchSetting("auto", false)).toBe("on");
+    expect(nextTouchSetting("on", false)).toBe("auto");
+    expect(nextTouchSetting("off", false)).toBe("auto");
     let v = DEFAULT_SETTINGS.touch;
     for (let i = 0; i < 3; i++) v = nextTouchSetting(v);
     expect(v).toBe("auto");

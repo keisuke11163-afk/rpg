@@ -9,6 +9,7 @@ import {
   TouchControls,
   TouchModeSwitch,
   aimWorldPoint,
+  effectiveTouchSetting,
   buttonAt,
   isSkillSlot,
   menuItemRect,
@@ -867,6 +868,95 @@ describe("TouchModeSwitch（タッチの表示に切り替えるか）", () => {
     expect(sw.active).toBe(false);
     sw.setSetting("auto");
     expect(sw.active).toBe(true);
+  });
+});
+
+describe("照準（D-TOUCH-4・D-TOUCH-6 の更新）", () => {
+  it("右スティックに触れていない間は、照準の向きが移動の向きに合う。止まれば最後の向きのまま", () => {
+    expect(T.aimFollowsMove).toBe(true);
+    const tc = new TouchControls();
+    tc.down(1, LEFT_TOUCH.x, LEFT_TOUCH.y, 0);
+    const m = at(LEFT_TOUCH, UP, L.leftStick.radius * PAST_MOVE);
+    tc.move(1, m.x, m.y);
+    expectPoint(tc.frame(1).aim, 0, -1);
+    tc.up(1);
+    expectPoint(tc.frame(2).aim, 0, -1);
+  });
+
+  it("右スティックを倒している間は、移動の向きより右スティックが優先", () => {
+    const tc = new TouchControls();
+    tc.down(1, LEFT_TOUCH.x, LEFT_TOUCH.y, 0);
+    const m = at(LEFT_TOUCH, UP, L.leftStick.radius * PAST_MOVE);
+    tc.move(1, m.x, m.y);
+    tc.down(2, RIGHT_TOUCH.x, RIGHT_TOUCH.y, 0);
+    const r = at(RIGHT_TOUCH, LEFT, L.rightStick.radius * PAST_AIM);
+    tc.move(2, r.x, r.y);
+    const f = tc.frame(1);
+    expectPoint(f.aim, -1, 0);
+    expectPoint(f.move, 0, -1);
+  });
+
+  it("技のボタンをドラッグせずにタップすると、距離はその技の射程の半分（射程が無ければ今の距離）", () => {
+    const tc = new TouchControls();
+    // 右スティックを最大まで倒して離す（距離 max を覚える）
+    tc.down(1, RIGHT_TOUCH.x, RIGHT_TOUCH.y, 0);
+    const r = at(RIGHT_TOUCH, RIGHT, L.rightStick.radius);
+    tc.move(1, r.x, r.y);
+    tc.frame(1);
+    tc.up(1);
+    const c = btnCenter("skill4");
+    tc.down(2, c.x, c.y, 10);
+    tc.up(2);
+    expect(tc.frame(11, () => 6).aimDistance).toBeCloseTo(3);
+    // 射程が無い技は今の距離のまま
+    tc.down(3, c.x, c.y, 20);
+    tc.up(3);
+    expect(tc.frame(21).aimDistance).toBeCloseTo(3);
+    // 押しっぱなし（待つ時間を過ぎた）でも同じ
+    tc.down(4, c.x, c.y, 30);
+    expect(tc.frame(30 + GRACE, () => 10).aimDistance).toBeCloseTo(5);
+  });
+
+  it("右スティックを倒している間は、その距離を使う（技のタップの半分ルールは効かない）", () => {
+    const tc = new TouchControls();
+    tc.down(1, RIGHT_TOUCH.x, RIGHT_TOUCH.y, 0);
+    const r = at(RIGHT_TOUCH, RIGHT, L.rightStick.radius);
+    tc.move(1, r.x, r.y);
+    const c = btnCenter("skill4");
+    tc.down(2, c.x, c.y, 0);
+    tc.up(2);
+    expect(tc.frame(1, () => 6).aimDistance).toBeCloseTo(T.aimDistance.max);
+  });
+});
+
+describe("TouchModeSwitch（設定 off のとき）・effectiveTouchSetting", () => {
+  it("off でも、触れている間（触れた・始めからタッチの端末）は menuOnly（≡と閉じるだけ出す）", () => {
+    const pc = new TouchModeSwitch(false, 300);
+    pc.setSetting("off");
+    expect(pc.menuOnly).toBe(false);
+    pc.noteTouch(0);
+    expect(pc.active).toBe(false);
+    expect(pc.menuOnly).toBe(true);
+    pc.noteDesktopInput(1000);
+    expect(pc.menuOnly).toBe(false);
+    const primary = new TouchModeSwitch(true, 300);
+    primary.setSetting("off");
+    expect(primary.menuOnly).toBe(true);
+  });
+
+  it("off 以外では menuOnly にならない", () => {
+    const sw = new TouchModeSwitch(true, 300);
+    for (const v of ["auto", "on"] as const) {
+      sw.setSetting(v);
+      expect(sw.menuOnly).toBe(false);
+    }
+  });
+
+  it("effectiveTouchSetting：主な入力がタッチの端末だけ、off を auto にする", () => {
+    expect(effectiveTouchSetting("off", true)).toBe("auto");
+    expect(effectiveTouchSetting("off", false)).toBe("off");
+    expect(effectiveTouchSetting("on", true)).toBe("on");
+    expect(effectiveTouchSetting("auto", true)).toBe("auto");
   });
 });
 

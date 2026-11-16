@@ -8,11 +8,16 @@ export type { InputFrame } from "./frame.ts";
 /** タッチの入力を出すもの（TouchControlsView）。タッチの表示でないときは undefined を返す。 */
 export interface TouchSource {
   frame(): TouchFrame | undefined;
+  /**
+   * 操作部は出さず「≡」「閉じる」だけ出している間（設定が off。D-TOUCH-10）に、それらで押した行動
+   * （メニューの項目・閉じる）。frame() が undefined のときだけ read() が呼ぶ。
+   */
+  takeMenuPressed(): ReadonlySet<Action>;
 }
 
 /**
  * タッチの直後に、ブラウザが真似て出すマウスの出来事を無視する時間（ミリ秒。指で触れたのに左クリックに
- * ならないように）。
+ * ならないように）。仮値: 800（ブラウザが真似て出すまでの遅れより長ければよい。実機で確かめる）。
  */
 const TOUCH_MOUSE_GUARD_MS = 800;
 
@@ -144,8 +149,10 @@ export class InputSystem {
     // タッチの表示の間：タッチの行動を足し、移動はスティック（倒していなければキー）、照準はタッチの照準の点
     const touch = this.touch?.frame();
     this.lastTouch = touch;
-    if (touch === undefined)
+    if (touch === undefined) {
+      for (const a of this.touch?.takeMenuPressed() ?? []) pressed.add(a);
       return { held, pressed, move: keyMove, pointerWorld: this.pointerWorld() };
+    }
     // previous（キーボード・マウスの押した瞬間の判定に使う）は変えないよう、別の入れ物に合わせる
     const allHeld = new Set<Action>([...held, ...touch.held]);
     for (const a of touch.pressed) pressed.add(a);

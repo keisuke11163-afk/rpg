@@ -319,6 +319,13 @@ export class Hud {
     this.renderEdge(m, o.now);
     this.save.setPosition(place.save.x, place.save.y);
     this.renderSave(m.saveStatus, o.now);
+    // タッチの表示で大きな地図を開いている間は、棒・札・文字を全て隠す（地図を見やすく。PC は今のまま。D-TOUCH-9）
+    if (this.layout === "touch" && o.bigMap && !o.panelOpen) {
+      this.mode = "strip";
+      this.setVisible(false);
+      for (const t of this.vitalLabels) t.setVisible(false);
+      return;
+    }
     const full = !o.panelOpen;
     this.mode = full ? "full" : "strip";
     // 画面を開いている間：HPなどの棒だけを、画面の下の帯（画面の外）に横に並べる

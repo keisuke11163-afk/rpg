@@ -15,12 +15,15 @@ import {
   TOUCH_UI_LAYOUT,
   type Point,
   type Rect,
+  type StickState,
   TouchControls,
   type TouchButtonDef,
+  type TouchControlsState,
   type TouchFrame,
   type TouchMenuItem,
   TouchModeSwitch,
   type TouchSetting,
+  type TouchButtonId,
   type TouchSkillSlot,
   type TouchUiId,
   isSkillSlot,
@@ -32,15 +35,29 @@ import { SLOT_BORDER, SLOT_TINT } from "../ui/Hud.ts";
 import type { HudModel, HudSkillSlot } from "../ui/hud-model.ts";
 import { secondsText } from "../ui/hud-model.ts";
 import { setTextColor } from "../ui/text-style.ts";
+import { PIXELS_PER_METER } from "../world/units.ts";
 
 /** 操作部の深さ（HUD〔905〕より上、画面〔1000〕より下）。閉じる・メニューは画面より上。 */
 const CONTROLS_DEPTH = 920;
 const UI_DEPTH = 1010;
+/** 余白（キャンバスの外）から触れ始めた指の id の足し算（Phaser の pointer の id と重ならないように）。 */
+const MARGIN_ID_BASE = 1000;
 
 /** 盤の「−」「＋」で掛ける拡大率。 */
 const ZOOM_STEP = 1.25;
 
 let modeSwitch: TouchModeSwitch | undefined;
+
+/** 文字を打つ場所（入力欄など）か（星辰盤の検索欄。ここでのキー入力は PC の操作に数えない）。 */
+function isTextEntry(target: EventTarget | null): boolean {
+  if (typeof HTMLElement === "undefined" || !(target instanceof HTMLElement)) return false;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target.isContentEditable
+  );
+}
 
 /**
  * タッチの表示に切り替えるかを決めるもの（ゲームに1つ。地域を移ってシーンを作り直しても同じ）。
@@ -67,7 +84,9 @@ export function touchMode(): TouchModeSwitch {
     window.addEventListener("pointerdown", onMouse, { capture: true, passive: true });
     window.addEventListener(
       "keydown",
-      () => {
+      (e) => {
+        // 入力欄に文字を打っているときは、PC の操作とはみなさない（ソフトキーボードの文字入力で表示が替わらないように）
+        if (isTextEntry(e.target)) return;
         m.noteDesktopInput(now());
       },
       { capture: true, passive: true },
@@ -117,7 +136,11 @@ export class TouchControlsView implements TouchSource {
   readonly controls = new TouchControls();
   private readonly scene: Phaser.Scene;
   private readonly options: TouchViewOptions;
+  /** 動かない部分（スティックの外の輪・ボタンの枠）。変わったときだけ描き直す。 */
+  private readonly gBase: Phaser.GameObjects.Graphics;
+  /** 動く部分（つまみ・照準の線・技の色・CD の覆い）。毎フレーム描き直す。 */
   private readonly g: Phaser.GameObjects.Graphics;
+  private baseKey = "";
   private readonly ui: Phaser.GameObjects.Graphics;
   private readonly buttonLabels = new Map<string, Phaser.GameObjects.Text>();
   private readonly buttonCds = new Map<string, Phaser.GameObjects.Text>();
@@ -127,6 +150,8 @@ export class TouchControlsView implements TouchSource {
   private readonly uiFingers = new Map<number, TouchUiId>();
   /** 画面の操作のボタンで押した行動（次の frame() で pressed にする）。 */
   private readonly uiPressed = new Set<Action>();
+  /** 余白から触れ始めて、まだ離れていない指（touchstart の identifier + MARGIN_ID_BASE）。 */
+  private readonly marginFingers = new Set<number>();
   private menuOpen = false;
   /** 「名前を全て表示」（Alt）を入れているか（切り替え式）。 */
   private showLoot = false;
@@ -145,7 +170,11 @@ export class TouchControlsView implements TouchSource {
   constructor(scene: Phaser.Scene, options: TouchViewOptions) {
     this.scene = scene;
     this.options = options;
-    this.g = scene.add.graphics().setScrollFactor(0).setDepth(CONTROLS_DEPTH);
+    this.gBase = scene.add.graphics().setScrollFactor(0).setDepth(CONTROLS_DEPTH);
+    this.g = scene.add
+      .graphics()
+      .setScrollFactor(0)
+      .setDepth(CONTROLS_DEPTH + 0.5);
     this.ui = scene.add.graphics().setScrollFactor(0).setDepth(UI_DEPTH);
     for (const b of this.controls.layout.buttons) {
       this.buttonLabels.set(b.id, label(scene, 8, CONTROLS_DEPTH + 1));
@@ -159,37 +188,127 @@ export class TouchControlsView implements TouchSource {
 
     scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) return;
-      touchMode().noteTouch(performance.now());
-      if (this.active) this.onDown(p);
+      this.fingerDown(p.id, p.x, p.y);
     });
     scene.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch || !this.active) return;
-      if (!this.uiFingers.has(p.id)) this.controls.move(p.id, p.x, p.y);
+      if (!p.wasTouch) return;
+      this.fingerMove(p.id, p.x, p.y);
     });
     const up = (p: Phaser.Input.Pointer): void => {
       if (!p.wasTouch) return;
-      this.onUp(p);
+      this.onUp(p.id, p.x, p.y, p.wasCanceled);
     };
     scene.input.on("pointerup", up);
     scene.input.on("pointerupoutside", up);
-    // 縦持ちで止めた・再開した：押していた指を全て離す（押しっぱなしにしない）
+    // 縦持ちで止めた・再開した、タブを切り替えた・アプリが裏に回った：押していた指を全て離す（押しっぱなしにしない。
+    // 指が離れた知らせは、着信などでは届かないことがある）
     const onPause = (): void => {
       this.releaseAll();
     };
+    const onVisibility = (): void => {
+      if (document.visibilityState === "hidden") this.releaseAll();
+    };
     window.addEventListener("stella-pause", onPause);
+    window.addEventListener("blur", onPause);
+    window.addEventListener("pagehide", onPause);
+    document.addEventListener("visibilitychange", onVisibility);
     const onFullscreen = (): void => {
       this.fullscreen = document.fullscreenElement !== null;
     };
     document.addEventListener("fullscreenchange", onFullscreen);
+    // 画面の左右・上下の余白（FIT のため、キャンバスの外にできる）から触れ始めた指も受け取る。Phaser はキャンバスの
+    // 外の touchstart を受け取らないので、window で拾い、位置をキャンバスの端に寄せて操作部に渡す（D-TOUCH-13）
+    const onMarginStart = (e: TouchEvent): void => {
+      if (!this.isMarginTarget(e.target)) return;
+      for (const t of Array.from(e.changedTouches)) {
+        const id = MARGIN_ID_BASE + t.identifier;
+        this.marginFingers.add(id);
+        const at = this.toGame(t.clientX, t.clientY);
+        this.fingerDown(id, at.x, at.y);
+      }
+    };
+    const onMarginMove = (e: TouchEvent): void => {
+      for (const t of Array.from(e.changedTouches)) {
+        const id = MARGIN_ID_BASE + t.identifier;
+        if (!this.marginFingers.has(id)) continue;
+        const at = this.toGame(t.clientX, t.clientY);
+        this.fingerMove(id, at.x, at.y);
+      }
+    };
+    const onMarginEnd = (e: TouchEvent): void => {
+      for (const t of Array.from(e.changedTouches)) {
+        const id = MARGIN_ID_BASE + t.identifier;
+        if (!this.marginFingers.delete(id)) continue;
+        const at = this.toGame(t.clientX, t.clientY);
+        this.onUp(id, at.x, at.y, e.type === "touchcancel");
+      }
+      // 離れた知らせが来なかった余白の指（e.touches に残っていないもの）は取り消す
+      const alive = new Set(Array.from(e.touches, (t) => MARGIN_ID_BASE + t.identifier));
+      for (const id of [...this.marginFingers])
+        if (!alive.has(id)) {
+          this.marginFingers.delete(id);
+          this.controls.cancel(id);
+          this.uiFingers.delete(id);
+        }
+    };
+    const passive = { capture: true, passive: true } as const;
+    window.addEventListener("touchstart", onMarginStart, passive);
+    window.addEventListener("touchmove", onMarginMove, passive);
+    window.addEventListener("touchend", onMarginEnd, passive);
+    window.addEventListener("touchcancel", onMarginEnd, passive);
     scene.events.once("shutdown", () => {
       window.removeEventListener("stella-pause", onPause);
+      window.removeEventListener("blur", onPause);
+      window.removeEventListener("pagehide", onPause);
+      document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("fullscreenchange", onFullscreen);
+      window.removeEventListener("touchstart", onMarginStart, passive);
+      window.removeEventListener("touchmove", onMarginMove, passive);
+      window.removeEventListener("touchend", onMarginEnd, passive);
+      window.removeEventListener("touchcancel", onMarginEnd, passive);
     });
+  }
+
+  /** 余白（ゲームの入れ物・ページ）に触れたか。キャンバス・入力欄・縦持ちの画面の上は Phaser や別の部品が受ける。 */
+  private isMarginTarget(target: EventTarget | null): boolean {
+    if (typeof HTMLElement === "undefined" || !(target instanceof HTMLElement)) return false;
+    return target === document.body || target === document.documentElement || target.id === "game";
+  }
+
+  /** 画面（CSS ピクセル）の位置 → ゲームの座標（キャンバスの外は、端に寄せる）。 */
+  private toGame(clientX: number, clientY: number): Point {
+    const rect = this.scene.game.canvas.getBoundingClientRect();
+    const k = rect.width / this.scene.scale.width;
+    if (!(k > 0)) return { x: 0, y: 0 };
+    const clamp = (v: number, max: number): number => Math.min(max, Math.max(0, v));
+    return {
+      x: clamp((clientX - rect.left) / k, this.scene.scale.width),
+      y: clamp((clientY - rect.top) / k, this.scene.scale.height),
+    };
+  }
+
+  /** 指が触れた（Phaser の指も余白の指も、ここへ）。 */
+  private fingerDown(id: number, x: number, y: number): void {
+    touchMode().noteTouch(performance.now());
+    if (this.active || this.uiOnly) this.onDown(id, x, y);
+  }
+
+  private fingerMove(id: number, x: number, y: number): void {
+    if (!this.active) return;
+    if (!this.uiFingers.has(id)) this.controls.move(id, x, y);
   }
 
   /** タッチの表示か。 */
   get active(): boolean {
     return touchMode().active;
+  }
+
+  /**
+   * タッチの表示の設定が off（出さない）で、指で触れている間：操作部は出さず、「≡」「閉じる」だけ出す
+   * （設定を開いて元に戻せるように。D-TOUCH-10）。
+   */
+  private get uiOnly(): boolean {
+    return !this.active && touchMode().menuOnly;
   }
 
   /** タッチの表示の設定（設定の画面）を効かせる。 */
@@ -202,6 +321,7 @@ export class TouchControlsView implements TouchSource {
     this.controls.cancelAll();
     this.uiFingers.clear();
     this.uiPressed.clear();
+    this.marginFingers.clear();
   }
 
   /** 今出している画面の操作のボタン（枠）。 */
@@ -228,31 +348,30 @@ export class TouchControlsView implements TouchSource {
     return TOUCH_MENU_ITEMS.filter((id) => id !== "fullscreen" || canFullscreen);
   }
 
-  private onDown(p: Phaser.Input.Pointer): void {
-    const at = { x: p.x, y: p.y };
+  private onDown(id: number, x: number, y: number): void {
+    const at = { x, y };
     const ui = this.uiButtons().find((b) => rectContains(b.rect, at));
     if (ui !== undefined) {
-      this.uiFingers.set(p.id, ui.id);
+      this.uiFingers.set(id, ui.id);
       return;
     }
     // メニューの外に触れたら、メニューを閉じる（その指は操作部に渡す）
     this.menuOpen = false;
-    // 画面を開いている間は、操作部に渡さない（画面の操作に使う）
-    if (this.context.panelOpen) return;
-    this.controls.down(p.id, p.x, p.y, this.scene.time.now);
+    // 画面・大きな地図を開いている間は、操作部に渡さない（画面の操作に使う）。設定が off のときも渡さない
+    if (this.context.panelOpen || this.context.bigMap || this.uiOnly) return;
+    this.controls.down(id, x, y, this.scene.time.now);
   }
 
-  private onUp(p: Phaser.Input.Pointer): void {
-    const ui = this.uiFingers.get(p.id);
+  private onUp(id: number, x: number, y: number, canceled: boolean): void {
+    const ui = this.uiFingers.get(id);
     if (ui !== undefined) {
-      this.uiFingers.delete(p.id);
+      this.uiFingers.delete(id);
       const rect = this.uiButtons().find((b) => b.id === ui)?.rect;
-      if (!p.wasCanceled && rect !== undefined && rectContains(rect, { x: p.x, y: p.y }))
-        this.activate(ui);
+      if (!canceled && rect !== undefined && rectContains(rect, { x, y })) this.activate(ui);
       return;
     }
-    if (p.wasCanceled) this.controls.cancel(p.id);
-    else this.controls.up(p.id);
+    if (canceled) this.controls.cancel(id);
+    else this.controls.up(id);
   }
 
   /** 画面の操作のボタンが働く（指を離した瞬間。全画面はこの中で頼む：ブラウザが操作の中でだけ許すため）。 */
@@ -322,7 +441,11 @@ export class TouchControlsView implements TouchSource {
       this.controls.cancelAll();
       this.menuOpen = false;
     }
-    if (c.bigMap && !this.context.bigMap) this.menuOpen = false;
+    if (c.bigMap && !this.context.bigMap) {
+      // 大きな地図を開いた瞬間も、押していた指を離す（操作部は隠れる）
+      this.controls.cancelAll();
+      this.menuOpen = false;
+    }
     this.context = c;
     this.controls.setVisible("interact", c.interact !== undefined);
   }
@@ -338,14 +461,12 @@ export class TouchControlsView implements TouchSource {
       }
       this.wasActive = false;
       this.lastFrame = undefined;
+      // 設定が off のときの「≡」「閉じる」を押している指も、離れた知らせが来なければ離す
+      if (this.uiOnly) this.dropStaleFingers();
       return undefined;
     }
     this.wasActive = true;
-    // 離れたのに知らせが来なかった指を離す（押しっぱなしで固まらないように）
-    const down = new Set<number>();
-    for (const p of this.scene.input.manager.pointers) if (p.wasTouch && p.isDown) down.add(p.id);
-    this.controls.retain(down);
-    for (const id of [...this.uiFingers.keys()]) if (!down.has(id)) this.uiFingers.delete(id);
+    this.dropStaleFingers();
     const f = this.controls.frame(this.scene.time.now, this.options.skillRange);
     const held = new Set(f.held);
     const pressed = new Set(f.pressed);
@@ -357,9 +478,25 @@ export class TouchControlsView implements TouchSource {
     return out;
   }
 
+  /** 設定が off のときの「≡」「閉じる」で押した行動（操作部の frame() が無いときの分。TouchSource）。 */
+  takeMenuPressed(): ReadonlySet<Action> {
+    const out = new Set<Action>(this.uiOnly ? this.uiPressed : []);
+    this.uiPressed.clear();
+    return out;
+  }
+
+  /** 離れたのに知らせが来なかった指を離す（押しっぱなしで固まらないように）。 */
+  private dropStaleFingers(): void {
+    const down = new Set<number>(this.marginFingers);
+    for (const p of this.scene.input.manager.pointers) if (p.wasTouch && p.isDown) down.add(p.id);
+    this.controls.retain(down);
+    for (const id of [...this.uiFingers.keys()]) if (!down.has(id)) this.uiFingers.delete(id);
+  }
+
   /** 開発用の確認（pnpm e2e）：表示・配置・押している状態・最後の入力。 */
   snapshot(): {
     active: boolean;
+    menuOnly: boolean;
     setting: TouchSetting;
     menuOpen: boolean;
     showLoot: boolean;
@@ -377,6 +514,7 @@ export class TouchControlsView implements TouchSource {
     const f = this.lastFrame;
     return {
       active: this.active,
+      menuOnly: this.uiOnly,
       setting: touchMode().currentSetting,
       menuOpen: this.menuOpen,
       showLoot: this.showLoot,
@@ -393,7 +531,7 @@ export class TouchControlsView implements TouchSource {
           active: s.right.active,
         },
       },
-      ui: this.active ? this.uiButtons().map((b) => ({ id: b.id, ...b.rect })) : [],
+      ui: this.active || this.uiOnly ? this.uiButtons().map((b) => ({ id: b.id, ...b.rect })) : [],
       frame:
         f === undefined
           ? null
@@ -407,17 +545,26 @@ export class TouchControlsView implements TouchSource {
     const g = this.g.clear();
     const ui = this.ui.clear();
     const active = this.active;
+    const uiOnly = this.uiOnly;
     const c = this.context;
-    const showControls = active && !c.panelOpen;
+    // 画面・大きな地図を開いている間は、操作部を隠す（閉じるだけ残す。D-TOUCH-9）。設定が off のときも出さない
+    const showControls = active && !c.panelOpen && !c.bigMap;
     for (const t of this.buttonLabels.values()) t.setVisible(false);
     for (const t of this.buttonCds.values()) t.setVisible(false);
     for (const t of this.uiLabels.values()) t.setVisible(false);
     this.attackLabel.setVisible(false);
-    if (!active) return;
+    if (!showControls && this.baseKey !== "") {
+      this.gBase.clear();
+      this.baseKey = "";
+    }
+    if (!active && !uiOnly) return;
     if (showControls) {
+      // 状態は1フレームに1回だけ読む
+      const s = this.controls.state();
       this.renderAim(g);
-      this.renderSticks(g);
-      this.renderButtons(g, model);
+      this.renderBase(model, s);
+      this.renderSticks(g, s);
+      this.renderButtons(g, model, s);
     }
     this.renderUi(ui);
   }
@@ -427,17 +574,38 @@ export class TouchControlsView implements TouchSource {
     const f = this.lastFrame;
     if (f === undefined || !f.aiming) return;
     const p = this.context.player;
-    const len = f.aimDistance * 16;
+    const len = f.aimDistance * PIXELS_PER_METER;
     const x = p.x + f.aim.x * len;
     const y = p.y + f.aim.y * len;
     g.lineStyle(1, 0xffffff, 0.35).lineBetween(p.x, p.y, x, y);
     g.lineStyle(1, 0xffd166, 0.8).strokeCircle(x, y, 4);
   }
 
-  private renderSticks(g: Phaser.GameObjects.Graphics): void {
-    const s = this.controls.state();
+  /** ボタンの縁の色（技は使えない理由の色。実行中は白）。 */
+  private borderOf(id: TouchButtonId, model: HudModel): number {
+    if (!isSkillSlot(id)) return 0x8c88a0;
+    const slot = model.skills.find((x) => x.action === id);
+    return slot?.executing === true ? 0xffffff : SLOT_BORDER[slot?.state ?? "empty"];
+  }
+
+  /**
+   * 動かない部分（スティックの外の輪・ボタンの下地と縁）。押した・離した・触れた位置・技の状態が変わったときだけ
+   * 描き直す（毎フレームは描き直さない。D-TOUCH-14）。
+   */
+  private renderBase(model: HudModel, s: TouchControlsState): void {
     const layout = this.controls.layout;
-    const draw = (st: typeof s.left, def: typeof layout.leftStick, color: number): void => {
+    const shown = s.buttons.filter((b) => b.visible);
+    const stickKey = (st: StickState): string =>
+      st.active ? `a${String(st.center.x)},${String(st.center.y)}` : "r";
+    const key = [
+      stickKey(s.left),
+      stickKey(s.right),
+      ...shown.map((b) => `${b.id}${b.down ? "1" : "0"}${String(this.borderOf(b.id, model))}`),
+    ].join("|");
+    if (key === this.baseKey) return;
+    this.baseKey = key;
+    const g = this.gBase.clear();
+    const ring = (st: StickState, def: typeof layout.leftStick, color: number): void => {
       g.fillStyle(0x16151c, st.active ? 0.32 : 0.18).fillCircle(
         st.center.x,
         st.center.y,
@@ -448,29 +616,44 @@ export class TouchControlsView implements TouchSource {
         st.center.y,
         def.radius,
       );
+    };
+    ring(s.left, layout.leftStick, 0xc9c6d6);
+    ring(s.right, layout.rightStick, 0xff9a8a);
+    for (const st of shown) {
+      const def = layout.buttons.find((x) => x.id === st.id);
+      if (def !== undefined) this.base(g, def, st.down, this.borderOf(st.id, model));
+    }
+  }
+
+  private renderSticks(g: Phaser.GameObjects.Graphics, s: TouchControlsState): void {
+    const layout = this.controls.layout;
+    const knob = (st: StickState, def: typeof layout.leftStick, color: number): void => {
       g.fillStyle(color, st.engaged ? 0.75 : st.active ? 0.5 : 0.3).fillCircle(
         st.knob.x,
         st.knob.y,
         def.knob,
       );
     };
-    draw(s.left, layout.leftStick, 0xc9c6d6);
-    draw(s.right, layout.rightStick, 0xff9a8a);
+    knob(s.left, layout.leftStick, 0xc9c6d6);
+    knob(s.right, layout.rightStick, 0xff9a8a);
     if (!s.right.active)
       this.attackLabel
         .setPosition(layout.rightStick.rest.x, layout.rightStick.rest.y)
         .setVisible(true);
   }
 
-  private renderButtons(g: Phaser.GameObjects.Graphics, model: HudModel): void {
-    const s = this.controls.state();
+  private renderButtons(
+    g: Phaser.GameObjects.Graphics,
+    model: HudModel,
+    s: TouchControlsState,
+  ): void {
     for (const def of this.controls.layout.buttons) {
       const st = s.buttons.find((b) => b.id === def.id);
       if (st === undefined || !st.visible) continue;
       const t = this.buttonLabels.get(def.id);
       if (isSkillSlot(def.id)) {
         const slot = model.skills.find((x) => x.action === def.id);
-        this.renderSkillButton(g, def, st.down, slot, t, this.buttonCds.get(def.id));
+        this.renderSkillButton(g, def, slot, t, this.buttonCds.get(def.id));
         if (st.drag !== undefined) {
           // ドラッグで狙っている向き（ボタンの縁に小さな印）
           g.fillStyle(0xffd166, 0.9).fillCircle(
@@ -481,7 +664,6 @@ export class TouchControlsView implements TouchSource {
         }
         continue;
       }
-      this.base(g, def, st.down, 0x8c88a0);
       if (t === undefined) continue;
       if (def.id === "flaskHp" || def.id === "flaskMp") {
         const f = model.flasks[def.id === "flaskHp" ? 0 : 1];
@@ -525,13 +707,11 @@ export class TouchControlsView implements TouchSource {
   private renderSkillButton(
     g: Phaser.GameObjects.Graphics,
     def: TouchButtonDef,
-    down: boolean,
     slot: HudSkillSlot | undefined,
     name: Phaser.GameObjects.Text | undefined,
     cd: Phaser.GameObjects.Text | undefined,
   ): void {
     const state = slot?.state ?? "empty";
-    this.base(g, def, down, slot?.executing === true ? 0xffffff : SLOT_BORDER[state]);
     const tint = SLOT_TINT[state];
     if (tint !== undefined)
       g.fillStyle(tint, state === "locked" ? 0.55 : 0.45).fillCircle(def.x, def.y, def.r - 1);

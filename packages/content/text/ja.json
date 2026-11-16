@@ -629,7 +629,8 @@
   "touch.menu.fullscreen": "全画面にする",
   "touch.menu.fullscreenExit": "全画面をやめる",
   "touch.close": "閉じる",
-  "touch.panel.tapAgain": "もう一度タップで決める（長押しで副手に装備・ノードを返す）",
+  "touch.panel.tapAgain": "もう一度タップで決める（別の物に触れると選び直し）",
+  "touch.panel.longAgain": "もう一度、同じノードを長押しで返す（還星の灯を使う）",
   "touch.panel.noCapture": "タッチではキーを割り当てられない（キーボード・マウスで）",
   "touch.portrait": "端末を横向きにしてください",
   "touch.portrait.sub": "このゲームは横向き専用です（横にすると続きから再開します）"

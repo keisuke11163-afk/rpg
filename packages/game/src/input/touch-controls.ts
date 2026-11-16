@@ -118,7 +118,10 @@ export interface TouchTuning {
    * 超えなければ時間が来たときに今の照準で出す（離せばすぐ出す）。0 なら押した瞬間に出す。
    */
   readonly skillAimGraceMs: number;
-  /** 照準を触っていない間は、移動の向きを照準にするか（補助仕様書1.2のゲームパッドの案。初期は false）。 */
+  /**
+   * 右スティックを倒しておらず、技のボタンもドラッグしていない間は、移動の向きを照準にするか（補助仕様書1.2のゲームパッドの案。
+   * D-TOUCH-6。初期は true）。移動も照準もしていないときは最後の向きのまま。
+   */
   readonly aimFollowsMove: boolean;
 }
 
@@ -129,7 +132,7 @@ export const TOUCH_TUNING: TouchTuning = {
   skillDrag: { deadZone: 12, full: 48 },
   skillDefaultRange: 8,
   skillAimGraceMs: 120,
-  aimFollowsMove: false,
+  aimFollowsMove: true,
 };
 
 /** 1フレーム分のタッチの入力。 */
@@ -172,7 +175,7 @@ export interface TouchControlsState {
   readonly left: StickState;
   readonly right: StickState;
   readonly buttons: readonly ButtonState[];
-  /** 結び付いている指の数。 */
+  /** 結び付いている指の数（どの操作部にも当たらなかった指 none も数える）。 */
   readonly fingers: number;
 }
 
@@ -188,6 +191,8 @@ type Binding =
       fired: boolean;
       /** 最後に遊びを超えていたドラッグの向きと距離。 */
       drag: { readonly dir: Point; readonly distance: number } | undefined;
+      /** 最後の frame() で渡された技の射程（メートル。離したときのドラッグの距離の計算に使う）。 */
+      range: number | undefined;
     }
   /** どの操作部にも当たらなかった指（他の指の邪魔をしないよう、覚えておくだけ）。 */
   | { readonly kind: "none" };
@@ -269,6 +274,8 @@ export class TouchControls {
   /** 最後の照準の向き（長さ1）と距離（メートル）。離しても覚えておく。 */
   private aimDir: Point = { x: 1, y: 0 };
   private aimDist: number;
+  /** ドラッグせずに離した（タップで出す）技の枠。次の frame() で、その技の射程の半分を照準の距離にする（D-TOUCH-4）。 */
+  private readonly tapSlots: TouchSkillSlot[] = [];
 
   constructor(layout: TouchLayout = TOUCH_LAYOUT, tuning: TouchTuning = TOUCH_TUNING) {
     this.layout = layout;
@@ -312,6 +319,7 @@ export class TouchControls {
         downAt: now,
         fired: !button.aimDrag || this.tuning.skillAimGraceMs <= 0,
         drag: undefined,
+        range: undefined,
       });
       // ドラッグで狙わないボタン（回避・薬瓶・調べる）は、押した瞬間に押したことにする
       if (!button.aimDrag || this.tuning.skillAimGraceMs <= 0) this.latched.add(button.id);
@@ -347,21 +355,27 @@ export class TouchControls {
         this.aimDir = drag.dir;
         this.aimDist = drag.distance;
       }
-      if (!b.fired) this.latched.add(b.id);
+      if (!b.fired) {
+        this.latched.add(b.id);
+        if (drag === undefined && isSkillSlot(b.id)) this.tapSlots.push(b.id);
+      }
     } else if (b.kind === "right") {
       this.rememberStickAim(b);
     }
   }
 
-  /** 指が取り消された（touchcancel など）：何も出さずに離す。 */
+  /** 指が取り消された（touchcancel など）：何も出さずに離す（押した瞬間に溜めた入力も消す）。 */
   cancel(id: number): void {
+    const b = this.fingers.get(id);
     this.fingers.delete(id);
+    if (b?.kind === "button") this.latched.delete(b.id);
   }
 
   /** 全ての指を離す（取り消し。画面を開いた・縦持ちにした・タッチの表示をやめた、など）。 */
   cancelAll(): void {
     this.fingers.clear();
     this.latched.clear();
+    this.tapSlots.length = 0;
   }
 
   /** ids に無い指を離す（取り逃した離した出来事の後始末。押しっぱなしにしない）。 */
@@ -369,7 +383,7 @@ export class TouchControls {
     for (const id of [...this.fingers.keys()]) if (!ids.has(id)) this.cancel(id);
   }
 
-  /** 結び付いている指の数。 */
+  /** 結び付いている指の数（どの操作部にも当たらなかった指 none も数える）。 */
   get fingerCount(): number {
     return this.fingers.size;
   }
@@ -408,7 +422,7 @@ export class TouchControls {
     const ratio = (len - d.deadZone) / Math.max(1, d.full - d.deadZone);
     b.drag = {
       dir: { x: dx / len, y: dy / len },
-      distance: this.distanceFor(ratio, range ?? b.drag?.distance ?? this.tuning.skillDefaultRange),
+      distance: this.distanceFor(ratio, range ?? b.range ?? this.tuning.skillDefaultRange),
     };
     return b.drag;
   }
@@ -440,7 +454,9 @@ export class TouchControls {
     let dragAim: { dir: Point; distance: number; at: number } | undefined;
     for (const b of this.fingers.values()) {
       if (b.kind !== "button" || !isSkillSlot(b.id)) continue;
-      const drag = this.dragOf(b, skillRange(b.id) ?? t.skillDefaultRange);
+      const range = skillRange(b.id) ?? t.skillDefaultRange;
+      b.range = range;
+      const drag = this.dragOf(b, range);
       if (drag !== undefined && (dragAim === undefined || b.downAt >= dragAim.at))
         dragAim = { ...drag, at: b.downAt };
     }
@@ -458,7 +474,27 @@ export class TouchControls {
         aiming = true;
       }
     }
+    // 右スティックにも技のドラッグにも触れていない間は、移動の向きを照準にする（D-TOUCH-6）
     if (!aiming && t.aimFollowsMove && (move.x !== 0 || move.y !== 0)) this.aimDir = move;
+    // ドラッグせずに技のボタンを押した（タップ・押しっぱなし）：距離はその技の射程の半分（射程が無ければ今の距離。D-TOUCH-4）
+    if (!aiming) {
+      let slot: TouchSkillSlot | undefined = this.tapSlots.at(-1);
+      let latest = -Infinity;
+      for (const b of this.fingers.values())
+        if (
+          b.kind === "button" &&
+          isSkillSlot(b.id) &&
+          b.drag === undefined &&
+          (b.fired || now - b.downAt >= t.skillAimGraceMs) &&
+          b.downAt >= latest
+        ) {
+          slot = b.id;
+          latest = b.downAt;
+        }
+      const range = slot === undefined ? undefined : skillRange(slot);
+      if (range !== undefined) this.aimDist = Math.max(t.aimDistance.min, range / 2);
+    }
+    this.tapSlots.length = 0;
     // 右スティックを遊びより倒している間は、通常攻撃（skill1）を押し続ける
     if (right !== undefined) {
       const v = stickVector(right.center, right.pos, this.layout.rightStick.radius);
@@ -545,8 +581,12 @@ export class TouchModeSwitch {
     this.touchActive = true;
   }
 
-  /** マウスが動いた・キーが押された。 */
+  /**
+   * マウスが動いた・キーが押された。時刻が戻っていたら（now が最後のタッチより前。時計の調整など）、最後のタッチを
+   * 今に合わせ直す（負の差のまま、いつまでも PC の表示に戻れなくならないように）。
+   */
   noteDesktopInput(now: number): void {
+    if (now < this.lastTouchAt) this.lastTouchAt = now;
     if (now - this.lastTouchAt >= this.settleMs) this.touchActive = false;
   }
 
@@ -554,6 +594,22 @@ export class TouchModeSwitch {
   get active(): boolean {
     return this.setting === "on" || (this.setting === "auto" && this.touchActive);
   }
+
+  /**
+   * 設定が off でも、指で触れている端末（触れた・主な入力がタッチ）では、「≡」「閉じる」だけは出す
+   * （設定を開いて元に戻せなくならないように。D-TOUCH-10）。操作部（スティック・ボタン）は出さない。
+   */
+  get menuOnly(): boolean {
+    return this.setting === "off" && this.touchActive;
+  }
+}
+
+/**
+ * 設定を、端末に合わせて直す：主な入力がタッチの端末では off を auto として扱う
+ * （off にすると、指で操作する端末ではゲームを動かせなくなるため。D-TOUCH-10）。
+ */
+export function effectiveTouchSetting(s: TouchSetting, touchPrimary: boolean): TouchSetting {
+  return touchPrimary && s === "off" ? "auto" : s;
 }
 
 /** タッチのメニュー（≡）の項目。fullscreen は、全画面にできるブラウザのときだけ出す。 */
@@ -578,6 +634,8 @@ export type TouchUiId = "menu" | "close" | "zoomIn" | "zoomOut" | TouchMenuItem;
  * - close：画面（インベントリなど）・大きな地図を開いている間の「閉じる」（右上。画面の枠の上の帯）
  * - zoomOut・zoomIn：盤（星辰盤・職紋盤）を開いている間の「−」「＋」（閉じるの左）
  * - menuGrid：≡ を押すと出る項目（3列。左上の位置と1つの大きさ・間隔）
+ * menu と zoomOut・zoomIn は枠が重なるが、同時には出さない（menu は画面・大きな地図を閉じているときだけ、
+ * zoomOut・zoomIn は盤を開いている間だけ）。
  */
 export const TOUCH_UI_LAYOUT = {
   menu: { x: 494, y: 6, width: 36, height: 32 },

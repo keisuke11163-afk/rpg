@@ -61,7 +61,8 @@ import { exposeDebug } from "../debug.ts";
 import type { Action } from "../input/actions.ts";
 import { type InputFrame, InputSystem } from "../input/InputSystem.ts";
 import { TouchControlsView } from "../input/TouchControlsView.ts";
-import { portraitPaused } from "../page-shell.ts";
+import { isTouchPrimaryDevice, portraitPaused } from "../page-shell.ts";
+import { TOUCH_SETTINGS, effectiveTouchSetting } from "../input/touch-controls.ts";
 import { ITEM_PICKUP_RADIUS } from "../world/LootField.ts";
 import { EnemyFieldView } from "../world/EnemyFieldView.ts";
 import { LootView } from "../world/LootView.ts";
@@ -313,7 +314,13 @@ export class ArenaScene extends Phaser.Scene {
       .setOrigin(-0.8, 0.5)
       .setDepth(ENTITY_DEPTH.body);
     // 音量・拡大率は端末ごと（localStorage）、キーの割り当てはキャラクターのセーブ（開発計画書6.9）
-    this.settings = { ...loadSettings(), bindings: keybindsToBindings(this.sim.keybinds) };
+    // タッチの表示の設定：主な入力がタッチの端末では off を auto として扱う（off だと指で操作できなくなる。D-TOUCH-10）
+    const stored = loadSettings();
+    this.settings = {
+      ...stored,
+      touch: effectiveTouchSetting(stored.touch, isTouchPrimaryDevice()),
+      bindings: keybindsToBindings(this.sim.keybinds),
+    };
     this.controls = new InputSystem(this, effectiveBindings(this.settings), PIXELS_PER_METER);
     // スマホ（タッチ）の操作部。タッチの表示でないとき（PC）は何も描かず、入力にも何も足さない
     this.touchView = new TouchControlsView(this, {
@@ -328,6 +335,7 @@ export class ArenaScene extends Phaser.Scene {
     });
     this.controls.setTouch(this.touchView);
     this.applySettings();
+    this.installBackgroundSave();
     const keyboard = this.input.keyboard;
     if (keyboard === null) throw new Error("キーボードの入力が使えない");
     // 開発用の機能：開発用の試験用の場だけ、B で鍛冶屋・G で転職（町では施設を F で使う）
@@ -603,6 +611,9 @@ export class ArenaScene extends Phaser.Scene {
         points: sim.starPoints,
         attributes: { ...sim.sheet.attributes },
         lamps: sim.inventory.material("MAT-RETURN-LAMP"),
+        // 始点と、その隣のノード（指のタップ・長押しの確認で、取れるノードを選ぶため）
+        root: sim.starRoot ?? null,
+        near: [...(sim.db.starLinks.get(sim.starRoot ?? "") ?? [])],
       }),
       starNodeScreen: (id?: number | string) => this.panel.nodeScreen(String(id)) ?? null,
       // 職紋盤・副職紋の図（開発版だけ）：今の図のノードの画面の位置（図に出ていなければ null）・右の列の操作の行・
@@ -664,6 +675,8 @@ export class ArenaScene extends Phaser.Scene {
           sheet: { hp: sim.sheet.maxHp, mp: sim.sheet.maxMp, attackSpeed: sim.sheet.attackSpeed },
           // 盤（星辰盤・職紋盤）の拡大率（ピンチの確認）
           zoom: this.panel.boardZoom,
+          // 右の列の操作の行（鍛冶屋・商人・祭壇・転移の石。指のタップの確認用）
+          rows: [...this.panel.detailRowBoxes()],
         };
       },
       // HUD（D-HUD-1）：今のビューモデルと、詳しい情報（開発用の文字）を出しているか
@@ -698,6 +711,13 @@ export class ArenaScene extends Phaser.Scene {
       sfx: () => ({ ...sfx.counts(), state: sfx.state, volume: this.settings.volume }),
       // 敵の手応えの表示（ヒットの白い光・撃破で散る図形）を出した回数（このシーンを作ってからの累計）
       fx: () => this.enemyView?.counts() ?? { flashes: 0, bursts: 0 },
+      // 確認用：タッチの表示の設定を決める（開発版だけ。設定の画面では選べない off も試すため）
+      setTouchSetting: (value?: string) => {
+        const v = TOUCH_SETTINGS.find((x) => x === value) ?? "auto";
+        this.settings = { ...this.settings, touch: v };
+        this.applySettings();
+        return v;
+      },
       // スマホ（タッチ）の操作部：表示・配置・押している状態・最後の入力、縦持ちで止めているか
       touch: () => ({
         ...(this.touchView?.snapshot() ?? { active: false }),
@@ -834,6 +854,34 @@ export class ArenaScene extends Phaser.Scene {
         .setOrigin(0.5, 1)
         .setDepth(WORLD_DEPTH.regionLabel);
     }
+  }
+
+  /**
+   * スマホはタブが裏に回ると落とされやすいので、タブを隠したとき（visibilitychange が hidden）・ページを離れるとき
+   * （pagehide）・縦持ちで止めたときにもセーブする（セーブの形・条件は自動セーブと同じ。saveNow）。
+   * リスナーはシーンの shutdown で外す（地域を移ってシーンを作り直しても二重にならない）。
+   */
+  private installBackgroundSave(): void {
+    // PC（タッチでない端末）は今のまま（ページを離れるときに保存して、別のタブのセーブを上書きしない）
+    const touchDevice = (): boolean => isTouchPrimaryDevice() || this.touchView?.active === true;
+    const onHidden = (): void => {
+      if (document.visibilityState === "hidden" && touchDevice()) this.saveNow();
+    };
+    const onPageHide = (): void => {
+      if (touchDevice()) this.saveNow();
+    };
+    const onPause = (): void => {
+      // stella-pause は止めたときも戻したときも来る。止めている間だけ保存する
+      if (portraitPaused()) this.saveNow();
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("stella-pause", onPause);
+    this.events.once("shutdown", () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("stella-pause", onPause);
+    });
   }
 
   /** 今の状態を保存する（自動セーブ）。失敗したら、元のデータを変えずに知らせる。 */

@@ -27,6 +27,7 @@ import { text, type TextKey } from "@stella/content";
 import { setTextColor, setTextWrapWidth } from "./text-style.ts";
 import { type ArenaSimulation, SKILL_SLOTS, type SkillSlot } from "../scenes/arena-simulation.ts";
 import { ACTIONS, type Action, type Binding } from "../input/actions.ts";
+import { isTouchPrimaryDevice } from "../page-shell.ts";
 import {
   ACTION_NAME,
   FIXED_ACTIONS,
@@ -129,6 +130,8 @@ function polygonPath(
 interface JobRowSpec {
   readonly line: TextLine;
   readonly run: (button: "left" | "right") => void;
+  /** 指（タッチ）では2回のタップで決める行か（振り直しなど、取り消せない操作。D-TOUCH-8）。 */
+  readonly confirm?: boolean;
 }
 
 /** 表示した行（自動の確認で、表示の数値を読むため）。 */
@@ -175,7 +178,7 @@ export class EquipmentPanel {
   /** 鍛冶屋で選んだ装備の uid。 */
   private smithSelected: string | undefined;
   /** 鍛冶屋の操作の行（クリックの当たり判定。描くたびに作り直す）。 */
-  private smithRows: { y0: number; y1: number; run: () => void }[] = [];
+  private smithRows: { label: string; y0: number; y1: number; run: () => void }[] = [];
   /**
    * 職紋盤の画面の右の列の操作の行（振り直し・面の切り替え・サブジョブの選択）。右クリックで違う操作をする行もある
    * （サブジョブを戻す）。label は自動の確認で行を探すため。ノードは図（jobCamera）で当てる。
@@ -186,6 +189,8 @@ export class EquipmentPanel {
     x1: number;
     y0: number;
     y1: number;
+    /** 指（タッチ）では2回のタップで決める行か（取り消せない操作）。 */
+    confirm: boolean;
     run: (button: "left" | "right") => void;
   }[] = [];
   /** 職紋盤の画面で、サブジョブ・副職紋の面を出しているか（キャラLv25から。docs/progress D-SUBG-8）。 */
@@ -236,6 +241,8 @@ export class EquipmentPanel {
   private pinch: { readonly a: number; readonly b: number; dist: number } | undefined;
   /** タップで選んだ物（もう一度タップすると決める。装備・売る・ノードを取る など。docs/progress D-TOUCH-8）。 */
   private touchSelected: string | undefined;
+  /** 長押しで選んだ盤のノード（説明を出した状態。同じノードをもう一度長押しすると返す。D-TOUCH-8）。 */
+  private longSelected: string | undefined;
 
   constructor(
     scene: Phaser.Scene,
@@ -329,6 +336,7 @@ export class EquipmentPanel {
     this.pinch = undefined;
     this.dragFinger = undefined;
     this.touchSelected = undefined;
+    this.longSelected = undefined;
   }
 
   /** 盤（星辰盤・職紋盤）の画面か。 */
@@ -376,7 +384,12 @@ export class EquipmentPanel {
         tap.long = true;
         this.hover(tap.x, tap.y);
         this.touchSelected = undefined;
-        this.click(tap.x, tap.y, "right");
+        // 盤のノードの長押しは、説明を出すだけ（返すのは、もう一度同じノードを長押ししたとき）
+        if (this.boardOpen) this.longPressBoard(tap.x, tap.y);
+        else {
+          this.longSelected = undefined;
+          this.click(tap.x, tap.y, "right");
+        }
       });
     this.touchTap = tap;
   }
@@ -441,25 +454,96 @@ export class EquipmentPanel {
   }
 
   /**
-   * タップ＝左クリック。装備・売る・倉庫へ移す・ノードを取る は、1回目のタップで説明を出し（選ぶ）、
-   * 同じ物をもう一度タップしたら決める（誤操作を減らす。docs/progress D-TOUCH-8）。
+   * 盤（星辰盤・職紋盤）の長押し。ノードの上なら、1回目は選ぶだけ（説明を出し、「もう一度長押しで返す」を案内する）、
+   * 同じノードをもう一度長押ししたら返す（右クリック）。右の列の行は、取り消せない行（振り直し）は何もせず、
+   * それ以外（サブジョブの選択など。右クリックで前の候補）は右クリックにする。
+   */
+  private longPressBoard(x: number, y: number): void {
+    if (this.kind === "jobBoard") {
+      const row = this.jobRows.find((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1);
+      if (row !== undefined) {
+        this.longSelected = undefined;
+        if (!row.confirm) row.run("right");
+        return;
+      }
+    }
+    const key = this.nodeKeyAt(x, y);
+    if (key === undefined) {
+      this.longSelected = undefined;
+      return;
+    }
+    if (key !== this.longSelected) {
+      this.longSelected = key;
+      return;
+    }
+    this.longSelected = undefined;
+    this.click(x, y, "right");
+  }
+
+  /** 盤の図のノードの印（星辰盤は star:id・職紋盤は job:id）。ノードが無ければ undefined。 */
+  private nodeKeyAt(x: number, y: number): string | undefined {
+    if (this.kind === "starBoard") {
+      const n = nodeAt(this.sim.db, this.camera, x, y);
+      return n === undefined ? undefined : `star:${n.id}`;
+    }
+    if (this.kind === "jobBoard") {
+      const job = this.jobBoardJob();
+      const n = job === undefined ? undefined : jobNodeAt(this.sim.db, job, this.jobCamera, x, y);
+      return n === undefined ? undefined : `job:${n.id}`;
+    }
+    return undefined;
+  }
+
+  /** 長押しで選んだノードの「もう一度長押しで返す」の案内（そのノードを指している間の、右の列の説明の末尾）。 */
+  private longHint(nodeKey: string): TextLine[] {
+    return this.longSelected === nodeKey
+      ? [{ text: text("touch.panel.longAgain"), color: TEXT_COLOR.highlight }]
+      : [];
+  }
+
+  /**
+   * タップ＝左クリック。取り消せない操作（装備・売る・買う・倉庫へ移す・ノードを取る・鍛冶屋の操作・祭壇の交換・
+   * 転移・振り直し・ロードアウトの切り替え など）は、1回目のタップで選び（説明と「もう一度タップで決める」を出す）、
+   * 同じ物をもう一度タップしたら決める。別の物に触れたら選び直し（誤操作を減らす。docs/progress D-TOUCH-8）。
    */
   tap(x: number, y: number): void {
     this.hover(x, y);
+    this.longSelected = undefined;
     const key = this.confirmKey(x, y);
     if (key !== undefined && key !== this.touchSelected) {
       this.touchSelected = key;
-      this.say(text("touch.panel.tapAgain"), TEXT_COLOR.dim);
       return;
     }
     this.touchSelected = undefined;
     this.click(x, y, "left");
   }
 
+  /** 右の列の操作の行（鍛冶屋・商人・祭壇・転移の石）の、タップの印。行に当たらなければ undefined。 */
+  private detailRowKey(y: number): string | undefined {
+    const row = this.smithRows.find((r) => y >= r.y0 && y < r.y1);
+    return row === undefined ? undefined : `row:${row.label}`;
+  }
+
+  /** 選んだ行の帯（指で1回目のタップをした行。「もう一度タップで決める」の目印）。 */
+  private selectedBand(key: string, x: number, y0: number, width: number, y1: number): void {
+    if (this.touchSelected !== key) return;
+    this.g.fillStyle(0x3a4d2c, 1).fillRect(x - 2, y0 - 1, width, y1 - y0 + 1);
+    this.g.lineStyle(1, 0x7bd389, 1).strokeRect(x - 2, y0 - 1, width, y1 - y0 + 1);
+  }
+
   /** もう一度のタップで決める物（その画面で左クリックすると取り消しにくい操作をする物）。無ければ undefined。 */
   private confirmKey(x: number, y: number): string | undefined {
     const sim = this.sim;
+    if (this.kind === "teleport" || this.kind === "altar" || this.kind === "smith")
+      return x >= PANEL.detail.x ? this.detailRowKey(y) : undefined;
     if (this.kind === "inventory" || this.kind === "merchant" || this.kind === "stash") {
+      if (this.kind === "merchant" && x >= PANEL.detail.x) return this.detailRowKey(y);
+      if (this.kind === "inventory") {
+        // ロードアウトの切り替え（番号の枠）
+        const lo = LOADOUT_ROW;
+        if (y >= lo.y && y < lo.y + lo.h && x >= lo.x && x < lo.x + lo.w * MAX_LOADOUTS)
+          return `loadout:${String(Math.floor((x - lo.x) / lo.w) + 1)}`;
+      }
       if (this.kind === "stash") {
         const si = stashCellAt(x, y);
         if (si !== undefined) {
@@ -467,7 +551,6 @@ export class EquipmentPanel {
           return item === undefined ? undefined : `stash:${item.uid}`;
         }
       }
-      if (this.kind === "merchant" && x >= PANEL.detail.x) return undefined;
       const t = inventoryTarget(x, y);
       if (t?.kind === "item") {
         const item = sim.inventory.items[t.index];
@@ -479,16 +562,14 @@ export class EquipmentPanel {
     }
     if (this.kind === "starBoard") {
       const r = this.respecRow;
-      if (r !== undefined && x >= BOARD_DETAIL.x && y >= r.y0 && y < r.y1) return undefined;
-      const n = nodeAt(sim.db, this.camera, x, y);
-      return n === undefined ? undefined : `star:${n.id}`;
+      if (r !== undefined && x >= BOARD_DETAIL.x && y >= r.y0 && y < r.y1) return "respec";
+      return this.nodeKeyAt(x, y);
     }
     if (this.kind === "jobBoard") {
-      if (this.jobRows.some((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1))
-        return undefined;
-      const job = this.jobBoardJob();
-      const n = job === undefined ? undefined : jobNodeAt(sim.db, job, this.jobCamera, x, y);
-      return n === undefined ? undefined : `job:${n.id}`;
+      // 右の列の行：振り直しなど取り消せない行は2回のタップ。面の切り替え・サブジョブの選択は1回（取り消せる）
+      const row = this.jobRows.find((r) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1);
+      if (row !== undefined) return row.confirm ? `row:${row.label}` : undefined;
+      return this.nodeKeyAt(x, y);
     }
     return undefined;
   }
@@ -693,6 +774,15 @@ export class EquipmentPanel {
     return this.settingsRows.map((r) => ({
       label: r.label,
       x: (r.x0 + r.x1) / 2,
+      y: (r.y0 + r.y1) / 2,
+    }));
+  }
+
+  /** 右の列の操作の行（鍛冶屋・商人・祭壇・転移の石）の位置（自動の確認用）。 */
+  detailRowBoxes(): readonly { label: string; x: number; y: number }[] {
+    return this.smithRows.map((r) => ({
+      label: r.label,
+      x: PANEL.detail.x + 10,
       y: (r.y0 + r.y1) / 2,
     }));
   }
@@ -938,6 +1028,19 @@ export class EquipmentPanel {
           { text: this.message.text, color: this.message.color },
           0,
         );
+      else if (this.touchSelected !== undefined || this.longSelected !== undefined)
+        // 指で1回目に触れた物がある間の案内（もう一度タップ・もう一度長押しで決める）
+        this.line(
+          PANEL.x + 8,
+          PANEL.y + PANEL.height - 14,
+          {
+            text: text(
+              this.touchSelected === undefined ? "touch.panel.longAgain" : "touch.panel.tapAgain",
+            ),
+            color: TEXT_COLOR.highlight,
+          },
+          0,
+        );
     }
     for (let i = this.used; i < this.pool.length; i++) this.pool[i]?.setVisible(false);
   }
@@ -1017,6 +1120,7 @@ export class EquipmentPanel {
       const x = lo.x + (id - 1) * lo.w;
       const active = sim.activeLoadout === id;
       const exists = sim.loadouts.some((l) => l.id === id);
+      this.selectedBand(`loadout:${String(id)}`, x, lo.y, lo.w - 4, lo.y + lo.h);
       this.g.lineStyle(1, active ? 0xffd166 : 0x4a4858, 1).strokeRect(x, lo.y, lo.w - 4, lo.h);
       this.line(x + 4, lo.y + 1, {
         text: `${String(id)}${exists ? "" : "（空き）"}`,
@@ -1246,12 +1350,13 @@ export class EquipmentPanel {
           board,
           allocated.has(node.id),
           sim.stars.allocateBlock(node.id, sim.starRoot, sim.starPoints),
-        ),
+        ).concat(this.longHint(`star:${node.id}`)),
         d.width,
       );
     const dormantCount = board?.dormant.size ?? 0;
     // 全体の振り直し（町の星読み師。MVPでは無料）。安全地帯だけ
     this.respecRow = { y0: y + 6, y1: y + 6 + LINE };
+    this.selectedBand("respec", d.x, y + 6, d.width, y + 6 + LINE);
     this.line(d.x, y + 6, {
       text: sim.inSafeZone
         ? "［全体の振り直し（無料）］"
@@ -1412,7 +1517,8 @@ export class EquipmentPanel {
         [{ text: a.label, color: a.enabled ? TEXT_COLOR.good : TEXT_COLOR.dim }],
         d.width,
       );
-      if (a.enabled) this.smithRows.push({ y0, y1: y, run: a.run });
+      if (a.enabled) this.smithRows.push({ label: a.label, y0, y1: y, run: a.run });
+      this.selectedBand(`row:${a.label}`, d.x, y0, d.width, y);
     }
   }
 
@@ -1532,7 +1638,8 @@ export class EquipmentPanel {
         [{ text: r.label, color: r.enabled ? TEXT_COLOR.good : TEXT_COLOR.dim }],
         d.width,
       );
-      this.smithRows.push({ y0, y1: y, run: r.run });
+      this.smithRows.push({ label: r.label, y0, y1: y, run: r.run });
+      this.selectedBand(`row:${r.label}`, d.x, y0, d.width, y);
     }
   }
 
@@ -1572,6 +1679,7 @@ export class EquipmentPanel {
           text: `▶ 全て振り直す（金貨 ${String(cost)}。安全地帯だけ）　所持 ${String(sim.inventory.gold)}`,
           color: sim.inventory.gold >= cost && board.spent > 0 ? TEXT_COLOR.good : TEXT_COLOR.dim,
         },
+        confirm: true,
         run: () => {
           if (sim.resetJobBoard()) this.say("職紋盤を全て振り直した", TEXT_COLOR.good);
           else this.say("振り直せない（安全地帯・金貨・取得したノードが要る）");
@@ -1623,8 +1731,11 @@ export class EquipmentPanel {
         x1: d.x + d.width,
         y0: y,
         y1: y + p.h,
+        confirm: p.spec.confirm === true,
         run: p.spec.run,
       });
+      if (p.spec.confirm === true)
+        this.selectedBand(`row:${p.spec.line.text}`, d.x, y, d.width, y + p.h);
       y -= 6;
     }
     return y;
@@ -1652,7 +1763,12 @@ export class EquipmentPanel {
         d.width,
       );
     const { state, block } = jobNodeState(board, node.id, points);
-    return this.lines(d.x, y, jobNodeLines(db, node, state, block, role), d.width);
+    return this.lines(
+      d.x,
+      y,
+      jobNodeLines(db, node, state, block, role).concat(this.longHint(`job:${node.id}`)),
+      d.width,
+    );
   }
 
   /**
@@ -1830,6 +1946,7 @@ export class EquipmentPanel {
       x1: d.x + d.width,
       y0: top,
       y1: y,
+      confirm: false,
       run: (button) => {
         const r = sim.cycleSubJob(button === "right" ? -1 : 1);
         this.hovered = undefined;
@@ -1873,6 +1990,7 @@ export class EquipmentPanel {
           text: `▶ ${text("subjob.board")}を全て振り直す（金貨 ${String(cost)}。安全地帯だけ）　所持 ${String(sim.inventory.gold)}`,
           color: sim.inventory.gold >= cost && board.spent > 0 ? TEXT_COLOR.good : TEXT_COLOR.dim,
         },
+        confirm: true,
         run: () => {
           if (sim.resetSubJobBoard())
             this.say(`${text("subjob.board")}を全て振り直した`, TEXT_COLOR.good);
@@ -1914,18 +2032,21 @@ export class EquipmentPanel {
         const base = db.itemBases.get(baseId);
         if (base === undefined) continue;
         const y0 = y;
+        const label = `◆ ${text(base.text as TextKey)}`;
         y = this.lines(
           d.x,
           y,
           [
             {
-              text: `◆ ${text(base.text as TextKey)}（必要Lv${String(base.requiredLevel)}）`,
+              text: `${label}（必要Lv${String(base.requiredLevel)}）`,
               color: have >= ALTAR_TOKEN_COST ? TEXT_COLOR.highlight : TEXT_COLOR.dim,
             },
           ],
           d.width,
         );
+        this.selectedBand(`row:${label}`, d.x, y0, d.width, y);
         this.smithRows.push({
+          label,
           y0,
           y1: y,
           run: () => {
@@ -1968,7 +2089,9 @@ export class EquipmentPanel {
     for (const dest of dests) {
       const y0 = y;
       y = this.lines(d.x, y, [{ text: `→ ${dest.name}`, color: TEXT_COLOR.good }], d.width);
+      this.selectedBand(`row:→ ${dest.name}`, d.x, y0, d.width, y);
       this.smithRows.push({
+        label: `→ ${dest.name}`,
         y0,
         y1: y,
         run: () => {
@@ -2048,9 +2171,10 @@ export class EquipmentPanel {
       x1: x0 + colW * 2,
       y0: ty,
       y1: y,
-      label: text("settings.touch"),
+      label: fill(text("settings.touch"), { state: text(`settings.touch.${s.touch}`) }),
       run: () => {
-        host.set({ ...s, touch: nextTouchSetting(s.touch) });
+        // 主な入力がタッチの端末では off を選べない（auto ↔ on だけ。off にすると指で操作できなくなる。D-TOUCH-10）
+        host.set({ ...s, touch: nextTouchSetting(s.touch, !isTouchPrimaryDevice()) });
       },
     });
     // 詳しい情報（開発用の文字の HUD）の表示（D-HUD-1）。e2e は後ろから数えて音量・拡大率・初期に戻すを押すので、その前に置く
